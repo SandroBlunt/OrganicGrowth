@@ -1,10 +1,10 @@
-# Subtext
+# OrganicGrowth
 
-**Organic-social intelligence for Facebook.** Subtext finds what's trending among your peers,
+**Organic-social intelligence for Facebook.** OrganicGrowth finds what's trending among your peers,
 suggests brand-fit **content ideas** (briefs, not finished posts), and tracks how the posts you make
 from them perform — feeding real performance back so next week's ideas are sharper.
 
-> Subtext does **not** generate content. It hands the Operator a brief; a human writes the caption
+> OrganicGrowth does **not** generate content. It hands the Operator a brief; a human writes the caption
 > and shoots the Reel. See [`CONTEXT.md`](./CONTEXT.md) for the full domain language.
 
 ## The weekly loop

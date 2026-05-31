@@ -1,6 +1,6 @@
 ---
 name: report
-description: "Show the Subtext pipeline state: ideas by status, this run's Fit Scores, posted ideas' Performance Scores, and what's feeding back."
+description: "Show the OrganicGrowth pipeline state: ideas by status, this run's Fit Scores, posted ideas' Performance Scores, and what's feeding back."
 ---
 
 # /report

@@ -1,14 +1,14 @@
-# Subtext
+# OrganicGrowth
 
-Subtext is an organic-social **intelligence** system for **Facebook** (Pages & Reels): it finds
+OrganicGrowth is an organic-social **intelligence** system for **Facebook** (Pages & Reels): it finds
 trending themes, suggests brand-fit content **ideas** for a human to execute, and tracks how the
 resulting posts perform — feeding real performance back so the next round of ideas is sharper. It
 does **not** generate finished content; a human writes the captions and shoots the Reels.
 
-> Domain doc for the **Subtext** repo. The `self-healing-marketing-agent` repo is a **high-level
+> Domain doc for the **OrganicGrowth** repo. The `self-healing-marketing-agent` repo is a **high-level
 > reference for the content-pipeline *shape* only** (find trends → suggest ideas → track performance →
 > feed back); its technical implementation is considered **flawed and is not reused** — no scoring
-> formulas, contracts, or modules carry over. Subtext defines a fresh process and a fresh technical
+> formulas, contracts, or modules carry over. OrganicGrowth defines a fresh process and a fresh technical
 > approach. Captured during the design grilling; refined as decisions land.
 
 ## Language
@@ -19,7 +19,7 @@ describe.
 _Avoid_: account, profile, handle.
 
 **Operator**:
-The single human-in-the-loop who runs Subtext — sets the weekly Trend Research parameters, reviews
+The single human-in-the-loop who runs OrganicGrowth — sets the weekly Trend Research parameters, reviews
 and rejects Ideas (with reasons), creates the content, and logs the Post URLs.
 _Avoid_: user, admin (be specific — the Operator is the marketer driving the loop).
 
@@ -56,7 +56,7 @@ suggestions is a deferred decision.
 _Avoid_: note, comment.
 
 **Post**:
-The published content a human created by executing an Idea; the unit Subtext measures. One Idea
+The published content a human created by executing an Idea; the unit OrganicGrowth measures. One Idea
 yields at most one Post (zero if the human never actions it).
 _Avoid_: draft, idea, content.
 
@@ -84,7 +84,7 @@ _Avoid_: Fit Score (the pre-publication prediction), raw views.
 **Fit Score**:
 A pre-publication *prediction* (0–1) of how well an Idea suits the Channel and rides a live Trend —
 our guess at an Idea's quality before a human acts on it. How it's computed is an open decision,
-designed fresh for Subtext (not inherited).
+designed fresh for OrganicGrowth (not inherited).
 _Avoid_: quality score, performance (Performance is *measured*, Fit Score is *predicted*).
 
 **Brand Profile**:
@@ -101,7 +101,7 @@ How hot a Trend is right now, derived from Apify engagement on *other people's* 
 
 **Relevance**:
 How well a candidate Trend/Idea resembles our top-performing past Posts. The method is an open
-decision, designed fresh for Subtext.
+decision, designed fresh for OrganicGrowth.
 
 ## Relationships
 
@@ -127,7 +127,7 @@ decision, designed fresh for Subtext.
 
 ## Flagged ambiguities
 
-- **platform** — Subtext targets **Facebook** (Pages/Reels), not Instagram. The source repo's
+- **platform** — OrganicGrowth targets **Facebook** (Pages/Reels), not Instagram. The source repo's
   Instagram framing is replaced; `platform` stays a field but defaults to `facebook`.
 - **Apify does two jobs; Meta export is optional** — **Apify** scrapes *other people's* posts for
   **Trend** discovery AND *our own* posts (by logged URL) for **Performance** — both **public metrics
@@ -135,7 +135,7 @@ decision, designed fresh for Subtext.
   watch-through, Distribution Multiplier) come only from **Meta's Content export**, used as optional
   manual enrichment.
 - **"idea" vs "draft/content"** — the source repo's `ContentDraft` (finished hook + caption +
-  hashtags) is *content generation*, which Subtext excludes. An **Idea** stops at a Brief; a **Post**
+  hashtags) is *content generation*, which OrganicGrowth excludes. An **Idea** stops at a Brief; a **Post**
   is the finished thing, created by a human.
 - **"score"** — split three ways: **Fit Score** (predicted, pre-publication), **Performance**
   (the measured bundle of metrics, post-publication), and **Performance Score** (the single headline

@@ -4,12 +4,12 @@ Guidance for Claude Code when operating in this repository.
 
 ## Project Overview
 
-**Subtext** is an organic-social *intelligence* system for **Facebook** (Pages & Reels). It runs a
+**OrganicGrowth** is an organic-social *intelligence* system for **Facebook** (Pages & Reels). It runs a
 weekly loop: discover what's trending among peer Pages → suggest brand-fit **Idea briefs** → (a human
 makes and posts the content) → track the posts' performance → feed it back so the next round of ideas
 is sharper.
 
-**Subtext never generates finished content.** An Idea stops at a brief (angle, hook *concept*,
+**OrganicGrowth never generates finished content.** An Idea stops at a brief (angle, hook *concept*,
 talking points, hashtags). The Operator writes the caption and shoots the Reel.
 
 The domain language is defined in [`CONTEXT.md`](./CONTEXT.md) — read it before working here.
@@ -22,7 +22,7 @@ The domain language is defined in [`CONTEXT.md`](./CONTEXT.md) — read it befor
 | `idea-strategist` | Opus | Turns Trends into ranked, brand-fit **Idea briefs** with a predicted **Fit Score** |
 | `performance-tracker` | Sonnet | Pulls posts' **public** metrics via Apify; computes **Performance Score**; updates the feedback loop |
 
-## The Subtext pipeline (weekly loop)
+## The OrganicGrowth pipeline (weekly loop)
 
 Run once a week. Steps marked 👤 are the Operator.
 
@@ -40,7 +40,7 @@ Run once a week. Steps marked 👤 are the Operator.
 6. `/report` → pipeline state, Fit Score vs actual Performance, what's feeding back.
 
 **Pipeline rules:** sequential; the strategist must respect `brand-profile.yaml`; the Operator
-reviews before any content is made; Subtext never writes the finished post.
+reviews before any content is made; OrganicGrowth never writes the finished post.
 
 ## State
 
@@ -58,5 +58,5 @@ status). Update the ledger on every status change.
 ## Rules & Standards
 
 Always-on rules live in `.claude/rules/always/` and are loaded automatically:
-- `subtext-rules.md` — the non-negotiables (no content generation, public-metrics-only, relative-not-absolute, explicit attribution).
+- `organicgrowth-rules.md` — the non-negotiables (no content generation, public-metrics-only, relative-not-absolute, explicit attribution).
 - `data-handling.md` — secrets, exports, defensive parsing.

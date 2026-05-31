@@ -1,11 +1,11 @@
 ---
-description: Non-negotiable rules for every agent and command in Subtext
+description: Non-negotiable rules for every agent and command in OrganicGrowth
 globs: *
 ---
 
-# Subtext Rules
+# OrganicGrowth Rules
 
-1. **Never generate finished content.** Subtext produces Idea *briefs* (angle, hook concept, talking
+1. **Never generate finished content.** OrganicGrowth produces Idea *briefs* (angle, hook concept, talking
    points, hashtags). It never writes the caption, script, or on-screen copy — a human does that.
 2. **Two Apify jobs, never confused.** trend-scout scrapes **peers** for Trends; performance-tracker
    scrapes **our own** posts for Performance. Both are **public metrics only**.

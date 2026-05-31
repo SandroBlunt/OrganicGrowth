@@ -6,7 +6,7 @@
 
 Our own Facebook Page exposes rich first-party Insights via Meta's Content export — Saves,
 Net-follows, watch-through (avg seconds viewed), and a Distribution Multiplier (`+0.1x` / `-3.7x`).
-But Subtext drives **both** data jobs through **Apify** (one integration, one API key, fully
+But OrganicGrowth drives **both** data jobs through **Apify** (one integration, one API key, fully
 automatable from Claude Code), and Apify can only see a post's **public** signals: reactions,
 comments, shares, and Reel view counts. Saves, per-post follows, watch-through, and the distribution
 multiplier are **not** publicly scrapable.

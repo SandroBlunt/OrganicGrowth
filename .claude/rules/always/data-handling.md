@@ -1,5 +1,5 @@
 ---
-description: Secrets, external data, and defensive parsing for Subtext
+description: Secrets, external data, and defensive parsing for OrganicGrowth
 globs: *
 ---
 

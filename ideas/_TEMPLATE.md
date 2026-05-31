@@ -29,4 +29,4 @@ performance_score: null    # set by /track-performance
 
 **Why it fits us (Fit Score rationale):** <relevance to our top performers + brand fit + momentum>
 
-> Subtext stops here. The Operator writes the caption and shoots the Reel.
+> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
