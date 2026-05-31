@@ -1,0 +1,11 @@
+# Secrets
+.env
+
+# Private Meta exports (may contain non-public Insights). Keep the folder, ignore contents.
+data/your-data/*
+!data/your-data/.gitkeep
+
+# Scratch
+*.tmp
+*.log
+.DS_Store

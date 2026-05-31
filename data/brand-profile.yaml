@@ -1,0 +1,26 @@
+# Who we are. The idea-strategist treats these as hard brand constraints.
+# Fill in the TODOs for your Channel.
+
+channel:
+  name: MundoTip
+  platform: facebook
+  url: "https://www.facebook.com/profile.php?id=61587243992554"
+
+niche: "Life hacks, household tips & tricks"
+language: es          # content language (Spanish)
+region: LATAM
+
+voice: >
+  Punchy and curiosity-driven. Short sentences. Open with a surprising claim or a relatable
+  problem, deliver one clear payoff, end with a light nudge to engage. Friendly, never preachy.
+
+formats: [reel]       # primary format(s) we make
+
+# Brand-safety / hard rules an Idea must respect:
+required_cta: ""             # set a verbatim CTA here if you enforce one
+required_hashtags: []        # FB hashtags are weak — optional
+banned_words: []             # words/claims to never use
+brand_safety:
+  - "No medical or 'cure' claims."
+  - "No dangerous stunts presented as safe."
+  - "No misleading 'miracle' framing."

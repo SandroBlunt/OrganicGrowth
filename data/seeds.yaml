@@ -1,0 +1,24 @@
+# Basic parameters the Operator sets for the weekly Trend Research Run (/run-trends).
+# trend-scout reads this file.
+
+# Primary 'trending' signal: peer / competitor Pages to scrape.
+seed_pages:
+  - "TODO: https://www.facebook.com/<peer-page-1>"
+  - "TODO: https://www.facebook.com/<peer-page-2>"
+
+# Optional topic augmentation (keyword search).
+keywords:
+  - "trucos caseros"
+  - "life hacks"
+
+language: es
+region: LATAM
+lookback_days: 7           # only consider peer posts from the last N days
+format_focus: reel
+ideas_per_run: 10
+overperformance_only: true # only mine peer posts beating their OWN page baseline
+
+# Apify actors (slugs vary — confirm/replace for the actor you have access to).
+apify:
+  trends_actor: "apify/facebook-posts-scraper"   # scrapes a Page's recent posts
+  post_actor:   "apify/facebook-post-scraper"    # scrapes one post's public metrics by URL
