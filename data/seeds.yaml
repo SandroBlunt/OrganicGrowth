@@ -3,8 +3,9 @@
 
 # Primary 'trending' signal: peer / competitor Pages to scrape.
 seed_pages:
-  - "TODO: https://www.facebook.com/<peer-page-1>"
-  - "TODO: https://www.facebook.com/<peer-page-2>"
+  - "https://www.facebook.com/lifehackIG"
+  - "https://www.facebook.com/tudodereceitasES"   # NOTE: PT recipes, off es/LATAM niche
+  - "https://www.facebook.com/ahoralosabesoficial" # suggested: ES life-hacks Page (verified handle)
 
 # Optional topic augmentation (keyword search).
 keywords:

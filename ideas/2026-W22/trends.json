@@ -1,0 +1,107 @@
+[
+  {
+    "id": "T01",
+    "label": "Rutina matutina / trucos para despertar bien",
+    "momentum": 2.22,
+    "evidence": [
+      {
+        "page": "lifehackIG",
+        "url": "https://www.facebook.com/reel/1552567153045436/",
+        "overperformance": 2.22,
+        "text": "I hate waking up like this fr!"
+      }
+    ],
+    "cluster_notes": "Single post, but the strongest over-performer this week (2.22x vs page baseline). Relatable-complaint hook ('I hate waking up like this') drove high engagement. Maps cleanly to MundoTip's household/daily-routine lane. Only one evidence post — treat as an emerging signal, not a confirmed trend.",
+    "brand_fit": "on-brand",
+    "ai_computer_hack_signal": false,
+    "example_hooks": [
+      "Odias despertarte sintiéndote así? Este truco lo cambia todo.",
+      "Lo que pasa en tus primeros 10 minutos en la mañana define tu día — aquí el hack."
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "T02",
+    "label": "Trucos de higiene y cuidado personal (afeitado, cabello, bienestar)",
+    "momentum": 1.51,
+    "evidence": [
+      {
+        "page": "lifehackIG",
+        "url": "https://www.facebook.com/reel/2179118259610992/",
+        "overperformance": 1.91,
+        "text": "Shaving hacks"
+      },
+      {
+        "page": "lifehackIG",
+        "url": "https://www.facebook.com/reel/2105961326645359/",
+        "overperformance": 1.55,
+        "text": "Hair hacks everyone should know!"
+      },
+      {
+        "page": "lifehackIG",
+        "url": "https://www.facebook.com/reel/1318430557080413/",
+        "overperformance": 1.08,
+        "text": "These Lifehacks will make you feel better"
+      }
+    ],
+    "cluster_notes": "Three posts across grooming sub-topics all beat baseline. Average momentum 1.51x. The 'hacks everyone should know' framing performed consistently. Maps to MundoTip's personal-care / household tips niche. Source page is English — concept transfers to es-LATAM audience.",
+    "brand_fit": "on-brand",
+    "ai_computer_hack_signal": false,
+    "example_hooks": [
+      "Trucos de afeitado que nadie te enseñó — y marcan la diferencia.",
+      "Hacks para el cabello que toda mujer debería conocer.",
+      "Pequeños trucos que te hacen sentir 10 veces mejor."
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "T03",
+    "label": "Trucos de cocina y preparación de alimentos (parrilla, cocina rápida)",
+    "momentum": 1.58,
+    "evidence": [
+      {
+        "page": "lifehackIG",
+        "url": "https://www.facebook.com/reel/2207561680055476/",
+        "overperformance": 1.60,
+        "text": "Bbq hacks"
+      },
+      {
+        "page": "lifehackIG",
+        "url": "https://www.facebook.com/reel/1319296196199059/",
+        "overperformance": 1.55,
+        "text": "Food hacks you never knew!"
+      }
+    ],
+    "cluster_notes": "Two posts — BBQ/grill hacks and general food hacks — both just above 1.5x. Tight cluster around kitchen shortcuts and food preparation. The 'never knew' discovery hook performed on food content. Strong fit for MundoTip's household tips niche. Note: BBQ is seasonally relevant (late May). Average momentum 1.58x.",
+    "brand_fit": "on-brand",
+    "ai_computer_hack_signal": false,
+    "example_hooks": [
+      "Trucos de cocina que nunca te enseñaron — y deberían.",
+      "¿Asas seguido? Estos trucos te van a cambiar la vida.",
+      "Lo que los buenos cocineros hacen diferente (y es súper fácil)."
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "T04",
+    "label": "Higiene del hogar / hechos que dan asco (limpieza profunda, ácaros, bacterias)",
+    "momentum": 1.25,
+    "evidence": [
+      {
+        "page": "lifehackIG",
+        "url": "https://www.facebook.com/reel/978321727906401/",
+        "overperformance": 1.25,
+        "text": "Bed you didn't know about the dust mites!"
+      }
+    ],
+    "cluster_notes": "Single post, 1.25x. 'Disgust-reveal' hook (you didn't know X was in your bed) drove shares and reactions. Strong fit for household hygiene content. MundoTip's lane. Single evidence post — weak confidence compared to T02 and T03.",
+    "brand_fit": "on-brand",
+    "ai_computer_hack_signal": false,
+    "example_hooks": [
+      "Lo que vive en tu colchón (y cómo eliminarlo hoy mismo).",
+      "Ácaros, polvo y bacterias: la limpieza que no puedes ignorar.",
+      "¿Cuándo fue la última vez que lavaste esto? Te va a sorprender."
+    ],
+    "suggested_format": "reel"
+  }
+]
