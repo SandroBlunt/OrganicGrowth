@@ -5,8 +5,10 @@ globs: *
 
 # OrganicGrowth Rules
 
-1. **Never generate finished content.** OrganicGrowth produces Idea *briefs* (angle, hook concept, talking
-   points, hashtags). It never writes the caption, script, or on-screen copy — a human does that.
+1. **Generate the Asset, never publish it.** The `producer` renders an accepted Idea into an **Asset**
+   (a Reel) by driving a pre-defined Magnific Space. OrganicGrowth never *publishes*: a human reviews,
+   picks the **Character**, posts to Facebook, and logs the URL. The human gate is **publication**, not
+   creation (see `docs/adr/0002`).
 2. **Two Apify jobs, never confused.** trend-scout scrapes **peers** for Trends; performance-tracker
    scrapes **our own** posts for Performance. Both are **public metrics only**.
 3. **Predicted vs measured.** A **Fit Score** is a pre-publication prediction; a **Performance Score**
@@ -24,3 +26,9 @@ globs: *
 9. **Respect the brand profile.** Banned words and brand-safety rules in `brand-profile.yaml` are hard
    filters on every Idea.
 10. **Weekly cadence.** One Run per week unless the Operator explicitly asks otherwise.
+11. **Three human gates; production runs itself between them.** The pipeline pauses only at **Review**,
+    **Cast pick**, and **Publish**. Accepting an Idea **auto-enqueues** it; the `producer` drains the
+    **Production Queue** in the background, **one Space generation at a time** (the Space has no
+    parallelism), and an Idea paused at a gate never holds the Space. The agent never asks the Operator
+    to run a mechanical step, and never renders past a gate before the Operator acts (see
+    `docs/adr/0003`, `docs/adr/0004`).

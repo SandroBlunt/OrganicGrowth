@@ -1,7 +1,7 @@
 ---
 id: idea-<run>-<nn>
 run: <YYYY-Www>
-status: suggested          # suggested → accepted | rejected → posted → tracking → scored
+status: suggested          # suggested → accepted → casting → produced → posted → tracking → scored | rejected
 trend: "<peer trend this rides>"
 fit_score: 0.00            # predicted 0–1, set by idea-strategist
 rejection_reason: null     # logged verbatim at /review-ideas if rejected
@@ -29,4 +29,5 @@ performance_score: null    # set by /track-performance
 
 **Why it fits us (Fit Score rationale):** <relevance to our top performers + brand fit + momentum>
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

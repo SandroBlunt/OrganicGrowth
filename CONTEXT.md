@@ -1,9 +1,11 @@
 # OrganicGrowth
 
-OrganicGrowth is an organic-social **intelligence** system for **Facebook** (Pages & Reels): it finds
-trending themes, suggests brand-fit content **ideas** for a human to execute, and tracks how the
-resulting posts perform — feeding real performance back so the next round of ideas is sharper. It
-does **not** generate finished content; a human writes the captions and shoots the Reels.
+OrganicGrowth is an organic-social **intelligence + production** system for **Facebook** (Pages &
+Reels): it finds trending themes, turns the strongest into brand-fit **Ideas**, renders each accepted
+Idea into a publish-ready **Asset** via a Magnific flow, and tracks how the resulting posts perform —
+feeding real performance back so the next round of ideas is sharper. It **generates the Asset but
+never publishes**: a human reviews, publishes the Reel/Post to the Channel, and logs the URL. The
+human gate moved from *creation* to *publication* — it was never removed (see ADR-0002).
 
 > Domain doc for the **OrganicGrowth** repo. The `self-healing-marketing-agent` repo is a **high-level
 > reference for the content-pipeline *shape* only** (find trends → suggest ideas → track performance →
@@ -55,9 +57,63 @@ Review. For v1 it is **logged only** (stored with the Idea); whether/how it late
 suggestions is a deferred decision.
 _Avoid_: note, comment.
 
+**Production Spec**:
+The strict, schema'd JSON the **Producer** generates from an accepted Idea to drive the Space's
+**"JSON master"** input node: 3 `character_concepts`, exactly 3 narrative `clips` (each with
+`image_prompt` + `video_prompt`), and top-level `post_copy` (≤180 chars, 1–3 emojis) and 3
+`thumbnails` — all bound by the Space's style guide (Pixar 3D, anthropomorphic character, Veo 3.1,
+8s clips, 9:16). The machine-readable sibling of a **Brief**.
+_Avoid_: prompt, payload, config (it's the Space's input *contract*).
+
+**Cast**:
+The set of candidate character images the **Producer** renders from a **Production Spec**'s
+`character_concepts` and returns to the **Operator** to choose from — a second human gate, *inside*
+production (the first being **Review**).
+_Avoid_: characters, variants, options.
+
+**Character** (the lead):
+The single **Cast** member the **Operator** selects; pinned in the Space as the visual reference every
+clip and thumbnail is rendered against. The Producer resumes only once it is set.
+_Avoid_: cast (the Cast is the set, the Character is the chosen one), actor.
+
+**Asset**:
+The publish-ready media (image/Reel) the **Producer** renders from an accepted Idea by feeding a
+**Production Spec** into a pre-defined **Magnific Space** and running it. It exists but is **not
+yet published** — the Operator reviews it and publishes it. One Idea yields at most one Asset.
+_Avoid_: draft, content, creative, Creation (Magnific's own word), post (a Post is *published*).
+
+**Producer**:
+The agent that renders an accepted **Idea/Brief** into an **Asset** by driving a pre-defined Magnific
+Space. It is a **thin, self-configuring runner**: it reads the Space's own generation contract (its
+system prompt) and its **Execution Protocol** from the canvas, then executes. It **generates, never
+publishes**.
+_Avoid_: generator, studio, creator.
+
+**Execution Protocol**:
+The ordered set of run-points (which node to run, in which mode, and where the human **gates** are)
+that tells the **Producer** how to drive a Space end-to-end. It lives **on the Space itself**, so it
+evolves with the canvas rather than drifting in a separate repo; the Producer reads it at run time.
+_Avoid_: script, pipeline (the Space is the pipeline; the Protocol is how to run it).
+
+**Fallback Protocol**:
+The Producer's recovery path when a run-point is missing, stale, or fails (e.g. the Space changed) —
+and the way it sets node contents that can't be set directly (injecting the **Production Spec**,
+pinning the **Character**): it delegates to the Space's in-canvas **agent** with a natural-language
+goal instead of a fixed node run.
+_Avoid_: error handling, retry.
+
+**Production Queue**:
+The serialized backlog of Space generations the **Producer** owns. The Space runs **one generation at
+a time**, so accepting an Idea **enqueues** it and the Producer works the queue in order — one Space
+run at once. An Idea paused at its **Cast** gate does **not** hold the Space: the Producer advances the
+next queued generation while the Operator decides, then queues the **render** once a Character is
+picked.
+_Avoid_: batch, backlog, jobs.
+
 **Post**:
-The published content a human created by executing an Idea; the unit OrganicGrowth measures. One Idea
-yields at most one Post (zero if the human never actions it).
+The published content on the **Channel** — the Operator publishes an **Asset** to create it; the unit
+OrganicGrowth measures. One Idea yields at most one Asset and at most one Post (zero if never
+published).
 _Avoid_: draft, idea, content.
 
 **Performance**:
@@ -108,7 +164,9 @@ decision, designed fresh for OrganicGrowth.
 - The **Operator** launches a weekly **Run** with basic parameters (niche, seeds/competitors, language, format, how many ideas)
 - A **Run** scrapes **Trends** (Apify) and turns the strongest into **suggested Ideas**
 - The **Operator Reviews** the suggested Ideas — **accepting** some, **rejecting** others with a **Rejection Reason**
-- Each accepted **Idea** carries a predicted **Fit Score** and is executed by the Operator into at most one **Post**, whose **URL is logged** for tracking (attribution is stated, never inferred)
+- Each accepted **Idea** carries a predicted **Fit Score**; the **Producer** compiles it into a **Production Spec** (strict JSON), runs the **Space** to render a **Cast**, the **Operator** picks the **Character**, and the Producer resumes to render at most one **Asset** — which the Operator reviews and **publishes** into at most one **Post**, whose **URL is logged** for tracking (attribution is stated, never inferred)
+- Production has **two human gates**: **Review** (accept the Idea) and **Cast** selection (pick the Character). The Producer pauses at each; nothing renders past a gate until the Operator acts
+- **Accepting an Idea enqueues it** for production; the Producer drains the **Production Queue** in the background, **one Space generation at a time** (the Space has no parallelism). Gated Ideas never hold the Space
 - A **Post** earns **Performance**, refreshed over time from the Meta export — a moving number, not a snapshot — which collapses to a **Performance Score**
 - **Feedback** sharpens the next Run's Ideas:
   - **Performance feedback** *(active loop)* — *post-publication*: measured Performance Scores flow into **Your Data**, re-weighting **Relevance**
@@ -142,3 +200,8 @@ decision, designed fresh for OrganicGrowth.
   number distilled from Performance that the loop optimises for). Never conflate.
 - **raw vs relative** — the Channel can go viral off one Reel (May 2026: 14.4M views in a day), so
   absolute Views are a misleading signal. Prefer measures relative to the Channel's own baseline.
+- **generate vs publish** — OrganicGrowth originally **never generated content** (an Idea stopped at a
+  Brief; a human shot the Reel). As of June 2026 the **Producer** auto-renders an **Asset** from an
+  accepted Idea via a Magnific flow. The human gate **moved from creation to publication**: the system
+  now generates the Asset, but a human still reviews and **publishes** the Post. "Never generate
+  finished content" is superseded by "never publish" (see ADR-0002).
