@@ -1,5 +1,6 @@
 # Basic parameters the Operator sets for the weekly Trend Research Run (/run-trends).
-# trend-scout reads this file.
+# trend-scout reads this file. (Production/Space config is read from the Magnific
+# Space itself at run time — see docs/adr/0003.)
 
 # Primary 'trending' signal: peer / competitor Pages to scrape.
 seed_pages:

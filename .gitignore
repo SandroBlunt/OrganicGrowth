@@ -1,5 +1,6 @@
 # Secrets
 .env
+.env.local
 
 # Private Meta exports (may contain non-public Insights). Keep the folder, ignore contents.
 data/your-data/*
