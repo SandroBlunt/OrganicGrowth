@@ -120,7 +120,9 @@ agents, no gates, and no schedule.
 
 All state is plain files (no database): `data/brand-profile.yaml`, `data/seeds.yaml`,
 `ideas/<run>/idea-NN.md` (one Brief each), `ideas/<run>/idea-NN.spec.json` (the **Production Spec**,
-written by `/produce`), and `data/ledger.json` (Idea ⇄ Cast ⇄ Asset ⇄ Post ⇄ Performance, with status).
+written by the background `producer` when an accepted Idea is produced — there is **no `/produce`**
+command; accepting an Idea auto-enqueues it), and `data/ledger.json` (Idea ⇄ Cast ⇄ Asset ⇄ Post ⇄
+Performance, with status).
 Lifecycle: `suggested → accepted → casting → produced → posted → tracking → scored` (or `rejected`).
 The Producer adds ledger fields `cast`, `character`, `asset_url`, `produced_at`. Update the ledger on
 every status change.

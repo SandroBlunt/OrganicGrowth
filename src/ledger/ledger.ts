@@ -71,6 +71,79 @@ export async function loadIdeaCast(
     .map((c) => ({ identifier: c.identifier as string, url: c.url as string }));
 }
 
+// --- Report projection (issue #9: /report surfaces the whole pipeline at a glance) -----------------
+
+/**
+ * The Idea fields `/report` needs to show the whole pipeline at a glance (issue #9). Read-only:
+ * `/report` never mutates the ledger. `fit_score` is the **predicted** Fit Score (pre-publication);
+ * `performance_score` is the **measured** Performance Score (post-publication, relative to the Channel
+ * baseline) — they are kept as SEPARATE fields here so the renderer can never conflate the two
+ * (always-rules #3/#4). Either may be `null` (a Fit Score is absent on a malformed Idea; a Performance
+ * Score is `null` until `/track-performance` measures it).
+ */
+export interface ReportIdea {
+  readonly id: string;
+  readonly title: string;
+  readonly status: string;
+  /** Predicted Fit Score (0–1), or null if absent. NEVER the measured number. */
+  readonly fit_score: number | null;
+  /** Measured Performance Score (0–1, relative to the Channel baseline), or null until tracked. */
+  readonly performance_score: number | null;
+  /** The logged Post URL (explicit attribution), or null if not yet published. */
+  readonly post_url: string | null;
+}
+
+/** The Channel's own performance baseline — what a Performance Score is measured RELATIVE to. */
+export interface ReportBaseline {
+  /** ISO-8601 timestamp of the last `/track-performance`, or null before the first one. */
+  readonly updated_at: string | null;
+}
+
+/** The read-only projection `/report` renders: the run's Ideas plus the Channel baseline. */
+export interface ReportData {
+  readonly ideas: readonly ReportIdea[];
+  readonly baseline: ReportBaseline;
+}
+
+function asNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asStringOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+/**
+ * Read the ledger into the read-only `/report` projection (defensive: missing/garbled fields degrade to
+ * sensible defaults rather than crashing a Run — always-rules #8). Keeps the **predicted** `fit_score`
+ * and the **measured** `performance_score` as distinct fields so `/report` never presents one as the
+ * other. A record missing an `id` is skipped (we never invent a record); a missing `title` degrades to
+ * the id so the row is still identifiable.
+ */
+export async function loadReport(path: string = DEFAULT_LEDGER_PATH): Promise<ReportData> {
+  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  if (!isObject(raw)) return { ideas: [], baseline: { updated_at: null } };
+
+  const ideasRaw = Array.isArray(raw.ideas) ? raw.ideas : [];
+  const ideas: ReportIdea[] = ideasRaw
+    .filter(isObject)
+    .filter((r) => typeof r.id === "string")
+    .map((r) => {
+      const id = r.id as string;
+      return {
+        id,
+        title: typeof r.title === "string" ? r.title : id,
+        status: typeof r.status === "string" ? r.status : "unknown",
+        fit_score: asNumberOrNull(r.fit_score),
+        performance_score: asNumberOrNull(r.performance_score),
+        post_url: asStringOrNull(r.post_url),
+      };
+    });
+
+  const baselineRaw = isObject(raw.baseline) ? raw.baseline : {};
+  return { ideas, baseline: { updated_at: asStringOrNull(baselineRaw.updated_at) } };
+}
+
 // --- Queue → ledger status reflection (ADR-0004) ---------------------------------------------------
 
 /**
