@@ -6,6 +6,11 @@
 data/your-data/*
 !data/your-data/.gitkeep
 
+# Node / TypeScript build
+node_modules/
+dist/
+*.tsbuildinfo
+
 # Scratch
 *.tmp
 *.log
