@@ -9,10 +9,14 @@ import {
   writeIdeaStatus,
   applyIdeaCast,
   writeIdeaCast,
+  applyIdeaAsset,
+  writeIdeaAsset,
   loadIdeas,
   type LedgerIdea,
   type LedgerIdeaWithCast,
   type LedgerCastCandidate,
+  type LedgerIdeaWithAsset,
+  type LedgerAsset,
 } from "./ledger.ts";
 import type { QueueJob } from "../production-queue/queue.ts";
 
@@ -237,6 +241,143 @@ describe("writeIdeaCast — records the Cast candidates on the Idea record (ADR-
         ideas: Array<{ id: string; cast?: unknown }>;
       };
       assert.equal(after.ideas[0]!.cast, undefined);
+    });
+  });
+});
+
+// === Phase B: the Asset fields (character / asset_url / produced_at) =================================
+
+describe("applyIdeaAsset — pure Asset-field set", () => {
+  const ideas: LedgerIdeaWithAsset[] = [
+    { id: "idea-A", status: "casting" },
+    { id: "idea-B", status: "casting" },
+  ];
+  const asset: LedgerAsset = {
+    character: "cast-3",
+    asset_url: "https://magnific.example/asset/1.mp4",
+    produced_at: "2026-06-05T12:00:00.000Z",
+  };
+
+  it("sets the target Idea's Asset fields and leaves others unchanged", () => {
+    const after = applyIdeaAsset(ideas, "idea-A", asset);
+    const a = after.find((i) => i.id === "idea-A")!;
+    assert.equal(a.character, "cast-3");
+    assert.equal(a.asset_url, "https://magnific.example/asset/1.mp4");
+    assert.equal(a.produced_at, "2026-06-05T12:00:00.000Z");
+    const b = after.find((i) => i.id === "idea-B")!;
+    assert.equal(b.character, undefined);
+    assert.equal(b.asset_url, undefined);
+    assert.equal(b.produced_at, undefined);
+  });
+
+  it("is pure: it never mutates the input array or its records", () => {
+    const snapshot = JSON.stringify(ideas);
+    applyIdeaAsset(ideas, "idea-A", asset);
+    assert.equal(JSON.stringify(ideas), snapshot);
+  });
+
+  it("returns the array unchanged for an unknown Idea", () => {
+    const after = applyIdeaAsset(ideas, "idea-ZZZ", asset);
+    assert.deepEqual(after, ideas);
+  });
+});
+
+describe("writeIdeaAsset — records the Asset fields on the Idea record (ADR-0003 Phase B)", () => {
+  async function withLedger(fn: (path: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-asset-"));
+    const path = join(dir, "ledger.json");
+    try {
+      await fn(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  const asset: LedgerAsset = {
+    character: "cast-3",
+    asset_url: "https://magnific.example/asset/1.mp4",
+    produced_at: "2026-06-05T12:00:00.000Z",
+  };
+
+  it("writes character / asset_url / produced_at for the target Idea, preserving unrelated fields", async () => {
+    await withLedger(async (path) => {
+      const seed = {
+        baseline: { note: "seed" },
+        ideas: [
+          { id: "idea-A", run: "2026-W22", status: "casting", title: "A", post_url: null, cast: [{ identifier: "cast-3", url: "u" }] },
+          { id: "idea-B", run: "2026-W22", status: "accepted", title: "B", post_url: null },
+        ],
+      };
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+
+      await writeIdeaAsset("idea-A", asset, { ledgerPath: path });
+
+      const after = JSON.parse(await readFile(path, "utf8")) as {
+        baseline: { note: string };
+        ideas: Array<{
+          id: string;
+          title: string;
+          post_url: string | null;
+          cast?: unknown;
+          character?: string;
+          asset_url?: string;
+          produced_at?: string;
+        }>;
+      };
+      const a = after.ideas.find((i) => i.id === "idea-A")!;
+      const b = after.ideas.find((i) => i.id === "idea-B")!;
+      assert.equal(a.character, "cast-3");
+      assert.equal(a.asset_url, "https://magnific.example/asset/1.mp4");
+      assert.equal(a.produced_at, "2026-06-05T12:00:00.000Z");
+      assert.equal(b.character, undefined);
+      // unrelated fields preserved (including the prior Phase-A cast and post_url)
+      assert.equal(a.title, "A");
+      assert.equal(a.post_url, null);
+      assert.ok(a.cast);
+      assert.equal(after.baseline.note, "seed");
+    });
+  });
+
+  it("records BOTH produced status and the Asset fields for an Idea moving casting → produced", async () => {
+    await withLedger(async (path) => {
+      const seed = {
+        ideas: [{ id: "idea-A", run: "2026-W22", status: "casting", title: "A" }],
+      };
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+
+      // Phase B completes: the render job reaches done ⇒ produced (derived), and the Asset is recorded.
+      const status = ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "render" }), "done");
+      assert.equal(status, "produced");
+      await writeIdeaStatus("idea-A", status!, { ledgerPath: path });
+      await writeIdeaAsset("idea-A", asset, { ledgerPath: path });
+
+      const after = JSON.parse(await readFile(path, "utf8")) as {
+        ideas: Array<{
+          id: string;
+          status: string;
+          character?: string;
+          asset_url?: string;
+          produced_at?: string;
+        }>;
+      };
+      const a = after.ideas.find((i) => i.id === "idea-A")!;
+      assert.equal(a.status, "produced");
+      assert.equal(a.character, "cast-3");
+      assert.equal(a.asset_url, "https://magnific.example/asset/1.mp4");
+      assert.equal(a.produced_at, "2026-06-05T12:00:00.000Z");
+    });
+  });
+
+  it("leaves the ledger untouched for an unknown Idea", async () => {
+    await withLedger(async (path) => {
+      const seed = { ideas: [{ id: "idea-A", status: "casting" }] };
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+      await writeIdeaAsset("idea-ZZZ", asset, { ledgerPath: path });
+      const after = JSON.parse(await readFile(path, "utf8")) as {
+        ideas: Array<{ id: string; status: string; asset_url?: unknown }>;
+      };
+      assert.equal(after.ideas[0]!.status, "casting");
+      assert.equal(after.ideas[0]!.asset_url, undefined);
     });
   });
 });

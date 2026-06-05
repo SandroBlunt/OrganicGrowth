@@ -51,6 +51,26 @@ export function findIdea(ideas: readonly LedgerIdea[], ideaId: string): LedgerId
   return ideas.find((i) => i.id === ideaId) ?? null;
 }
 
+/**
+ * Read one Idea's recorded `cast` candidates from the ledger (the Phase-A Cast the Operator picks from),
+ * or `null` when the Idea is absent or has no recorded Cast. Defensive: malformed cast records are
+ * skipped, so a garbled ledger never crashes `/pick-cast`. The ledger stays the source of truth.
+ */
+export async function loadIdeaCast(
+  ideaId: string,
+  path: string = DEFAULT_LEDGER_PATH,
+): Promise<LedgerCastCandidate[] | null> {
+  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  if (!isObject(raw) || !Array.isArray(raw.ideas)) return null;
+  const record = raw.ideas.find((r) => isObject(r) && r.id === ideaId);
+  if (!isObject(record)) return null;
+  if (!Array.isArray(record.cast)) return null;
+  return record.cast
+    .filter(isObject)
+    .filter((c) => typeof c.identifier === "string" && typeof c.url === "string")
+    .map((c) => ({ identifier: c.identifier as string, url: c.url as string }));
+}
+
 // --- Queue → ledger status reflection (ADR-0004) ---------------------------------------------------
 
 /**
@@ -113,6 +133,87 @@ export async function writeIdeaStatus(
     if (isObject(record) && record.id === ideaId) {
       changed = true;
       return { ...record, status };
+    }
+    return record;
+  });
+  if (!changed) return;
+
+  const next = { ...raw, ideas };
+  await writeFile(path, JSON.stringify(next, null, 2) + "\n", "utf8");
+}
+
+// --- Asset write (ADR-0003 Phase B: the Idea gains `character` / `asset_url` / `produced_at`) -------
+
+/**
+ * The finished-Asset fields ADR-0003 Phase B adds to the Idea record: the chosen `character` (a Cast
+ * candidate identifier), the rendered `asset_url`, and `produced_at` (an ISO-8601 timestamp). These are
+ * written from the render completion alongside the `casting → produced` transition, never inferred.
+ */
+export interface LedgerAsset {
+  readonly character: string;
+  readonly asset_url: string;
+  /** ISO-8601 timestamp, INJECTED by the caller (never read from the clock here). */
+  readonly produced_at: string;
+}
+
+/** The subset of an Idea record including the Producer's Phase-B Asset fields. */
+export interface LedgerIdeaWithAsset extends LedgerIdea {
+  readonly character?: string;
+  readonly asset_url?: string;
+  readonly produced_at?: string;
+}
+
+/**
+ * Return a NEW ideas array with `ideaId`'s `character` / `asset_url` / `produced_at` set to the finished
+ * Asset. Pure: never mutates the input array or its records. An unknown `ideaId` returns the array
+ * unchanged (the ledger stays canonical — we never invent a record). The Asset is recorded from the
+ * Phase-B render completion, never inferred; `produced_at` is the injected timestamp the caller supplies.
+ */
+export function applyIdeaAsset(
+  ideas: readonly LedgerIdeaWithAsset[],
+  ideaId: string,
+  asset: LedgerAsset,
+): LedgerIdeaWithAsset[] {
+  return ideas.map((idea) =>
+    idea.id === ideaId
+      ? {
+          ...idea,
+          character: asset.character,
+          asset_url: asset.asset_url,
+          produced_at: asset.produced_at,
+        }
+      : idea,
+  );
+}
+
+/**
+ * Thin write shell: load the full ledger, set one Idea's `character` / `asset_url` / `produced_at` to the
+ * finished Asset, and save — so Phase B's Asset is recorded on disk (ADR-0003). Preserves the file's
+ * other fields (including the prior Phase-A `cast`, `post_url`, the Idea's metadata) by editing the raw
+ * record in place. The ledger remains the source of truth; an unknown `ideaId` leaves the file untouched.
+ * Pair this with `writeIdeaStatus(ideaId, "produced")` (whose status is derived from the queue's
+ * `render → done` transition via `ledgerStatusForTransition`) so the `casting → produced` transition and
+ * the Asset are written together.
+ */
+export async function writeIdeaAsset(
+  ideaId: string,
+  asset: LedgerAsset,
+  options: WriteIdeaStatusOptions = {},
+): Promise<void> {
+  const path = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
+  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  if (!isObject(raw) || !Array.isArray(raw.ideas)) return;
+
+  let changed = false;
+  const ideas = raw.ideas.map((record) => {
+    if (isObject(record) && record.id === ideaId) {
+      changed = true;
+      return {
+        ...record,
+        character: asset.character,
+        asset_url: asset.asset_url,
+        produced_at: asset.produced_at,
+      };
     }
     return record;
   });
