@@ -76,6 +76,17 @@ function indexOfJob(state: QueueState, ideaId: string): number {
 }
 
 /**
+ * Find the index of the job for `ideaId` whose status is `status`, or -1 if there is none.
+ *
+ * An Idea can hold TWO jobs at once — its `cast` job (which may already be `awaiting_cast` / `done`) and a
+ * later `render` job — so a transition must target the job in the EXPECTED source status, not merely the
+ * first job for the Idea. For an Idea with a single job this resolves identically to `indexOfJob`.
+ */
+function indexOfJobInStatus(state: QueueState, ideaId: string, status: JobStatus): number {
+  return state.jobs.findIndex((j) => j.idea_id === ideaId && j.status === status);
+}
+
+/**
  * Return a NEW state with the job at `index` set to `status` and the lock set to `lockHolder`.
  * Pure: copies the jobs array and the target job; never mutates the input.
  */
@@ -97,10 +108,12 @@ function transition(
  * Pure: returns a NEW state on success; the input is unchanged either way.
  */
 export function markRunning(state: QueueState, ideaId: string): TransitionResult {
-  const i = indexOfJob(state, ideaId);
-  if (i === -1) return { ok: false, code: "unknown_job", state };
+  if (indexOfJob(state, ideaId) === -1) return { ok: false, code: "unknown_job", state };
   if (spaceBusy(state)) return { ok: false, code: "space_busy", state };
-  if (state.jobs[i]!.status !== "queued") {
+  // Target the Idea's `queued` job specifically — an Idea may also hold a gated/done cast job alongside
+  // a queued render job, so we must not pick the wrong one.
+  const i = indexOfJobInStatus(state, ideaId, "queued");
+  if (i === -1) {
     return { ok: false, code: "invalid_transition", state };
   }
   return { ok: true, state: transition(state, i, "running", ideaId) };
@@ -133,9 +146,10 @@ export function markFailed(state: QueueState, ideaId: string): TransitionResult 
 
 /** Shared body for the lock-releasing transitions (awaiting_cast / done / failed), all from `running`. */
 function release(state: QueueState, ideaId: string, to: JobStatus): TransitionResult {
-  const i = indexOfJob(state, ideaId);
-  if (i === -1) return { ok: false, code: "unknown_job", state };
-  if (state.jobs[i]!.status !== "running") {
+  if (indexOfJob(state, ideaId) === -1) return { ok: false, code: "unknown_job", state };
+  // Target the Idea's `running` job specifically (it is the one holding the single-Space lock).
+  const i = indexOfJobInStatus(state, ideaId, "running");
+  if (i === -1) {
     return { ok: false, code: "invalid_transition", state };
   }
   return { ok: true, state: transition(state, i, to, null) };

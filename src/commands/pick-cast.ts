@@ -13,6 +13,8 @@
 
 import { loadIdeaCast, type LedgerCastCandidate } from "../ledger/ledger.ts";
 import { DEFAULT_LEDGER_PATH } from "../ledger/ledger.ts";
+import { enqueueRender } from "../production-queue/queue.ts";
+import { loadQueue, saveQueue, DEFAULT_QUEUE_PATH } from "../production-queue/store.ts";
 
 /** The result of selecting a Character from a Cast: the chosen identifier, or an identifiable reason. */
 export type SelectResult =
@@ -34,16 +36,32 @@ export function selectCharacter(cast: readonly LedgerCastCandidate[], n: number)
   return { ok: true, character: cast[n - 1]!.identifier };
 }
 
+/** Options for `/pick-cast` (injected paths + clock keep the shell testable without ambient I/O). */
+export interface PickCastOptions {
+  readonly ledgerPath?: string;
+  readonly queuePath?: string;
+  /** Injected clock for the render job's `enqueued_at`; defaults to now. */
+  readonly now?: () => string;
+}
+
 /**
- * Produce the `/pick-cast` output string for a given Idea, pick, and ledger file (testable, no printing).
- * Reads the Idea's recorded Cast, selects the Character, and reports it. Never crashes on an unknown
- * Idea, a missing Cast, or an out-of-range pick.
+ * Produce the `/pick-cast` output string for a given Idea and pick (testable, no printing).
+ *
+ * Reads the Idea's recorded Cast, selects the Character, and — on a valid pick — **enqueues the render**
+ * for that Idea (ADR-0004: "picking a Cast enqueues the render"; idempotent per render job). The Producer
+ * worker drains that render against the Space when it is free (the unattended Phase-B render). Never
+ * crashes on an unknown Idea, a missing Cast, or an out-of-range pick — and never enqueues a render in
+ * those cases (no Character ⇒ no render).
  */
 export async function pickCastCommand(
   ideaId: string,
   n: number,
-  ledgerPath: string = DEFAULT_LEDGER_PATH,
+  options: PickCastOptions = {},
 ): Promise<string> {
+  const ledgerPath = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
+  const queuePath = options.queuePath ?? DEFAULT_QUEUE_PATH;
+  const now = (options.now ?? (() => new Date().toISOString()))();
+
   const cast = await loadIdeaCast(ideaId, ledgerPath);
   if (cast === null) {
     return `/pick-cast: no Cast recorded for Idea ${ideaId} (is it at the Cast gate?). No Character selected.`;
@@ -52,6 +70,11 @@ export async function pickCastCommand(
   if (!selected.ok) {
     return `/pick-cast ${ideaId}: ${selected.reason}`;
   }
+
+  // The Character is picked — enqueue the render so the worker renders it when the Space is free.
+  const queue = await loadQueue(queuePath);
+  await saveQueue(enqueueRender(queue, ideaId, now), queuePath);
+
   return `/pick-cast ${ideaId}: picked Cast member ${n} — Character ${selected.character}. Resuming production (render queued).`;
 }
 
@@ -63,7 +86,7 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  const output = await pickCastCommand(ideaId, Number(nRaw));
+  const output = await pickCastCommand(ideaId, Number(nRaw), {});
   process.stdout.write(output + "\n");
 }
 

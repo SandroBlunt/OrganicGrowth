@@ -5,20 +5,25 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { pickCastCommand, selectCharacter } from "./pick-cast.ts";
+import { loadQueue } from "../production-queue/store.ts";
 
+/** Run `fn` with a temp ledger AND a temp queue path, so the command never touches real state. */
 async function withLedger(
   seed: unknown,
-  fn: (path: string) => Promise<void>,
+  fn: (paths: { ledgerPath: string; queuePath: string }) => Promise<void>,
 ): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "og-pick-cast-"));
-  const path = join(dir, "ledger.json");
+  const ledgerPath = join(dir, "ledger.json");
+  const queuePath = join(dir, "queue.json"); // missing file loads as the empty queue
   try {
-    await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
-    await fn(path);
+    await writeFile(ledgerPath, JSON.stringify(seed, null, 2) + "\n", "utf8");
+    await fn({ ledgerPath, queuePath });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
 }
+
+const PICK_NOW = "2026-06-05T12:00:00.000Z";
 
 const cast = [
   { identifier: "cast-1", url: "https://magnific.example/cast/1.png" },
@@ -57,8 +62,8 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
     const seed = {
       ideas: [{ id: "idea-A", status: "casting", cast }],
     };
-    await withLedger(seed, async (path) => {
-      const out = await pickCastCommand("idea-A", 3, path);
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("idea-A", 3, { ledgerPath, queuePath, now: () => PICK_NOW });
       assert.match(out, /idea-A/);
       assert.match(out, /cast-3/);
     });
@@ -66,8 +71,8 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
 
   it("reports an unknown Idea without crashing and selects no Character", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
-    await withLedger(seed, async (path) => {
-      const out = await pickCastCommand("idea-ZZZ", 1, path);
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("idea-ZZZ", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
       assert.match(out, /idea-ZZZ/);
       assert.doesNotMatch(out, /cast-1/);
     });
@@ -75,8 +80,8 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
 
   it("reports an out-of-range pick without crashing and selects no Character", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
-    await withLedger(seed, async (path) => {
-      const out = await pickCastCommand("idea-A", 9, path);
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("idea-A", 9, { ledgerPath, queuePath, now: () => PICK_NOW });
       assert.match(out, /idea-A/);
       // Out of range: no specific Character was chosen.
       assert.doesNotMatch(out, /cast-3/);
@@ -85,10 +90,54 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
 
   it("reports an Idea with no recorded Cast without crashing", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting" }] };
-    await withLedger(seed, async (path) => {
-      const out = await pickCastCommand("idea-A", 1, path);
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
       assert.match(out, /idea-A/);
       assert.doesNotMatch(out, /cast-1/);
+    });
+  });
+});
+
+// === pickCastCommand — picking a Cast enqueues the render (AC3) ======================================
+
+describe("pickCastCommand — picking a Cast enqueues the render", () => {
+  it("enqueues exactly one queued render-phase job for the Idea on a valid pick", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      await pickCastCommand("idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const q = await loadQueue(queuePath);
+      const renders = q.jobs.filter((j) => j.idea_id === "idea-A" && j.phase === "render");
+      assert.equal(renders.length, 1);
+      assert.equal(renders[0]!.status, "queued");
+      assert.equal(renders[0]!.enqueued_at, PICK_NOW);
+    });
+  });
+
+  it("does NOT enqueue a render for an out-of-range pick (no Character ⇒ no render)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      await pickCastCommand("idea-A", 9, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const q = await loadQueue(queuePath);
+      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 0);
+    });
+  });
+
+  it("does NOT enqueue a render for an unknown Idea", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      await pickCastCommand("idea-ZZZ", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const q = await loadQueue(queuePath);
+      assert.equal(q.jobs.length, 0);
+    });
+  });
+
+  it("does not duplicate the render job when the same Cast is picked twice", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      await pickCastCommand("idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      await pickCastCommand("idea-A", 2, { ledgerPath, queuePath, now: () => "2026-06-05T13:00:00.000Z" });
+      const q = await loadQueue(queuePath);
+      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 1);
     });
   });
 });

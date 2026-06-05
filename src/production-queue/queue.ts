@@ -63,6 +63,11 @@ export function hasJobFor(state: QueueState, ideaId: string): boolean {
   return state.jobs.some((job) => job.idea_id === ideaId);
 }
 
+/** Whether the queue already holds a job of `phase` for this Idea. */
+export function hasJobOfPhase(state: QueueState, ideaId: string, phase: JobPhase): boolean {
+  return state.jobs.some((job) => job.idea_id === ideaId && job.phase === phase);
+}
+
 /**
  * Append a `cast`-phase, `status: queued` job for an accepted Idea (ADR-0004 auto-enqueue).
  *
@@ -81,6 +86,34 @@ export function enqueue(state: QueueState, ideaId: string, now: string): QueueSt
   const job: QueueJob = {
     idea_id: ideaId,
     phase: "cast",
+    status: "queued",
+    enqueued_at: now,
+  };
+  return { jobs: [...state.jobs, job], lock: state.lock };
+}
+
+/**
+ * Append a `render`-phase, `status: queued` job for an Idea whose **Cast** the Operator has picked
+ * (ADR-0004 — "picking a Cast enqueues the render"). The render runs against the pinned Character once the
+ * Space is free; the Producer worker drains it like any other job, one Space generation at a time.
+ *
+ * Pure: returns a NEW state object and never mutates `state`. Idempotent per `idea_id` for the **render**
+ * phase — if a render job for the Idea already exists, the state is returned unchanged (no duplicate). The
+ * Idea's prior `cast` job (now `awaiting_cast` / `done`) is preserved; a render job is distinct from it.
+ * The "the Character has been picked" guard lives in the `/pick-cast` shell, which calls this only after
+ * recording the chosen Character.
+ *
+ * @param state    current queue state
+ * @param ideaId   the Idea to enqueue a render for (its Cast must already be picked)
+ * @param now      ISO-8601 timestamp for `enqueued_at` (injected, never read from the clock here)
+ */
+export function enqueueRender(state: QueueState, ideaId: string, now: string): QueueState {
+  if (hasJobOfPhase(state, ideaId, "render")) {
+    return state;
+  }
+  const job: QueueJob = {
+    idea_id: ideaId,
+    phase: "render",
     status: "queued",
     enqueued_at: now,
   };
