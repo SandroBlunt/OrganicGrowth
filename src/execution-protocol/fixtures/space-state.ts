@@ -49,6 +49,9 @@ export function fakeSpaceState(): FakeSpaceState {
       { id: "node-concepts-list-77a1", name: "Character concepts list" },
       { id: "node-nano-banana-2b3c", name: "Nano Banana Style (3 imgs)" },
       { id: "node-seedream-4d5e", name: "Seedream Style (3 imgs)" },
+      // The two Cast-phase list nodes the downstream cast run terminates at (Spike 2 inventory).
+      { id: "node-nano-banana-list-6a7b", name: "Nano Banana list" },
+      { id: "node-seedream-list-8c9d", name: "Seedream list" },
       // Duplicate-named creation nodes — NOT valid run-points (the human Cast pin lands on one of
       // these by hand; by-name resolution to either is ambiguous).
       { id: "node-character2-ba631f44", name: "Character #2" },

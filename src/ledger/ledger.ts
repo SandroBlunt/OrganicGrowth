@@ -121,3 +121,65 @@ export async function writeIdeaStatus(
   const next = { ...raw, ideas };
   await writeFile(path, JSON.stringify(next, null, 2) + "\n", "utf8");
 }
+
+// --- Cast write (ADR-0003: the ledger Idea gains a `cast` field) ------------------------------------
+
+/**
+ * One Cast candidate as recorded in the ledger: the creation identifier and its viewable image URL.
+ * This is what the Operator judges at the Cast gate; ADR-0003 adds `cast` to the Idea record alongside
+ * the `accepted → casting` transition.
+ */
+export interface LedgerCastCandidate {
+  readonly identifier: string;
+  readonly url: string;
+}
+
+/** The subset of an Idea record including the Producer's `cast` field. */
+export interface LedgerIdeaWithCast extends LedgerIdea {
+  readonly cast?: readonly LedgerCastCandidate[];
+}
+
+/**
+ * Return a NEW ideas array with `ideaId`'s `cast` field set to the given candidates. Pure: never mutates
+ * the input array or its records. An unknown `ideaId` returns the array unchanged (the ledger stays
+ * canonical — we never invent a record). The Cast is recorded from the Phase-A completion, never inferred.
+ */
+export function applyIdeaCast(
+  ideas: readonly LedgerIdeaWithCast[],
+  ideaId: string,
+  cast: readonly LedgerCastCandidate[],
+): LedgerIdeaWithCast[] {
+  return ideas.map((idea) =>
+    idea.id === ideaId ? { ...idea, cast: cast.map((c) => ({ ...c })) } : idea,
+  );
+}
+
+/**
+ * Thin write shell: load the full ledger, set one Idea's `cast` field to the candidate Cast
+ * identifiers/URLs, and save — so Phase A's Cast is recorded on disk (ADR-0003). Preserves the file's
+ * other fields by editing the raw record in place. The ledger remains the source of truth; an unknown
+ * `ideaId` leaves the file untouched. Pair this with `writeIdeaStatus(ideaId, "casting")` so the
+ * `accepted → casting` transition and the Cast are written together.
+ */
+export async function writeIdeaCast(
+  ideaId: string,
+  cast: readonly LedgerCastCandidate[],
+  options: WriteIdeaStatusOptions = {},
+): Promise<void> {
+  const path = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
+  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  if (!isObject(raw) || !Array.isArray(raw.ideas)) return;
+
+  let changed = false;
+  const ideas = raw.ideas.map((record) => {
+    if (isObject(record) && record.id === ideaId) {
+      changed = true;
+      return { ...record, cast: cast.map((c) => ({ ...c })) };
+    }
+    return record;
+  });
+  if (!changed) return;
+
+  const next = { ...raw, ideas };
+  await writeFile(path, JSON.stringify(next, null, 2) + "\n", "utf8");
+}
