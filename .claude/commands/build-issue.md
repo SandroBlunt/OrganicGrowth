@@ -1,9 +1,9 @@
 ---
-name: build-slice
-description: "Run the autonomous engineering pipeline for ONE GitHub build slice: the developer implements it (OpenSpec, test-first, fake Magnific), qa verifies, and on pass it opens a PR for your one-click merge approval."
+name: build-issue
+description: "Run the autonomous engineering pipeline for ONE GitHub issue: the developer implements it (OpenSpec, test-first, fake Magnific), qa verifies, and on pass it opens a PR for your one-click merge approval."
 ---
 
-# /build-slice
+# /build-issue
 
 Run the two-agent engineering pipeline that **builds the Producer feature code** for exactly one build
 slice. Required arg: a **GitHub issue number** in repo `SandroBlunt/OrganicGrowth`. One issue per run →
@@ -16,14 +16,14 @@ one branch → one PR. This is **not** the weekly content loop; it builds the co
    unless it is labeled **`ready-for-agent`**. Read its **"Blocked by"** references and verify **every**
    blocker is **closed/merged**; if any is still open, stop and list the open blockers. On any refusal,
    explain why and do nothing else — no branch, no agents.
-2. **Branch off main.** Derive a slug from the issue title and create `<slice-N-slug>` off `main`
+2. **Branch off main.** Derive a slug from the issue title and create `<issue-N-slug>` off `main`
    (`N` = the issue number). The branch name is the **same** string as the OpenSpec change-id. All
    work for this slice lives on this one branch.
 3. **Invoke the developer agent.** Hand it the issue. It authors the full **OpenSpec** change under
-   `openspec/changes/<slice-N-slug>/` (proposal + `tasks.md` + spec deltas as Requirements with
+   `openspec/changes/<issue-N-slug>/` (proposal + `tasks.md` + spec deltas as Requirements with
    Scenarios), runs `openspec validate --strict`, then implements **test-first against the fake Magnific
    Space** (never the live Space), does one self-review/simplify pass, and writes its **Build Report**
-   into the Slice Handoff at `openspec/changes/<slice-N-slug>/handoff.md` (what changed, files touched,
+   into the Slice Handoff at `openspec/changes/<issue-N-slug>/handoff.md` (what changed, files touched,
    how to run build/tests, an acceptance-criteria self-assessment mapping each criterion to the test that
    proves it, the fakes/fixtures used with the Magnific fake explicitly flagged, self-review notes,
    known limits).
@@ -41,7 +41,7 @@ one branch → one PR. This is **not** the weekly content loop; it builds the co
    **STOP**: post the defect list, notify the Operator, and **do not open a PR** — no branch merge, no
    loop.
 6. **On qa PASS — archive, commit, open the PR.** Archive the OpenSpec change **within this same branch**
-   (`openspec archive <slice-N-slug>` — the spec deltas fold into `openspec/specs/`). Commit and push the
+   (`openspec archive <issue-N-slug>` — the spec deltas fold into `openspec/specs/`). Commit and push the
    branch, then open a PR via `gh` with the **QA Verdict attached** (the Slice Handoff rides in the PR).
    Notify the Operator and **SUGGEST merging this specific PR** — do not merge yet.
 7. **On the Operator's verbal approval — merge.** Run `gh pr merge` for **that** PR yourself and close

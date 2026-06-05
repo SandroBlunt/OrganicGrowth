@@ -68,7 +68,7 @@ to the Space's agent for steps the run API can't do directly (see
 ## Engineering agents (build pipeline)
 
 These agents **BUILD** OrganicGrowth code; they are **NOT** part of the weekly content loop and never
-run except when `/build-slice` is invoked against a `ready-for-agent` GitHub issue. They are a
+run except when `/build-issue` is invoked against a `ready-for-agent` GitHub issue. They are a
 different species from the content agents above — do not confuse the engineering **`developer`** agent
 (writes code) with the content **`producer`** agent (drives a Magnific Space at runtime). They are
 **not** domain vocabulary and are deliberately absent from [`CONTEXT.md`](./CONTEXT.md) and from the
@@ -81,13 +81,13 @@ content Agents table.
 
 ### Development pipeline (per slice)
 
-`/build-slice <issue#>` is the **only** trigger. One issue per run → one branch → one PR; the agents
+`/build-issue <issue#>` is the **only** trigger. One issue per run → one branch → one PR; the agents
 **never self-select work**. Issue repo is `SandroBlunt/OrganicGrowth`.
 
-1. **Pre-flight.** `/build-slice <issue#>` refuses to run unless the issue is labeled `ready-for-agent`
+1. **Pre-flight.** `/build-issue <issue#>` refuses to run unless the issue is labeled `ready-for-agent`
    and every "Blocked by" issue is closed/merged. If a blocker is open, **stop and explain** — no PR.
 2. **Developer.** Turns the issue into a full **OpenSpec** change (proposal + `tasks.md` + spec deltas
-   written as Requirements with Scenarios) under `openspec/changes/<slice-N-slug>/` — autonomously, no
+   written as Requirements with Scenarios) under `openspec/changes/<issue-N-slug>/` — autonomously, no
    human reads the proposal. Then implements **test-first** against the **fake Magnific Space** (never
    the live Space; no `spaces_*`/`creations_*` calls, no credits, no board mutation — the `developer`
    is not given the Magnific MCP tools). Self-reviews: `openspec validate --strict` green + full test
@@ -97,16 +97,16 @@ content Agents table.
    (the fake is used) and that the always-rules hold in the built code (generate-never-publish,
    public-metrics-only, relative-not-absolute, explicit-attribution, ledger-as-source-of-truth). QA
    **reads, runs, and reports only — never edits product code.**
-4. **On fail.** `/build-slice` hands QA's defects back to the `developer`, which fixes and resubmits;
+4. **On fail.** `/build-issue` hands QA's defects back to the `developer`, which fixes and resubmits;
    QA re-verifies. Bounded to **2 retry rounds (3 QA attempts total)**. Still failing after that →
    **stop, post the defect list, notify the Operator.** No PR, no merge, no infinite loop.
-5. **On pass.** Open a branch `<slice-N-slug>` + PR via `gh`, attach the QA verdict, notify the
+5. **On pass.** Open a branch `<issue-N-slug>` + PR via `gh`, attach the QA verdict, notify the
    Operator, and **suggest merging that specific PR**. On the Operator's verbal approval the agent runs
    `gh pr merge` itself and closes the issue (the Operator never uses the GitHub merge UI). The OpenSpec
    archive (folding spec deltas into `openspec/specs/`) rides inside this same PR.
 
 **Channel:** one bidirectional **Slice Handoff** doc per slice at
-`openspec/changes/<slice-N-slug>/handoff.md` carries `developer` ⇄ `qa` communication — the `developer`
+`openspec/changes/<issue-N-slug>/handoff.md` carries `developer` ⇄ `qa` communication — the `developer`
 writes a Build Report, `qa` appends a QA Verdict, and retries append Round-N blocks (nothing is
 overwritten). This is **not** a session handoff and **not** OpenSpec `tasks.md`. **Spec store:** all
 specs and changes live under `openspec/` (`project.md`, `specs/`, `changes/`).

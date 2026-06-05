@@ -32,8 +32,8 @@ ideas is sharper. It **generates the Asset but never publishes it** — a human 
 - **Capability specs (the durable truth):** `openspec/specs/<capability>/spec.md`. Each is the
   current, agreed behavior of one capability, expressed as **Requirements**, each with one or more
   **Scenarios**.
-- **Changes (proposed work, one per slice):** `openspec/changes/<id>/` where `<id>` is
-  `<slice-N-slug>`. The git branch for the slice carries this **same** string as its name, so the
+- **Changes (proposed work, one per issue):** `openspec/changes/<id>/` where `<id>` is
+  `<issue-N-slug>`. The git branch for the issue carries this **same** string as its name, so the
   change-id and the branch name are guaranteed identical. A change contains:
   - `proposal.md` — why and what (the OpenSpec proposal).
   - `tasks.md` — the implementation task list (test-first ordering).

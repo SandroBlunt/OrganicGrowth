@@ -16,14 +16,14 @@ Space at runtime)** — the name collision is deliberately avoided everywhere.
   are **not** added to `CONTEXT.md`, the Agents table, or the weekly-loop description. They are
   documented only in a new **Engineering agents** section of `CLAUDE.md`, kept distinct from the content
   Agents and the pipeline.
-- **One entry point: `/build-slice <issue#>`.** A single slash command is the **only** trigger, handed
+- **One entry point: `/build-issue <issue#>`.** A single slash command is the **only** trigger, handed
   an explicit GitHub issue number (repo `SandroBlunt/OrganicGrowth`). One issue → one branch → one PR.
   No self-selection of work. **Pre-flight refusal:** the agents refuse to run unless the issue is
   labeled `ready-for-agent`, and they verify every "Blocked by" issue is closed/merged; otherwise they
   stop and explain.
 - **Autonomous OpenSpec spec authoring (Model B).** The `developer` turns the issue into a full
   **OpenSpec change** — proposal + `tasks.md` + spec deltas written as Requirements with Scenarios —
-  under `openspec/changes/<slice-N-slug>/`, then implements **test-first**. **No human reads the
+  under `openspec/changes/<issue-N-slug>/`, then implements **test-first**. **No human reads the
   proposal.** The only safety net is `openspec validate --strict` + the `qa` agent + the test suite. The
   `developer` must respect `CONTEXT.md` vocabulary, the always-rules, ADR-0002/0003/0004, and PRD issue
   #1.
@@ -35,7 +35,7 @@ Space at runtime)** — the name collision is deliberately avoided everywhere.
   `openspec validate --strict` green, the **full test suite** green, and complete **one self
   code-review / simplify pass**.
 - **One bidirectional Slice Handoff.** Communication is a single document per slice at
-  `openspec/changes/<slice-N-slug>/handoff.md`. The `developer` writes a **Build Report** (what changed,
+  `openspec/changes/<issue-N-slug>/handoff.md`. The `developer` writes a **Build Report** (what changed,
   files touched, how to run build/tests, an acceptance-criteria self-assessment mapping each criterion to
   the test that proves it, the fakes/fixtures used with the **Magnific fake explicitly flagged**,
   self-review notes, known limits). The `qa` agent appends a **QA Verdict** (overall pass/fail,
@@ -49,11 +49,11 @@ Space at runtime)** — the name collision is deliberately avoided everywhere.
   always-rules hold in the built code (generate-never-publish, public-metrics-only, relative-not-
   absolute, explicit-attribution, ledger-as-source-of-truth). **`qa` reads, runs, and reports only — it
   never edits product code.**
-- **Bounded retries, then escalate.** On a `qa` fail, `/build-slice` hands the defects back to the
+- **Bounded retries, then escalate.** On a `qa` fail, `/build-issue` hands the defects back to the
   `developer`, which fixes and resubmits; `qa` re-verifies. **Cap = 2 retry rounds (3 qa attempts
   total).** Still failing after that → **STOP**, post the defect list, notify the Operator. No PR, no
   merge, no infinite loop.
-- **PR, then verbal-approval merge.** On a `qa` pass, open branch `<slice-N-slug>` (the same string as
+- **PR, then verbal-approval merge.** On a `qa` pass, open branch `<issue-N-slug>` (the same string as
   the OpenSpec change-id) + a PR via `gh`,
   attach the QA Verdict, notify the Operator, and **suggest merging that specific PR**. On the Operator's
   verbal approval the agent runs `gh pr merge` itself and closes the issue — **the Operator never uses
@@ -74,9 +74,9 @@ content pipeline's "generate but never publish without a human" ethos.
 **Consequences**
 
 - New agent files `.claude/agents/developer.md` and `.claude/agents/qa.md`; new command
-  `.claude/commands/build-slice.md`.
+  `.claude/commands/build-issue.md`.
 - New `openspec/` scaffold (one-time plumbing): `project.md`, `specs/`, and `changes/`. Each run adds
-  `openspec/changes/<slice-N-slug>/` (proposal, `tasks.md`, spec deltas, `handoff.md`); on merge the
+  `openspec/changes/<issue-N-slug>/` (proposal, `tasks.md`, spec deltas, `handoff.md`); on merge the
   deltas fold into `openspec/specs/`.
 - `CLAUDE.md` gains an **Engineering agents** section, explicitly separate from the content Agents table
   and weekly loop. **`CONTEXT.md` stays untouched.**
