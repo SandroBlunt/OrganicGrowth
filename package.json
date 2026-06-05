@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "tsc -p tsconfig.json --noEmit && node --import tsx --test \"src/**/*.test.ts\"",
-    "queue": "tsx src/commands/queue.ts"
+    "queue": "tsx src/commands/queue.ts",
+    "pick-cast": "tsx src/commands/pick-cast.ts"
   },
   "dependencies": {
     "yaml": "^2.9.0"

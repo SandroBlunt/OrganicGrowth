@@ -40,6 +40,27 @@ export const JSON_MASTER_NODE_NAME = "JSON Master";
 /** The name of the cast run-point's start node (Spike 2 inventory). */
 export const CAST_START_NODE_NAME = "Character Variants Generator";
 
+/** The name of the chosen-Character creation node the Fallback Protocol pins (ADR-0003 Phase B). */
+export const CHARACTER_NODE_NAME = "Character #2";
+
+/** The name of the clip run-point's start node (Phase B; canonical protocol). */
+export const CLIP_START_NODE_NAME = "Clip extractor";
+
+/**
+ * The clip-render-chain node names a `downstream` clip run fires (ADR-0003 Phase B): the clip extractor
+ * through the Video Combiner to the Final Output that is the finished Asset.
+ */
+export const CLIP_PHASE_NODE_NAMES: readonly string[] = [
+  "Clip extractor",
+  "Video Combiner",
+  "Final Output",
+];
+
+/** The single finished Asset creation a successful clip render produces. */
+export const ASSET_CREATION_ID = "asset-1";
+/** The finished Asset's media URL (for assertions). */
+export const ASSET_URL = "https://magnific.example/asset/1.mp4";
+
 /**
  * The 6 Cast-phase node names a `downstream` cast run fires (Spike 2). These are the nodes between the
  * variant generator and the Cast — and NONE of them is a clip/video node.
@@ -77,6 +98,23 @@ export interface FakeSpaceOptions {
    * readback confirmation fails (models a no-op/failed inject).
    */
   readonly injectNoOp?: boolean;
+  /**
+   * When true, the `edit` that pins the chosen Character does NOT record the pin, so the driver's
+   * readback confirmation fails (models a no-op/failed pin). Phase B.
+   */
+  readonly pinNoOp?: boolean;
+}
+
+/**
+ * The marker prefix written to the chosen Character creation node's value on a successful pin, so a
+ * readback can confirm WHICH Character is pinned (ADR-0003 Phase B; Spike 1 re-pin). The pinned
+ * candidate identifier is appended after the prefix.
+ */
+export const PINNED_MARKER = "PINNED:";
+
+/** Whether a node value marks it as the pinned Character for the given candidate identifier. */
+export function isPinnedTo(value: string | undefined, character: string): boolean {
+  return typeof value === "string" && value === `${PINNED_MARKER}${character}`;
 }
 
 /**
@@ -119,6 +157,20 @@ export class FakeSpace implements SpaceMcpPort {
         n.name === JSON_MASTER_NODE_NAME ? { ...n, value: extractInjectedText(goal) } : n,
       );
     }
+    // Phase B: a pin goal names a Character candidate identifier (e.g. `cast-3`) and asks the agent to
+    // pin it. Mark the FIRST `Character #2` creation node so a readback confirms which Character is
+    // pinned (Spike 1 re-pin). Skipped when modelling a no-op pin (the readback then fails).
+    const pinned = extractPinnedCharacter(goal);
+    if (pinned !== null && !this.options.pinNoOp) {
+      let done = false;
+      this.nodes = this.nodes.map((n) => {
+        if (!done && n.name === CHARACTER_NODE_NAME) {
+          done = true;
+          return { ...n, value: `${PINNED_MARKER}${pinned}` };
+        }
+        return n;
+      });
+    }
     const editId = `edit-${++this.editSeq}`;
     this.editPollsLeft.set(editId, 1); // one `running` poll, then terminal
     return { editId };
@@ -147,6 +199,15 @@ export class FakeSpace implements SpaceMcpPort {
       this.runPollsLeft.set(runId, left - 1);
       return { phase: "running" };
     }
+    // Phase B: a run started at the clip run-point's node renders the clip → Video Combiner → Final
+    // Output chain to exactly one finished Asset creation (no clip-stop here; this IS the render).
+    if (this.isClipRun(runId)) {
+      return {
+        phase: "succeeded",
+        firedNodeNames: [...CLIP_PHASE_NODE_NAMES],
+        creationIds: [ASSET_CREATION_ID],
+      };
+    }
     // Terminal. If this Space models a stale cast run-point, the cast run fails as start-node-missing.
     if (this.options.castRunPointStale) {
       return {
@@ -163,8 +224,18 @@ export class FakeSpace implements SpaceMcpPort {
     };
   }
 
+  /** Whether the run was started at the clip run-point's node (resolved by name on the base state). */
+  private isClipRun(runId: string): boolean {
+    const startId = this.runStartNodeIds.get(runId);
+    const clipNode = this.nodes.find((n) => n.name === CLIP_START_NODE_NAME);
+    return startId !== undefined && startId === clipNode?.id;
+  }
+
   async fetchCreations(ids: readonly string[]): Promise<readonly Creation[]> {
-    const all = castCreations();
+    const all: readonly Creation[] = [
+      ...castCreations(),
+      { identifier: ASSET_CREATION_ID, url: ASSET_URL },
+    ];
     return ids
       .map((id) => all.find((c) => c.identifier === id))
       .filter((c): c is Creation => c !== undefined);
@@ -219,4 +290,16 @@ function extractInjectedText(goal: string): string {
     return goal.slice(marker);
   }
   return "INJECTED";
+}
+
+/**
+ * Recognise a Character-pin goal and pull out the chosen candidate identifier the driver embedded. The
+ * driver's pin goal names the chosen `Character` creation node and quotes the candidate identifier; the
+ * fake stores that as the pinned node's value so a readback confirms which Character is pinned. Returns
+ * the candidate identifier, or `null` when the goal is not a pin goal (e.g. an inject or a cast fallback).
+ */
+function extractPinnedCharacter(goal: string): string | null {
+  if (!goal.includes("Pin") || !goal.includes(CHARACTER_NODE_NAME)) return null;
+  const match = goal.match(/"([^"]+)"\s+creation/);
+  return match ? match[1]! : null;
 }

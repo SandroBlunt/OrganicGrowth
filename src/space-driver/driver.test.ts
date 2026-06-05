@@ -9,6 +9,10 @@ import {
   isClipOrVideoNode,
   injectGoal,
   castFallbackGoal,
+  pinCharacter,
+  pinGoal,
+  fetchAsset,
+  pickAndRender,
   JSON_MASTER_NODE_NAME,
   DOWNSTREAM_MODE,
 } from "./driver.ts";
@@ -19,6 +23,11 @@ import {
   expectedCastUrls,
   fallbackCastIds,
   CAST_START_NODE_NAME,
+  CLIP_START_NODE_NAME,
+  CHARACTER_NODE_NAME,
+  ASSET_CREATION_ID,
+  ASSET_URL,
+  isPinnedTo,
 } from "./fixtures/fake-space.ts";
 import { fakeSpaceState } from "../execution-protocol/fixtures/space-state.ts";
 import { parse } from "../execution-protocol/parse.ts";
@@ -32,6 +41,16 @@ function castNodeId(): string {
   const cast = parsed.runPoints.find((rp) => rp.gate === "cast");
   assert.ok(cast, "fixture must have a cast-gated run-point");
   return cast!.start_node_id;
+}
+
+/** The resolved clip node ID for the canonical fake (the non-cast-gate run-point, looked up by name). */
+function clipNodeId(): string {
+  const parsed = parse(fakeSpaceState());
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) throw new Error("fixture parse failed");
+  const clip = parsed.runPoints.find((rp) => rp.gate === null);
+  assert.ok(clip, "fixture must have a non-cast-gate (clip) run-point");
+  return clip!.start_node_id;
 }
 
 // === AC1 / AC5: injectSpec — Fallback-Protocol inject + readback confirm =============================
@@ -218,5 +237,141 @@ describe("composeAndCast — Fallback Protocol recovery on a missing/stale run-p
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "inject_unconfirmed");
+  });
+});
+
+// ====================================================================================================
+// === PHASE B — pick the Cast, render, link the Asset (casting → produced) ============================
+// ====================================================================================================
+
+// === AC1 / AC5: pinCharacter — Fallback-Protocol pin + readback confirm ==============================
+
+describe("pinCharacter — pin the chosen Character via the Fallback Protocol and confirm by readback", () => {
+  it("issues a natural-language edit naming the chosen Character and confirms the pin by readback", async () => {
+    const space = new FakeSpace();
+    const result = await pinCharacter(space, "cast-3");
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+
+    // The Fallback Protocol was used: exactly one natural-language edit naming the Character creation node.
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, new RegExp(CHARACTER_NODE_NAME));
+    assert.ok(space.editGoals[0]!.includes("cast-3"));
+
+    // The readback confirms a Character creation node is pinned to the chosen candidate.
+    const after = await space.readState();
+    const pinned = after.nodes.some((n) => isPinnedTo(n.value, "cast-3"));
+    assert.equal(pinned, true);
+  });
+
+  it("makes no call outside the injected port (edits + polls + reads back through the port)", async () => {
+    const space = new FakeSpace();
+    await pinCharacter(space, "cast-1");
+    // The only Space interaction was the pin edit through the port; no run was started.
+    assert.equal(space.runs.length, 0);
+    assert.equal(space.editGoals.length, 1);
+  });
+
+  it("reports an identifiable failure when the readback does NOT confirm the pin", async () => {
+    const space = new FakeSpace(fakeSpaceState(), { pinNoOp: true });
+    const result = await pinCharacter(space, "cast-3");
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "pin_unconfirmed");
+  });
+
+  it("embeds the chosen Character identifier in the pin goal", () => {
+    const goal = pinGoal("cast-4");
+    assert.match(goal, new RegExp(CHARACTER_NODE_NAME));
+    assert.ok(goal.includes("cast-4"));
+  });
+});
+
+// === AC2 / AC5: the clip runRunPoint renders the clip chain to one Asset =============================
+
+describe("runRunPoint — run the clip run-point downstream to the render chain and one Asset", () => {
+  it("polls the clip run to terminal, fires the Video Combiner + Final Output, and yields one Asset", async () => {
+    const space = new FakeSpace();
+    const result = await runRunPoint(space, clipNodeId(), DOWNSTREAM_MODE);
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+
+    // The render chain fired (clip → Video Combiner → Final Output) and exactly one Asset was produced.
+    assert.ok(result.outcome.firedNodeNames.includes("Video Combiner"));
+    assert.ok(result.outcome.firedNodeNames.includes("Final Output"));
+    assert.deepEqual(result.outcome.creationIds, [ASSET_CREATION_ID]);
+
+    // It started a run at the resolved clip node ID, in downstream mode, through the port.
+    assert.equal(space.runs.length, 1);
+    assert.equal(space.runs[0]!.startNodeId, clipNodeId());
+    assert.equal(space.runs[0]!.mode, DOWNSTREAM_MODE);
+  });
+});
+
+// === AC5: fetchAsset — Asset creation -> media URL through the port ==================================
+
+describe("fetchAsset — resolve the finished Asset's creation identifier to its media URL", () => {
+  it("returns the finished Asset's media URL for the Asset creation identifier", async () => {
+    const space = new FakeSpace();
+    const url = await fetchAsset(space, ASSET_CREATION_ID);
+    assert.equal(url, ASSET_URL);
+  });
+});
+
+// === AC2 / AC3 / AC4: pickAndRender — Phase B pins, renders to one Asset, never publishes ============
+
+describe("pickAndRender — Phase B pins the Character, renders the Asset, and stops (no publish)", () => {
+  it("pins the chosen Character, runs the clip run-point, and surfaces one finished Asset URL", async () => {
+    const space = new FakeSpace();
+    const result = await pickAndRender(space, fakeSpaceState(), "cast-3");
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.asset.assetId, ASSET_CREATION_ID);
+    assert.equal(result.asset.assetUrl, ASSET_URL);
+
+    // A pin edit (naming the Character) ran, and exactly one clip run was started at the clip node.
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, new RegExp(CHARACTER_NODE_NAME));
+    assert.equal(space.runs.length, 1);
+    assert.equal(space.runs[0]!.startNodeId, clipNodeId());
+  });
+
+  it("resolves the clip run-point by name as the non-cast-gate run-point (never hard-coded)", async () => {
+    const space = new FakeSpace();
+    const result = await pickAndRender(space, fakeSpaceState(), "cast-1");
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+
+    const parsed = parse(fakeSpaceState());
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    const clip = parsed.runPoints.find((rp) => rp.gate === null)!;
+    assert.equal(clip.start_name, CLIP_START_NODE_NAME);
+    assert.equal(space.runs[0]!.startNodeId, clip.start_node_id);
+  });
+
+  it("renders the Asset and takes NO publish action (no publish path exists)", async () => {
+    const space = new FakeSpace();
+    const result = await pickAndRender(space, fakeSpaceState(), "cast-2");
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    // The driver surfaces the Asset for the Operator and stops; the only Space calls were the pin edit
+    // and the single clip render run — no publish/post primitive exists on the port or the driver.
+    assert.equal(space.editGoals.length, 1);
+    assert.equal(space.runs.length, 1);
+    assert.equal(result.asset.assetUrl, ASSET_URL);
+  });
+
+  it("fails with the identifiable pin failure when the Character pin cannot be confirmed", async () => {
+    const space = new FakeSpace(fakeSpaceState(), { pinNoOp: true });
+    const result = await pickAndRender(space, fakeSpaceState(), "cast-3");
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "pin_unconfirmed");
+    // The render never started because the pin was not confirmed.
+    assert.equal(space.runs.length, 0);
   });
 });

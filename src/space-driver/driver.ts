@@ -33,6 +33,9 @@ export const DOWNSTREAM_MODE = "downstream";
 /** Node-name fragments that identify a clip/video node (used to assert the cast run stops at the Cast). */
 const CLIP_VIDEO_NODE_MARKERS: readonly string[] = ["Clip", "Video", "Veo"];
 
+/** The exact name of the chosen-Character creation node the Fallback Protocol re-pins (Phase B). */
+export const CHARACTER_NODE_NAME = "Character #2";
+
 /** Stable, machine-checkable failure codes for the driver's operations. */
 export type DriverErrorCode =
   /** The natural-language inject edit failed at the agent (terminal `failed`). */
@@ -46,7 +49,13 @@ export type DriverErrorCode =
   /** A run failed for a reason other than a missing/stale start node. */
   | "run_failed"
   /** A run failed because its start node is gone/stale (the recovery trigger). */
-  | "run_point_stale";
+  | "run_point_stale"
+  /** The natural-language pin edit failed at the agent (terminal `failed`). */
+  | "pin_edit_failed"
+  /** The readback after the pin did not confirm the chosen Character is pinned. */
+  | "pin_unconfirmed"
+  /** The clip run-point could not be resolved from the parsed Execution Protocol. */
+  | "clip_run_point_unresolved";
 
 /** A driver failure: a stable `code` plus a human-readable `message`. */
 export interface DriverError {
@@ -79,6 +88,25 @@ export interface CastResult {
 
 export type ComposeAndCastResult =
   | { readonly ok: true; readonly cast: CastResult }
+  | { readonly ok: false; readonly error: DriverError };
+
+/** A successful pin carries the confirmed pinned Character identifier. */
+export type PinResult =
+  | { readonly ok: true; readonly character: string }
+  | { readonly ok: false; readonly error: DriverError };
+
+/** The Phase-B result: the finished Asset's creation identifier and its media URL. */
+export interface AssetResult {
+  /** The chosen Character (a Cast candidate identifier) the Asset was rendered against. */
+  readonly character: string;
+  /** The finished Asset's creation identifier. */
+  readonly assetId: string;
+  /** The finished Asset's media URL (the Operator publishes this; the Producer never does). */
+  readonly assetUrl: string;
+}
+
+export type PickAndRenderResult =
+  | { readonly ok: true; readonly asset: AssetResult }
   | { readonly ok: false; readonly error: DriverError };
 
 function err(code: DriverErrorCode, message: string): DriverError {
@@ -307,4 +335,119 @@ async function recoverViaAgent(port: SpaceMcpPort): Promise<ComposeAndCastResult
       usedAgentFallback: true,
     },
   };
+}
+
+// ====================================================================================================
+// === PHASE B — pin the Character, render the clip chain, surface the Asset (ADR-0003) ================
+// ====================================================================================================
+
+// --- pinCharacter (Fallback Protocol: natural-language pin of the chosen Character + readback) -------
+
+/**
+ * Build the natural-language goal the in-canvas agent receives to pin the Operator's chosen Character.
+ * It names the target `Character` creation node and quotes the chosen Cast candidate identifier, so the
+ * agent re-pins that creation node (Spike 1 confirmed `spaces_edit` re-pins a creation node). Phase B's
+ * clip generators take their reference from the pinned `Character` node, so every clip/thumbnail then
+ * renders against the pick.
+ */
+export function pinGoal(character: string): string {
+  return `Pin the "${character}" creation as the "${CHARACTER_NODE_NAME}" Character creation node, so every clip and thumbnail renders against it.`;
+}
+
+/** Whether a Space-state node value reflects the chosen Character being pinned (readback confirmation). */
+function isPinnedToCharacter(state: SpaceStateLike, character: string): boolean {
+  return state.nodes.some((n) => typeof n.value === "string" && n.value === `PINNED:${character}`);
+}
+
+/**
+ * Pin the Operator's chosen **Character** into the Space via the **Fallback Protocol** (a natural-
+ * language `edit`), poll the edit to terminal, then **read back** the Space and confirm the chosen
+ * `Character` creation node is pinned (ADR-0003 Phase B; Spike 1). Returns the confirmed Character on
+ * success; an identifiable failure if the pin edit failed or the readback does not confirm the pin.
+ * Mirrors `injectSpec`'s edit → poll → readback shape.
+ */
+export async function pinCharacter(port: SpaceMcpPort, character: string): Promise<PinResult> {
+  const { editId } = await port.edit(pinGoal(character));
+  const status = await pollEdit(port, editId);
+  if (status.phase === "failed") {
+    return { ok: false, error: err("pin_edit_failed", status.error ?? "the pin edit failed") };
+  }
+
+  const after = await port.readState();
+  if (!isPinnedToCharacter(after, character)) {
+    return {
+      ok: false,
+      error: err(
+        "pin_unconfirmed",
+        `The chosen Character "${character}" is not pinned after the edit — not confirmed.`,
+      ),
+    };
+  }
+  return { ok: true, character };
+}
+
+// --- fetchAsset (the finished Asset creation -> its media URL) ---------------------------------------
+
+/** Resolve the finished Asset's creation identifier to its media URL (the Operator publishes this). */
+export async function fetchAsset(port: SpaceMcpPort, creationId: string): Promise<string | null> {
+  const creations = await port.fetchCreations([creationId]);
+  return creations[0]?.url ?? null;
+}
+
+// --- pickAndRender (Phase B orchestration: pin -> run clip run-point -> fetch Asset) -----------------
+
+/**
+ * Phase B — Render (ADR-0003). On the Operator's Character pick: pin the chosen Character into the Space
+ * (Fallback Protocol, readback-confirmed), resolve the **clip** run-point by name from the parsed
+ * Execution Protocol (the run-point that is NOT the Cast gate — `gate === null`), run it `downstream` so
+ * the clip → Video Combiner → Final Output chain renders unattended to one combined **Asset**, and fetch
+ * the finished Asset's media URL.
+ *
+ * The driver renders the Asset and **stops** — it never publishes, never posts to Facebook. The Asset
+ * waits for the Operator (generate-never-publish; ADR-0002). The `casting → produced` ledger write +
+ * `character`/`asset_url`/`produced_at` is the shell's job (see `ledger.writeIdeaStatus` /
+ * `ledger.writeIdeaAsset`).
+ */
+export async function pickAndRender(
+  port: SpaceMcpPort,
+  spaceState: SpaceStateLike,
+  character: string,
+): Promise<PickAndRenderResult> {
+  // Pin the chosen Character first — every clip/thumbnail renders against it.
+  const pinned = await pinCharacter(port, character);
+  if (!pinned.ok) {
+    return { ok: false, error: pinned.error };
+  }
+
+  // Resolve the clip run-point (the non-cast-gate run-point) by name from the Execution Protocol.
+  const parsed = parse(spaceState);
+  const clipRunPoint = parsed.ok
+    ? parsed.runPoints.find((rp) => rp.gate === null) ?? null
+    : null;
+  if (clipRunPoint === null) {
+    return {
+      ok: false,
+      error: err(
+        "clip_run_point_unresolved",
+        "Could not resolve the clip run-point (the non-cast-gate run-point) from the Execution Protocol.",
+      ),
+    };
+  }
+
+  // Run the clip run-point downstream — clip → Video Combiner → Final Output → one Asset.
+  const run = await runRunPoint(port, clipRunPoint.start_node_id, DOWNSTREAM_MODE);
+  if (!run.ok) {
+    return { ok: false, error: run.error };
+  }
+
+  const assetId = run.outcome.creationIds[0];
+  if (assetId === undefined) {
+    return { ok: false, error: err("run_failed", "the clip run produced no Asset creation") };
+  }
+  const assetUrl = await fetchAsset(port, assetId);
+  if (assetUrl === null) {
+    return { ok: false, error: err("run_failed", "the finished Asset creation has no media URL") };
+  }
+
+  return { ok: true, asset: { character, assetId, assetUrl } };
 }
