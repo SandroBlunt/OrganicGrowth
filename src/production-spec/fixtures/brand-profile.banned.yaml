@@ -1,0 +1,19 @@
+# Fixture brand profile for brand-safety tests ONLY.
+#
+# The REAL data/brand-profile.yaml currently has `banned_words: []`, so it cannot exercise the
+# brand-safety filter. This fixture defines banned words so the filter's reject path is provable.
+# Shape mirrors data/brand-profile.yaml.
+
+channel:
+  name: TestChannel
+  platform: facebook
+
+niche: "Test niche"
+language: es
+
+banned_words:
+  - cure
+  - miracle
+  - guaranteed
+brand_safety:
+  - "No medical or 'cure' claims."
