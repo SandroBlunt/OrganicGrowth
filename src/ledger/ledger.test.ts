@@ -1,0 +1,130 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  ledgerStatusForTransition,
+  applyIdeaStatus,
+  writeIdeaStatus,
+  loadIdeas,
+  type LedgerIdea,
+} from "./ledger.ts";
+import type { QueueJob } from "../production-queue/queue.ts";
+
+function job(over: Partial<QueueJob> & Pick<QueueJob, "idea_id">): QueueJob {
+  return {
+    phase: "cast",
+    status: "queued",
+    enqueued_at: "2026-06-05T10:00:00.000Z",
+    ...over,
+  };
+}
+
+describe("ledgerStatusForTransition — queue→ledger reflection points", () => {
+  it("maps a cast job reaching its gate to ledger casting", () => {
+    const result = ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "cast" }), "awaiting_cast");
+    assert.equal(result, "casting");
+  });
+
+  it("maps a render job completing to ledger produced", () => {
+    const result = ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "render" }), "done");
+    assert.equal(result, "produced");
+  });
+
+  it("implies no ledger change when a job enters running", () => {
+    assert.equal(ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "cast" }), "running"), null);
+    assert.equal(ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "render" }), "running"), null);
+  });
+
+  it("implies no ledger change when any job fails", () => {
+    assert.equal(ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "cast" }), "failed"), null);
+    assert.equal(ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "render" }), "failed"), null);
+  });
+
+  it("implies no ledger change for a cast job that completes (done) — only render→done means produced", () => {
+    assert.equal(ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "cast" }), "done"), null);
+  });
+
+  it("implies no ledger change for a render job reaching awaiting_cast (render never gates)", () => {
+    assert.equal(ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "render" }), "awaiting_cast"), null);
+  });
+});
+
+describe("applyIdeaStatus — pure status set", () => {
+  const ideas: LedgerIdea[] = [
+    { id: "idea-A", status: "accepted" },
+    { id: "idea-B", status: "accepted" },
+  ];
+
+  it("sets the target Idea's status and leaves others unchanged", () => {
+    const after = applyIdeaStatus(ideas, "idea-A", "casting");
+    assert.equal(after.find((i) => i.id === "idea-A")!.status, "casting");
+    assert.equal(after.find((i) => i.id === "idea-B")!.status, "accepted");
+  });
+
+  it("is pure: it never mutates the input array or its records", () => {
+    const snapshot = JSON.stringify(ideas);
+    applyIdeaStatus(ideas, "idea-A", "casting");
+    assert.equal(JSON.stringify(ideas), snapshot);
+  });
+
+  it("returns the array unchanged for an unknown Idea", () => {
+    const after = applyIdeaStatus(ideas, "idea-ZZZ", "casting");
+    assert.deepEqual(after, ideas);
+  });
+});
+
+describe("writeIdeaStatus — thin shell keeps the ledger in step", () => {
+  async function withLedger(fn: (path: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-"));
+    const path = join(dir, "ledger.json");
+    try {
+      await fn(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("applies the casting status implied by a cast job reaching its gate, touching only that Idea", async () => {
+    await withLedger(async (path) => {
+      const seed = {
+        baseline: { note: "seed" },
+        ideas: [
+          { id: "idea-A", run: "2026-W22", status: "accepted", title: "A", post_url: null },
+          { id: "idea-B", run: "2026-W22", status: "accepted", title: "B", post_url: null },
+        ],
+      };
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+
+      const status = ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "cast" }), "awaiting_cast");
+      assert.equal(status, "casting");
+      await writeIdeaStatus("idea-A", status!, { ledgerPath: path });
+
+      const after = JSON.parse(await readFile(path, "utf8")) as typeof seed;
+      const a = after.ideas.find((i) => i.id === "idea-A")!;
+      const b = after.ideas.find((i) => i.id === "idea-B")!;
+      assert.equal(a.status, "casting");
+      assert.equal(b.status, "accepted");
+      // unrelated fields preserved
+      assert.equal(a.title, "A");
+      assert.equal(after.baseline.note, "seed");
+    });
+  });
+
+  it("applies the produced status implied by a render job completing", async () => {
+    await withLedger(async (path) => {
+      const seed = {
+        ideas: [{ id: "idea-A", run: "2026-W22", status: "casting", title: "A" }],
+      };
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+
+      const status = ledgerStatusForTransition(job({ idea_id: "idea-A", phase: "render" }), "done");
+      assert.equal(status, "produced");
+      await writeIdeaStatus("idea-A", status!, { ledgerPath: path });
+
+      const ideas = await loadIdeas(path);
+      assert.equal(ideas.find((i) => i.id === "idea-A")!.status, "produced");
+    });
+  });
+});
