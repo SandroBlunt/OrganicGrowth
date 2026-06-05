@@ -20,7 +20,16 @@ format_focus: reel
 ideas_per_run: 10
 overperformance_only: true # only mine peer posts beating their OWN page baseline
 
-# Apify actors (slugs vary — confirm/replace for the actor you have access to).
+# Apify actors, keyed by platform. trend-scout + performance-tracker use the pair that
+# matches the Channel's `platform` (data/brand-profile.yaml). Facebook is wired today;
+# Instagram/LinkedIn just need their own actors + a metric mapping into the Performance Score.
 apify:
-  trends_actor: "apify/facebook-posts-scraper"   # scrapes a Page's recent posts
-  post_actor:   "apify/facebook-post-scraper"    # scrapes one post's public metrics by URL
+  facebook:
+    trends_actor: "apify/facebook-posts-scraper"   # scrapes an account's recent posts
+    post_actor:   "apify/facebook-post-scraper"    # scrapes one post's public metrics by URL
+  # instagram:
+  #   trends_actor: "apify/instagram-scraper"
+  #   post_actor:   "apify/instagram-post-scraper"
+  # linkedin:
+  #   trends_actor: "..."
+  #   post_actor:   "..."

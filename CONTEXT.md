@@ -1,7 +1,7 @@
 # OrganicGrowth
 
-OrganicGrowth is an organic-social **intelligence + production** system for **Facebook** (Pages &
-Reels): it finds trending themes, turns the strongest into brand-fit **Ideas**, renders each accepted
+OrganicGrowth is an organic-social **intelligence + production** system for **Facebook, Instagram, or
+LinkedIn** (Facebook-first today): it finds trending themes, turns the strongest into brand-fit **Ideas**, renders each accepted
 Idea into a publish-ready **Asset** via a Magnific flow, and tracks how the resulting posts perform —
 feeding real performance back so the next round of ideas is sharper. It **generates the Asset but
 never publishes**: a human reviews, publishes the Reel/Post to the Channel, and logs the URL. The
@@ -15,10 +15,10 @@ human gate moved from *creation* to *publication* — it was never removed (see 
 
 ## Language
 
-**Channel** (our Facebook Page):
-The single Page we publish to and grow (e.g. "MundoTip"). The "us" that Brand Profile and Relevance
-describe.
-_Avoid_: account, profile, handle.
+**Channel** (our account):
+The single account/Page we publish to and grow (e.g. "MundoTip"), on its platform (Facebook today;
+Instagram or LinkedIn later). The "us" that Brand Profile and Relevance describe.
+_Avoid_: profile, handle.
 
 **Operator**:
 The single human-in-the-loop who runs OrganicGrowth — sets the weekly Trend Research parameters, reviews
@@ -26,8 +26,8 @@ and rejects Ideas (with reasons), creates the content, and logs the Post URLs.
 _Avoid_: user, admin (be specific — the Operator is the marketer driving the loop).
 
 **Trend**:
-A theme with current momentum on Facebook, surfaced from Apify by scraping *other people's* public
-Reels/Pages (engagement + recency). On FB, momentum is carried more by topics/formats/sounds than by
+A theme with current momentum on the Channel's platform, surfaced from Apify by scraping *other
+people's* public posts (engagement + recency). Momentum is carried more by topics/formats/sounds than by
 hashtags.
 _Avoid_: hashtag (a Trend is more than a tag), topic.
 
@@ -185,8 +185,11 @@ decision, designed fresh for OrganicGrowth.
 
 ## Flagged ambiguities
 
-- **platform** — OrganicGrowth targets **Facebook** (Pages/Reels), not Instagram. The source repo's
-  Instagram framing is replaced; `platform` stays a field but defaults to `facebook`.
+- **platform** — OrganicGrowth grows organic presence on **Facebook, Instagram, or LinkedIn**.
+  Production is identical across them (a 9:16 short video); only **trend-scout** and
+  **performance-tracker** bind to a platform — via that platform's **Apify actors** (`seeds.yaml`) plus
+  a per-platform metric mapping into the **Performance Score**. `platform` is a first-class field
+  (`brand-profile.yaml`); **Facebook is the only wired platform today** — Instagram/LinkedIn are roadmap.
 - **Apify does two jobs; Meta export is optional** — **Apify** scrapes *other people's* posts for
   **Trend** discovery AND *our own* posts (by logged URL) for **Performance** — both **public metrics
   only** (reactions, comments, shares, views). Richer first-party signals (Saves, Net-follows,

@@ -4,8 +4,8 @@ Guidance for Claude Code when operating in this repository.
 
 ## Project Overview
 
-**OrganicGrowth** is an organic-social *intelligence + production* system for **Facebook** (Pages &
-Reels). It runs a weekly loop: discover what's trending among peer Pages → suggest brand-fit **Idea
+**OrganicGrowth** is an organic-social *intelligence + production* system for **Facebook, Instagram, or
+LinkedIn** (Facebook-first today). It runs a weekly loop: discover what's trending among peer accounts → suggest brand-fit **Idea
 briefs** → **render each accepted Idea into a publish-ready Asset** via a Magnific Space → (a human
 publishes it) → track the posts' performance → feed it back so the next round of ideas is sharper.
 
@@ -47,7 +47,7 @@ Operator to run a step it can run itself, and never renders past a gate before t
    `producer` **queues the render**, then renders to completion *unattended* when the Space is free —
    pins the Character, runs the **clip** run-point, saves the finished **Asset**. Status
    `casting → produced`.
-5. 👤 **Gate 3 — Publish.** Operator publishes the Asset to Facebook, then `/log-post <idea-id> <fb-url>`
+5. 👤 **Gate 3 — Publish.** Operator publishes the Asset to the Channel's platform, then `/log-post <idea-id> <post-url>`
    links the published **Post** to its **Idea** (explicit attribution — never inferred). Status
    `produced → posted`.
 6. `/track-performance` → `performance-tracker` pulls public metrics (Apify), computes the
