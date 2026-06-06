@@ -1,11 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { renderReport, reportCommand } from "./report.ts";
+import { renderReport, reportCommand, main as reportMain } from "./report.ts";
 import type { ReportData } from "../ledger/ledger.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -154,7 +154,7 @@ describe("reportCommand — reads the ledger via loadReport and renders it", () 
         baseline: { updated_at: "2026-06-04T09:00:00.000Z" },
       },
       async (ledgerPath) => {
-        const out = await reportCommand(ledgerPath);
+        const out = await reportCommand("mundotip", ledgerPath);
         assert.match(out, /Casting one/);
         assert.match(out, /Produced one/);
         assert.match(out, /Production/i);
@@ -170,7 +170,7 @@ describe("reportCommand — reads the ledger via loadReport and renders it", () 
       },
       async (ledgerPath) => {
         const before = await readFile(ledgerPath, "utf8");
-        await reportCommand(ledgerPath);
+        await reportCommand("mundotip", ledgerPath);
         const after = await readFile(ledgerPath, "utf8");
         assert.equal(after, before, "/report must not write the ledger");
       },
@@ -212,5 +212,211 @@ describe("command surface — final and matches the shipped Producer feature", (
     assert.match(doc, /produced/i);
     assert.match(doc, /Fit Score/i);
     assert.match(doc, /Performance Score/i);
+  });
+
+  it("report.md documents the <brand> argument as required", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "report.md"), "utf8");
+    assert.match(doc, /<brand>/i, "report.md must document the <brand> argument");
+  });
+
+  it("pick-cast.md documents the <brand> argument as required", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "pick-cast.md"), "utf8");
+    assert.match(doc, /<brand>/i, "pick-cast.md must document the <brand> argument");
+  });
+
+  it("run-trends.md documents the <brand> argument as required", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "run-trends.md"), "utf8");
+    assert.match(doc, /<brand>/i, "run-trends.md must document the <brand> argument");
+  });
+
+  it("review-ideas.md documents the <brand> argument as required", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "review-ideas.md"), "utf8");
+    assert.match(doc, /<brand>/i, "review-ideas.md must document the <brand> argument");
+  });
+
+  it("queue.md documents the <brand> argument as required", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "queue.md"), "utf8");
+    assert.match(doc, /<brand>/i, "queue.md must document the <brand> argument");
+  });
+
+  it("log-post.md documents the <brand> argument as required", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "log-post.md"), "utf8");
+    assert.match(doc, /<brand>/i, "log-post.md must document the <brand> argument");
+  });
+
+  it("track-performance.md documents the <brand> argument as required", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "track-performance.md"), "utf8");
+    assert.match(doc, /<brand>/i, "track-performance.md must document the <brand> argument");
+  });
+
+  it("all content agent files thread the Brand through their prompts", async () => {
+    const agents = join(REPO_ROOT, ".claude", "agents");
+    for (const agentFile of ["trend-scout.md", "idea-strategist.md", "producer.md", "performance-tracker.md"]) {
+      const doc = await readFile(join(agents, agentFile), "utf8");
+      assert.match(
+        doc,
+        /brand/i,
+        `${agentFile} must thread the Brand through its prompt`,
+      );
+    }
+  });
+
+  it("producer.md restates the Brand at Gate 2 (Cast pick)", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "agents", "producer.md"), "utf8");
+    assert.match(doc, /Brand.*Gate 2|Gate 2.*Brand|Gate 2.*Cast.*Brand|Brand.*Cast.*gate/i,
+      "producer.md must restate the Brand at Gate 2 (Cast pick)");
+  });
+});
+
+// === Brand-routing tests — reportCommand resolves the correct Brand's ledger ==========================
+
+/**
+ * Create a temp brands-root with two Brand directories, each holding a ledger. Returns paths for
+ * cleanup. Used to verify that reportCommand("mundotip") reads mundotip's ledger, not acme's.
+ */
+async function withTwoBrandLedgers(
+  fn: (opts: {
+    mundotipLedger: string;
+    acmeLedger: string;
+  }) => Promise<void>,
+): Promise<void> {
+  const tmpRoot = await mkdtemp(join(tmpdir(), "og-report-brands-"));
+  const mundotipDir = join(tmpRoot, "mundotip");
+  const acmeDir = join(tmpRoot, "acme");
+  await mkdir(mundotipDir, { recursive: true });
+  await mkdir(acmeDir, { recursive: true });
+
+  const mundotipLedger = join(mundotipDir, "ledger.json");
+  const acmeLedger = join(acmeDir, "ledger.json");
+
+  const mundotipSeed = {
+    ideas: [{ id: "mt-01", title: "MundoTip Idea", status: "casting", fit_score: 0.8 }],
+    baseline: { updated_at: null },
+  };
+  const acmeSeed = {
+    ideas: [{ id: "acme-01", title: "Acme Idea", status: "suggested", fit_score: 0.6 }],
+    baseline: { updated_at: null },
+  };
+
+  await writeFile(mundotipLedger, JSON.stringify(mundotipSeed, null, 2) + "\n", "utf8");
+  await writeFile(acmeLedger, JSON.stringify(acmeSeed, null, 2) + "\n", "utf8");
+
+  try {
+    await fn({ mundotipLedger, acmeLedger });
+  } finally {
+    await rm(tmpRoot, { recursive: true, force: true });
+  }
+}
+
+describe("reportCommand — brand-routing: resolves the correct Brand's ledger via the resolver", () => {
+  it("reportCommand('mundotip', ledgerPath) reads the mundotip ledger and returns the mundotip report", async () => {
+    await withTwoBrandLedgers(async ({ mundotipLedger }) => {
+      const out = await reportCommand("mundotip", mundotipLedger);
+      assert.match(out, /MundoTip Idea/);
+      assert.match(out, /mt-01/);
+      assert.doesNotMatch(out, /Acme Idea/);
+      assert.doesNotMatch(out, /acme-01/);
+    });
+  });
+
+  it("reportCommand('acme', ledgerPath) reads the acme ledger and returns the acme report", async () => {
+    await withTwoBrandLedgers(async ({ acmeLedger }) => {
+      const out = await reportCommand("acme", acmeLedger);
+      assert.match(out, /Acme Idea/);
+      assert.match(out, /acme-01/);
+      assert.doesNotMatch(out, /MundoTip Idea/);
+      assert.doesNotMatch(out, /mt-01/);
+    });
+  });
+
+  it("Brand A's report does not show Brand B's data — each brand reads only its own ledger", async () => {
+    await withTwoBrandLedgers(async ({ mundotipLedger, acmeLedger }) => {
+      const mundotipOut = await reportCommand("mundotip", mundotipLedger);
+      const acmeOut = await reportCommand("acme", acmeLedger);
+      // Cross-contamination check
+      assert.doesNotMatch(mundotipOut, /acme-01/, "mundotip report must not contain acme data");
+      assert.doesNotMatch(acmeOut, /mt-01/, "acme report must not contain mundotip data");
+    });
+  });
+
+  it("reportCommand resolves the correct ledger path from the brands-root when no explicit ledgerPath is provided", async () => {
+    // This test exercises the resolver fallback: `ledgerPath ?? resolveBrand(brand, brandsRoot).ledger`.
+    // It calls reportCommand with NO explicit ledgerPath — only brand + brandsRoot — so the ?? branch
+    // is actually taken. The temp dir is structured as <tmpRoot>/<slug>/ledger.json exactly as
+    // resolveBrand expects.
+
+    // Fresh temp root structured exactly as resolveBrand expects: <tmpRoot>/mundotip/ledger.json
+    const tmpRoot = await mkdtemp(join(tmpdir(), "og-report-resolver-"));
+    const mundotipDir = join(tmpRoot, "mundotip");
+    await mkdir(mundotipDir, { recursive: true });
+    const ledgerPath = join(mundotipDir, "ledger.json");
+    await writeFile(
+      ledgerPath,
+      JSON.stringify(
+        { ideas: [{ id: "mt-resolver-01", title: "Resolver Fallback Idea", status: "casting", fit_score: 0.75 }], baseline: { updated_at: null } },
+        null,
+        2,
+      ) + "\n",
+      "utf8",
+    );
+    try {
+      // NO explicit ledgerPath — resolveBrand(brand, brandsRoot).ledger is the only path used
+      const out = await reportCommand("mundotip", undefined, tmpRoot);
+      assert.match(out, /Resolver Fallback Idea/, "resolver fallback reads the correct Brand's ledger");
+      assert.match(out, /mt-resolver-01/);
+    } finally {
+      await rm(tmpRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("reportCommand — the brand argument is threaded through the report header", () => {
+  it("the report output identifies the Brand being reported on", async () => {
+    await withLedger(
+      {
+        ideas: [{ id: "idea-01", title: "Test Idea", status: "suggested", fit_score: 0.5 }],
+        baseline: { updated_at: null },
+      },
+      async (ledgerPath) => {
+        const out = await reportCommand("mundotip", ledgerPath);
+        assert.match(out, /mundotip/i, "report output must state the Brand being reported on");
+      },
+    );
+  });
+});
+
+// === CLI main() — usage-error path when <brand> is absent =============================================
+
+describe("report CLI main() — exits with usage error when <brand> is absent", () => {
+  it("writes a usage message to stderr and sets a non-zero exit code when no brand arg is given", async () => {
+    // Capture stderr output by replacing process.stderr.write temporarily.
+    const originalArgv = process.argv;
+    const originalExitCode = process.exitCode;
+    const stderrChunks: string[] = [];
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+    // Intercept stderr
+    (process.stderr as NodeJS.WriteStream).write = (chunk: string | Uint8Array): boolean => {
+      stderrChunks.push(typeof chunk === "string" ? chunk : String(chunk));
+      return true;
+    };
+
+    try {
+      // Simulate: no <brand> argument — process.argv has only the node binary + script path
+      process.argv = ["node", "report.ts"];
+      process.exitCode = 0;
+
+      await reportMain();
+
+      // The usage message must appear on stderr
+      const stderr = stderrChunks.join("");
+      assert.match(stderr, /usage/i, "stderr must contain a usage message when <brand> is absent");
+
+      // Exit code must be non-zero
+      assert.notEqual(process.exitCode, 0, "process.exitCode must be non-zero when <brand> is absent");
+    } finally {
+      process.argv = originalArgv;
+      process.exitCode = originalExitCode;
+      (process.stderr as NodeJS.WriteStream).write = originalStderrWrite as typeof process.stderr.write;
+    }
   });
 });

@@ -1,10 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { pickCastCommand, selectCharacter } from "./pick-cast.ts";
+import { pickCastCommand, selectCharacter, main as pickCastMain } from "./pick-cast.ts";
 import { loadQueue } from "../production-queue/store.ts";
 
 /** Run `fn` with a temp ledger AND a temp queue path, so the command never touches real state. */
@@ -63,7 +63,7 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
       ideas: [{ id: "idea-A", status: "casting", cast }],
     };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
-      const out = await pickCastCommand("idea-A", 3, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const out = await pickCastCommand("mundotip", "idea-A", 3, { ledgerPath, queuePath, now: () => PICK_NOW });
       assert.match(out, /idea-A/);
       assert.match(out, /cast-3/);
     });
@@ -72,7 +72,7 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
   it("reports an unknown Idea without crashing and selects no Character", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
-      const out = await pickCastCommand("idea-ZZZ", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const out = await pickCastCommand("mundotip", "idea-ZZZ", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
       assert.match(out, /idea-ZZZ/);
       assert.doesNotMatch(out, /cast-1/);
     });
@@ -81,7 +81,7 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
   it("reports an out-of-range pick without crashing and selects no Character", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
-      const out = await pickCastCommand("idea-A", 9, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const out = await pickCastCommand("mundotip", "idea-A", 9, { ledgerPath, queuePath, now: () => PICK_NOW });
       assert.match(out, /idea-A/);
       // Out of range: no specific Character was chosen.
       assert.doesNotMatch(out, /cast-3/);
@@ -91,7 +91,7 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
   it("reports an Idea with no recorded Cast without crashing", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting" }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
-      const out = await pickCastCommand("idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const out = await pickCastCommand("mundotip", "idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
       assert.match(out, /idea-A/);
       assert.doesNotMatch(out, /cast-1/);
     });
@@ -104,7 +104,7 @@ describe("pickCastCommand — picking a Cast enqueues the render", () => {
   it("enqueues exactly one queued render-phase job for the Idea on a valid pick", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
-      await pickCastCommand("idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
       const q = await loadQueue(queuePath);
       const renders = q.jobs.filter((j) => j.idea_id === "idea-A" && j.phase === "render");
       assert.equal(renders.length, 1);
@@ -116,7 +116,7 @@ describe("pickCastCommand — picking a Cast enqueues the render", () => {
   it("does NOT enqueue a render for an out-of-range pick (no Character ⇒ no render)", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
-      await pickCastCommand("idea-A", 9, { ledgerPath, queuePath, now: () => PICK_NOW });
+      await pickCastCommand("mundotip", "idea-A", 9, { ledgerPath, queuePath, now: () => PICK_NOW });
       const q = await loadQueue(queuePath);
       assert.equal(q.jobs.filter((j) => j.phase === "render").length, 0);
     });
@@ -125,7 +125,7 @@ describe("pickCastCommand — picking a Cast enqueues the render", () => {
   it("does NOT enqueue a render for an unknown Idea", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
-      await pickCastCommand("idea-ZZZ", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      await pickCastCommand("mundotip", "idea-ZZZ", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
       const q = await loadQueue(queuePath);
       assert.equal(q.jobs.length, 0);
     });
@@ -134,10 +134,182 @@ describe("pickCastCommand — picking a Cast enqueues the render", () => {
   it("does not duplicate the render job when the same Cast is picked twice", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
-      await pickCastCommand("idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
-      await pickCastCommand("idea-A", 2, { ledgerPath, queuePath, now: () => "2026-06-05T13:00:00.000Z" });
+      await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => "2026-06-05T13:00:00.000Z" });
       const q = await loadQueue(queuePath);
       assert.equal(q.jobs.filter((j) => j.phase === "render").length, 1);
     });
+  });
+});
+
+// === Brand-routing tests — pickCastCommand resolves the correct Brand's ledger =======================
+
+/**
+ * Create a temp brands-root with two Brand directories, each holding a ledger. Returns paths for
+ * cleanup. Used to verify that pickCastCommand("mundotip", ...) reads mundotip's ledger, not acme's.
+ */
+async function withTwoBrandLedgers(
+  fn: (opts: {
+    mundotipLedger: string;
+    acmeLedger: string;
+    queuePath: string;
+  }) => Promise<void>,
+): Promise<void> {
+  const tmpRoot = await mkdtemp(join(tmpdir(), "og-pick-cast-brands-"));
+  const mundotipDir = join(tmpRoot, "mundotip");
+  const acmeDir = join(tmpRoot, "acme");
+  await mkdir(mundotipDir, { recursive: true });
+  await mkdir(acmeDir, { recursive: true });
+
+  const mundotipLedger = join(mundotipDir, "ledger.json");
+  const acmeLedger = join(acmeDir, "ledger.json");
+  const queuePath = join(tmpRoot, "queue.json"); // shared global queue
+
+  const mundotipSeed = { ideas: [{ id: "mt-idea", status: "casting", cast }] };
+  const acmeSeed = { ideas: [{ id: "acme-idea", status: "casting", cast }] };
+
+  await writeFile(mundotipLedger, JSON.stringify(mundotipSeed, null, 2) + "\n", "utf8");
+  await writeFile(acmeLedger, JSON.stringify(acmeSeed, null, 2) + "\n", "utf8");
+
+  try {
+    await fn({ mundotipLedger, acmeLedger, queuePath });
+  } finally {
+    await rm(tmpRoot, { recursive: true, force: true });
+  }
+}
+
+describe("pickCastCommand — brand-routing: resolves the correct Brand's ledger via the resolver", () => {
+  it("pickCastCommand('mundotip', ...) reads the mundotip ledger and finds its Idea", async () => {
+    await withTwoBrandLedgers(async ({ mundotipLedger, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "mt-idea", 1, {
+        ledgerPath: mundotipLedger,
+        queuePath,
+        now: () => PICK_NOW,
+      });
+      assert.match(out, /mt-idea/);
+      assert.match(out, /cast-1/);
+    });
+  });
+
+  it("pickCastCommand('acme', ...) reads the acme ledger and finds its Idea", async () => {
+    await withTwoBrandLedgers(async ({ acmeLedger, queuePath }) => {
+      const out = await pickCastCommand("acme", "acme-idea", 2, {
+        ledgerPath: acmeLedger,
+        queuePath,
+        now: () => PICK_NOW,
+      });
+      assert.match(out, /acme-idea/);
+      assert.match(out, /cast-2/);
+    });
+  });
+
+  it("pickCastCommand for Brand A does not find Ideas from Brand B's ledger", async () => {
+    await withTwoBrandLedgers(async ({ mundotipLedger, queuePath }) => {
+      // acme-idea only exists in the acme ledger; using mundotipLedger means it is not found
+      const out = await pickCastCommand("mundotip", "acme-idea", 1, {
+        ledgerPath: mundotipLedger,
+        queuePath,
+        now: () => PICK_NOW,
+      });
+      assert.match(out, /acme-idea/);
+      assert.doesNotMatch(out, /cast-1\b/); // no character was selected
+      assert.match(out, /no Cast recorded|Cast gate/i);
+    });
+  });
+
+  it("both brands share the same global queue but have separate ledgers", async () => {
+    await withTwoBrandLedgers(async ({ mundotipLedger, acmeLedger, queuePath }) => {
+      // Pick for mundotip
+      await pickCastCommand("mundotip", "mt-idea", 1, {
+        ledgerPath: mundotipLedger,
+        queuePath,
+        now: () => PICK_NOW,
+      });
+      // Pick for acme
+      await pickCastCommand("acme", "acme-idea", 2, {
+        ledgerPath: acmeLedger,
+        queuePath,
+        now: () => "2026-06-06T12:00:00.000Z",
+      });
+      // Both renders should be queued in the shared global queue
+      const q = await loadQueue(queuePath);
+      const renders = q.jobs.filter((j) => j.phase === "render");
+      assert.equal(renders.length, 2, "one render job per brand in the shared global queue");
+      const ideaIds = renders.map((j) => j.idea_id).sort();
+      assert.deepEqual(ideaIds, ["acme-idea", "mt-idea"]);
+    });
+  });
+
+  it("pickCastCommand routes to the Brand's ledger via the resolver when no explicit ledgerPath is provided", async () => {
+    // This test exercises the resolver fallback: `options.ledgerPath ?? resolveBrand(brand, brandsRoot).ledger`.
+    // It calls pickCastCommand with options.brandsRoot but NO options.ledgerPath, so the ?? branch
+    // is actually taken. The temp dir is structured as <tmpRoot>/<slug>/ledger.json exactly as
+    // resolveBrand expects.
+    const tmpRoot = await mkdtemp(join(tmpdir(), "og-pc-resolver-"));
+    const mundotipDir = join(tmpRoot, "mundotip");
+    const queueDir = join(tmpRoot, "queue");
+    await mkdir(mundotipDir, { recursive: true });
+    await mkdir(queueDir, { recursive: true });
+
+    const ledgerPath = join(mundotipDir, "ledger.json");
+    const queuePath = join(queueDir, "queue.json");
+
+    await writeFile(
+      ledgerPath,
+      JSON.stringify(
+        { ideas: [{ id: "mt-resolver-idea", status: "casting", cast }] },
+        null,
+        2,
+      ) + "\n",
+      "utf8",
+    );
+
+    try {
+      // NO explicit ledgerPath in options — resolveBrand(brand, brandsRoot).ledger is the only path used
+      const out = await pickCastCommand("mundotip", "mt-resolver-idea", 1, {
+        brandsRoot: tmpRoot,
+        queuePath,
+        now: () => PICK_NOW,
+      });
+      // The resolver found the Idea and the Character was selected
+      assert.match(out, /mt-resolver-idea/, "resolver fallback reads the correct Brand's ledger");
+      assert.match(out, /cast-1/, "correct Cast member selected via resolver-derived path");
+      // The render was enqueued
+      const q = await loadQueue(queuePath);
+      assert.equal(q.jobs.filter((j) => j.idea_id === "mt-resolver-idea" && j.phase === "render").length, 1);
+    } finally {
+      await rm(tmpRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+// === CLI main() — usage-error path when <brand> is absent =============================================
+
+describe("pick-cast CLI main() — exits with usage error when <brand> is absent", () => {
+  it("writes a usage message to stderr and sets a non-zero exit code when no args are given", async () => {
+    const originalArgv = process.argv;
+    const originalExitCode = process.exitCode;
+    const stderrChunks: string[] = [];
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+    (process.stderr as NodeJS.WriteStream).write = (chunk: string | Uint8Array): boolean => {
+      stderrChunks.push(typeof chunk === "string" ? chunk : String(chunk));
+      return true;
+    };
+
+    try {
+      // Simulate: no arguments at all — brand, ideaId, and n all absent
+      process.argv = ["node", "pick-cast.ts"];
+      process.exitCode = 0;
+
+      await pickCastMain();
+
+      const stderr = stderrChunks.join("");
+      assert.match(stderr, /usage/i, "stderr must contain a usage message when <brand> is absent");
+      assert.notEqual(process.exitCode, 0, "process.exitCode must be non-zero when <brand> is absent");
+    } finally {
+      process.argv = originalArgv;
+      process.exitCode = originalExitCode;
+      (process.stderr as NodeJS.WriteStream).write = originalStderrWrite as typeof process.stderr.write;
+    }
   });
 });
