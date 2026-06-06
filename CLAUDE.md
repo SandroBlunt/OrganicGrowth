@@ -76,8 +76,8 @@ content Agents table.
 
 | Agent | Model | Role |
 |---|---|---|
-| `developer` | Opus | Implements one build slice: authors an OpenSpec change from the issue, then builds it test-first against a **fake** Magnific Space |
-| `qa` | Opus | The only non-human gate: runs tests, verifies the acceptance criteria and that the spec matches the issue, reports a verdict; never edits code |
+| `developer` | Sonnet | Implements one build slice: authors an OpenSpec change from the issue, then builds it test-first against a **fake** Magnific Space |
+| `qa` | Sonnet | The only non-human gate: runs tests, verifies the acceptance criteria and that the spec matches the issue, reports a verdict; never edits code |
 
 ### Development pipeline (per slice)
 

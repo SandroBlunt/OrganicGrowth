@@ -15,9 +15,18 @@ human gate moved from *creation* to *publication* — it was never removed (see 
 
 ## Language
 
-**Channel** (our account):
-The single account/Page we publish to and grow (e.g. "MundoTip"), on its platform (Facebook today;
-Instagram or LinkedIn later). The "us" that Brand Profile and Relevance describe.
+**Brand** (the tenant; top of the tree):
+One managed identity OrganicGrowth grows — its niche, voice, seed set, history, and the single
+**Channel** it publishes to. The system manages **many Brands**; each owns its own **Brand Profile**,
+seeds, **Your Data**, and ledger, and all of a Brand's state lives under its own directory. One Brand →
+one Channel today (1:1). Research and idea generation are **per-Brand**; production (the Magnific Space)
+is the shared part of the system.
+_Avoid_: account, tenant, client.
+
+**Channel** (a Brand's account):
+The single account/Page a **Brand** publishes to and grows (e.g. "MundoTip"), on its platform
+(Facebook today; Instagram or LinkedIn later). Exactly one per Brand — no longer a global singleton.
+The "us" that a Brand's Profile and Relevance describe.
 _Avoid_: profile, handle.
 
 **Operator**:
@@ -82,6 +91,14 @@ The publish-ready media (image/Reel) the **Producer** renders from an accepted I
 yet published** — the Operator reviews it and publishes it. One Idea yields at most one Asset.
 _Avoid_: draft, content, creative, Creation (Magnific's own word), post (a Post is *published*).
 
+**Space** (Magnific Space; a production format):
+A pre-defined Magnific pipeline that renders one **organic content format** — a UGC-style video, an
+image carousel, a Pixar-3D character Reel, etc. A Space is **brand-agnostic**: any **Brand** can render
+through it. Spaces are the shared, **format-keyed** half of OrganicGrowth; the per-Brand half is
+research and idea generation. Each Space carries its own input contract (the **Production Spec** shape)
+and its own **Execution Protocol**; today one Space (the 9:16 character Reel) is wired.
+_Avoid_: flow, template, pipeline (the Space *is* the pipeline).
+
 **Producer**:
 The agent that renders an accepted **Idea/Brief** into an **Asset** by driving a pre-defined Magnific
 Space. It is a **thin, self-configuring runner**: it reads the Space's own generation contract (its
@@ -107,7 +124,9 @@ The serialized backlog of Space generations the **Producer** owns. The Space run
 a time**, so accepting an Idea **enqueues** it and the Producer works the queue in order — one Space
 run at once. An Idea paused at its **Cast** gate does **not** hold the Space: the Producer advances the
 next queued generation while the Operator decides, then queues the **render** once a Character is
-picked.
+picked. There is **one global queue across all Brands** (the Space is the shared bottleneck, so it has a
+single lock); each job is **tagged with its Brand** so the Producer writes the Cast/Asset back to that
+Brand's ledger.
 _Avoid_: batch, backlog, jobs.
 
 **Post**:

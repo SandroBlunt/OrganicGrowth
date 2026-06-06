@@ -2,7 +2,7 @@
 name: qa
 description: 'Use this agent ONLY when the /build-issue command invokes it to verify a build slice the developer agent has completed. It runs the full test suite and confirms green, checks the built code satisfies every acceptance criterion of the GitHub issue, and checks the developer''s OpenSpec change (proposal + spec deltas) faithfully matches that issue — catching a misread or self-consistent-but-wrong spec. It reads, runs, and reports only; it NEVER edits product code. Do NOT use it for ad-hoc testing, exploratory test runs, or anything in the weekly content loop.\n\n<example>\nContext: /build-issue 7 has the developer agent finish implementing a slice and write its Build Report into the Slice Handoff.\nuser: "The developer finished issue-7-spec-validator. Verify it against issue #7."\nassistant: "Launching the qa agent to run the suite, check the code against issue #7''s acceptance criteria, and confirm the OpenSpec change matches the issue."\n<Task tool call to qa>\n</example>\n\n<example>\nContext: /build-issue is on retry Round 2 — the developer fixed the defects qa filed last round and resubmitted.\nuser: "Developer resubmitted issue-3-queue-drain after the Round 1 defects. Re-verify."\nassistant: "Using the qa agent to re-run the tests and re-check every acceptance criterion and scenario for this round, then append a fresh QA Verdict."\n<Task tool call to qa>\n</example>'
 tools: Read, Bash, Grep, Write
-model: opus
+model: sonnet
 color: purple
 ---
 
