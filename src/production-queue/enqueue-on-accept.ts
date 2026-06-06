@@ -34,12 +34,19 @@ export interface EnqueueOnAcceptOptions {
 /**
  * Decide what enqueueing an Idea should do, given the current ledger and queue state. Pure: no I/O.
  * Exposed so the accepted-only + no-duplicate policy is unit-testable without the filesystem.
+ *
+ * @param ideas   the current ledger Ideas
+ * @param queue   the current queue state
+ * @param ideaId  the Idea to enqueue
+ * @param now     ISO-8601 timestamp for `enqueued_at`
+ * @param brand   the Brand slug to stamp on the enqueued job (required — never ambient/session)
  */
 export function planEnqueue(
   ideas: Parameters<typeof findIdea>[0],
   queue: QueueState,
   ideaId: string,
   now: string,
+  brand: string,
 ): EnqueueResult {
   const idea = findIdea(ideas, ideaId);
   if (idea === null) {
@@ -52,12 +59,19 @@ export function planEnqueue(
   if (hasJobFor(queue, ideaId)) {
     return { enqueued: false, reason: "already-queued", state: queue };
   }
-  return { enqueued: true, state: enqueue(queue, ideaId, now) };
+  return { enqueued: true, state: enqueue(queue, ideaId, now, brand) };
 }
 
-/** Load ledger + queue, apply the enqueue policy, and persist if anything changed. */
+/**
+ * Load ledger + queue, apply the enqueue policy, and persist if anything changed.
+ *
+ * @param ideaId  the Idea to enqueue
+ * @param brand   the Brand slug to stamp on the enqueued job (required — never ambient/session)
+ * @param options optional path/clock overrides
+ */
 export async function enqueueOnAccept(
   ideaId: string,
+  brand: string,
   options: EnqueueOnAcceptOptions = {},
 ): Promise<EnqueueResult> {
   const ledgerPath = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
@@ -66,7 +80,7 @@ export async function enqueueOnAccept(
 
   const ideas = await loadIdeas(ledgerPath);
   const queue = await loadQueue(queuePath);
-  const result = planEnqueue(ideas, queue, ideaId, now);
+  const result = planEnqueue(ideas, queue, ideaId, now, brand);
 
   if (result.enqueued) {
     await saveQueue(result.state, queuePath);

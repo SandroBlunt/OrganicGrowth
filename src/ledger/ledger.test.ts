@@ -22,6 +22,7 @@ import type { QueueJob } from "../production-queue/queue.ts";
 
 function job(over: Partial<QueueJob> & Pick<QueueJob, "idea_id">): QueueJob {
   return {
+    brand: "test-brand",
     phase: "cast",
     status: "queued",
     enqueued_at: "2026-06-05T10:00:00.000Z",

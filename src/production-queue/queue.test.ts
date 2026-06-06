@@ -10,12 +10,16 @@ import {
 } from "./queue.ts";
 import { renderQueue } from "./render.ts";
 
+const BRAND_A = "alpha";
+const BRAND_B = "beta";
+
 /** A fixture queue state with one existing job, used to prove append + no-duplicate. */
 function fixtureWithOneJob(): QueueState {
   return {
     jobs: [
       {
         idea_id: "idea-2026-W22-01",
+        brand: BRAND_A,
         phase: "cast",
         status: "queued",
         enqueued_at: "2026-06-05T10:00:00.000Z",
@@ -38,7 +42,7 @@ describe("emptyQueue", () => {
 describe("enqueue (append + no-duplicate)", () => {
   it("appends exactly one queued cast-phase job for the idea_id", () => {
     const before = emptyQueue();
-    const after = enqueue(before, "idea-2026-W22-02", "2026-06-05T11:00:00.000Z");
+    const after = enqueue(before, "idea-2026-W22-02", "2026-06-05T11:00:00.000Z", BRAND_A);
 
     assert.equal(after.jobs.length, 1);
     const job = after.jobs[0]!;
@@ -47,8 +51,13 @@ describe("enqueue (append + no-duplicate)", () => {
     assert.equal(job.status, "queued");
   });
 
+  it("stamps brand on the enqueued cast job (AC1, AC2)", () => {
+    const after = enqueue(emptyQueue(), "idea-X", "2026-06-05T11:00:00.000Z", BRAND_A);
+    assert.equal(after.jobs[0]!.brand, BRAND_A);
+  });
+
   it("stamps enqueued_at as the injected ISO-8601 timestamp", () => {
-    const after = enqueue(emptyQueue(), "idea-2026-W22-02", "2026-06-05T11:00:00.000Z");
+    const after = enqueue(emptyQueue(), "idea-2026-W22-02", "2026-06-05T11:00:00.000Z", BRAND_A);
     const job = after.jobs[0]!;
     assert.equal(job.enqueued_at, "2026-06-05T11:00:00.000Z");
     assert.match(job.enqueued_at, ISO_8601);
@@ -56,16 +65,17 @@ describe("enqueue (append + no-duplicate)", () => {
 
   it("appends to an existing fixture queue without dropping prior jobs", () => {
     const before = fixtureWithOneJob();
-    const after = enqueue(before, "idea-2026-W22-02", "2026-06-05T11:00:00.000Z");
+    const after = enqueue(before, "idea-2026-W22-02", "2026-06-05T11:00:00.000Z", BRAND_B);
 
     assert.equal(after.jobs.length, 2);
     assert.equal(after.jobs[0]!.idea_id, "idea-2026-W22-01");
     assert.equal(after.jobs[1]!.idea_id, "idea-2026-W22-02");
+    assert.equal(after.jobs[1]!.brand, BRAND_B);
   });
 
   it("does NOT duplicate a job when the same idea_id is enqueued again", () => {
     const before = fixtureWithOneJob();
-    const after = enqueue(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z");
+    const after = enqueue(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
 
     assert.equal(after.jobs.length, 1);
     assert.equal(after.jobs[0]!.idea_id, "idea-2026-W22-01");
@@ -75,14 +85,14 @@ describe("enqueue (append + no-duplicate)", () => {
 
   it("is idempotent: re-enqueue returns the same state reference (no work)", () => {
     const before = fixtureWithOneJob();
-    const after = enqueue(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z");
+    const after = enqueue(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
     assert.equal(after, before);
   });
 
   it("is pure: it never mutates the input state", () => {
     const before = emptyQueue();
     const snapshot = JSON.stringify(before);
-    enqueue(before, "idea-2026-W22-02", "2026-06-05T11:00:00.000Z");
+    enqueue(before, "idea-2026-W22-02", "2026-06-05T11:00:00.000Z", BRAND_A);
     assert.equal(JSON.stringify(before), snapshot);
     assert.equal(before.jobs.length, 0);
   });
@@ -103,6 +113,7 @@ describe("enqueueRender (picking a Cast enqueues the render)", () => {
       jobs: [
         {
           idea_id: "idea-2026-W22-01",
+          brand: BRAND_A,
           phase: "cast",
           status: "awaiting_cast",
           enqueued_at: "2026-06-05T10:00:00.000Z",
@@ -113,7 +124,7 @@ describe("enqueueRender (picking a Cast enqueues the render)", () => {
   }
 
   it("appends exactly one queued render-phase job for the idea_id", () => {
-    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z");
+    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
     const renders = after.jobs.filter((j) => j.phase === "render");
     assert.equal(renders.length, 1);
     const job = renders[0]!;
@@ -123,15 +134,21 @@ describe("enqueueRender (picking a Cast enqueues the render)", () => {
     assert.match(job.enqueued_at, ISO_8601);
   });
 
+  it("stamps brand on the render job (AC1, AC6)", () => {
+    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_B);
+    const render = after.jobs.find((j) => j.phase === "render")!;
+    assert.equal(render.brand, BRAND_B);
+  });
+
   it("preserves the Idea's prior cast job (a render is distinct from the cast)", () => {
-    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z");
+    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
     assert.equal(after.jobs.filter((j) => j.phase === "cast").length, 1);
     assert.equal(after.jobs.length, 2);
   });
 
   it("does NOT duplicate the render job when called again for the same Idea", () => {
-    const once = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z");
-    const twice = enqueueRender(once, "idea-2026-W22-01", "2026-06-05T13:00:00.000Z");
+    const once = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
+    const twice = enqueueRender(once, "idea-2026-W22-01", "2026-06-05T13:00:00.000Z", BRAND_A);
     assert.equal(twice.jobs.filter((j) => j.phase === "render").length, 1);
     assert.equal(twice, once); // idempotent: same reference, no work
   });
@@ -139,7 +156,7 @@ describe("enqueueRender (picking a Cast enqueues the render)", () => {
   it("is pure: it never mutates the input state", () => {
     const before = castAtGate();
     const snapshot = JSON.stringify(before);
-    enqueueRender(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z");
+    enqueueRender(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
     assert.equal(JSON.stringify(before), snapshot);
   });
 });
@@ -151,6 +168,7 @@ describe("hasJobOfPhase", () => {
         jobs: [
           {
             idea_id: "idea-X",
+            brand: BRAND_A,
             phase: "cast",
             status: "awaiting_cast",
             enqueued_at: "2026-06-05T10:00:00.000Z",
@@ -160,6 +178,7 @@ describe("hasJobOfPhase", () => {
       },
       "idea-X",
       "2026-06-05T12:00:00.000Z",
+      BRAND_A,
     );
     assert.equal(hasJobOfPhase(q, "idea-X", "cast"), true);
     assert.equal(hasJobOfPhase(q, "idea-X", "render"), true);
@@ -171,16 +190,17 @@ describe("/queue renderer reflects all five worker statuses", () => {
   it("shows queued, running, awaiting_cast, done, and failed jobs", () => {
     const state: QueueState = {
       jobs: [
-        { idea_id: "idea-q", phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
-        { idea_id: "idea-r", phase: "cast", status: "running", enqueued_at: "2026-06-05T10:01:00.000Z" },
+        { idea_id: "idea-q", brand: BRAND_A, phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-r", brand: BRAND_A, phase: "cast", status: "running", enqueued_at: "2026-06-05T10:01:00.000Z" },
         {
           idea_id: "idea-a",
+          brand: BRAND_B,
           phase: "cast",
           status: "awaiting_cast",
           enqueued_at: "2026-06-05T10:02:00.000Z",
         },
-        { idea_id: "idea-d", phase: "render", status: "done", enqueued_at: "2026-06-05T10:03:00.000Z" },
-        { idea_id: "idea-f", phase: "render", status: "failed", enqueued_at: "2026-06-05T10:04:00.000Z" },
+        { idea_id: "idea-d", brand: BRAND_B, phase: "render", status: "done", enqueued_at: "2026-06-05T10:03:00.000Z" },
+        { idea_id: "idea-f", brand: BRAND_B, phase: "render", status: "failed", enqueued_at: "2026-06-05T10:04:00.000Z" },
       ],
       lock: { active_job: "idea-r" },
     };
