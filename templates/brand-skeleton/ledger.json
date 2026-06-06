@@ -1,0 +1,11 @@
+{
+  "baseline": {
+    "note": "Rolling median of our recent posts' PUBLIC metrics; updated by performance-tracker. null until first /track-performance.",
+    "shares": null,
+    "comments": null,
+    "reactions": null,
+    "views": null,
+    "updated_at": null
+  },
+  "ideas": []
+}
