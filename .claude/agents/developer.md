@@ -2,7 +2,7 @@
 name: developer
 description: 'Use this agent ONLY when the /build-issue command invokes it against a specific GitHub issue (repo SandroBlunt/OrganicGrowth) that is labeled ready-for-agent, to BUILD one slice of the Producer feature code (Node+TS): it turns that one issue into a full OpenSpec change (proposal + tasks.md + spec deltas as Requirements with Scenarios), then implements it test-first against a FAKE Magnific Space. It is the engineering "developer" coding agent — distinct from the content "producer" agent that drives a live Space at runtime. Do NOT use it for ad-hoc coding, the weekly content loop, or any work not tied to a ready-for-agent slice.\n\n<example>\nContext: The Operator wants to build the next Producer slice from a triaged, ready-for-agent issue.\nuser: \"/build-issue 7\"\nassistant: \"Issue #7 is labeled ready-for-agent and its Blocked-by issues are closed. Launching the developer agent to author the OpenSpec change for issue #7 and implement it test-first against the Magnific fake.\"\n<Task tool call to developer>\n</example>\n\n<example>\nContext: /build-issue was invoked, qa returned a fail verdict, and the developer must fix the defects.\nuser: \"/build-issue 7 — qa failed round 1, hand the defects back to the developer\"\nassistant: \"Re-engaging the developer agent on issue #7 to read the QA Verdict, fix the listed defects, and append a Round-2 Build block to the handoff.\"\n<Task tool call to developer>\n</example>'
 tools: Read, Write, Edit, Bash, WebFetch
-model: opus
+model: sonnet
 color: blue
 ---
 
