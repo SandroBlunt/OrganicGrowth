@@ -1,0 +1,27 @@
+# Brand Profile template — copy this file to data/brands/<slug>/brand-profile.yaml and fill in.
+# The idea-strategist treats these as hard brand constraints.
+
+channel:
+  name: ""           # TODO: Brand / Channel name (e.g. MundoTip)
+  platform: facebook # facebook | instagram | linkedin (facebook is the only wired platform today)
+  url: ""            # TODO: Channel URL (e.g. https://www.facebook.com/YourPage)
+
+niche: ""            # TODO: One-line niche description (e.g. "Life hacks, household tips & tricks")
+language: es         # TODO: Content language code (e.g. es, en, pt)
+region: ""           # TODO: Target region (e.g. LATAM, US, BR)
+
+voice: >
+  TODO: Describe your brand voice in 2–4 sentences. This guides every Idea the idea-strategist
+  suggests. Be specific: tone, sentence length, how to open a Reel, how to close.
+
+formats: [reel]      # Primary format(s): reel | image | carousel
+
+# Brand-safety / hard rules an Idea must respect:
+required_cta: ""           # Optional: set a verbatim CTA if you enforce one (leave blank otherwise)
+required_hashtags: []      # Optional: hashtags that must appear on every post (FB hashtags are weak)
+banned_words: []           # Words or claims never to use (e.g. ["miracle", "guaranteed", "cure"])
+brand_safety:
+  - "No medical or 'cure' claims."
+  - "No dangerous stunts presented as safe."
+  - "No misleading 'miracle' framing."
+  # TODO: add Brand-specific safety rules

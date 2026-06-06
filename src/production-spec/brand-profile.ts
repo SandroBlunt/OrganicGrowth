@@ -12,8 +12,14 @@
 import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 
-/** Default on-disk location of the Brand Profile. */
-export const DEFAULT_BRAND_PROFILE_PATH = "data/brand-profile.yaml";
+/**
+ * Default on-disk location of the Brand Profile — points to the `mundotip` Brand's brand-profile
+ * under the migrated Brand directory structure (issue #19). The resolver (`src/brand/resolver.ts`)
+ * is the single source of the path layout; this constant mirrors
+ * `resolveBrand("mundotip").brandProfile` as a transitional default until later slices make the
+ * Brand explicit on every command.
+ */
+export const DEFAULT_BRAND_PROFILE_PATH = "data/brands/mundotip/brand-profile.yaml";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

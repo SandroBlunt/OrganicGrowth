@@ -1,0 +1,30 @@
+# Seeds template — copy to data/brands/<slug>/seeds.yaml and fill in.
+# trend-scout reads this file for Trend Research Run parameters.
+
+# Peer / competitor Pages to scrape for trending content.
+seed_pages:
+  - ""  # TODO: Add peer Page URLs (e.g. https://www.facebook.com/SomePeerPage)
+
+# Optional keyword augmentation for topic search.
+keywords: []       # TODO: Add topic keywords (e.g. ["life hacks", "trucos caseros"])
+
+language: es       # TODO: Language code for content to scrape (should match brand-profile.yaml)
+region: ""         # TODO: Region (e.g. LATAM, US, BR)
+lookback_days: 7   # Only consider peer posts from the last N days
+format_focus: reel # Target format: reel | image | carousel
+ideas_per_run: 10  # How many Idea briefs to suggest per Run
+overperformance_only: true  # Only mine peer posts beating their OWN page baseline
+
+# Apify actors, keyed by platform.
+# trend-scout + performance-tracker use the pair matching the Channel's platform (brand-profile.yaml).
+# Facebook is wired today; Instagram/LinkedIn are roadmap.
+apify:
+  facebook:
+    trends_actor: "apify/facebook-posts-scraper"  # scrapes an account's recent posts
+    post_actor:   "apify/facebook-post-scraper"   # scrapes one post's public metrics by URL
+  # instagram:
+  #   trends_actor: "apify/instagram-scraper"
+  #   post_actor:   "apify/instagram-post-scraper"
+  # linkedin:
+  #   trends_actor: "..."
+  #   post_actor:   "..."

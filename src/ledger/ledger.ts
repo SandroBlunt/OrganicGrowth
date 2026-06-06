@@ -29,8 +29,13 @@ export interface LedgerIdea {
   readonly status: string;
 }
 
-/** Default on-disk location of the ledger. */
-export const DEFAULT_LEDGER_PATH = "data/ledger.json";
+/**
+ * Default on-disk location of the ledger — points to the `mundotip` Brand's ledger under the
+ * migrated Brand directory structure (issue #19). The resolver (`src/brand/resolver.ts`) is the
+ * single source of the path layout; this constant mirrors `resolveBrand("mundotip").ledger` as a
+ * transitional default until later slices make the Brand explicit on every command.
+ */
+export const DEFAULT_LEDGER_PATH = "data/brands/mundotip/ledger.json";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
