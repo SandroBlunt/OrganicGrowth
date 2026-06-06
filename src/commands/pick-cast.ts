@@ -1,7 +1,7 @@
 /**
- * `/pick-cast <idea-id> <n>` command — orchestration shell (Gate 2 — Cast pick; ADR-0003 Phase B).
+ * `/pick-cast <brand> <idea-id> <n>` command — orchestration shell (Gate 2 — Cast pick; ADR-0003 Phase B).
  *
- * Thin: load the Idea's recorded Cast from `data/ledger.json`, select the **nth** Cast member (1-based
+ * Thin: load the Idea's recorded Cast from the Brand's ledger, select the **nth** Cast member (1-based
  * `<n>`, per the issue) as the chosen **Character**, and report it — recording the Operator's pick so
  * production resumes (the unattended Phase-B render against the live Space is the deferred worker slice;
  * the pure selection + the driver's `pinCharacter`/`pickAndRender` are exercised hermetically).
@@ -9,12 +9,16 @@
  * All logic lives in the deep modules (`ledger.ts` for the read, the pure `selectCharacter` here for the
  * 1-based pick). No Magnific, no Apify, no network in this shell. An unknown Idea, an Idea with no Cast,
  * or an out-of-range `<n>` returns an identifiable, non-crashing message — it never invents a Character.
+ *
+ * Brand is always explicit: `<brand>` is a required first argument. The Brand's ledger path is derived
+ * via `resolveBrand(brand).ledger`. The Production Queue is the shared global queue (brand-agnostic,
+ * ADR-0004). Omitting `<brand>` is a usage error, never a silent MundoTip fallback (issue #20).
  */
 
 import { loadIdeaCast, type LedgerCastCandidate } from "../ledger/ledger.ts";
-import { DEFAULT_LEDGER_PATH } from "../ledger/ledger.ts";
 import { enqueueRender } from "../production-queue/queue.ts";
 import { loadQueue, saveQueue, DEFAULT_QUEUE_PATH } from "../production-queue/store.ts";
+import { resolveBrand } from "../brand/resolver.ts";
 
 /** The result of selecting a Character from a Cast: the chosen identifier, or an identifiable reason. */
 export type SelectResult =
@@ -40,53 +44,78 @@ export function selectCharacter(cast: readonly LedgerCastCandidate[], n: number)
 export interface PickCastOptions {
   readonly ledgerPath?: string;
   readonly queuePath?: string;
+  /**
+   * Optional override for the brands root directory; defaults to `data/brands`.
+   * Primarily for testing: lets tests inject a temp directory so the resolver fallback
+   * (`options.ledgerPath ?? resolveBrand(brand, brandsRoot).ledger`) is exercised without
+   * touching real state. Only used when `ledgerPath` is not provided.
+   */
+  readonly brandsRoot?: string;
   /** Injected clock for the render job's `enqueued_at`; defaults to now. */
   readonly now?: () => string;
 }
 
 /**
- * Produce the `/pick-cast` output string for a given Idea and pick (testable, no printing).
+ * Produce the `/pick-cast` output string for a given Brand, Idea, and pick (testable, no printing).
  *
- * Reads the Idea's recorded Cast, selects the Character, and — on a valid pick — **enqueues the render**
- * for that Idea (ADR-0004: "picking a Cast enqueues the render"; idempotent per render job). The Producer
- * worker drains that render against the Space when it is free (the unattended Phase-B render). Never
- * crashes on an unknown Idea, a missing Cast, or an out-of-range pick — and never enqueues a render in
- * those cases (no Character ⇒ no render).
+ * Reads the Brand's ledger (via `resolveBrand(brand).ledger` or `options.ledgerPath` if provided),
+ * selects the Character, and — on a valid pick — **enqueues the render** for that Idea (ADR-0004:
+ * "picking a Cast enqueues the render"; idempotent per render job). The Production Queue is the global
+ * brand-agnostic queue (ADR-0004, ADR-0006). The Producer worker drains that render against the Space
+ * when it is free (the unattended Phase-B render). Never crashes on an unknown Idea, a missing Cast, or
+ * an out-of-range pick — and never enqueues a render in those cases (no Character ⇒ no render).
+ *
+ * Brand is restated in the output so the Operator can see which Brand this pick applies to (Gate 2:
+ * Cast pick, issue #20).
+ *
+ * @param brand   The Brand slug (e.g. `"mundotip"`). Required. The ledger path is derived from
+ *                `resolveBrand(brand).ledger` unless `options.ledgerPath` overrides it.
+ * @param ideaId  The Idea's ledger id.
+ * @param n       1-based index of the Cast member to pick.
+ * @param options Optional path/clock overrides for testing.
  */
 export async function pickCastCommand(
+  brand: string,
   ideaId: string,
   n: number,
   options: PickCastOptions = {},
 ): Promise<string> {
-  const ledgerPath = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
+  const brandPaths = resolveBrand(brand, options.brandsRoot);
+  const ledgerPath = options.ledgerPath ?? brandPaths.ledger;
   const queuePath = options.queuePath ?? DEFAULT_QUEUE_PATH;
   const now = (options.now ?? (() => new Date().toISOString()))();
 
   const cast = await loadIdeaCast(ideaId, ledgerPath);
   if (cast === null) {
-    return `/pick-cast: no Cast recorded for Idea ${ideaId} (is it at the Cast gate?). No Character selected.`;
+    return `/pick-cast: no Cast recorded for Idea ${ideaId} (is it at the Cast gate?). No Character selected. [Brand: ${brand}]`;
   }
   const selected = selectCharacter(cast, n);
   if (!selected.ok) {
-    return `/pick-cast ${ideaId}: ${selected.reason}`;
+    return `/pick-cast ${ideaId}: ${selected.reason} [Brand: ${brand}]`;
   }
 
   // The Character is picked — enqueue the render so the worker renders it when the Space is free.
   const queue = await loadQueue(queuePath);
   await saveQueue(enqueueRender(queue, ideaId, now), queuePath);
 
-  return `/pick-cast ${ideaId}: picked Cast member ${n} — Character ${selected.character}. Resuming production (render queued).`;
+  return `/pick-cast ${ideaId}: picked Cast member ${n} — Character ${selected.character}. Resuming production (render queued). [Brand: ${brand}]`;
 }
 
-/** CLI entry: print the pick result. Only runs when invoked directly (e.g. `npm run pick-cast`). */
-async function main(): Promise<void> {
-  const [ideaId, nRaw] = process.argv.slice(2);
-  if (ideaId === undefined || nRaw === undefined) {
-    process.stderr.write("usage: npm run pick-cast <idea-id> <n>\n");
+/**
+ * CLI entry: print the pick result. Only runs when invoked directly (e.g. `npm run pick-cast`).
+ * Usage: `npm run pick-cast <brand> <idea-id> <n>`.
+ * Brand is required — omitting it is a usage error, never a silent MundoTip fallback (issue #20).
+ *
+ * Exported so tests can invoke the usage-error path directly without spawning a subprocess.
+ */
+export async function main(): Promise<void> {
+  const [brand, ideaId, nRaw] = process.argv.slice(2);
+  if (brand === undefined || ideaId === undefined || nRaw === undefined) {
+    process.stderr.write("usage: npm run pick-cast <brand> <idea-id> <n>\n  e.g. npm run pick-cast mundotip idea-2026-W22-01 2\n");
     process.exitCode = 1;
     return;
   }
-  const output = await pickCastCommand(ideaId, Number(nRaw), {});
+  const output = await pickCastCommand(brand, ideaId, Number(nRaw), {});
   process.stdout.write(output + "\n");
 }
 

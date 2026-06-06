@@ -1,25 +1,31 @@
 /**
- * `/report` command — the read-only pipeline view (issue #9).
+ * `/report <brand>` command — the read-only pipeline view (issue #9, updated in issue #20).
  *
  * Two parts:
- *   - `renderReport(data)` — a PURE deep module that formats the read-only `ReportData` projection for
- *     the Operator. It surfaces production (the `casting` and `produced` Ideas the Producer introduced)
- *     and shows each Idea's **Fit Score** (predicted) and **Performance Score** (measured) in SEPARATE,
- *     clearly-labelled columns so the two are never conflated (always-rules #3). A measured score is
- *     shown together with the Channel **baseline** it is relative to (always-rules #4). An untracked
- *     Idea's Performance cell is a placeholder (never `0`, never the Fit Score). A Post is shown linked
- *     to its Idea only via the logged `post_url` (explicit attribution, #5) — never inferred.
- *   - `reportCommand(ledgerPath)` — a THIN orchestration shell: `loadReport` → `renderReport` → return.
- *     It READS `data/ledger.json` (the source of truth, #7) and writes NOTHING — `/report` never mutates
- *     state. No Magnific, no Apify, no network: `/report` runs no production and touches no Space.
+ *   - `renderReport(data, brand?)` — a PURE deep module that formats the read-only `ReportData`
+ *     projection for the Operator. It surfaces production (the `casting` and `produced` Ideas the
+ *     Producer introduced) and shows each Idea's **Fit Score** (predicted) and **Performance Score**
+ *     (measured) in SEPARATE, clearly-labelled columns so the two are never conflated (always-rules #3).
+ *     A measured score is shown together with the Channel **baseline** it is relative to (always-rules
+ *     #4). An untracked Idea's Performance cell is a placeholder (never `0`, never the Fit Score). A
+ *     Post is shown linked to its Idea only via the logged `post_url` (explicit attribution, #5) —
+ *     never inferred. The Brand is restated in the report header so the Operator can see which Brand is
+ *     being reported on (issue #20: Brand is explicit, never inferred).
+ *   - `reportCommand(brand, ledgerPath?)` — a THIN orchestration shell: resolves the Brand's ledger
+ *     path via the Brand resolver (issue #20), then `loadReport` → `renderReport` → return. It READS
+ *     the Brand's ledger (the source of truth, #7) and writes NOTHING — `/report` never mutates state.
+ *     No Magnific, no Apify, no network: `/report` runs no production and touches no Space.
+ *
+ * Brand is always explicit: `<brand>` is a required first argument. Omitting it is a usage error, never
+ * a silent MundoTip fallback (issue #20).
  */
 
 import {
   loadReport,
-  DEFAULT_LEDGER_PATH,
   type ReportData,
   type ReportIdea,
 } from "../ledger/ledger.ts";
+import { resolveBrand } from "../brand/resolver.ts";
 
 /** Placeholder for a score that does not exist yet — NEVER `0`, NEVER borrowed from another column. */
 const NONE = "—";
@@ -52,13 +58,25 @@ const COLUMN_HEADER = "id  |  title  |  status  |  Fit Score (predicted)  |  Per
  * Render the read-only `/report` view. Pure: same input → same output, no I/O, input not mutated.
  *
  * Sections:
+ *   0. Brand header — restates the Brand being reported on so the Operator is never in doubt.
  *   1. Production — every Idea in `casting` and every Idea in `produced` (what is mid-pipeline now).
  *   2. All Ideas — the full run, one row each, Fit Score and Performance Score in separate columns.
  *   3. Baseline — the Channel baseline a Performance Score is relative to (or "not yet measured").
+ *
+ * @param data   The read-only projection of the Brand's ledger.
+ * @param brand  The Brand slug, restated in the header so the Operator sees which Brand this is.
  */
-export function renderReport(data: ReportData): string {
+export function renderReport(data: ReportData, brand?: string): string {
+  const brandHeader = brand ? `Brand: ${brand}` : undefined;
+
   if (data.ideas.length === 0) {
-    return ["OrganicGrowth — Pipeline Report", "", "(empty — no Ideas yet; run /run-trends to start a Run.)"].join("\n");
+    const lines = [
+      "OrganicGrowth — Pipeline Report",
+      ...(brandHeader ? [brandHeader] : []),
+      "",
+      "(empty — no Ideas yet; run /run-trends to start a Run.)",
+    ];
+    return lines.join("\n");
   }
 
   const inProduction = data.ideas.filter((i) => PRODUCTION_STATES.includes(i.status));
@@ -77,6 +95,7 @@ export function renderReport(data: ReportData): string {
 
   return [
     "OrganicGrowth — Pipeline Report",
+    ...(brandHeader ? [brandHeader] : []),
     "",
     "Fit Score is PREDICTED (pre-publication); Performance Score is MEASURED (post-publication). They are",
     "kept distinct — a placeholder (—) means not-yet-measured, never a zero score and never the Fit Score.",
@@ -92,17 +111,41 @@ export function renderReport(data: ReportData): string {
 }
 
 /**
- * `/report` orchestration shell: read the ledger via the read-only `loadReport` projection and render it.
+ * `/report <brand>` orchestration shell: resolve the Brand's ledger path via the Brand resolver,
+ * read the ledger via the read-only `loadReport` projection, and render it.
+ *
  * Returns the report string (testable, no printing). READS only — never writes any file.
+ *
+ * Brand is always explicit: `brand` is a required first argument. When `ledgerPath` is not provided,
+ * the ledger path is derived from `resolveBrand(brand, brandsRoot).ledger`. Omitting `brand` from
+ * the CLI is a usage error, not a silent MundoTip fallback (issue #20).
+ *
+ * @param brand       The Brand slug (e.g. `"mundotip"`). Required.
+ * @param ledgerPath  Optional override for the ledger path; defaults to `resolveBrand(brand, brandsRoot).ledger`.
+ * @param brandsRoot  Optional override for the brands root directory; defaults to `data/brands`.
+ *                    Primarily for testing: lets tests inject a temp directory without touching real state.
  */
-export async function reportCommand(ledgerPath: string = DEFAULT_LEDGER_PATH): Promise<string> {
-  const data = await loadReport(ledgerPath);
-  return renderReport(data);
+export async function reportCommand(brand: string, ledgerPath?: string, brandsRoot?: string): Promise<string> {
+  const resolvedLedgerPath = ledgerPath ?? resolveBrand(brand, brandsRoot).ledger;
+  const data = await loadReport(resolvedLedgerPath);
+  return renderReport(data, brand);
 }
 
-/** CLI entry: print the report. Only runs when invoked directly. Never writes state. */
-async function main(): Promise<void> {
-  const output = await reportCommand();
+/**
+ * CLI entry: print the report. Only runs when invoked directly. Never writes state.
+ * Usage: `npm run report <brand>` (or `npx tsx src/commands/report.ts <brand>`).
+ * Brand is required — omitting it is a usage error, never a silent MundoTip fallback.
+ *
+ * Exported so tests can invoke the usage-error path directly without spawning a subprocess.
+ */
+export async function main(): Promise<void> {
+  const brand = process.argv[2];
+  if (brand === undefined) {
+    process.stderr.write("usage: npm run report <brand>\n  e.g. npm run report mundotip\n");
+    process.exitCode = 1;
+    return;
+  }
+  const output = await reportCommand(brand);
   process.stdout.write(output + "\n");
 }
 
