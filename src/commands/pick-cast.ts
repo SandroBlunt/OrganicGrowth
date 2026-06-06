@@ -95,8 +95,9 @@ export async function pickCastCommand(
   }
 
   // The Character is picked — enqueue the render so the worker renders it when the Space is free.
+  // The render job is stamped with the Brand (derived from the `brand` arg, never ambient state — AC6).
   const queue = await loadQueue(queuePath);
-  await saveQueue(enqueueRender(queue, ideaId, now), queuePath);
+  await saveQueue(enqueueRender(queue, ideaId, now, brand), queuePath);
 
   return `/pick-cast ${ideaId}: picked Cast member ${n} — Character ${selected.character}. Resuming production (render queued). [Brand: ${brand}]`;
 }

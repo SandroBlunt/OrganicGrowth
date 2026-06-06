@@ -131,6 +131,17 @@ describe("pickCastCommand — picking a Cast enqueues the render", () => {
     });
   });
 
+  it("render job carries the Brand from the pickCastCommand brand argument (AC6)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      await pickCastCommand("mundotip", "idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const q = await loadQueue(queuePath);
+      const render = q.jobs.find((j) => j.idea_id === "idea-A" && j.phase === "render");
+      assert.ok(render !== undefined, "render job must exist");
+      assert.equal(render!.brand, "mundotip", "render job must carry the brand from the command arg");
+    });
+  });
+
   it("does not duplicate the render job when the same Cast is picked twice", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
@@ -237,6 +248,11 @@ describe("pickCastCommand — brand-routing: resolves the correct Brand's ledger
       assert.equal(renders.length, 2, "one render job per brand in the shared global queue");
       const ideaIds = renders.map((j) => j.idea_id).sort();
       assert.deepEqual(ideaIds, ["acme-idea", "mt-idea"]);
+      // Each render job carries the correct brand (never cross-contaminated)
+      const mtRender = renders.find((j) => j.idea_id === "mt-idea");
+      const acmeRender = renders.find((j) => j.idea_id === "acme-idea");
+      assert.equal(mtRender!.brand, "mundotip", "mundotip's render job must carry brand=mundotip");
+      assert.equal(acmeRender!.brand, "acme", "acme's render job must carry brand=acme");
     });
   });
 

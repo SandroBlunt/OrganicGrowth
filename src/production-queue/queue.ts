@@ -13,6 +13,7 @@
  *
  *   {
  *     idea_id:     string,   // the Idea this job produces (matches ledger `id`)
+ *     brand:       string,   // the Brand slug the job belongs to (routes ledger writes; required)
  *     phase:       "cast" | "render",
  *     status:      "queued" | "running" | "awaiting_cast" | "done" | "failed",
  *     enqueued_at: string    // ISO-8601 timestamp
@@ -35,6 +36,12 @@ export type JobStatus = "queued" | "running" | "awaiting_cast" | "done" | "faile
 /** One unit of Space work for one Idea. */
 export interface QueueJob {
   readonly idea_id: string;
+  /**
+   * The Brand slug this job belongs to (e.g. `"mundotip"`). Required. The worker reads this to
+   * route every ledger write to the correct Brand's ledger via the resolver — never from
+   * session/active-brand state (CONTEXT.md: no global active-brand pointer).
+   */
+  readonly brand: string;
   readonly phase: JobPhase;
   readonly status: JobStatus;
   /** ISO-8601 timestamp. */
@@ -78,13 +85,15 @@ export function hasJobOfPhase(state: QueueState, ideaId: string, phase: JobPhase
  * @param state    current queue state
  * @param ideaId   the Idea to enqueue (must already be `accepted` in the ledger)
  * @param now      ISO-8601 timestamp for `enqueued_at` (injected, never read from the clock here)
+ * @param brand    the Brand slug the job belongs to (routes ledger writes; required)
  */
-export function enqueue(state: QueueState, ideaId: string, now: string): QueueState {
+export function enqueue(state: QueueState, ideaId: string, now: string, brand: string): QueueState {
   if (hasJobFor(state, ideaId)) {
     return state;
   }
   const job: QueueJob = {
     idea_id: ideaId,
+    brand,
     phase: "cast",
     status: "queued",
     enqueued_at: now,
@@ -106,13 +115,20 @@ export function enqueue(state: QueueState, ideaId: string, now: string): QueueSt
  * @param state    current queue state
  * @param ideaId   the Idea to enqueue a render for (its Cast must already be picked)
  * @param now      ISO-8601 timestamp for `enqueued_at` (injected, never read from the clock here)
+ * @param brand    the Brand slug the job belongs to (routes ledger writes; required)
  */
-export function enqueueRender(state: QueueState, ideaId: string, now: string): QueueState {
+export function enqueueRender(
+  state: QueueState,
+  ideaId: string,
+  now: string,
+  brand: string,
+): QueueState {
   if (hasJobOfPhase(state, ideaId, "render")) {
     return state;
   }
   const job: QueueJob = {
     idea_id: ideaId,
+    brand,
     phase: "render",
     status: "queued",
     enqueued_at: now,

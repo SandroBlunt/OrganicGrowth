@@ -21,13 +21,22 @@ function isObject(value: unknown): value is Record<string, unknown> {
 /** Coerce one raw record into a QueueJob, or null if it is malformed. */
 function parseJob(raw: unknown): QueueJob | null {
   if (!isObject(raw)) return null;
-  const { idea_id, phase, status, enqueued_at } = raw;
-  if (typeof idea_id !== "string" || idea_id.length === 0) return null;
+  const { idea_id, brand, phase, status, enqueued_at } = raw;
+  if (typeof idea_id !== "string" || idea_id.length === 0) {
+    console.warn("[queue] parseJob: dropping job with missing/empty idea_id");
+    return null;
+  }
+  if (typeof brand !== "string" || brand.length === 0) {
+    // A job with no resolvable Brand is dropped/logged rather than crashing the drain (AC1).
+    console.warn(`[queue] parseJob: dropping job for idea_id="${String(idea_id)}" — missing or empty brand field`);
+    return null;
+  }
   if (typeof phase !== "string" || !VALID_PHASES.has(phase)) return null;
   if (typeof status !== "string" || !VALID_STATUSES.has(status)) return null;
   if (typeof enqueued_at !== "string") return null;
   return {
     idea_id,
+    brand,
     phase: phase as QueueJob["phase"],
     status: status as QueueJob["status"],
     enqueued_at,

@@ -12,6 +12,7 @@ import type { QueueJob, QueueState } from "./queue.ts";
 /** Build a job with overridable fields. */
 function job(over: Partial<QueueJob> & Pick<QueueJob, "idea_id">): QueueJob {
   return {
+    brand: "test-brand",
     phase: "cast",
     status: "queued",
     enqueued_at: "2026-06-05T10:00:00.000Z",

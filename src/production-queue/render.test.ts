@@ -3,27 +3,73 @@ import assert from "node:assert/strict";
 import { emptyQueue, type QueueState } from "./queue.ts";
 import { renderQueue } from "./render.ts";
 
-describe("renderQueue", () => {
-  it("lists each job with its idea_id, phase, and status", () => {
+const BRAND_A = "alpha";
+const BRAND_B = "beta";
+
+describe("renderQueue — brand label in output (AC6)", () => {
+  it("lists each job with its brand, idea_id, phase, and status", () => {
     const state: QueueState = {
       jobs: [
-        { idea_id: "idea-A", phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
-        { idea_id: "idea-B", phase: "render", status: "running", enqueued_at: "2026-06-05T11:00:00.000Z" },
+        { idea_id: "idea-A", brand: BRAND_A, phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-B", brand: BRAND_B, phase: "render", status: "running", enqueued_at: "2026-06-05T11:00:00.000Z" },
       ],
       lock: { active_job: "idea-B" },
     };
     const out = renderQueue(state);
 
-    // idea-A: id, phase, status all present
+    // idea-A: brand, id, phase, status all present
+    assert.match(out, /alpha/);
     assert.match(out, /idea-A/);
-    assert.match(out, /idea-A.*cast.*queued/s);
-    // idea-B: id, phase, status all present
+    assert.match(out, /cast.*queued/s);
+    // idea-B: brand, id, phase, status all present
+    assert.match(out, /beta/);
     assert.match(out, /idea-B/);
-    assert.match(out, /idea-B.*render.*running/s);
+    assert.match(out, /render.*running/s);
   });
 
   it("reports an empty queue when there are no jobs", () => {
     const out = renderQueue(emptyQueue());
     assert.match(out, /empty/i);
+  });
+});
+
+describe("renderQueue — brand filter (AC6)", () => {
+  function multiQueue(): QueueState {
+    return {
+      jobs: [
+        { idea_id: "idea-A1", brand: BRAND_A, phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-B1", brand: BRAND_B, phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:01:00.000Z" },
+        { idea_id: "idea-A2", brand: BRAND_A, phase: "render", status: "done", enqueued_at: "2026-06-05T10:02:00.000Z" },
+      ],
+      lock: { active_job: null },
+    };
+  }
+
+  it("filtered to one Brand shows only that Brand's jobs (AC6)", () => {
+    const out = renderQueue(multiQueue(), BRAND_A);
+    assert.match(out, /idea-A1/);
+    assert.match(out, /idea-A2/);
+    assert.ok(!out.includes("idea-B1"), "Brand B jobs must not appear when filtered to Brand A");
+    // Brand label appears in output
+    assert.match(out, /alpha/);
+  });
+
+  it("filtered to Brand B shows only Brand B's jobs (AC6)", () => {
+    const out = renderQueue(multiQueue(), BRAND_B);
+    assert.match(out, /idea-B1/);
+    assert.ok(!out.includes("idea-A1"), "Brand A jobs must not appear when filtered to Brand B");
+  });
+
+  it("no filter shows all jobs (AC6)", () => {
+    const out = renderQueue(multiQueue());
+    assert.match(out, /idea-A1/);
+    assert.match(out, /idea-B1/);
+    assert.match(out, /idea-A2/);
+  });
+
+  it("filtered to a Brand with no jobs reports an empty-for-brand message (AC6)", () => {
+    const out = renderQueue(multiQueue(), "gamma");
+    assert.match(out, /no jobs for brand/i);
+    assert.ok(!out.includes("idea-A1"), "no jobs from other brands");
   });
 });

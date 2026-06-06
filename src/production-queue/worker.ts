@@ -119,10 +119,24 @@ export interface LedgerWrites {
 /** An Operator notification (the WHEN + WHY of a failure). Injected so tests assert it was called. */
 export type Notifier = (message: string) => void;
 
+/**
+ * Brand-aware ledger-write factory: given a Brand slug, return the `LedgerWrites` scoped to that
+ * Brand's ledger. The worker calls this with `job.brand` for every reap — never with ambient/session
+ * state (CONTEXT.md: no global active-brand pointer). The implementation wires each Brand to its
+ * per-Brand ledger path via the resolver. May throw for an unresolvable brand; the worker treats
+ * that as a failure and continues draining.
+ */
+export type ResolveLedger = (brand: string) => LedgerWrites;
+
 /** Everything the worker needs, all injected — no ambient I/O, no clock, no live Space. */
 export interface WorkerDeps {
   readonly queue: QueuePersistence;
-  readonly ledger: LedgerWrites;
+  /**
+   * Brand-aware ledger-write factory. The worker calls `resolveLedger(job.brand)` for each job
+   * reap — never a single ambient `LedgerWrites` object, so jobs for different Brands each write
+   * to the correct Brand's ledger (AC3).
+   */
+  readonly resolveLedger: ResolveLedger;
   readonly space: SpaceSession;
   readonly notify: Notifier;
   /** Injected clock for `produced_at` / failure `when` (never read from the global clock here). */
@@ -206,10 +220,19 @@ async function reap(
   if (!result.ok) {
     return reapFailure(deps, queue, job, result.error);
   }
-  if (result.outcome.phase === "cast") {
-    return reapCast(deps, queue, job, result.outcome);
+  // Resolve brand-scoped ledger writers from job.brand — never from session/ambient state (AC3).
+  let ledger: LedgerWrites;
+  try {
+    ledger = deps.resolveLedger(job.brand);
+  } catch (err: unknown) {
+    // An unresolvable brand is a defensive failure: mark the job failed, release the lock, continue.
+    const msg = err instanceof Error ? err.message : String(err);
+    return reapBrandFailure(deps, queue, job, msg);
   }
-  return reapRender(deps, queue, job, result.outcome);
+  if (result.outcome.phase === "cast") {
+    return reapCast(deps, queue, job, result.outcome, ledger);
+  }
+  return reapRender(deps, queue, job, result.outcome, ledger);
 }
 
 /** A cast-gen reached the Cast gate: record the Cast + `casting`, move the job to `awaiting_cast`. */
@@ -218,11 +241,13 @@ async function reapCast(
   queue: QueueState,
   job: QueueJob,
   outcome: CastOpOutcome,
+  ledger: LedgerWrites,
 ): Promise<"cast"> {
   const next = markAwaitingCast(queue, job.idea_id);
   // Ledger first (source of truth), then the queue mirrors it; the status is derived from the transition.
-  await deps.ledger.writeCast(job.idea_id, outcome.cast);
-  await deps.ledger.writeStatus(job.idea_id, "casting");
+  // Writes go to the Brand's ledger resolved from job.brand — never to an ambient/session ledger (AC3).
+  await ledger.writeCast(job.idea_id, outcome.cast);
+  await ledger.writeStatus(job.idea_id, "casting");
   await deps.queue.save(next.state);
   return "cast";
 }
@@ -233,6 +258,7 @@ async function reapRender(
   queue: QueueState,
   job: QueueJob,
   outcome: RenderOpOutcome,
+  ledger: LedgerWrites,
 ): Promise<"render"> {
   const next = markDone(queue, job.idea_id);
   const asset: LedgerAsset = {
@@ -240,8 +266,9 @@ async function reapRender(
     asset_url: outcome.asset_url,
     produced_at: deps.now(),
   };
-  await deps.ledger.writeAsset(job.idea_id, asset);
-  await deps.ledger.writeStatus(job.idea_id, "produced");
+  // Writes go to the Brand's ledger resolved from job.brand — never to an ambient/session ledger (AC3).
+  await ledger.writeAsset(job.idea_id, asset);
+  await ledger.writeStatus(job.idea_id, "produced");
   await deps.queue.save(next.state);
   return "render";
 }
@@ -261,6 +288,25 @@ async function reapFailure(
   await deps.queue.save(next.state);
   deps.notify(
     `Producer: ${job.phase} generation FAILED for ${job.idea_id} at ${deps.now()} — ${error.code}: ${error.message}. The queue continues with the next job.`,
+  );
+  return "failed";
+}
+
+/**
+ * A job's brand could not be resolved to a ledger (defensive failure, AC1/AC3). Mark the job `failed`,
+ * release the lock so the queue continues, and notify the Operator. The Idea's ledger status is NOT
+ * advanced — no Cast/Asset is fabricated. The queue drain continues with the next job.
+ */
+async function reapBrandFailure(
+  deps: WorkerDeps,
+  queue: QueueState,
+  job: QueueJob,
+  detail: string,
+): Promise<"failed"> {
+  const next = markFailed(queue, job.idea_id);
+  await deps.queue.save(next.state);
+  deps.notify(
+    `Producer: ${job.phase} job for ${job.idea_id} DROPPED at ${deps.now()} — brand "${job.brand}" could not be resolved: ${detail}. The queue continues with the next job.`,
   );
   return "failed";
 }
