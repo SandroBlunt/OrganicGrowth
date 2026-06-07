@@ -116,6 +116,26 @@ specs and changes live under `openspec/` (`project.md`, `specs/`, `changes/`).
 `qa`) writes the code that makes that loop work, and only when handed a GitHub slice. They share no
 agents, no gates, and no schedule.
 
+## Stack & conventions
+
+Versions and deps live in [`package.json`](./package.json) and [`tsconfig.json`](./tsconfig.json) —
+those are the source of truth, not this list. What's worth knowing because it's easy to get wrong:
+
+- **Node ≥20, TypeScript, ESM.** `"type": "module"` with `NodeNext` resolution and
+  `allowImportingTsExtensions` — so **relative imports must include the `.ts` extension**
+  (`import { loadQueue } from "../production-queue/store.ts"`). `verbatimModuleSyntax` is on, so use
+  `import type` for type-only imports.
+- **Tests use Node's built-in runner, not Jest/Vitest.** `import { describe, it } from "node:test"`
+  and `import assert from "node:assert/strict"`. Run with `npm test` (which also type-checks via
+  `tsc --noEmit` first). Test files are `src/**/*.test.ts`; run a single file with
+  `node --import tsx --test src/path/to/file.test.ts`.
+- **Strict compiler.** `strict` plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
+  `noUnusedLocals`/`noUnusedParameters`, `noImplicitOverride`. Code that compiles elsewhere may be
+  rejected here — handle `undefined` from index access and don't leave unused bindings.
+- **`tsx` runs `.ts` directly** (commands, tests); `npm run build` emits to `dist/` via
+  `tsconfig.build.json`. Only one runtime dependency (`yaml`); prefer the standard library over adding
+  deps.
+
 ## State
 
 All state is plain files (no database): `data/brand-profile.yaml`, `data/seeds.yaml`,
