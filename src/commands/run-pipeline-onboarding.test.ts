@@ -615,3 +615,297 @@ describe("onboarding — AC5: Slug validation before scaffolding", () => {
     });
   });
 });
+
+// ===========================================================================
+// AC6: Language re-ask loop (issue #35)
+// ===========================================================================
+
+describe("onboarding — AC6: Language re-ask on empty answer", () => {
+  it("re-asks when Language is empty rather than silently defaulting to 'en'", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      const promptsSeen: string[] = [];
+      let languageCallCount = 0;
+      await runPipelineCommand("newbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptsSeen.push(prompt);
+          if (/language/i.test(prompt)) {
+            languageCallCount++;
+            // First attempt: empty; second: valid answer
+            return languageCallCount === 1 ? "" : "es";
+          }
+          if (promptsSeen.length === 1) return "yes"; // accept creation
+          if (/niche/i.test(prompt)) return "Home tips";
+          if (/voice/i.test(prompt)) return "Friendly";
+          if (/region/i.test(prompt)) return "US";
+          if (/platform/i.test(prompt)) return "facebook";
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+      assert.ok(
+        languageCallCount >= 2,
+        `Language prompt must be shown at least twice on empty first answer (got ${languageCallCount})`,
+      );
+    });
+  });
+
+  it("accepts a valid language code on the first non-empty entry", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      let promptCount = 0;
+      await runPipelineCommand("newbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptCount++;
+          if (promptCount === 1) return "yes";
+          if (/niche/i.test(prompt)) return "Home tips";
+          if (/voice/i.test(prompt)) return "Friendly";
+          if (/language/i.test(prompt)) return "pt";
+          if (/region/i.test(prompt)) return "BR";
+          if (/platform/i.test(prompt)) return "facebook";
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+      // If we reach here without hanging, valid language was accepted
+      const profileText = await readFile(join(paths.brandsRoot, "newbrand", "brand-profile.yaml"), "utf8");
+      const parsed = yamlParse(profileText) as Record<string, unknown>;
+      assert.equal(parsed["language"], "pt", "Brand Profile must carry the Operator's language answer, not a fabricated default");
+    });
+  });
+
+  it("brand-profile language is Operator-supplied, not the fabricated 'en' default", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      let promptCount = 0;
+      await runPipelineCommand("langcheck", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptCount++;
+          if (promptCount === 1) return "yes";
+          if (/niche/i.test(prompt)) return "Cooking content";
+          if (/voice/i.test(prompt)) return "Warm and approachable";
+          if (/language/i.test(prompt)) return "es";
+          if (/region/i.test(prompt)) return "LATAM";
+          if (/platform/i.test(prompt)) return "facebook";
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+      const profileText = await readFile(join(paths.brandsRoot, "langcheck", "brand-profile.yaml"), "utf8");
+      const parsed = yamlParse(profileText) as Record<string, unknown>;
+      assert.equal(parsed["language"], "es", "Language must be the Operator-supplied 'es', not the fabricated 'en'");
+    });
+  });
+
+  it("stops cleanly after language cap is exceeded with no Brand directory created", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      let promptCount = 0;
+      const turns = await runPipelineCommand("newbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptCount++;
+          if (promptCount === 1) return "yes"; // accept creation
+          if (/niche/i.test(prompt)) return "Home tips";
+          if (/voice/i.test(prompt)) return "Friendly";
+          if (/language/i.test(prompt)) return ""; // always empty → exceed cap
+          if (/region/i.test(prompt)) return "US";
+          if (/platform/i.test(prompt)) return "facebook";
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+
+      const doneTurn = turns.find((t) => t.done === true);
+      assert.ok(doneTurn, "Conductor must stop with done:true after language cap exceeded");
+
+      // No Brand directory should have been created
+      const { stat: fsStat } = await import("node:fs/promises");
+      let existed = false;
+      try {
+        await fsStat(join(paths.brandsRoot, "newbrand"));
+        existed = true;
+      } catch {
+        // expected — directory should not exist
+      }
+      assert.equal(existed, false, "No Brand directory should be created when language cap is exceeded");
+    });
+  });
+});
+
+// ===========================================================================
+// AC7: Platform re-ask loop (issue #35)
+// ===========================================================================
+
+describe("onboarding — AC7: Platform re-ask on empty/unrecognised answer", () => {
+  it("re-asks when Platform is empty rather than silently defaulting to 'facebook'", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      const promptsSeen: string[] = [];
+      let platformCallCount = 0;
+      await runPipelineCommand("newbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptsSeen.push(prompt);
+          if (/platform/i.test(prompt)) {
+            platformCallCount++;
+            return platformCallCount === 1 ? "" : "facebook";
+          }
+          if (promptsSeen.length === 1) return "yes";
+          if (/niche/i.test(prompt)) return "Home tips";
+          if (/voice/i.test(prompt)) return "Friendly";
+          if (/language/i.test(prompt)) return "en";
+          if (/region/i.test(prompt)) return "US";
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+      assert.ok(
+        platformCallCount >= 2,
+        `Platform prompt must be shown at least twice on empty first answer (got ${platformCallCount})`,
+      );
+    });
+  });
+
+  it("re-asks with a message naming accepted values when Platform is unrecognised", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      let platformCallCount = 0;
+      const messagesSeen: string[] = [];
+      const allTurns: ConductorTurn[] = [];
+      // Use runPipelineCommand but capture all turns to inspect re-ask messages
+      let promptCount = 0;
+      const turns = await runPipelineCommand("newbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptCount++;
+          if (promptCount === 1) return "yes";
+          if (/niche/i.test(prompt)) return "Home tips";
+          if (/voice/i.test(prompt)) return "Friendly";
+          if (/language/i.test(prompt)) return "en";
+          if (/region/i.test(prompt)) return "US";
+          if (/platform/i.test(prompt)) {
+            platformCallCount++;
+            // First: unrecognised; second: valid
+            return platformCallCount === 1 ? "fb" : "facebook";
+          }
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+      void allTurns;
+      void messagesSeen;
+
+      assert.ok(platformCallCount >= 2, "Platform prompt must be re-shown after unrecognised value");
+
+      // The conductor message after the invalid answer must name the accepted values
+      const out = turns.map((t) => t.message).join("\n");
+      assert.match(
+        out,
+        /facebook.*instagram.*linkedin|instagram.*facebook.*linkedin|linkedin.*facebook.*instagram/i,
+        "Re-ask message must name the accepted platform values",
+      );
+    });
+  });
+
+  it("does NOT silently map an unrecognised platform to 'facebook'", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      let promptCount = 0;
+      // Always return an unrecognised platform → must exceed cap (not silently accept)
+      const turns = await runPipelineCommand("newbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptCount++;
+          if (promptCount === 1) return "yes";
+          if (/niche/i.test(prompt)) return "Home tips";
+          if (/voice/i.test(prompt)) return "Friendly";
+          if (/language/i.test(prompt)) return "en";
+          if (/region/i.test(prompt)) return "US";
+          if (/platform/i.test(prompt)) return "tiktok"; // never valid
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+      // Conductor must stop — not silently accept "tiktok" as "facebook"
+      const hasDone = turns.some((t) => t.done === true);
+      assert.ok(hasDone, "Conductor must stop when platform cap is exceeded (not silently accept 'tiktok')");
+
+      // No Brand directory should have been created
+      const { stat: fsStat } = await import("node:fs/promises");
+      let existed = false;
+      try {
+        await fsStat(join(paths.brandsRoot, "newbrand"));
+        existed = true;
+      } catch { /* expected */ }
+      assert.equal(existed, false, "No Brand directory should be created when tiktok is always supplied");
+    });
+  });
+
+  it("accepts a valid platform case-insensitively on the first valid entry", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      let promptCount = 0;
+      await runPipelineCommand("casebrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptCount++;
+          if (promptCount === 1) return "yes";
+          if (/niche/i.test(prompt)) return "Travel tips";
+          if (/voice/i.test(prompt)) return "Adventurous";
+          if (/language/i.test(prompt)) return "en";
+          if (/region/i.test(prompt)) return "US";
+          if (/platform/i.test(prompt)) return "Facebook"; // uppercase F
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+      // Brand directory must have been created (no cap exceeded)
+      const { stat: fsStat } = await import("node:fs/promises");
+      const s = await fsStat(join(paths.brandsRoot, "casebrand"));
+      assert.ok(s.isDirectory(), "Brand directory must be created when platform 'Facebook' is accepted case-insensitively");
+
+      const profileText = await readFile(join(paths.brandsRoot, "casebrand", "brand-profile.yaml"), "utf8");
+      const parsed = yamlParse(profileText) as { channel?: { platform?: string } };
+      assert.equal(parsed.channel?.platform, "facebook", "Platform must be stored as lowercase canonical value");
+    });
+  });
+
+  it("stops cleanly after platform cap is exceeded with no Brand directory created", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      let promptCount = 0;
+      const turns = await runPipelineCommand("newbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptCount++;
+          if (promptCount === 1) return "yes"; // accept creation
+          if (/niche/i.test(prompt)) return "Home tips";
+          if (/voice/i.test(prompt)) return "Friendly";
+          if (/language/i.test(prompt)) return "en";
+          if (/region/i.test(prompt)) return "US";
+          if (/platform/i.test(prompt)) return "myspace"; // always unrecognised → exceed cap
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "";
+        },
+      });
+
+      const doneTurn = turns.find((t) => t.done === true);
+      assert.ok(doneTurn, "Conductor must stop with done:true after platform cap exceeded");
+
+      // No Brand directory should have been created
+      const { stat: fsStat } = await import("node:fs/promises");
+      let existed = false;
+      try {
+        await fsStat(join(paths.brandsRoot, "newbrand"));
+        existed = true;
+      } catch {
+        // expected — directory should not exist
+      }
+      assert.equal(existed, false, "No Brand directory should be created when platform cap is exceeded");
+    });
+  });
+});

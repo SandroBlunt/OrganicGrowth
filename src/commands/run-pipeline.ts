@@ -253,11 +253,31 @@ async function* runNewBrandInterview(
   const voice = (voiceResponse ?? "").trim();
 
   // --- Language ---
-  const languageResponse: string | undefined = yield {
-    message: "What is the content language code? (e.g. 'en', 'es', 'pt')",
-    prompt: "Language code:",
-  } as ConductorTurn;
-  const language = (languageResponse ?? "en").trim() || "en";
+  // Re-ask until the Operator supplies a non-empty language code. Cap at 3 (mirrors name loop).
+  // Never fabricate a default — only Operator-supplied values enter the Brand Profile.
+  const MAX_LANGUAGE_ATTEMPTS = 3;
+  let language = "";
+  let languageAttempts = 0;
+  while (language.length === 0) {
+    languageAttempts++;
+    if (languageAttempts > MAX_LANGUAGE_ATTEMPTS) {
+      yield {
+        message: "Too many empty language attempts. A language code is required. Stopping.",
+        done: true,
+      };
+      return undefined;
+    }
+    const languageResponse: string | undefined = yield {
+      message: languageAttempts === 1
+        ? "What is the content language code? (e.g. 'en', 'es', 'pt')"
+        : "Please enter a non-empty language code (e.g. 'en', 'es', 'pt'):",
+      prompt: "Language code:",
+    } as ConductorTurn;
+    const trimmed = (languageResponse ?? "").trim();
+    if (trimmed.length > 0) {
+      language = trimmed;
+    }
+  }
 
   // --- Region ---
   const regionResponse: string | undefined = yield {
@@ -267,15 +287,34 @@ async function* runNewBrandInterview(
   const region = (regionResponse ?? "").trim();
 
   // --- Platform ---
-  const platformResponse: string | undefined = yield {
-    message: "Which platform does this Brand publish to? (facebook | instagram | linkedin) Facebook is the only fully wired platform today.",
-    prompt: "Platform:",
-  } as ConductorTurn;
-  const rawPlatform = (platformResponse ?? "facebook").trim().toLowerCase();
-  const platform: BrandInterviewAnswers["platform"] =
-    rawPlatform === "instagram" ? "instagram"
-    : rawPlatform === "linkedin" ? "linkedin"
-    : "facebook";
+  // Re-ask until the Operator supplies one of: facebook | instagram | linkedin (case-insensitive).
+  // Never fabricate a default — only Operator-supplied values enter the Brand Profile.
+  // Cap at 3 (mirrors name loop). An unrecognised non-empty value triggers a re-ask that names
+  // the accepted values.
+  const MAX_PLATFORM_ATTEMPTS = 3;
+  let platform: BrandInterviewAnswers["platform"] | "" = "";
+  let platformAttempts = 0;
+  while (platform === "") {
+    platformAttempts++;
+    if (platformAttempts > MAX_PLATFORM_ATTEMPTS) {
+      yield {
+        message: "Too many invalid platform attempts. A valid platform is required. Stopping.",
+        done: true,
+      };
+      return undefined;
+    }
+    const platformResponse: string | undefined = yield {
+      message: platformAttempts === 1
+        ? "Which platform does this Brand publish to? (facebook | instagram | linkedin) Facebook is the only fully wired platform today."
+        : "Please enter one of: facebook, instagram, or linkedin. (Facebook is the only fully wired platform today.)",
+      prompt: "Platform:",
+    } as ConductorTurn;
+    const rawPlatform = (platformResponse ?? "").trim().toLowerCase();
+    if (rawPlatform === "facebook" || rawPlatform === "instagram" || rawPlatform === "linkedin") {
+      platform = rawPlatform;
+    }
+    // On empty or unrecognised: loop continues; the next iteration shows the re-ask message.
+  }
 
   // --- Seed pages (at least 1 required) ---
   const seedPages: string[] = [];
