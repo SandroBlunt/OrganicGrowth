@@ -2,9 +2,10 @@
 .env
 .env.local
 
-# Private Meta exports (may contain non-public Insights). Keep the folder, ignore contents.
-data/your-data/*
-!data/your-data/.gitkeep
+# Private Meta exports (may contain non-public Insights). Per-Brand under
+# data/brands/<slug>/your-data/. Keep the folders, ignore their contents.
+data/brands/*/your-data/*
+!data/brands/*/your-data/.gitkeep
 
 # Node / TypeScript build
 node_modules/

@@ -72,15 +72,17 @@ runs itself.
 
 ## State (all in plain files)
 
+State is scoped per Brand under `data/brands/<slug>/` (the Production Queue is the one brand-agnostic exception):
+
 | Path | What |
 |---|---|
-| `data/brand-profile.yaml` | Your Channel, voice, brand-safety rules |
-| `data/seeds.yaml` | Weekly Trend-Research parameters (peer Pages, keywords, …) |
-| `data/your-data/` | *Optional* Meta Content exports for richer enrichment (git-ignored) |
-| `ideas/<run>/idea-NN.md` | One Brief per suggested Idea |
-| `ideas/<run>/idea-NN.spec.json` | The Production Spec that drives the Space |
-| `data/queue.json` | The serialized production queue |
-| `data/ledger.json` | The index: Idea ⇄ Cast ⇄ Asset ⇄ Post(URL) ⇄ Performance, with status |
+| `data/brands/<slug>/brand-profile.yaml` | Your Channel, voice, brand-safety rules |
+| `data/brands/<slug>/seeds.yaml` | Weekly Trend-Research parameters (peer Pages, keywords, …) |
+| `data/brands/<slug>/your-data/` | *Optional* Meta Content exports for richer enrichment (git-ignored) |
+| `data/brands/<slug>/ideas/<run>/idea-NN.md` | One Brief per suggested Idea |
+| `data/brands/<slug>/ideas/<run>/idea-NN.spec.json` | The Production Spec that drives the Space |
+| `data/brands/<slug>/ledger.json` | The index: Idea ⇄ Cast ⇄ Asset ⇄ Post(URL) ⇄ Performance, with status |
+| `data/queue.json` | The serialized production queue (brand-agnostic) |
 
 ## Worth knowing
 
