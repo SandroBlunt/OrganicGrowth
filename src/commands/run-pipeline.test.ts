@@ -173,7 +173,9 @@ describe("runPipelineCommand — AC1: Brand resolution and threading", () => {
 
   it("returns an identifiable error for a non-existent Brand and does not proceed", async () => {
     await withBrandFixture({}, async (paths) => {
-      // 'no-such-brand' does NOT exist in the brands root
+      // 'no-such-brand' does NOT exist in the brands root.
+      // Slice 7 (issue #25): unknown slug now triggers an offer-to-create prompt; with no getInput
+      // provided, the default returns "" (not "yes"), so the conductor declines and stops.
       const turns = await runPipelineCommand("no-such-brand", {
         brandsRoot: paths.brandsRoot,
         queuePath: paths.queuePath,
@@ -183,10 +185,13 @@ describe("runPipelineCommand — AC1: Brand resolution and threading", () => {
       });
       const out = allMessages(turns);
       assert.match(out, /no-such-brand/i, "Error must name the missing Brand slug");
-      // Should stop early — only 1 turn with done=true
+      // The conductor offers to create, then stops when declined (done=true). Must not
+      // proceed further (no readiness, no rename, no gate). At least one done turn must appear.
       const doneTurn = turns.find((t) => t.done);
       assert.ok(doneTurn, "A done turn must be yielded");
-      assert.equal(turns.length, 1, "Conductor must not proceed past Brand resolution");
+      // Must stop before any readiness or rename output
+      assert.doesNotMatch(out, /\/rename/i, "Conductor must not reach the rename hint for an unknown brand");
+      assert.doesNotMatch(out, /Running pipeline for/i, "Conductor must not proceed to the pipeline loop for an unknown brand");
     });
   });
 
