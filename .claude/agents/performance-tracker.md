@@ -42,9 +42,11 @@ header so the Operator always knows which Brand's performance is being tracked.
    score = 0.35*norm(shares) + 0.25*norm(comments) + 0.20*norm(reactions) + 0.20*norm(views)
    ```
    If baseline is null (first run), seed it from this batch's medians and say so.
-5. Update each Idea in `data/brands/<slug>/ledger.json`: metrics, `performance_score`,
-   `status: scored`, `tracked_at`. Keep prior reads in a small `history` array — Performance is a
-   **moving number**, refresh-friendly.
+5. Update each Idea in `data/brands/<slug>/ledger.json`: metrics, `performance_score`, `tracked_at`,
+   and set `status` by the **maturity rule** — `tracking` while the Post is **< 7 days old** (by
+   `posted_at`; the number is still climbing and will be re-pulled next run), `scored` once it is
+   **7+ days old** (settled — final for the feedback loop). Keep prior reads in a small `history`
+   array — Performance is a **moving number** until a Post matures, so early pulls are refresh-friendly.
 6. Recompute `data/brands/<slug>/ledger.json`'s `baseline` (rolling median over recent scored posts)
    and stamp `updated_at`.
 7. **Optional enrichment:** if a Meta export CSV is in `data/brands/<slug>/your-data/`, match rows by

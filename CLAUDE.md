@@ -154,6 +154,8 @@ accepted Idea is produced — there is **no `/produce`** command; accepting an I
 and `ledger.json` (Idea ⇄ Cast ⇄ Asset ⇄ Post ⇄ Performance, with status). The Production Queue is the
 one exception — it is brand-agnostic at `data/queue.json` (ADR-0004, ADR-0006).
 Lifecycle: `suggested → accepted → casting → produced → posted → tracking → scored` (or `rejected`).
+`/log-post` sets `posted`; `/track-performance` sets `tracking` while a Post is < 7 days old (measured
+but still climbing) and `scored` once it is 7+ days old (settled — final for the feedback loop).
 Each Idea also carries `fit_basis` — a short free-text note from the `idea-strategist` recording *why*
 the Fit Score is what it is (the brand-fit reasoning behind the prediction). The Producer adds ledger
 fields `cast`, `character`, `asset_url`, `produced_at`. Update the ledger on every status change.
