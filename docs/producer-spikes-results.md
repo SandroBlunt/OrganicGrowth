@@ -96,5 +96,3 @@ toothbrush `JSON Master` example mid-word.
   size-bounded protocol nodes.
 - **Build constraint (ADR-0004):** `spaces_edit`/`spaces_run` need explicit permission each call;
   an unattended queue worker needs a permission allowlist or it stalls at the gate.
-</content>
-</invoke>

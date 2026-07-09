@@ -35,9 +35,18 @@ Run once a week. Steps marked 👤 are the Operator. **The agent auto-advances t
 steps and pauses only at the three human gates (Review, Cast pick, Publish) — it never asks the
 Operator to run a step it can run itself, and never renders past a gate before the Operator acts.**
 
+> **Not-yet-wired caveat (production runtime).** The unattended production steps below (3 and 4 —
+> draining the Production Queue, running the Space, rendering the Asset) describe the *intended*
+> design, not a runtime that exists today. There is **no live Magnific adapter, no worker host, and no
+> real unattended-permission wiring** — the only Space implementations are the test fakes, and nothing
+> in production calls the queue worker. Until that runtime is built (a future build slice), accepting
+> an Idea enqueues it but no Cast or Asset is produced automatically. Treat every "the producer drains
+> the queue in the background / renders unattended" phrasing in this file as design intent, not
+> shipped behaviour.
+
 1. `/run-trends` → `trend-scout` scrapes peer Pages (Apify) for posts beating their *own* page
    baseline → distills **Trends**; then `idea-strategist` turns the strongest into ~10 **Idea
-   briefs** with **Fit Scores**, written to `ideas/<run>/`.
+   briefs** with **Fit Scores**, written to `data/brands/<slug>/ideas/<run>/`.
 2. 👤 **Gate 1 — Review.** `/review-ideas` → Operator accepts/rejects conversationally; every
    **Rejection Reason** is logged verbatim (v1 does not auto-apply them). **Accepting an Idea enqueues
    it for production** — no separate kickoff.
@@ -55,8 +64,8 @@ Operator to run a step it can run itself, and never renders past a gate before t
    links the published **Post** to its **Idea** (explicit attribution — never inferred). Status
    `produced → posted`.
 6. `/track-performance` → `performance-tracker` pulls public metrics (Apify), computes the
-   **Performance Score** (relative to the Channel baseline), updates `data/ledger.json` and **Your
-   Data**. This is the feedback.
+   **Performance Score** (relative to the Channel baseline), updates `data/brands/<slug>/ledger.json`
+   and **Your Data**. This is the feedback.
 7. `/report` → pipeline state, Fit Score vs actual Performance, what's feeding back.
 
 **Pipeline rules:** sequential; the strategist must respect `brand-profile.yaml`; the Operator gates
@@ -145,15 +154,17 @@ accepted Idea is produced — there is **no `/produce`** command; accepting an I
 and `ledger.json` (Idea ⇄ Cast ⇄ Asset ⇄ Post ⇄ Performance, with status). The Production Queue is the
 one exception — it is brand-agnostic at `data/queue.json` (ADR-0004, ADR-0006).
 Lifecycle: `suggested → accepted → casting → produced → posted → tracking → scored` (or `rejected`).
-The Producer adds ledger fields `cast`, `character`, `asset_url`, `produced_at`. Update the ledger on
-every status change.
+Each Idea also carries `fit_basis` — a short free-text note from the `idea-strategist` recording *why*
+the Fit Score is what it is (the brand-fit reasoning behind the prediction). The Producer adds ledger
+fields `cast`, `character`, `asset_url`, `produced_at`. Update the ledger on every status change.
 
 ## Data sources
 
 - **Apify** does two jobs: peer-Page scraping (Trends) and our-own-post scraping (Performance). Both
   **public metrics only**. `APIFY_API_TOKEN` lives in `.env`.
-- **Meta Content export** (in `data/your-data/`) is an *optional* enrichment for Saves / Net-follows /
-  watch-through. See [`docs/adr/0001`](./docs/adr/0001-apify-public-metrics-for-performance.md).
+- **Meta Content export** (in `data/brands/<slug>/your-data/`) is an *optional* enrichment for Saves /
+  Net-follows / watch-through. It is git-ignored — keep it there, never at the pre-migration root
+  `data/your-data/`. See [`docs/adr/0001`](./docs/adr/0001-apify-public-metrics-for-performance.md).
 
 ## Rules & Standards
 

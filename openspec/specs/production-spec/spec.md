@@ -103,7 +103,7 @@ defines no banned words, the filter SHALL pass any Spec.
 ### Requirement: Compose and persist a Production Spec beside the Brief
 
 The Producer SHALL compose a contract-conformant Production Spec from an accepted Brief and persist it
-to `ideas/<run>/idea-NN.spec.json` (the machine-readable sibling of the Brief), so the Operator can
+to the Brand's `data/brands/<slug>/ideas/<run>/idea-NN.spec.json` (the machine-readable sibling of the Brief), so the Operator can
 inspect exactly what will drive a render. The persisted Spec SHALL pass `validate()` and the
 brand-safety filter; a Spec that fails either SHALL NOT be written.
 
@@ -111,7 +111,7 @@ brand-safety filter; a Spec that fails either SHALL NOT be written.
 
 - **GIVEN** an accepted Brief for Idea `idea-NN` in run `<run>`
 - **WHEN** the Producer composes its Production Spec
-- **THEN** a file `ideas/<run>/idea-NN.spec.json` is written
+- **THEN** a file `data/brands/<slug>/ideas/<run>/idea-NN.spec.json` is written
 - **AND** the written Spec passes `validate()` and the brand-safety filter
 
 #### Scenario: A failing Spec is refused, not written

@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** PROSPECTIVO — el ángulo IA/computer-hack NO tiene ningún post sobre-performante que lo respalde este scrape; sin momentum medido. Momentum-proxy bajo (≈0.20) por ser conjetura de brand-fit. Más especulativo que idea-09 (el "uso del teléfono para limpiar" es menos concreto que "qué cocino hoy"), de ahí el Fit Score ligeramente menor. Relevance neutral (0.5) sin historial. Conservador a propósito para no inflar una conjetura.
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

@@ -20,9 +20,11 @@ ideas is sharper. It **generates the Asset but never publishes it** — a human 
 ## Tech stack
 
 - **Runtime/language:** Node + TypeScript.
-- **State:** plain files only — **no database**. State lives in `data/*.{yaml,json}`,
-  `ideas/<run>/*.{md,json}`, and `data/ledger.json` (the canonical index). The ledger is the
-  source of truth; update it on every status change.
+- **State:** plain files only — **no database**. State is scoped per Brand under
+  `data/brands/<slug>/`: `brand-profile.yaml`, `seeds.yaml`, `ideas/<run>/*.{md,json}`, and
+  `ledger.json` (the canonical index for that Brand). The one brand-agnostic exception is the global
+  Production Queue at `data/queue.json` (ADR-0006). The ledger is the source of truth; update it on
+  every status change.
 - **External muscle:** Apify (public-metric scraping) and a Magnific Space via MCP (production).
   Engineering builds and tests against a **fake/stand-in for the Magnific Space** — never the live
   Space (no credits, no board mutation; hermetic CI).

@@ -1,6 +1,6 @@
 ---
 name: performance-tracker
-description: "Use this agent to pull the PUBLIC performance of posts the Operator made from Ideas, compute the Performance Score relative to the Channel baseline, and update the feedback loop. It scrapes our own posts by URL via Apify; it can optionally enrich from a Meta Content export. It never invents numbers.\n\n<example>\nContext: A few logged posts have been live for several days.\nuser: \"Update performance\"\nassistant: \"Launching performance-tracker to pull metrics for the logged posts and score them.\"\n<Task tool call to performance-tracker>\n</example>\n\n<example>\nContext: Operator dropped a fresh Meta export into data/your-data.\nuser: \"Track performance and use the export\"\nassistant: \"Using performance-tracker to pull Apify metrics and enrich with the Meta export.\"\n<Task tool call to performance-tracker>\n</example>"
+description: "Use this agent to pull the PUBLIC performance of posts the Operator made from Ideas, compute the Performance Score relative to the Channel baseline, and update the feedback loop. It scrapes our own posts by URL via Apify; it can optionally enrich from a Meta Content export. It never invents numbers.\n\n<example>\nContext: A few logged posts have been live for several days.\nuser: \"Update performance\"\nassistant: \"Launching performance-tracker to pull metrics for the logged posts and score them.\"\n<Task tool call to performance-tracker>\n</example>\n\n<example>\nContext: Operator dropped a fresh Meta export into data/brands/<slug>/your-data.\nuser: \"Track performance and use the export\"\nassistant: \"Using performance-tracker to pull Apify metrics and enrich with the Meta export.\"\n<Task tool call to performance-tracker>\n</example>"
 tools: Read, Write, Edit, Bash
 model: sonnet
 color: orange
@@ -17,14 +17,15 @@ header so the Operator always knows which Brand's performance is being tracked.
 
 ## Inputs (using the Brand's paths)
 - `data/brands/<slug>/ledger.json` — Ideas with `status: posted | tracking` and a `post_url`.
-- `data/brands/<slug>/seeds.yaml` — `apify.post_actor`.
+- `data/brands/<slug>/seeds.yaml` — `apify.facebook.post_actor` (actor slugs are nested per platform
+  under `apify.<platform>.*`, never flat `apify.post_actor`).
 - *Optional:* a Meta Content export CSV in `data/brands/<slug>/your-data/` for enrichment.
 
 ## Process
 1. **State the active Brand.** Output: "Tracking performance for Brand: `<brand>`." Use the Brand's
    paths for all reads and writes.
 2. Select Brand `<brand>`'s ledger Ideas with a `post_url` and status `posted` or `tracking`.
-3. For each, scrape the post's **public** metrics via Apify (`apify.post_actor`):
+3. For each, scrape the post's **public** metrics via Apify (`apify.facebook.post_actor`):
    ```bash
    set -a; [ -f .env ] && . ./.env; set +a
    curl -s -X POST \

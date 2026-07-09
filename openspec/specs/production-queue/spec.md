@@ -10,7 +10,7 @@ ordered list of jobs and a single-active-run lock. Each job SHALL have the shape
 `{ idea_id, brand, phase, status, enqueued_at }` where `brand` is a non-empty string identifying the
 Brand the job belongs to, `phase` is one of `cast | render`, `status` is one of
 `queued | running | awaiting_cast | done | failed`, and `enqueued_at` is an ISO-8601 timestamp. The
-lock SHALL record at most one active job. The ledger (`data/ledger.json`) remains the source of truth;
+lock SHALL record at most one active job. The Brand's ledger (`data/brands/<slug>/ledger.json`) remains the source of truth;
 the queue is derived from accepted Ideas and never the reverse. The queue path is a **global constant**
 (shared across all Brands, brand-agnostic) — it is NEVER derived from a Brand slug.
 
@@ -185,7 +185,7 @@ status, SHALL be refused with an identifiable reason rather than silently corrup
 ### Requirement: Queue transitions reflect Idea status into the ledger
 
 Queue transitions that complete a production phase SHALL reflect the implied Idea status into
-`data/ledger.json`, which remains the source of truth (the status is derived from the queue transition,
+the Brand's `data/brands/<slug>/ledger.json`, which remains the source of truth (the status is derived from the queue transition,
 never inferred from anything else). A pure mapping SHALL define the two reflection points and only those:
 a **cast** job reaching `awaiting_cast` implies the Idea moves `accepted → casting`; a **render** job
 reaching `done` implies the Idea moves `casting → produced`. Transitions that do not complete a phase

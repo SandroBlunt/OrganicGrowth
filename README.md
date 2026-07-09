@@ -66,9 +66,11 @@ runs itself.
 
 1. **Install** [Claude Code](https://claude.com/claude-code) and open this folder.
 2. `cp .env.example .env` → paste your **`APIFY_API_TOKEN`**. Connect the **Magnific MCP** for production.
-3. Edit **`data/brand-profile.yaml`** (Channel, voice, brand-safety) and **`data/seeds.yaml`** (peer
-   Pages, keywords, language, idea count).
-4. Each week: `/run-trends` → `/review-ideas` → `/pick-cast …` → publish + `/log-post …` → `/track-performance`.
+3. Edit your Brand's **`data/brands/<brand>/brand-profile.yaml`** (Channel, voice, brand-safety) and
+   **`data/brands/<brand>/seeds.yaml`** (peer Pages, keywords, language, idea count).
+4. Each week (every command takes your Brand slug): `/run-trends <brand>` → `/review-ideas <brand>` →
+   `/pick-cast <brand> <idea-id> <n>` → publish + `/log-post <brand> <idea-id> <facebook-url>` →
+   `/track-performance <brand>`.
 
 ## State (all in plain files)
 

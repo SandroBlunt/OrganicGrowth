@@ -18,7 +18,8 @@ with status `tracking`/`scored`). Re-run anytime — Performance is a moving num
 2. **Select** Brand `<brand>`'s ledger Ideas (from `data/brands/<slug>/ledger.json`) with a
    `post_url` and status `tracking` or `scored`.
 3. **Invoke performance-tracker with Brand `<brand>`.** It scrapes each post's public metrics via
-   Apify (`apify.post_actor`), computes the **Performance Score** (shares 0.35 · comments 0.25 ·
+   Apify (`apify.facebook.post_actor` — actor slugs are nested per platform in `seeds.yaml`, never
+   flat `apify.post_actor`), computes the **Performance Score** (shares 0.35 · comments 0.25 ·
    reactions 0.20 · views 0.20, normalised to `ledger.baseline`), and updates each entry (metrics,
    `performance_score`, `status: scored`, `tracked_at`, `history`) in `data/brands/<slug>/ledger.json`.
 4. **Refresh the baseline:** recompute `ledger.baseline` for Brand `<brand>` (rolling median of

@@ -53,7 +53,7 @@ the parsed Execution Protocol (the run-point whose gate is the Cast gate), never
 The Space driver SHALL surface the candidate **Cast** image URLs to the Operator and, on a successful
 Phase-A completion, the producer SHALL transition the Idea `accepted → casting` and populate the ledger
 Idea's `cast` field with the candidate identifiers/URLs (ADR-0003). The status and the `cast` field SHALL
-be written to `data/ledger.json`, which remains the source of truth (the values are written from the
+be written to the Brand's `data/brands/<slug>/ledger.json`, which remains the source of truth (the values are written from the
 Phase-A completion, never inferred). The driver SHALL NOT publish anything — Phase A pauses for a human
 (generate-never-publish).
 
@@ -170,7 +170,7 @@ On a successful Phase-B render, the Space driver SHALL surface the finished **As
 producer SHALL transition the Idea `casting → produced` and record `character` (the chosen Character),
 `asset_url` (the finished Asset's URL), and `produced_at` (an injected ISO-8601 timestamp) onto the
 ledger Idea record (ADR-0003). The status SHALL be **derived** from the queue's `render → done`
-transition (never inferred), and the status and Asset fields SHALL be written to `data/ledger.json`,
+transition (never inferred), and the status and Asset fields SHALL be written to the Brand's `data/brands/<slug>/ledger.json`,
 which remains the source of truth. `produced_at` SHALL be injected, never read from the clock inside a
 pure function.
 

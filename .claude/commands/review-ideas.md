@@ -25,8 +25,12 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
 4. **Take the Operator's verdict** in natural language — accept some, reject others. This is a
    conversation, not a form: let them give reasons however they like.
 5. **For each ACCEPT:** set `status: accepted` in `data/brands/<slug>/ledger.json`, then
-   **auto-enqueue** the Idea for production by calling `enqueueOnAccept(<idea-id>)`
-   (`src/production-queue/enqueue-on-accept.ts`). This appends one `cast`-phase, `status: queued`
+   **auto-enqueue** the Idea for production by calling
+   `enqueueOnAccept(ideaId, brand, { ledgerPath: resolveBrand(brand).ledger })`
+   (`src/production-queue/enqueue-on-accept.ts`). All three arguments are required: the `brand` and
+   the explicit `ledgerPath` are what tie the job to this Brand's ledger — omitting them enqueues a
+   job with no Brand that is silently dropped on the next load, or validates acceptance against the
+   wrong Brand's ledger. This appends one `cast`-phase, `status: queued`
    job to `data/queue.json` (the global Production Queue — ADR-0004, brand-agnostic). Enqueue is
    idempotent per Idea: re-accepting the same Idea adds no second job, and only `accepted` Ideas ever
    enter the queue (rejected Ideas cost nothing). Run `/queue <brand>` to see the backlog.

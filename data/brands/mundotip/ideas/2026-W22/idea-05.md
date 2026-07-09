@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** Tercer sub-tema del cluster T02; refuerza la amplitud del cluster de cuidado personal. Momentum cluster ≈ 0.60 normalizado, brand_fit alto. Relevance neutral (0.5) sin historial puntuado — predicción, no rendimiento. Brand-safety: sin claims de "cura" capilar ni marcos de "milagro".
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

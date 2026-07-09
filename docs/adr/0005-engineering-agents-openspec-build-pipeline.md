@@ -3,6 +3,12 @@
 **Status:** accepted — adds a build-time pipeline alongside the content pipeline; references ADR-0002,
 ADR-0003, ADR-0004 and PRD issue #1.
 
+> **Amendment (2026-07-09):** The model choice below was written as **Opus** but was never shipped that
+> way. Both agent files (`.claude/agents/developer.md`, `.claude/agents/qa.md`) and `CLAUDE.md` declare
+> **`model: sonnet`** for `developer` and `qa`. This ADR has been corrected to **Sonnet** to match the
+> shipped agents; the "strongest model" reasoning below is left as originally reasoned but no longer
+> reflects the chosen model.
+
 The Producer feature (ADR-0002/0003/0004) has to be *built*, not just specified. We decided to do that
 with **two coding agents — `developer` and `qa` — that are a different species from the content
 agents** (trend-scout, idea-strategist, producer, performance-tracker). The content agents run the
@@ -42,7 +48,7 @@ Space at runtime)** — the name collision is deliberately avoided everywhere.
   per-criterion and per-scenario results, a defect list with severity and repro steps). Retries append
   **Round-N** blocks; **nothing is overwritten**. The doc rides in the PR and is archived with the
   change. It is **not** a session handoff and **not** OpenSpec `tasks.md`.
-- **qa is the sole non-human gate, on opus.** `qa` does three jobs: (a) run all tests and confirm green;
+- **qa is the sole non-human gate, on sonnet.** `qa` does three jobs: (a) run all tests and confirm green;
   (b) verify the code satisfies **every acceptance criterion** of the issue; (c) verify the
   `developer`'s OpenSpec spec **faithfully matches the issue** — catching a misread, self-consistent-but-
   wrong spec. `qa` also confirms **no live-Space calls** exist in tests (the fake is used) and that the
@@ -59,7 +65,8 @@ Space at runtime)** — the name collision is deliberately avoided everywhere.
   verbal approval the agent runs `gh pr merge` itself and closes the issue — **the Operator never uses
   the GitHub merge UI.** The **OpenSpec archive** (folding spec deltas into `openspec/specs/`) rides
   inside this same PR.
-- **Both agents on opus.** `developer` and `qa` both run on the strongest model (`model: opus`).
+- **Both agents on sonnet.** `developer` and `qa` both run `model: sonnet` (see the amendment note above;
+  this was originally written as opus but never shipped that way).
 
 **Why:** building the Producer is a distinct concern from running the weekly loop, so it gets its own
 agents and its own entry — fused into the content vocabulary it would only blur the domain. Model-B

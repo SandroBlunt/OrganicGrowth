@@ -48,6 +48,13 @@ pipeline. It drives every phase automatically and pauses only at the three human
      URL with `/log-post <brand> <idea-id> <facebook-url>`. After logging, the conductor offers
      `/track-performance <brand>` and `/report <brand>`.
 
+> **Not yet wired — production runtime.** Where this doc says the conductor "auto-drains the
+> Production Queue … unattended" and "renders the Asset unattended", that flow is not yet operational.
+> There is no live Magnific Space adapter and no running worker host, so accepted Ideas do not move to
+> `casting` or `produced` on their own today. The gates, queue, and ledger wiring are in place; the
+> unattended production runtime that would drain them is still pending (see the audit's C2). Treat the
+> production phases as manual/blocked until that runtime ships.
+
 ## Guardrails
 
 - **Brand is explicit** — `<brand>` is required; never falls back to a default Brand.

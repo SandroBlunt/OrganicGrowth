@@ -39,7 +39,7 @@ never read as an absolute count.
 
 ### Requirement: /report is read-only over the ledger
 
-`/report` SHALL read `data/ledger.json` (the source of truth, always-rules #7) and SHALL NOT mutate it or
+`/report` SHALL read the Brand's `data/brands/<slug>/ledger.json` (the source of truth, always-rules #7) and SHALL NOT mutate it or
 any other state file. A Post SHALL be shown linked to its Idea only via the logged `post_url` (explicit
 attribution, always-rules #5) — never inferred. An empty ledger SHALL render a clear note rather than
 crash a Run (always-rules #8: never fabricate; degrade defensively).
