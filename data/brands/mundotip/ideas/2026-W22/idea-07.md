@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** Tercer sub-tema del cluster T02, pero el de menor over-performance (1.08x), por eso Fit Score conservador. Brand_fit alto si se mantiene lejos de cualquier marco médico/"cura". Momentum cluster ≈ 0.60 normalizado pero este sub-tema es el más flojo. Relevance neutral (0.5) sin historial — predicción, no rendimiento.
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

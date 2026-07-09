@@ -16,7 +16,7 @@ multiplier are **not** publicly scrapable.
 The automated feedback loop computes **Performance** and the **Performance Score** from Apify public
 metrics only — **shares, comments, reactions, views** — each normalised to the Channel's own recent
 baseline (default weights `0.35 / 0.25 / 0.20 / 0.20`, tunable). Meta's Content export is supported as
-an **optional manual enrichment**: if the Operator drops a fresh export into `data/your-data/`, the
+an **optional manual enrichment**: if the Operator drops a fresh export into `data/brands/<slug>/your-data/`, the
 `performance-tracker` may fold in Saves / Net-follows / watch-through.
 
 ## Consequences

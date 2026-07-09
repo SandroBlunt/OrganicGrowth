@@ -3,9 +3,12 @@
 # Space itself at run time — see docs/adr/0003.)
 
 # Primary 'trending' signal: peer / competitor Pages to scrape.
+# A seed entry may be a plain URL string, or a { url, off_niche } object. The object form lets
+# the off-niche flag survive YAML parsing so readiness can flag it (a bare # comment cannot).
 seed_pages:
   - "https://www.facebook.com/lifehackIG"
-  - "https://www.facebook.com/tudodereceitasES"   # NOTE: PT recipes, off es/LATAM niche
+  - url: "https://www.facebook.com/tudodereceitasES"   # PT recipes, off es/LATAM niche
+    off_niche: true
   - "https://www.facebook.com/ahoralosabesoficial" # suggested: ES life-hacks Page (verified handle)
 
 # Optional topic augmentation (keyword search).

@@ -9,13 +9,29 @@
  * The global Production Queue (`data/queue.json`) is brand-agnostic (ADR-0004, ADR-0006): one lock,
  * one queue, shared across all Brands. It is exposed here as a constant — NOT derived from a slug.
  *
+ * Tenancy boundary: a Brand slug is joined straight into on-disk paths, so `resolveBrand` (and the
+ * scaffolder) VALIDATE the slug against `BRAND_SLUG_PATTERN` before use — an unvalidated slug like
+ * `"../.."` would escape the brands root and read/write another tenant's (or the repo's) files.
+ *
  * Defensive throughout: `listBrands` skips dotfiles, files, and unreadable entries; `brandExists`
- * returns false (not throw) for a missing path; `resolveBrand` never touches the filesystem.
+ * returns false only for a genuinely absent path (`ENOENT`) and rethrows other I/O errors (e.g. a
+ * permission failure must never masquerade as "does not exist"); `resolveBrand` never touches the
+ * filesystem.
  */
 
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { DEFAULT_QUEUE_PATH as STORE_QUEUE_PATH } from "../production-queue/store.ts";
+
+/** True when `err` is a Node error carrying the given `errno` code (e.g. `"ENOENT"`). */
+function hasErrnoCode(err: unknown, code: string): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === code
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -61,6 +77,37 @@ export interface BrandPaths {
 }
 
 // ---------------------------------------------------------------------------
+// Slug validation (tenancy boundary)
+// ---------------------------------------------------------------------------
+
+/**
+ * The set of slugs safe to join into an on-disk path: 1–64 characters of lowercase letters, digits,
+ * and hyphens. This is exactly the shape `slugify` produces, and it rejects path-traversal (`..`),
+ * separators (`/`, `\`), and uppercase — the things that would let a slug escape the brands root.
+ */
+export const BRAND_SLUG_PATTERN = /^[a-z0-9-]{1,64}$/;
+
+/** Pure predicate: does `slug` match `BRAND_SLUG_PATTERN`? */
+export function isValidBrandSlug(slug: string): boolean {
+  return BRAND_SLUG_PATTERN.test(slug);
+}
+
+/**
+ * Throw a clear error unless `slug` is a valid Brand slug. Called at every point that turns a slug
+ * into a filesystem path (the tenancy boundary), because callers pass raw CLI arguments and raw
+ * `queue.json` values straight through — neither is trusted.
+ */
+export function assertValidBrandSlug(slug: string): void {
+  if (!isValidBrandSlug(slug)) {
+    throw new Error(
+      `Invalid Brand slug ${JSON.stringify(slug)}: a Brand slug must be 1–64 characters of ` +
+        `lowercase letters, digits, and hyphens (matching ${BRAND_SLUG_PATTERN.source}). ` +
+        `This rejects path traversal (e.g. "../..") and keeps each Brand's state isolated.`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // slugify
 // ---------------------------------------------------------------------------
 
@@ -88,16 +135,20 @@ export function slugify(name: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Map a Brand slug to its on-disk paths. Pure: does NOT touch the filesystem; the caller
- * is responsible for ensuring the slug is valid and the Brand directory exists.
+ * Map a Brand slug to its on-disk paths. Does NOT touch the filesystem, but it is NOT a blind
+ * string join: the slug is validated against `BRAND_SLUG_PATTERN` first and an invalid slug throws.
+ * This is the tenancy boundary — callers pass raw CLI arguments and raw `queue.json` values, so a
+ * slug like `"../.."` must never be allowed to resolve to a path outside `<brandsRoot>/<slug>/`.
  *
  * The five per-Brand paths all live under `<brandsRoot>/<slug>/`. The `queuePath` is always
  * `DEFAULT_QUEUE_PATH` — brand-agnostic, never slug-derived (ADR-0006).
  *
  * @param slug        The Brand's filesystem slug (e.g. `"mundotip"`).
  * @param brandsRoot  Root for all Brand directories; defaults to `DEFAULT_BRANDS_ROOT`.
+ * @throws            If `slug` does not match `BRAND_SLUG_PATTERN`.
  */
 export function resolveBrand(slug: string, brandsRoot: string = DEFAULT_BRANDS_ROOT): BrandPaths {
+  assertValidBrandSlug(slug);
   const base = join(brandsRoot, slug);
   return {
     ledger: join(base, "ledger.json"),
@@ -115,8 +166,12 @@ export function resolveBrand(slug: string, brandsRoot: string = DEFAULT_BRANDS_R
 
 /**
  * Check whether a Brand directory exists at `<brandsRoot>/<slug>`. Returns `true` only if the
- * path exists AND is a directory. Returns `false` (does not throw) for a missing path, a file
- * with the same name, or any I/O error — defensive by design.
+ * path exists AND is a directory; returns `false` for a genuinely absent path (`ENOENT`) or a
+ * non-directory (a file with the same name).
+ *
+ * Only `ENOENT` means "does not exist". Any other `stat` error — a permission failure (`EACCES`),
+ * a non-directory in the path (`ENOTDIR`), etc. — is rethrown, because reporting "Brand does not
+ * exist" for a permission error would make a caller offer to *create* a Brand that is already there.
  */
 export async function brandExists(
   slug: string,
@@ -126,8 +181,9 @@ export async function brandExists(
   try {
     const s = await stat(brandDir);
     return s.isDirectory();
-  } catch {
-    return false;
+  } catch (err: unknown) {
+    if (hasErrnoCode(err, "ENOENT")) return false;
+    throw err;
   }
 }
 

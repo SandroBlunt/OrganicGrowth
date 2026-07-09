@@ -23,7 +23,7 @@
  * In tests: a fake implementing this interface is injected.
  * At runtime: an adapter calling live Magnific MCP tools implements this interface.
  */
-export interface MagniticReadinessPort {
+export interface MagnificReadinessPort {
   /**
    * Live-probe the Magnific Space for accessibility and credit balance.
    * Returns `{ accessible: boolean, creditsOk: boolean }`.

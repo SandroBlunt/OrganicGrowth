@@ -11,8 +11,10 @@
  * label so the Operator can see which Brand each job belongs to (AC6, issue #21).
  */
 
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { loadQueue, DEFAULT_QUEUE_PATH } from "../production-queue/store.ts";
-import { renderQueue } from "../production-queue/render.ts";
+import { formatQueue } from "../production-queue/format.ts";
 
 /** Produce the `/queue` output string for a given queue file (testable, no printing). */
 export async function queueCommand(
@@ -20,20 +22,30 @@ export async function queueCommand(
   queuePath: string = DEFAULT_QUEUE_PATH,
 ): Promise<string> {
   const state = await loadQueue(queuePath);
-  return renderQueue(state, brandFilter);
+  return formatQueue(state, brandFilter);
+}
+
+/**
+ * Map the first CLI positional to a brand filter (pure, so it is unit-testable — C49):
+ * no arg or the explicit `--all` sentinel → show all Brands (`undefined`); anything else is a
+ * Brand slug to filter by.
+ */
+export function resolveBrandFilter(brandArg: string | undefined): string | undefined {
+  return brandArg === undefined || brandArg === "--all" ? undefined : brandArg;
 }
 
 /** CLI entry: print the queue. Only runs when invoked directly (e.g. `npm run queue`). */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  // --all or no arg → show all; otherwise treat the arg as a brand filter.
-  const brandArg = args[0];
-  const brandFilter = brandArg === undefined || brandArg === "--all" ? undefined : brandArg;
+  const brandFilter = resolveBrandFilter(args[0]);
   const output = await queueCommand(brandFilter);
   process.stdout.write(output + "\n");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// C41: compare resolved paths, not a hand-built `file://` string — the latter breaks on paths with
+// spaces (percent-encoded in `import.meta.url`) or symlinks, silently making a direct run a no-op.
+const entryPoint = process.argv[1];
+if (entryPoint !== undefined && fileURLToPath(import.meta.url) === resolve(entryPoint)) {
   main().catch((err: unknown) => {
     process.stderr.write(`/queue failed: ${String(err)}\n`);
     process.exitCode = 1;

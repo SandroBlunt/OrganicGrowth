@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** PROSPECTIVO — el foco del operador (IA/computer hacks) NO apareció en ningún post sobre-performante este scrape, así que NO hay momentum medido. Se le asigna un momentum-proxy bajo (≈0.20) precisamente porque es una conjetura de brand-fit, no una señal de tendencia. Brand_fit razonable porque se enmarca como hack doméstico de cocina en español. Relevance neutral (0.5) sin historial. Fit Score deliberadamente conservador para no presentar una conjetura como respaldada por datos.
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

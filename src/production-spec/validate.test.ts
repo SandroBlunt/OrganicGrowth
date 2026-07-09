@@ -5,6 +5,9 @@ import {
   validSpec,
   fourConcepts,
   twoClips,
+  numericClips,
+  clipMissingAspectRatio,
+  clipMissingVideoPrompt,
   longPostCopy,
   zeroEmojis,
   fourEmojis,
@@ -42,6 +45,32 @@ describe("validate — clips count", () => {
     const result = validate(twoClips());
     assert.equal(result.ok, false);
     assert.equal(hasCode(result, "clips_count"), true);
+  });
+});
+
+describe("validate — per-clip contract (C18)", () => {
+  it("rejects a clip array of plain numbers even though the count is right", () => {
+    const result = validate(numericClips());
+    assert.equal(result.ok, false);
+    // The count is 3 (passes clips_count) but every entry fails the per-clip shape.
+    assert.equal(hasCode(result, "clips_count"), false);
+    assert.equal(hasCode(result, "clip_shape"), true);
+  });
+
+  it("rejects a clip whose image_prompt is missing the aspect-ratio suffix", () => {
+    const result = validate(clipMissingAspectRatio());
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "clip_shape"), true);
+    // The failure names the missing aspect-ratio line.
+    assert.ok(
+      result.errors.some((e) => e.code === "clip_shape" && e.message.includes("Aspect Ratio 9:16.")),
+    );
+  });
+
+  it("rejects a clip missing its video_prompt", () => {
+    const result = validate(clipMissingVideoPrompt());
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "clip_shape"), true);
   });
 });
 

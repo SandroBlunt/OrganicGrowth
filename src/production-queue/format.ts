@@ -1,5 +1,9 @@
 /**
- * Pure renderer for the `/queue` command — formats the Production Queue for the Operator.
+ * Pure text formatter for the `/queue` command — formats the Production Queue for the Operator.
+ *
+ * Named `format` (not `render`): domain-wide "render" means producing the Asset (a Reel) by driving a
+ * Magnific Space. This module only turns a QueueState into display text, so it must not borrow that
+ * verb (C49).
  *
  * Pure: takes a QueueState (and optional brand filter), returns a string. No I/O, so it is fully
  * unit-testable. Shows each job's `brand`, `idea_id`, `phase`, and `status`. When `brandFilter` is
@@ -11,7 +15,7 @@ import type { QueueState, QueueJob } from "./queue.ts";
 const HEADER = "Production Queue";
 
 /** Format the queue as plain text: one line per job (`brand  idea_id  phase  status`), or an empty note. */
-export function renderQueue(state: QueueState, brandFilter?: string): string {
+export function formatQueue(state: QueueState, brandFilter?: string): string {
   const jobs: readonly QueueJob[] = brandFilter !== undefined
     ? state.jobs.filter((j) => j.brand === brandFilter)
     : state.jobs;

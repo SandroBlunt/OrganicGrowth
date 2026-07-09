@@ -5,11 +5,13 @@ TBD - created by archiving change issue-24-run-pipeline-conductor. Update Purpos
 ## Requirements
 ### Requirement: The conductor resolves an existing Brand and threads it through the entire run
 
-The system SHALL expose a `/run-pipeline <brand>` conductor command that accepts a Brand slug,
-resolves the Brand via `resolveBrand`, and threads the Brand identity through every step of the
-weekly loop. The Brand slug SHALL be restated in every gate prompt so the Operator is never in doubt
-about which Brand the loop is running for. An unresolvable or missing Brand SHALL produce an
-identifiable error message naming the Brand slug and SHALL NOT fall back to a default Brand.
+The system SHALL expose a `/run-pipeline [<brand>]` conductor command. The Brand argument is OPTIONAL.
+When a known slug is given, the conductor resolves the Brand via `resolveBrand` and threads the Brand
+identity through every step of the weekly loop. The Brand slug SHALL be restated in every gate prompt
+so the Operator is never in doubt about which Brand the loop is running for. The conductor SHALL NEVER
+fall back to a default Brand: a missing argument or an unknown slug SHALL NOT be silently resolved to
+some other Brand — it is routed to the onboarding paths instead (see "SHALL offer to create a Brand
+when given an unknown slug" and "SHALL ask new-vs-existing … when given no argument" below).
 
 #### Scenario: Brand is resolved and threaded through the loop
 
@@ -18,12 +20,12 @@ identifiable error message naming the Brand slug and SHALL NOT fall back to a de
 - **THEN** the conductor output identifies the Brand as `"mundotip"`
 - **AND** every gate prompt restates the Brand slug
 
-#### Scenario: Unknown Brand produces an identifiable error
+#### Scenario: Unknown slug is never silently resolved to a default Brand
 
 - **GIVEN** a Brand slug `"no-such-brand"` that does NOT exist on disk
 - **WHEN** `/run-pipeline no-such-brand` is invoked
-- **THEN** the conductor outputs an error naming `"no-such-brand"`
-- **AND** the loop does not proceed past Brand resolution
+- **THEN** the conductor does NOT run the loop against any existing Brand
+- **AND** it names `"no-such-brand"` and routes to the offer-to-create path (never a default fallback)
 
 ---
 
@@ -94,8 +96,10 @@ The conductor SHALL NOT attempt to rename the session or call any system rename 
 ### Requirement: When in-flight work exists, the conductor shows it and asks resume-vs-fresh with no default
 
 The conductor SHALL call `resolvePhase` with the Brand's ledger and its slice of the global Production
-Queue. If the resolved `phase` is neither `"research"` nor `"done"`, in-flight work exists. In that
-case the conductor SHALL:
+Queue. In-flight work exists when the resolved `phase` is one of `"production"`, `"publish"`, or
+`"tracking"` (genuine production work is under way). A `"review"` phase — only un-reviewed `suggested`
+Ideas exist — is NOT in-flight (the Operator simply has not started yet), and neither is `"research"`
+nor `"done"`. When in-flight work exists the conductor SHALL:
 1. Display the pending gates and the count of stranded Ideas.
 2. Ask the Operator: `"resume or fresh? (type 'resume' or 'fresh')"` with NO default value — the
    Operator MUST type their choice explicitly.
@@ -113,6 +117,13 @@ the same no-default prompt). The conductor SHALL never proceed without an explic
 - **WHEN** `/run-pipeline <brand>` resolves the phase
 - **THEN** the conductor does NOT ask resume-or-fresh
 - **AND** it proceeds directly to starting a new Run
+
+#### Scenario: Un-reviewed Ideas (review phase) are not treated as in-flight
+
+- **GIVEN** a Brand with only `suggested` Ideas and no queue jobs (phase = `"review"`)
+- **WHEN** `/run-pipeline <brand>` resolves the phase
+- **THEN** the conductor does NOT ask resume-or-fresh
+- **AND** it proceeds into the loop at Gate 1 (Review)
 
 #### Scenario: In-flight work triggers the resume-or-fresh prompt with no default
 

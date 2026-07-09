@@ -28,7 +28,7 @@
  */
 
 import type { LedgerIdea } from "../ledger/ledger.ts";
-import type { QueueJob } from "../production-queue/queue.ts";
+import { isLiveJob, type QueueJob } from "../production-queue/queue.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,8 +114,11 @@ export function resolvePhase(
     return { phase: "research", pendingGates: [], strandedIdeas: [] };
   }
 
-  // Build a Set of idea_ids that have at least one live queue job (for O(1) lookup).
-  const queuedIdeaIds = new Set(queueJobs.map((j) => j.idea_id));
+  // Build a Set of idea_ids that have at least one LIVE queue job (for O(1) lookup). Terminal jobs
+  // (`failed` / `done`) do NOT keep an accepted Idea off the stranded list — an accepted Idea whose
+  // only job is `failed` needs re-enqueue, so it is stranded, not live (C4). The queueJobs are already
+  // filtered to this Brand by the caller, so `idea_id` is unique within the slice.
+  const liveJobIdeaIds = new Set(queueJobs.filter(isLiveJob).map((j) => j.idea_id));
 
   let phase: Phase = "done"; // start pessimistic (done); narrow down as we find active Ideas
   const gateSet = new Set<PendingGate>();
@@ -131,8 +134,8 @@ export function resolvePhase(
       case "accepted":
         // Production phase regardless of queue presence.
         phase = earlierPhase(phase, "production");
-        // Stranded if no live queue job exists for this Idea.
-        if (!queuedIdeaIds.has(idea.id)) {
+        // Stranded if no LIVE queue job exists for this Idea (a `failed`-only Idea is stranded — C4).
+        if (!liveJobIdeaIds.has(idea.id)) {
           stranded.push(idea.id);
         }
         // No human gate for accepted: it's either queued or stranded (needs re-enqueue).

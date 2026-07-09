@@ -1,24 +1,18 @@
 {
-  "$comment": "Unattended permission path for the Producer background worker (ADR-0004; issue #8). The Magnific spike (docs/producer-spikes-results.md) found that spaces_edit / spaces_run are auto-denied by the permission classifier as 'modifying shared infrastructure' and need per-call approval EVEN WITH verbal consent. A headless queue worker (drain + periodic tick) stalls without a permission path. This allowlist grants the worker non-auto permission to those tools so it can drive the Space unattended. It is scoped to the Producer's pre-defined Space and to the two Space-mutating tools only; everything else stays on the default classifier. See docs/producer-worker-permissions.md.",
-  "mode": "allowlist",
-  "context": "producer-worker",
-  "permissions": {
-    "allow": [
-      "magnific:spaces_edit",
-      "magnific:spaces_run",
-      "magnific:spaces_edit_status",
-      "magnific:spaces_run_status",
-      "magnific:spaces_state",
-      "magnific:spaces_get_nodes",
-      "magnific:creations_get",
-      "magnific:creations_wait",
-      "magnific:creations_search"
-    ],
-    "deny": []
-  },
-  "auto_approve": true,
-  "scope": {
-    "space": "a1f05d67-1b98-4d10-9251-6603bea3b578",
-    "note": "The Producer's pre-defined 'JSON master' cast->clips Space. The worker drives ONLY this Space."
+  "$comment": "EXAMPLE ONLY — NOT ACTIVE, NOT READ BY ANY TOOL. This file does not grant any permission on its own; Claude Code does not read .claude/permissions/*.json. Real, unattended-tool permissions live in .claude/settings.json under permissions.allow, as `mcp__<server>__<tool>` rules. The block below is the CORRECT-FORMAT fragment that WOULD let the Producer background worker call the Magnific Space-mutating MCP tools without a per-call prompt — IF it were merged into .claude/settings.json. It is left here, inert, as a copy-ready template for the deferred live-Magnific adapter. Do NOT edit the user's live settings.json to enable this; that is a future, deliberate step. Known limitation: an `mcp__magnific__*` allow rule grants the tool regardless of its arguments — it cannot be scoped to a single Space id, so the single-Space guarantee still has to come from the worker/adapter, not from this rule. See docs/producer-worker-permissions.md.",
+  "example_settings_json_fragment": {
+    "permissions": {
+      "allow": [
+        "mcp__magnific__spaces_edit",
+        "mcp__magnific__spaces_run",
+        "mcp__magnific__spaces_edit_status",
+        "mcp__magnific__spaces_run_status",
+        "mcp__magnific__spaces_state",
+        "mcp__magnific__spaces_get_nodes",
+        "mcp__magnific__creations_get",
+        "mcp__magnific__creations_wait",
+        "mcp__magnific__creations_search"
+      ]
+    }
   }
 }

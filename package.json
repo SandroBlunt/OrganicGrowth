@@ -5,13 +5,16 @@
   "description": "OrganicGrowth Producer feature code: harness, deep modules, and plain-file state.",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "test": "tsc -p tsconfig.json --noEmit && node --max-old-space-size=8192 --import tsx --test \"src/**/*.test.ts\"",
+    "test": "tsc -p tsconfig.json --noEmit && node --import tsx --test \"src/**/*.test.ts\"",
+    "test:docs": "node --import tsx --test \"src/**/*.docs-test.ts\"",
     "queue": "tsx src/commands/queue.ts",
-    "pick-cast": "tsx src/commands/pick-cast.ts"
+    "pick-cast": "tsx src/commands/pick-cast.ts",
+    "report": "tsx src/commands/report.ts",
+    "run-pipeline": "tsx src/commands/run-pipeline.ts"
   },
   "dependencies": {
     "yaml": "^2.9.0"

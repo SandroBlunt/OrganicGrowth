@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** Momentum más alto de la semana (2.22x ≈ 0.89 normalizado) y encaja de lleno en la lane de rutina diaria/hogar de MundoTip (brand_fit alto). Relevance fijado en 0.5 (neutral) porque el ledger no tiene historial puntuado todavía — esto es una predicción, no rendimiento. Confianza moderada: la señal viene de UN solo post en una página en inglés, transferible pero direccional. Sin riesgo de marca si se evita cualquier marco médico/"cura".
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

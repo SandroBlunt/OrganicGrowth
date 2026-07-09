@@ -10,19 +10,28 @@
  * Design principle: this module contains NO business logic. All content decisions are made by the
  * pure builders before this function is called. The write shell only materialises them.
  *
+ * The YAML files are NOT re-serialised from scratch — that would throw away the template's guidance
+ * comments (what each field means, which platforms are wired, the Apify block explanation). Instead
+ * we parse the template file into a comment-preserving document, overwrite each field's value with
+ * the builder's output, and drop only the now-obsolete `TODO:` fill-me-in prompts. The Operator's
+ * scaffolded Brand keeps every explanatory comment; the JSON ledger has no comments, so it is written
+ * plainly. All three writes go through the shared crash-safe `writeFileAtomic` helper.
+ *
  * After this function returns:
- *   - `data/brands/<slug>/brand-profile.yaml` contains the YAML-serialised brand profile.
- *   - `data/brands/<slug>/seeds.yaml` contains the YAML-serialised seeds.
+ *   - `data/brands/<slug>/brand-profile.yaml` contains the built brand profile, comments intact.
+ *   - `data/brands/<slug>/seeds.yaml` contains the built seeds, comments intact.
  *   - `data/brands/<slug>/ledger.json` contains the JSON-serialised empty ledger.
  *   - Subdirectories from the skeleton (`ideas/`, `your-data/`) exist.
  *   - `listBrands(brandsRoot)` includes the new slug.
  */
 
-import { mkdir, cp, writeFile, stat } from "node:fs/promises";
+import { mkdir, cp, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { stringify as yamlStringify } from "yaml";
+import { parseDocument, visit, isNode } from "yaml";
 
 import type { BrandProfileContent, SeedsContent, EmptyLedger } from "./scaffolder.ts";
+import { assertValidBrandSlug } from "./resolver.ts";
+import { writeFileAtomic } from "../fs/safe-io.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,6 +63,47 @@ const DEFAULT_BRANDS_ROOT = "data/brands";
 const DEFAULT_TEMPLATE_PATH = "templates/brand-skeleton";
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** True when `err` is a Node error carrying the given `errno` code (e.g. `"ENOENT"`). */
+function hasErrnoCode(err: unknown, code: string): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === code
+  );
+}
+
+/**
+ * Fill a template YAML file's values from `content` while preserving its guidance comments.
+ *
+ * The template ships with explanatory comments (document headers, section notes, the Apify-block
+ * explanation) AND per-field `TODO:` prompts. We keep the former and drop the latter: `setIn`
+ * overwrites each top-level field's value in place — which discards the trailing comment on any field
+ * whose value is a collection, and keeps it on scalar fields — then a `visit` pass clears the trailing
+ * comment on any node that still reads `TODO` (the obsolete "fill me in" prompt for a field we just
+ * filled). Comments that sit *before* a key (the section/header guidance) are never touched.
+ *
+ * @param templateText  the raw template YAML (source of the comments)
+ * @param content       the built values, keyed by the template's top-level keys
+ * @returns             the filled YAML text, comments preserved
+ */
+function fillYamlFromTemplate(templateText: string, content: object): string {
+  const doc = parseDocument(templateText);
+  for (const [key, value] of Object.entries(content)) {
+    doc.setIn([key], value);
+  }
+  visit(doc, (_key, node) => {
+    if (isNode(node) && typeof node.comment === "string" && node.comment.includes("TODO")) {
+      node.comment = null;
+    }
+  });
+  return doc.toString();
+}
+
+// ---------------------------------------------------------------------------
 // scaffoldBrand
 // ---------------------------------------------------------------------------
 
@@ -73,19 +123,25 @@ export async function scaffoldBrand(
   content: ScaffoldContent,
   options: ScaffoldBrandOptions = {},
 ): Promise<void> {
+  // Tenancy boundary: the slug is joined into paths below, so validate it before any I/O.
+  assertValidBrandSlug(slug);
+
   const brandsRoot = options.brandsRoot ?? DEFAULT_BRANDS_ROOT;
   const templatePath = options.templatePath ?? DEFAULT_TEMPLATE_PATH;
   const brandDir = join(brandsRoot, slug);
 
-  // Guard: do not overwrite an existing Brand directory.
+  // Guard: do not overwrite an existing Brand directory. Only `ENOENT` means "not there yet"; any
+  // other stat error (permission, a non-directory in the path) is rethrown rather than silently
+  // treated as absent — otherwise we would copy over / clobber-merge a directory we could not read.
   let exists = false;
   try {
     const s = await stat(brandDir);
     if (s.isDirectory()) {
       exists = true;
     }
-  } catch {
-    // Not found — that's the expected case for a new Brand.
+  } catch (err: unknown) {
+    if (!hasErrnoCode(err, "ENOENT")) throw err;
+    // ENOENT — that's the expected case for a new Brand.
   }
 
   if (exists) {
@@ -102,15 +158,17 @@ export async function scaffoldBrand(
   // Ensure the brands root itself exists (in case it was just created by cp implicitly — belt-and-suspenders).
   await mkdir(brandsRoot, { recursive: true });
 
-  // Write the built brand-profile YAML over the template placeholder.
-  const profileYaml = yamlStringify(content.brandProfile);
-  await writeFile(join(brandDir, "brand-profile.yaml"), profileYaml, "utf8");
+  // Fill the built values into the template YAML, preserving its guidance comments, then write
+  // atomically over the copied placeholders. Read the pristine template as the comment source.
+  const profileTemplate = await readFile(join(templatePath, "brand-profile.yaml"), "utf8");
+  const profileYaml = fillYamlFromTemplate(profileTemplate, content.brandProfile);
+  await writeFileAtomic(join(brandDir, "brand-profile.yaml"), profileYaml);
 
-  // Write the built seeds YAML over the template placeholder.
-  const seedsYaml = yamlStringify(content.seeds);
-  await writeFile(join(brandDir, "seeds.yaml"), seedsYaml, "utf8");
+  const seedsTemplate = await readFile(join(templatePath, "seeds.yaml"), "utf8");
+  const seedsYaml = fillYamlFromTemplate(seedsTemplate, content.seeds);
+  await writeFileAtomic(join(brandDir, "seeds.yaml"), seedsYaml);
 
-  // Write the empty ledger JSON over the template placeholder.
+  // The ledger is JSON (no comments to preserve) — write it plainly, still atomically.
   const ledgerJson = JSON.stringify(content.ledger, null, 2) + "\n";
-  await writeFile(join(brandDir, "ledger.json"), ledgerJson, "utf8");
+  await writeFileAtomic(join(brandDir, "ledger.json"), ledgerJson);
 }

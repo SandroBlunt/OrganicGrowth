@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { pickCastCommand, selectCharacter, main as pickCastMain } from "./pick-cast.ts";
-import { loadQueue } from "../production-queue/store.ts";
+import { loadQueue, saveQueue } from "../production-queue/store.ts";
+import type { QueueState } from "../production-queue/queue.ts";
 
 /** Run `fn` with a temp ledger AND a temp queue path, so the command never touches real state. */
 async function withLedger(
@@ -149,6 +150,85 @@ describe("pickCastCommand — picking a Cast enqueues the render", () => {
       await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => "2026-06-05T13:00:00.000Z" });
       const q = await loadQueue(queuePath);
       assert.equal(q.jobs.filter((j) => j.phase === "render").length, 1);
+    });
+  });
+});
+
+// === pickCastCommand — the pick reaches the render, the gate clears, re-picks are honest ============
+
+describe("pickCastCommand — persists the pick, clears the gate, and reports honestly", () => {
+  it("stamps the chosen Character onto the render job so it reaches the render (C1)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      await pickCastCommand("mundotip", "idea-A", 3, { ledgerPath, queuePath, now: () => PICK_NOW });
+      const q = await loadQueue(queuePath);
+      const render = q.jobs.find((j) => j.idea_id === "idea-A" && j.phase === "render");
+      assert.ok(render !== undefined, "a render job must be enqueued");
+      assert.equal(render!.character, "cast-3", "the render job must carry the Operator's picked Character");
+    });
+  });
+
+  it("the persisted Character survives a disk round-trip (C1 persistence)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      // Reload from disk (a fresh worker/session would do exactly this) — the pick must still be there.
+      const reloaded = await loadQueue(queuePath);
+      const render = reloaded.jobs.find((j) => j.phase === "render")!;
+      assert.equal(render.character, "cast-2");
+    });
+  });
+
+  it("clears the Cast gate — the awaiting_cast cast job becomes done (C24)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      // Seed the queue as it stands at Gate 2: the cast job sits at its gate awaiting the pick.
+      const atGate: QueueState = {
+        jobs: [
+          { idea_id: "idea-A", brand: "mundotip", phase: "cast", status: "awaiting_cast", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        ],
+        lock: { active_job: null },
+      };
+      await saveQueue(atGate, queuePath);
+
+      await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+
+      const q = await loadQueue(queuePath);
+      const castJob = q.jobs.find((j) => j.idea_id === "idea-A" && j.phase === "cast")!;
+      assert.equal(castJob.status, "done", "the Cast gate must not linger at awaiting_cast forever");
+      // the render was still enqueued alongside the cleared gate
+      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 1);
+    });
+  });
+
+  it("refuses a pick when the Idea is not at the Cast gate — no render enqueued (C23)", async () => {
+    // The Idea already produced; its `cast` is still on the ledger, but a stale re-pick must do nothing.
+    const seed = { ideas: [{ id: "idea-A", status: "produced", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(out, /not at the Cast gate/i);
+      assert.match(out, /produced/, "the refusal names the Idea's actual status");
+      const q = await loadQueue(queuePath);
+      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 0, "no render for a non-casting Idea");
+    });
+  });
+
+  it("reports honestly on a re-pick — the second pick claims no new work and the first pick stands (C23)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const first = await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(first, /render queued/i);
+
+      // Re-pick a DIFFERENT (still valid) member: the render already exists, so nothing changes.
+      const second = await pickCastCommand("mundotip", "idea-A", 1, { ledgerPath, queuePath, now: () => "2026-06-05T13:00:00.000Z" });
+      assert.match(second, /no change/i);
+      assert.doesNotMatch(second, /render queued/i);
+
+      // Exactly one render, still carrying the FIRST pick — the re-pick did not overwrite it.
+      const q = await loadQueue(queuePath);
+      const renders = q.jobs.filter((j) => j.phase === "render");
+      assert.equal(renders.length, 1);
+      assert.equal(renders[0]!.character, "cast-2", "the earlier pick governs; the re-pick did not overwrite it");
     });
   });
 });

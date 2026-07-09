@@ -15,8 +15,11 @@
  * ADR-0004). Omitting `<brand>` is a usage error, never a silent MundoTip fallback (issue #20).
  */
 
-import { loadIdeaCast, type LedgerCastCandidate } from "../ledger/ledger.ts";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { loadIdeaCast, loadIdeas, findIdea, type LedgerCastCandidate } from "../ledger/ledger.ts";
 import { enqueueRender } from "../production-queue/queue.ts";
+import { markCastConsumed } from "../production-queue/scheduler.ts";
 import { loadQueue, saveQueue, DEFAULT_QUEUE_PATH } from "../production-queue/store.ts";
 import { resolveBrand } from "../brand/resolver.ts";
 
@@ -89,16 +92,37 @@ export async function pickCastCommand(
   if (cast === null) {
     return `/pick-cast: no Cast recorded for Idea ${ideaId} (is it at the Cast gate?). No Character selected. [Brand: ${brand}]`;
   }
+
+  // C23: refuse a pick unless the Idea is actually at the Cast gate (ledger status `casting`). A
+  // `produced`/`posted` Idea still carries its `cast` on the ledger, so without this guard a stale
+  // re-pick would happily enqueue a pointless render. The ledger is the source of truth for status.
+  const idea = findIdea(await loadIdeas(ledgerPath, brand), ideaId);
+  const status = idea?.status ?? "unknown";
+  if (status !== "casting") {
+    return `/pick-cast ${ideaId}: Idea is "${status}", not at the Cast gate (casting) — no pick recorded. [Brand: ${brand}]`;
+  }
+
   const selected = selectCharacter(cast, n);
   if (!selected.ok) {
     return `/pick-cast ${ideaId}: ${selected.reason} [Brand: ${brand}]`;
   }
 
-  // The Character is picked — enqueue the render so the worker renders it when the Space is free.
-  // The render job is stamped with the Brand (derived from the `brand` arg, never ambient state — AC6).
+  // The Character is picked. Persist the pick onto the render job (C1) so it survives to the render,
+  // and CLEAR the Cast gate (C24: markCastConsumed → the cast job becomes `done`). Both act on one
+  // loaded queue state; the render job is stamped with the Brand (from the `brand` arg — AC6) and the
+  // chosen Character. `enqueueRender` returns the SAME reference on an idempotent no-op, so a re-pick is
+  // reported honestly rather than claiming work it did not do (C23).
   const queue = await loadQueue(queuePath);
-  await saveQueue(enqueueRender(queue, ideaId, now, brand), queuePath);
+  const withRender = enqueueRender(queue, ideaId, now, brand, selected.character);
+  const newlyQueued = withRender !== queue;
+  const consumed = markCastConsumed(withRender, brand, ideaId);
+  await saveQueue(consumed.ok ? consumed.state : withRender, queuePath);
 
+  if (!newlyQueued) {
+    // Idempotent no-op: a render is already queued for this Idea, so this pick changed nothing. Report
+    // the truth instead of claiming a fresh render was queued (C23) — the earlier pick still governs.
+    return `/pick-cast ${ideaId}: a render is already queued for this Idea — no change; the earlier Character pick stands. [Brand: ${brand}]`;
+  }
   return `/pick-cast ${ideaId}: picked Cast member ${n} — Character ${selected.character}. Resuming production (render queued). [Brand: ${brand}]`;
 }
 
@@ -120,7 +144,10 @@ export async function main(): Promise<void> {
   process.stdout.write(output + "\n");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// C41: compare resolved paths, not a hand-built `file://` string — the latter breaks on paths with
+// spaces (percent-encoded in `import.meta.url`) or symlinks, silently making a direct run a no-op.
+const entryPoint = process.argv[1];
+if (entryPoint !== undefined && fileURLToPath(import.meta.url) === resolve(entryPoint)) {
   main().catch((err: unknown) => {
     process.stderr.write(`/pick-cast failed: ${String(err)}\n`);
     process.exitCode = 1;

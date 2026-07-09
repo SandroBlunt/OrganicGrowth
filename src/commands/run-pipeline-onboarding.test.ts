@@ -9,7 +9,7 @@
  *   - AC5: Slug validation — all-non-alphanumeric name rejected with clear message; no directory created.
  *
  * All tests are hermetic:
- *   - No live Magnific Space calls (fake MagniticReadinessPort injected).
+ *   - No live Magnific Space calls (fake MagnificReadinessPort injected).
  *   - No live Apify calls (fake ApifyReadinessPort injected).
  *   - No credits spent, no board mutation.
  *   - All file I/O uses temp directories.
@@ -29,14 +29,14 @@ import {
   type ConductorTurn,
   type RunPipelineOptions,
 } from "./run-pipeline.ts";
-import type { MagniticReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
+import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
 
 // ---------------------------------------------------------------------------
 // MAGNIFIC FAKE — injected in ALL tests; never the live Space
 // ---------------------------------------------------------------------------
 
 /** Healthy fake Magnific port: Space accessible, credits OK. */
-function makeMagniticFake(opts: { accessible?: boolean; creditsOk?: boolean } = {}): MagniticReadinessPort {
+function makeMagniticFake(opts: { accessible?: boolean; creditsOk?: boolean } = {}): MagnificReadinessPort {
   return {
     async probeSpace() {
       return {
@@ -906,6 +906,41 @@ describe("onboarding — AC7: Platform re-ask on empty/unrecognised answer", () 
         // expected — directory should not exist
       }
       assert.equal(existed, false, "No Brand directory should be created when platform cap is exceeded");
+    });
+  });
+});
+
+// ===========================================================================
+// C22: the typed display name is preserved as channel.name (not collapsed to the slug)
+// ===========================================================================
+
+describe("onboarding — C22: display name preserved as channel.name", () => {
+  it("keeps the typed display name even when it differs from the derived slug", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      // No-arg mode with no existing Brands → straight into the interview, which asks for a name.
+      await runPipelineCommand(undefined as unknown as string, {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          if (/name/i.test(prompt)) return "Mundo Tip!";
+          if (/niche/i.test(prompt)) return "Life hacks";
+          if (/voice/i.test(prompt)) return "Punchy";
+          if (/language/i.test(prompt)) return "es";
+          if (/region/i.test(prompt)) return "LATAM";
+          if (/platform/i.test(prompt)) return "facebook";
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.facebook.com/peer1";
+          return "done";
+        },
+      });
+
+      // The directory uses the slug ("mundo-tip") but channel.name must be the verbatim typed name.
+      const profileText = await readFile(join(paths.brandsRoot, "mundo-tip", "brand-profile.yaml"), "utf8");
+      const parsed = yamlParse(profileText) as { channel?: { name?: string } };
+      assert.equal(
+        parsed.channel?.name,
+        "Mundo Tip!",
+        "channel.name must be the typed display name, not the derived slug",
+      );
     });
   });
 });

@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** El formato "asco-revelación + solución" es fiable en la lane de higiene del hogar y muy compatible con la voz curiosity-driven. Pero es la señal más débil de la semana (1.25x ≈ 0.50 normalizado, un solo post) — por eso el Fit Score es conservador. Relevance neutral (0.5) sin historial — predicción, no rendimiento. Brand-safety: evitar claims médicos/alérgicos; describir como limpieza, no como tratamiento de salud.
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

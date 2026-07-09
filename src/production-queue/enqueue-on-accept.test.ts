@@ -61,6 +61,27 @@ describe("planEnqueue (pure policy: accepted-only + no-duplicate + brand stamp)"
     assert.equal(r.reason, "already-queued");
     assert.equal(r.state.jobs.length, 1);
   });
+
+  it("a second Brand's identical Idea id is NOT 'already-queued' — both enqueue (C6)", () => {
+    // One Brand already holds idea-accepted; another Brand accepting the same id must still enqueue.
+    const existing = enqueue(emptyQueue(), "idea-accepted", "2026-06-05T10:00:00.000Z", BRAND);
+    const r = planEnqueue(IDEAS, existing, "idea-accepted", NOW, BRAND_B);
+    assert.equal(r.enqueued, true, "the second Brand's job must not be masked by the first");
+    assert.equal(r.state.jobs.length, 2);
+    assert.equal(r.state.jobs[1]!.brand, BRAND_B);
+  });
+
+  it("re-enqueues an accepted Idea whose only prior job FAILED (C4)", () => {
+    const withFailed = {
+      jobs: [
+        { idea_id: "idea-accepted", brand: BRAND, phase: "cast" as const, status: "failed" as const, enqueued_at: "2026-06-05T09:00:00.000Z" },
+      ],
+      lock: { active_job: null },
+    };
+    const r = planEnqueue(IDEAS, withFailed, "idea-accepted", NOW, BRAND);
+    assert.equal(r.enqueued, true, "a failed job must not permanently block re-enqueue");
+    assert.equal(r.state.jobs.filter((j) => j.status === "queued").length, 1);
+  });
 });
 
 async function withTempFiles<T>(

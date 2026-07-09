@@ -1,6 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { drain, tick, type WorkerDeps, type LedgerWrites } from "./worker.ts";
+import {
+  drain,
+  tick,
+  type WorkerDeps,
+  type LedgerWrites,
+  type SpaceSession,
+  type SpaceOpResult,
+} from "./worker.ts";
 import {
   emptyQueue,
   enqueue,
@@ -99,7 +106,7 @@ describe("drain — serialized, at most one Space op (AC1)", () => {
     assert.equal(session.inFlight(), true); // the op is in flight (Space busy)
     const job = queue.get().jobs.find((j) => j.idea_id === "idea-A")!;
     assert.equal(job.status, "running");
-    assert.equal(queue.get().lock.active_job, "idea-A"); // single-Space lock held
+    assert.deepEqual(queue.get().lock.active_job, { brand: BRAND_A, idea_id: "idea-A" }); // single-Space lock held
   });
 
   it("never starts a second op while one is running (FIFO picks the earliest)", async () => {
@@ -137,7 +144,7 @@ describe("tick — reap a completed op and advance unattended (AC4)", () => {
 
   it("reaps a render that completed while idle and STARTS the next queued job, no Operator action", async () => {
     // A render job (Cast picked) plus a later queued cast-gen; Space free.
-    let s = enqueueRender(emptyQueue(), "idea-A", T0, BRAND_A);
+    let s = enqueueRender(emptyQueue(), "idea-A", T0, BRAND_A, "cast-3");
     s = enqueue(s, "idea-B", T1, BRAND_B); // a different Idea's cast-gen, queued behind the render
     const { deps, queue, session, cap, notifications } = makeDeps(s, {}, ["2026-06-05T12:00:00.000Z"]);
 
@@ -152,7 +159,7 @@ describe("tick — reap a completed op and advance unattended (AC4)", () => {
     assert.equal(result.drain.started?.idea_id, "idea-B");
     const next = queue.get().jobs.find((j) => j.idea_id === "idea-B")!;
     assert.equal(next.status, "running");
-    assert.equal(queue.get().lock.active_job, "idea-B");
+    assert.deepEqual(queue.get().lock.active_job, { brand: BRAND_B, idea_id: "idea-B" });
     // ledger: produced + the Asset fields, derived from the render→done transition
     assert.deepEqual(cap.statuses.map((s) => ({ ideaId: s.ideaId, status: s.status })),
       [{ ideaId: "idea-A", status: "produced" }]);
@@ -184,7 +191,7 @@ describe("brand-routed ledger writes — each job writes to its own Brand's ledg
   });
 
   it("a render job for Brand B writes to Brand B's ledger only — Brand A is not touched", async () => {
-    const s = enqueueRender(emptyQueue(), "idea-B", T0, BRAND_B);
+    const s = enqueueRender(emptyQueue(), "idea-B", T0, BRAND_B, "cast-2");
     const { deps, session, cap } = makeDeps(s, {}, ["2026-06-05T12:00:00.000Z"]);
 
     await drain(deps);
@@ -271,7 +278,7 @@ describe("pick-cast enqueues the render and the worker renders it (AC3)", () => 
       jobs: [{ idea_id: "idea-A", brand: BRAND_A, phase: "cast", status: "awaiting_cast", enqueued_at: T0 }],
       lock: { active_job: null },
     };
-    s = enqueueRender(s, "idea-A", T1, BRAND_A);
+    s = enqueueRender(s, "idea-A", T1, BRAND_A, "cast-4");
     const { deps, queue, session, cap } = makeDeps(s);
 
     const started = await drain(deps); // render starts (cast job is awaiting_cast, skipped)
@@ -284,6 +291,8 @@ describe("pick-cast enqueues the render and the worker renders it (AC3)", () => 
     assert.equal(cap.statuses.filter((s) => s.ideaId === "idea-A")[0]!.brand, BRAND_A);
     assert.equal(cap.assets.length, 1);
     assert.equal(cap.assets[0]!.brand, BRAND_A);
+    // C1: the Operator's chosen Character on the render job reaches the render and the Asset — no default.
+    assert.equal(cap.assets[0]!.asset.character, "cast-4", "the render must pin the picked Character");
   });
 });
 
@@ -301,7 +310,7 @@ describe("failure isolation + notification (AC1)", () => {
     assert.equal(result.reaped, "failed");
     const bad = queue.get().jobs.find((j) => j.idea_id === "idea-bad")!;
     assert.equal(bad.status, "failed"); // stays in the queue, surfaced to the Operator
-    assert.equal(queue.get().lock.active_job, "idea-good"); // lock freed, then good started
+    assert.deepEqual(queue.get().lock.active_job, { brand: BRAND_B, idea_id: "idea-good" }); // lock freed, then good started
     // failure isolation: the queue continued with the next job
     const good = queue.get().jobs.find((j) => j.idea_id === "idea-good")!;
     assert.equal(good.status, "running");
@@ -341,5 +350,252 @@ describe("defensive drop: unresolvable brand — drain does not crash (AC1, AC3)
     assert.ok(notifications[0]!.includes(when), "notification must state WHEN");
     assert.ok(notifications[0]!.includes("idea-X"), "notification must name the Idea");
     assert.ok(notifications[0]!.includes("no-such-brand"), "notification must name the bad brand");
+  });
+});
+
+// --- Crash-safety, correlation, and multi-process robustness (C3/C14/C15/C16/C17) -------------------
+
+/** Build WorkerDeps over an in-memory queue with a CUSTOM SpaceSession/QueuePersistence for edge cases. */
+function makeCustomDeps(opts: {
+  persistence: WorkerDeps["queue"];
+  session: SpaceSession;
+  now: () => string;
+  makeLedger?: (brand: string) => LedgerWrites;
+}) {
+  const cap = brandCaptures();
+  const { notify, notifications } = makeNotifier();
+  const deps: WorkerDeps = {
+    queue: opts.persistence,
+    resolveLedger: opts.makeLedger ?? ((brand: string) => cap.makeLedger(brand)),
+    space: opts.session,
+    notify,
+    now: opts.now,
+  };
+  return { deps, cap, notifications };
+}
+
+describe("C3 — restart recovery: a job stranded `running` by a crash is reset, not deadlocked", () => {
+  it("marks a stranded running job failed on tick, releases the lock, notifies, and advances", async () => {
+    // A fresh process: the queue file says idea-stranded is running+locked (a crash left it so), but the
+    // in-memory session knows nothing about it (inFlight === false, poll === null).
+    const s: QueueState = {
+      jobs: [
+        { idea_id: "idea-stranded", brand: BRAND_A, phase: "cast", status: "running", enqueued_at: T0 },
+        { idea_id: "idea-next", brand: BRAND_B, phase: "cast", status: "queued", enqueued_at: T1 },
+      ],
+      lock: { active_job: { brand: BRAND_A, idea_id: "idea-stranded" } },
+    };
+    const when = "2026-06-05T15:00:00.000Z";
+    const { deps, queue, session, notifications } = makeDeps(s, {}, [when]);
+    assert.equal(session.inFlight(), false); // a fresh session — the running job is orphaned
+
+    const result = await tick(deps);
+
+    // The stranded job was recovered to failed (lock released) and the notification explains WHEN + WHY.
+    assert.equal(result.reaped, "failed");
+    const stranded = queue.get().jobs.find((j) => j.idea_id === "idea-stranded")!;
+    assert.equal(stranded.status, "failed");
+    assert.equal(notifications.length, 1);
+    assert.ok(notifications[0]!.includes("idea-stranded"));
+    assert.ok(notifications[0]!.includes(when), "notification must state WHEN");
+    assert.ok(/STRANDED/i.test(notifications[0]!), "notification must flag the stranded job");
+    assert.ok(notifications[0]!.includes("requeueFailed"), "notification must point to the escape hatch");
+    // With the lock freed, the next queued job proceeds unattended — no permanent deadlock.
+    assert.equal(result.drain.started?.idea_id, "idea-next");
+    const next = queue.get().jobs.find((j) => j.idea_id === "idea-next")!;
+    assert.equal(next.status, "running");
+    assert.deepEqual(queue.get().lock.active_job, { brand: BRAND_B, idea_id: "idea-next" });
+  });
+});
+
+describe("C3 — a `space.start` that throws is rolled back (job failed, lock released)", () => {
+  it("does not strand the job when start throws: marks it failed, frees the lock, notifies", async () => {
+    const q = memQueue(enqueue(emptyQueue(), "idea-A", T0, BRAND_A));
+    const when = "2026-06-05T15:30:00.000Z";
+    const session: SpaceSession = {
+      inFlight: () => false,
+      start: async () => {
+        throw new Error("MCP connect failed");
+      },
+      poll: async () => null,
+    };
+    const { deps, notifications } = makeCustomDeps({
+      persistence: q.persistence,
+      session,
+      now: () => when,
+    });
+
+    const result = await drain(deps);
+
+    assert.equal(result.started, null); // the op was not (cannot be) considered started
+    const job = q.get().jobs.find((j) => j.idea_id === "idea-A")!;
+    assert.equal(job.status, "failed"); // rolled back, not left `running`
+    assert.equal(q.get().lock.active_job, null); // lock released — the queue is not deadlocked
+    assert.equal(notifications.length, 1);
+    assert.ok(notifications[0]!.includes("idea-A"));
+    assert.ok(notifications[0]!.includes(when));
+    assert.ok(notifications[0]!.includes("requeueFailed"));
+  });
+});
+
+describe("C17/C14 — a result is bound by its stamped (brand, idea_id), never to 'whichever is running'", () => {
+  it("notifies and writes NO ledger when a terminal result matches no running job", async () => {
+    // The session surfaces a completed CAST stamped for idea-A, but the only running job is idea-B — a
+    // misbinding scenario (hand-edited queue / broken ≤1-running invariant). The result must NOT be
+    // written into idea-B's ledger, and the finished outcome must not vanish silently.
+    const s: QueueState = {
+      jobs: [{ idea_id: "idea-B", brand: BRAND_B, phase: "cast", status: "running", enqueued_at: T0 }],
+      lock: { active_job: { brand: BRAND_B, idea_id: "idea-B" } },
+    };
+    const q = memQueue(s);
+    const when = "2026-06-05T16:00:00.000Z";
+    const orphan: SpaceOpResult = {
+      ok: true,
+      idea_id: "idea-A",
+      brand: BRAND_A,
+      outcome: { phase: "cast", cast: [{ identifier: "cast-1", url: "https://x/1.png" }] },
+    };
+    let handed = false;
+    const session: SpaceSession = {
+      inFlight: () => false,
+      start: async () => {},
+      poll: async () => {
+        if (handed) return null;
+        handed = true;
+        return orphan;
+      },
+    };
+    const { deps, cap, notifications } = makeCustomDeps({
+      persistence: q.persistence,
+      session,
+      now: () => when,
+    });
+
+    const result = await tick(deps);
+
+    assert.equal(result.reaped, null); // nothing was reaped — the result had no home
+    // idea-B's ledger was NOT written from idea-A's result (no misbinding, C17).
+    assert.equal(cap.casts.length, 0);
+    assert.equal(cap.statuses.length, 0);
+    assert.equal(cap.assets.length, 0);
+    // idea-B is left untouched (still running) — we did not steal its slot.
+    const idB = q.get().jobs.find((j) => j.idea_id === "idea-B")!;
+    assert.equal(idB.status, "running");
+    // C14: the orphaned finished outcome is surfaced, not dropped silently.
+    assert.equal(notifications.length, 1);
+    assert.ok(notifications[0]!.includes("idea-A"), "notification must name the orphaned Idea");
+    assert.ok(notifications[0]!.includes(when));
+    assert.ok(/could NOT be recorded|no matching/i.test(notifications[0]!));
+  });
+});
+
+describe("C15 — a ledger-write failure during reap does not deadlock or lose the Asset silently", () => {
+  it("cast reap: writeCast throws → job failed, lock released, Operator notified", async () => {
+    const q = memQueue(enqueue(emptyQueue(), "idea-A", T0, BRAND_A));
+    const when = "2026-06-05T16:30:00.000Z";
+    const session = new FakeSpaceSession();
+    const { deps, notifications } = makeCustomDeps({
+      persistence: q.persistence,
+      session,
+      now: () => when,
+      makeLedger: () => ({
+        writeCast: async () => {
+          throw new Error("brand dir deleted");
+        },
+        writeAsset: async () => {},
+        writeStatus: async () => {},
+      }),
+    });
+
+    await drain(deps); // starts idea-A's cast-gen
+    session.advance();
+    const result = await tick(deps); // reap → writeCast throws
+
+    assert.equal(result.reaped, "failed");
+    const job = q.get().jobs.find((j) => j.idea_id === "idea-A")!;
+    assert.equal(job.status, "failed"); // not left `running`
+    assert.equal(q.get().lock.active_job, null); // lock released — no C3-style deadlock
+    assert.equal(notifications.length, 1);
+    assert.ok(notifications[0]!.includes("idea-A"));
+    assert.ok(notifications[0]!.includes(when));
+    assert.ok(notifications[0]!.includes("requeueFailed"));
+  });
+
+  it("render reap: writeAsset throws → job failed, lock released, Operator notified", async () => {
+    const q = memQueue(enqueueRender(emptyQueue(), "idea-A", T0, BRAND_A, "cast-2"));
+    const when = "2026-06-05T16:45:00.000Z";
+    const session = new FakeSpaceSession();
+    const { deps, notifications } = makeCustomDeps({
+      persistence: q.persistence,
+      session,
+      now: () => when,
+      makeLedger: () => ({
+        writeCast: async () => {},
+        writeAsset: async () => {
+          throw new Error("disk full");
+        },
+        writeStatus: async () => {},
+      }),
+    });
+
+    await drain(deps); // starts idea-A's render
+    session.advance();
+    const result = await tick(deps); // reap → writeAsset throws
+
+    assert.equal(result.reaped, "failed");
+    const job = q.get().jobs.find((j) => j.idea_id === "idea-A")!;
+    assert.equal(job.status, "failed");
+    assert.equal(q.get().lock.active_job, null);
+    assert.equal(notifications.length, 1);
+    assert.ok(notifications[0]!.includes("idea-A"));
+    assert.ok(notifications[0]!.includes("requeueFailed"));
+  });
+});
+
+describe("C16 — best-effort lock re-read: abort the start if a concurrent writer took the lock", () => {
+  it("does not start a second Space op when the re-read lock names a different job", async () => {
+    const initial = enqueue(emptyQueue(), "idea-A", T0, BRAND_A);
+    let loads = 0;
+    let saved: QueueState | null = null;
+    const persistence = {
+      load: async (): Promise<QueueState> => {
+        loads++;
+        if (loads === 1) return initial; // first load: lock free, idea-A queued
+        // The C16 re-read (immediately before start): a concurrent process already grabbed the lock.
+        return {
+          jobs: [
+            { idea_id: "idea-A", brand: BRAND_A, phase: "cast", status: "queued", enqueued_at: T0 },
+            { idea_id: "idea-Z", brand: BRAND_B, phase: "cast", status: "running", enqueued_at: T1 },
+          ],
+          lock: { active_job: { brand: BRAND_B, idea_id: "idea-Z" } },
+        };
+      },
+      save: async (st: QueueState) => {
+        saved = st;
+      },
+    };
+    const session = new FakeSpaceSession();
+    const { deps, notifications } = makeCustomDeps({
+      persistence,
+      session,
+      now: () => "2026-06-05T17:00:00.000Z",
+    });
+
+    const result = await drain(deps);
+
+    assert.equal(result.started, null); // aborted — we did not double-drive the Space
+    assert.equal(session.started.length, 0); // the Space op was NEVER started
+    assert.equal(notifications.length, 0); // a race-abort is silent (not a failure)
+    assert.notEqual(saved, null); // our markRunning save did happen (best-effort, not airtight)
+  });
+
+  it("starts normally when the re-read lock still names our own job (no race)", async () => {
+    const initial = enqueue(emptyQueue(), "idea-A", T0, BRAND_A);
+    const { deps, session } = makeDeps(initial);
+
+    const result = await drain(deps);
+
+    assert.equal(result.started?.idea_id, "idea-A");
+    assert.equal(session.started.length, 1); // the re-read confirmed our lock → the op started
   });
 });

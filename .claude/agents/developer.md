@@ -69,8 +69,9 @@ code as **orchestration shell + deep modules + state files**:
 - a thin **orchestration shell** (the command/agent entry that wires things together),
 - **deep modules** — pure, deterministic, well-tested logic (e.g. the Production Spec validator/generator,
   the Execution Protocol parser, the Production Queue scheduler, the ledger updater, the Space driver),
-- **state in plain files** (`data/ledger.json`, `data/queue.json`, `ideas/<run>/idea-NN.spec.json`) —
-  the ledger is canonical; keep `queue.json` consistent with it.
+- **state in plain files** — per-Brand state under `data/brands/<slug>/` (`ledger.json`,
+  `ideas/<run>/idea-NN.spec.json`) plus the one brand-agnostic global `data/queue.json` (ADR-0004,
+  ADR-0006) — the ledger is canonical; keep `queue.json` consistent with it.
 
 **Testing uses a FAKE / stand-in for the Magnific Space — never the live Space.** The build/CI loop is
 **hermetic**: no live `spaces_*` or `creations_*` calls, **no credits spent, no board mutation**. You are
@@ -82,7 +83,7 @@ The code you write upholds the always-rules in behavior: **generate-never-publis
 renders an Asset, a human publishes — your code never posts to Facebook), **public-metrics-only**,
 **relative-not-absolute** (measure against the Channel baseline), **explicit-attribution** (a Post links
 to an Idea only via the logged URL — never inferred), and **ledger-as-source-of-truth** (every status
-change is written to `data/ledger.json`). You never publish.
+change is written to the Brand's `data/brands/<slug>/ledger.json`). You never publish.
 
 ### 3 — Self-review before handoff
 

@@ -9,7 +9,7 @@
  * ledger stays canonical. Defensive on parse: unknown shapes never crash a Run.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { readJsonFile, writeFileAtomic } from "../fs/safe-io.ts";
 import type { JobStatus, QueueJob } from "../production-queue/queue.ts";
 
 /** The Idea lifecycle states the ledger uses. */
@@ -29,21 +29,43 @@ export interface LedgerIdea {
   readonly status: string;
 }
 
-/**
- * Default on-disk location of the ledger — points to the `mundotip` Brand's ledger under the
- * migrated Brand directory structure (issue #19). The resolver (`src/brand/resolver.ts`) is the
- * single source of the path layout; this constant mirrors `resolveBrand("mundotip").ledger` as a
- * transitional default until later slices make the Brand explicit on every command.
- */
-export const DEFAULT_LEDGER_PATH = "data/brands/mundotip/ledger.json";
-
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/** Read the ledger's Idea records (defensive: missing/garbled fields are skipped). */
-export async function loadIdeas(path: string = DEFAULT_LEDGER_PATH): Promise<LedgerIdea[]> {
-  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+/** True when `err` is a Node `ENOENT` (no such file) error. */
+function isEnoent(err: unknown): boolean {
+  return isObject(err) && (err as { code?: string }).code === "ENOENT";
+}
+
+/**
+ * Read + parse a Brand's ledger JSON. A *parse* failure is already named by `readJsonFile`; a
+ * *missing* ledger is turned into a clear "unknown Brand" error (never a raw ENOENT stack) when the
+ * caller names the Brand — so `/report acme` on a Brand that does not exist explains itself. The
+ * ledger stays the source of truth (always-rules #7).
+ *
+ * @param path   the ledger path (required — no ambient/brand-scoped default)
+ * @param brand  the Brand slug, used only to shape the not-found message; omit when unknown
+ */
+async function readLedgerJson(path: string, brand?: string): Promise<unknown> {
+  try {
+    return await readJsonFile(path);
+  } catch (err: unknown) {
+    if (isEnoent(err)) {
+      const who = brand === undefined ? `no ledger found at ${path}` : `unknown Brand "${brand}"`;
+      throw new Error(`${who} (run /queue --all to list Brands).`);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Read the ledger's Idea records (defensive: missing/garbled fields are skipped). The path is
+ * required — there is no brand-scoped default. Pass `brand` so a missing ledger fails as
+ * "unknown Brand <slug>" rather than a raw ENOENT.
+ */
+export async function loadIdeas(path: string, brand?: string): Promise<LedgerIdea[]> {
+  const raw: unknown = await readLedgerJson(path, brand);
   if (!isObject(raw) || !Array.isArray(raw.ideas)) return [];
   return raw.ideas
     .filter(isObject)
@@ -63,9 +85,9 @@ export function findIdea(ideas: readonly LedgerIdea[], ideaId: string): LedgerId
  */
 export async function loadIdeaCast(
   ideaId: string,
-  path: string = DEFAULT_LEDGER_PATH,
+  path: string,
 ): Promise<LedgerCastCandidate[] | null> {
-  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  const raw: unknown = await readJsonFile(path);
   if (!isObject(raw) || !Array.isArray(raw.ideas)) return null;
   const record = raw.ideas.find((r) => isObject(r) && r.id === ideaId);
   if (!isObject(record)) return null;
@@ -125,8 +147,8 @@ function asStringOrNull(value: unknown): string | null {
  * other. A record missing an `id` is skipped (we never invent a record); a missing `title` degrades to
  * the id so the row is still identifiable.
  */
-export async function loadReport(path: string = DEFAULT_LEDGER_PATH): Promise<ReportData> {
-  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+export async function loadReport(path: string, brand?: string): Promise<ReportData> {
+  const raw: unknown = await readLedgerJson(path, brand);
   if (!isObject(raw)) return { ideas: [], baseline: { updated_at: null } };
 
   const ideasRaw = Array.isArray(raw.ideas) ? raw.ideas : [];
@@ -187,7 +209,8 @@ export function applyIdeaStatus(
 
 /** Options for the thin ledger-status write shell. */
 export interface WriteIdeaStatusOptions {
-  readonly ledgerPath?: string;
+  /** REQUIRED: the Brand's ledger path. There is no ambient/brand-scoped default. */
+  readonly ledgerPath: string;
 }
 
 /**
@@ -200,10 +223,10 @@ export interface WriteIdeaStatusOptions {
 export async function writeIdeaStatus(
   ideaId: string,
   status: IdeaStatus,
-  options: WriteIdeaStatusOptions = {},
+  options: WriteIdeaStatusOptions,
 ): Promise<void> {
-  const path = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
-  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  const path = options.ledgerPath;
+  const raw: unknown = await readJsonFile(path);
   if (!isObject(raw) || !Array.isArray(raw.ideas)) return;
 
   let changed = false;
@@ -217,7 +240,7 @@ export async function writeIdeaStatus(
   if (!changed) return;
 
   const next = { ...raw, ideas };
-  await writeFile(path, JSON.stringify(next, null, 2) + "\n", "utf8");
+  await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
 }
 
 // --- Asset write (ADR-0003 Phase B: the Idea gains `character` / `asset_url` / `produced_at`) -------
@@ -276,10 +299,10 @@ export function applyIdeaAsset(
 export async function writeIdeaAsset(
   ideaId: string,
   asset: LedgerAsset,
-  options: WriteIdeaStatusOptions = {},
+  options: WriteIdeaStatusOptions,
 ): Promise<void> {
-  const path = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
-  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  const path = options.ledgerPath;
+  const raw: unknown = await readJsonFile(path);
   if (!isObject(raw) || !Array.isArray(raw.ideas)) return;
 
   let changed = false;
@@ -298,7 +321,7 @@ export async function writeIdeaAsset(
   if (!changed) return;
 
   const next = { ...raw, ideas };
-  await writeFile(path, JSON.stringify(next, null, 2) + "\n", "utf8");
+  await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
 }
 
 // --- Cast write (ADR-0003: the ledger Idea gains a `cast` field) ------------------------------------
@@ -343,10 +366,10 @@ export function applyIdeaCast(
 export async function writeIdeaCast(
   ideaId: string,
   cast: readonly LedgerCastCandidate[],
-  options: WriteIdeaStatusOptions = {},
+  options: WriteIdeaStatusOptions,
 ): Promise<void> {
-  const path = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
-  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  const path = options.ledgerPath;
+  const raw: unknown = await readJsonFile(path);
   if (!isObject(raw) || !Array.isArray(raw.ideas)) return;
 
   let changed = false;
@@ -360,5 +383,5 @@ export async function writeIdeaCast(
   if (!changed) return;
 
   const next = { ...raw, ideas };
-  await writeFile(path, JSON.stringify(next, null, 2) + "\n", "utf8");
+  await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
 }

@@ -29,7 +29,8 @@ momentum lives in topics / hooks / formats, not hashtags.
    paths for all reads and writes.
 2. Read `data/brands/<slug>/seeds.yaml`. If `seed_pages` still contains `TODO` placeholders, STOP
    and ask the Operator to fill them in — you cannot invent peers.
-3. For each seed Page, scrape its recent posts via Apify (`apify.trends_actor`). Load the token:
+3. For each seed Page, scrape its recent posts via Apify (`apify.facebook.trends_actor` — actor slugs
+   are nested per platform under `apify.<platform>.*`, never flat `apify.trends_actor`). Load the token:
    ```bash
    set -a; [ -f .env ] && . ./.env; set +a   # provides APIFY_API_TOKEN
    curl -s -X POST \

@@ -12,6 +12,7 @@ import {
   applyIdeaAsset,
   writeIdeaAsset,
   loadIdeas,
+  loadReport,
   type LedgerIdea,
   type LedgerIdeaWithCast,
   type LedgerCastCandidate,
@@ -29,6 +30,66 @@ function job(over: Partial<QueueJob> & Pick<QueueJob, "idea_id">): QueueJob {
     ...over,
   };
 }
+
+describe("loadIdeas / loadReport — unknown-brand and corrupt-file errors (C40, C13)", () => {
+  async function withDir(fn: (dir: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-err-"));
+    try {
+      await fn(dir);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("loadIdeas: a missing ledger with a named Brand fails as 'unknown Brand', not a raw ENOENT", async () => {
+    await withDir(async (dir) => {
+      const missing = join(dir, "acme", "ledger.json");
+      await assert.rejects(loadIdeas(missing, "acme"), (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.match(err.message, /unknown Brand "acme"/);
+        assert.match(err.message, /\/queue --all/); // recovery hint
+        assert.notEqual((err as { code?: string }).code, "ENOENT"); // not a raw errno
+        return true;
+      });
+    });
+  });
+
+  it("loadReport: a missing ledger with a named Brand fails as 'unknown Brand'", async () => {
+    await withDir(async (dir) => {
+      const missing = join(dir, "acme", "ledger.json");
+      await assert.rejects(loadReport(missing, "acme"), (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.match(err.message, /unknown Brand "acme"/);
+        return true;
+      });
+    });
+  });
+
+  it("loadReport: a missing ledger without a Brand names the path (no bare ENOENT stack)", async () => {
+    await withDir(async (dir) => {
+      const missing = join(dir, "ledger.json");
+      await assert.rejects(loadReport(missing), (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.match(err.message, /no ledger found at/);
+        assert.ok(err.message.includes(missing));
+        return true;
+      });
+    });
+  });
+
+  it("loadIdeas: a truncated ledger fails with a parse error that names the path", async () => {
+    await withDir(async (dir) => {
+      const path = join(dir, "ledger.json");
+      await writeFile(path, '{"ideas":[', "utf8"); // truncated mid-write
+      await assert.rejects(loadIdeas(path, "acme"), (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes(path));
+        assert.match(err.message, /Cannot parse JSON/);
+        return true;
+      });
+    });
+  });
+});
 
 describe("ledgerStatusForTransition — queue→ledger reflection points", () => {
   it("maps a cast job reaching its gate to ledger casting", () => {

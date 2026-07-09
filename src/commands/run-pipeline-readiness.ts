@@ -19,9 +19,9 @@ import { parse as parseYaml } from "yaml";
 
 import type { Finding } from "../readiness/types.ts";
 import { classify } from "../readiness/classify.ts";
-import { checkConfig, type BrandProfile, type Seeds } from "../readiness/check-config.ts";
+import { checkConfig, normalizeSeeds, type BrandProfile, type Seeds } from "../readiness/check-config.ts";
 import { sortFindings } from "../readiness/sort.ts";
-import type { MagniticReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
+import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
 
 // ---------------------------------------------------------------------------
 // Options
@@ -33,12 +33,14 @@ export interface RunReadinessOptions {
   /** Path to the Brand's `seeds.yaml`. */
   readonly seedsPath: string;
   /**
-   * The Channel's current performance baseline (from the ledger), or `null` if no history yet.
-   * The conductor reads this from the ledger before calling runReadiness.
+   * Whether the Channel has a performance baseline yet. `true` once the performance-tracker has
+   * written per-metric medians to the ledger (its `baseline.updated_at` is set); `false` otherwise.
+   * The conductor derives this from the ledger before calling runReadiness — the numeric medians
+   * themselves live in the ledger and are surfaced by `/report`, not needed here.
    */
-  readonly baseline: number | null;
+  readonly baselineExists: boolean;
   /** The Magnific probe port (fake in tests, live MCP adapter at runtime). */
-  readonly magnific: MagniticReadinessPort;
+  readonly magnific: MagnificReadinessPort;
   /** The Apify probe port (fake in tests, live adapter at runtime). */
   readonly apify: ApifyReadinessPort;
 }
@@ -60,30 +62,40 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
   const {
     brandProfilePath,
     seedsPath,
-    baseline,
+    baselineExists,
     magnific,
     apify,
   } = options;
 
   // --- Read and parse Brand config from disk ---
+  //
+  // A MISSING file (ENOENT) is a legitimate "not set up yet" state → empty config, and checkConfig
+  // reports the specific gaps (niche_unset / no_valid_seed / …). A file that EXISTS but does not
+  // parse is a different problem: reporting it as "field not set" sends the Operator to edit fields
+  // instead of fixing the broken YAML. So parse (and non-ENOENT read) failures become a blocking
+  // finding that names the file and quotes the error verbatim.
 
-  let brandProfile: BrandProfile;
-  let seeds: Seeds;
+  const parseErrors: Finding[] = [];
 
-  try {
-    const profileRaw = await readFile(brandProfilePath, "utf8");
-    brandProfile = parseYaml(profileRaw) as BrandProfile ?? {};
-  } catch {
-    // Missing/unreadable profile: use empty object (checkConfig will flag niche/voice/etc.)
-    brandProfile = { channel: {} };
-  }
+  const brandProfile = await loadConfigFile<BrandProfile>(
+    brandProfilePath,
+    "brand_profile_unparseable",
+    "Brand profile",
+    { channel: {} },
+    parseErrors,
+  );
+  const seeds = await loadConfigFile<Seeds>(
+    seedsPath,
+    "seeds_unparseable",
+    "Seeds file",
+    {},
+    parseErrors,
+  );
 
-  try {
-    const seedsRaw = await readFile(seedsPath, "utf8");
-    seeds = parseYaml(seedsRaw) as Seeds ?? {};
-  } catch {
-    // Missing/unreadable seeds: use empty object (checkConfig will flag no_valid_seed)
-    seeds = {};
+  // A broken config file blocks research; surface it (and only it) rather than a wall of misleading
+  // "field not set" advisories derived from the empty fallback.
+  if (parseErrors.length > 0) {
+    return sortFindings(parseErrors);
   }
 
   // --- Config sanity (pure, no I/O) ---
@@ -99,9 +111,10 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
 
   // --- Assemble ReadinessInputs for classify ---
 
-  const seedPages = seeds.seed_pages ?? [];
-  const seedCount = seedPages.length;
-  const offNicheSeedCount = seedPages.filter((p) => p.startsWith("OFF_NICHE:")).length;
+  // Normalize seeds defensively (drops non-string/url-less entries; reads either off-niche form).
+  const normalizedSeeds = normalizeSeeds(seeds.seed_pages);
+  const seedCount = normalizedSeeds.length;
+  const offNicheSeedCount = normalizedSeeds.filter((s) => s.offNiche).length;
   const bannedWordsEmpty = !brandProfile.banned_words || brandProfile.banned_words.length === 0;
   const channelUrl = (brandProfile.channel?.url ?? "").trim() || null;
 
@@ -112,7 +125,9 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
     spaceAccessible: spaceProbeResult.accessible,
     creditsOk: spaceProbeResult.creditsOk,
     channelUrl,
-    baseline,
+    // classify only distinguishes "has a baseline" from "no baseline yet"; the numeric medians
+    // live in the ledger. Map presence to the number|null shape classify expects.
+    baseline: baselineExists ? 0 : null,
     bannedWordsEmpty,
   });
 
@@ -132,6 +147,68 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
   }
 
   return sortFindings(merged);
+}
+
+// ---------------------------------------------------------------------------
+// loadConfigFile — read + parse one YAML config file, distinguishing missing from broken
+// ---------------------------------------------------------------------------
+
+/** True when an error is a filesystem "no such file" (ENOENT). */
+function isENOENT(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === "ENOENT"
+  );
+}
+
+/**
+ * Read and parse one YAML config file.
+ *
+ *   - File missing (ENOENT)         → return `fallback` (the "not set up yet" state).
+ *   - File present but unparseable  → push a blocking Finding (naming the file + the error) and
+ *                                     return `fallback`.
+ *   - Other read errors             → treated like a parse error (blocking Finding).
+ *
+ * @param path        Absolute path to the YAML file.
+ * @param code        Stable Finding code for a parse failure of this file.
+ * @param label       Human label for the file (e.g. "Brand profile").
+ * @param fallback    Value to return when the file is missing/broken.
+ * @param sink        Findings array to append a parse-error Finding to.
+ */
+async function loadConfigFile<T>(
+  path: string,
+  code: string,
+  label: string,
+  fallback: T,
+  sink: Finding[],
+): Promise<T> {
+  let raw: string;
+  try {
+    raw = await readFile(path, "utf8");
+  } catch (err) {
+    if (!isENOENT(err)) {
+      sink.push({
+        severity: "block",
+        phase: "research",
+        code,
+        message: `${label} at ${path} could not be read: ${String(err)}`,
+      });
+    }
+    return fallback;
+  }
+
+  try {
+    return (parseYaml(raw) as T) ?? fallback;
+  } catch (err) {
+    sink.push({
+      severity: "block",
+      phase: "research",
+      code,
+      message: `${label} at ${path} could not be parsed as YAML: ${String(err)}`,
+    });
+    return fallback;
+  }
 }
 
 // ---------------------------------------------------------------------------

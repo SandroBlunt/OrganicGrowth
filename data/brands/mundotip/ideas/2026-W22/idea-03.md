@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** Cluster de cocina con momentum 1.58x avg ≈ 0.63 normalizado, y el sub-tema BBQ tiene relevancia estacional (finales de mayo). Brand_fit alto en la lane de cocina/hogar. Relevance neutral (0.5) sin historial puntuado — predicción, no rendimiento. Brand-safety: nada de stunts peligrosos con fuego presentados como "seguros".
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

@@ -12,15 +12,6 @@
 import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 
-/**
- * Default on-disk location of the Brand Profile — points to the `mundotip` Brand's brand-profile
- * under the migrated Brand directory structure (issue #19). The resolver (`src/brand/resolver.ts`)
- * is the single source of the path layout; this constant mirrors
- * `resolveBrand("mundotip").brandProfile` as a transitional default until later slices make the
- * Brand explicit on every command.
- */
-export const DEFAULT_BRAND_PROFILE_PATH = "data/brands/mundotip/brand-profile.yaml";
-
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -43,9 +34,7 @@ export function bannedWordsFrom(raw: unknown): string[] {
  * Load the Brand Profile's banned words from disk. A missing file loads as no banned words (a fresh
  * Channel may not have configured any), so callers never crash on first run.
  */
-export async function loadBannedWords(
-  path: string = DEFAULT_BRAND_PROFILE_PATH,
-): Promise<string[]> {
+export async function loadBannedWords(path: string): Promise<string[]> {
   let text: string;
   try {
     text = await readFile(path, "utf8");

@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** Aprovecha el momentum más alto de la semana (2.22x ≈ 0.89) pero con un ángulo de organización del hogar distinto a idea-01, para diversificar. Brand_fit alto. Relevance neutral (0.5) sin historial — predicción, no rendimiento. Confianza moderada: señal de un solo post en inglés, transferible pero direccional.
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

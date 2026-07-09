@@ -54,8 +54,9 @@ must be green against the **issue**.
   counts.
 - **Explicit-attribution** — a Post links to an Idea only via an Operator-logged URL; the code never
   infers attribution.
-- **Ledger-as-source-of-truth** — status transitions are written to `data/ledger.json` (and `queue.json`
-  where relevant) on every change; the ledger stays canonical.
+- **Ledger-as-source-of-truth** — status transitions are written to the Brand's
+  `data/brands/<slug>/ledger.json` (and the global `data/queue.json` where relevant) on every change;
+  the ledger stays canonical.
 A built slice that violates any of these is a defect even if its own tests are green.
 
 ## Magnific fake check (hard requirement)

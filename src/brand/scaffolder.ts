@@ -187,19 +187,29 @@ export function buildBrandProfile(answers: BrandInterviewAnswers): BrandProfileC
 // buildSeeds
 // ---------------------------------------------------------------------------
 
-/** Apify actor slugs for each platform. These are technical defaults, not brand facts. */
+/**
+ * Apify actor slugs for each platform — technical defaults, not brand facts.
+ *
+ * Only Facebook is wired today, and its actor pair is the only one we have actually verified. For
+ * Instagram and LinkedIn we do NOT invent an actor slug: `templates/brand-skeleton/seeds.yaml`
+ * deliberately leaves them unknown, and shipping a plausible-but-unverified slug (e.g.
+ * `apify/instagram-scraper`) would silently carry a possibly-nonexistent actor into Trend Research.
+ * Instead we emit the `"..."` placeholder the template uses — an obvious "fill this in" marker that
+ * fails loudly rather than pretending to work (never-fabricate).
+ */
+const APIFY_ACTOR_PLACEHOLDER = "...";
 const APIFY_ACTORS: Record<string, { trends_actor: string; post_actor: string }> = {
   facebook: {
     trends_actor: "apify/facebook-posts-scraper",
     post_actor: "apify/facebook-post-scraper",
   },
   instagram: {
-    trends_actor: "apify/instagram-scraper",
-    post_actor: "apify/instagram-post-scraper",
+    trends_actor: APIFY_ACTOR_PLACEHOLDER,
+    post_actor: APIFY_ACTOR_PLACEHOLDER,
   },
   linkedin: {
-    trends_actor: "apify/linkedin-posts-scraper",
-    post_actor: "apify/linkedin-post-scraper",
+    trends_actor: APIFY_ACTOR_PLACEHOLDER,
+    post_actor: APIFY_ACTOR_PLACEHOLDER,
   },
 };
 
@@ -208,8 +218,9 @@ const APIFY_ACTORS: Record<string, { trends_actor: string; post_actor: string }>
  *
  * Seed pages and language/region are taken verbatim from `answers`. Operational defaults
  * (lookback_days, format_focus, ideas_per_run, overperformance_only) are set to sensible values
- * that match the existing `templates/brand-skeleton/seeds.yaml`. The Apify actor block is set
- * from the platform's known actor slugs — a technical default, not a brand fact.
+ * that match the existing `templates/brand-skeleton/seeds.yaml`. The Apify actor block carries the
+ * verified Facebook actor pair; for the not-yet-wired Instagram/LinkedIn it carries only the `"..."`
+ * placeholder — we never invent an unverified actor slug (see `APIFY_ACTORS`).
  *
  * @param answers  The Operator's interview answers.
  * @returns        A YAML-serialisable seeds shape.

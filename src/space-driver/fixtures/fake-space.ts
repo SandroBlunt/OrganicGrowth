@@ -33,14 +33,26 @@ import {
   fakeSpaceStateWithMissingRunPoint,
   type FakeSpaceState,
 } from "../../execution-protocol/fixtures/space-state.ts";
-import { composeAndCast, pickAndRender } from "../driver.ts";
+import { composeAndCast, pickAndRender, type PollOptions } from "../driver.ts";
+import type { DriverError } from "../driver.ts";
 import type {
   QueueJob,
 } from "../../production-queue/queue.ts";
 import type {
   SpaceSession,
   SpaceOpResult,
+  CastOpOutcome,
+  RenderOpOutcome,
 } from "../../production-queue/worker.ts";
+
+/**
+ * The FakeSpaceSession's internal op result BEFORE the `(brand, idea_id)` correlation is stamped on. The
+ * driver produces the outcome/error; `start()` stamps the job's correlation onto it (C17) so the worker
+ * can bind the terminal result to the right job.
+ */
+type CoreOpResult =
+  | { readonly ok: true; readonly outcome: CastOpOutcome | RenderOpOutcome }
+  | { readonly ok: false; readonly error: DriverError };
 import { validSpec } from "../../production-spec/fixtures/specs.ts";
 
 /** The exact name of the Spec-input text node (the Fallback Protocol inject target). */
@@ -112,7 +124,21 @@ export interface FakeSpaceOptions {
    * readback confirmation fails (models a no-op/failed pin). Phase B.
    */
   readonly pinNoOp?: boolean;
+  /**
+   * When true, the (healthy) cast run reports success but produces ZERO Cast creations — so the driver
+   * must fail the op `cast_empty` rather than surface an empty Cast (C36).
+   */
+  readonly castRunEmpty?: boolean;
+  /**
+   * When true, the agent-run-by-goal Fallback edit reports success but produces ZERO Cast creation ids —
+   * so the recovery path must fail `cast_empty` rather than invent a Cast (C9/C36). Pair with
+   * `castRunPointStale` (or `FakeSpaceWithAgentFallbackCast`) to reach the fallback.
+   */
+  readonly fallbackProducesNoCast?: boolean;
 }
+
+/** A no-op poll policy so the driver's poll loops complete instantly through the fake (no real sleep). */
+export const FAKE_POLL: PollOptions = { sleep: async () => {} };
 
 /**
  * The marker prefix written to the chosen Character creation node's value on a successful pin, so a
@@ -143,6 +169,8 @@ export class FakeSpace implements SpaceMcpPort {
   // Poll bookkeeping: an edit/run returns `running` once, then terminal — so the driver's poll loop runs.
   private readonly editPollsLeft = new Map<string, number>();
   private readonly runPollsLeft = new Map<string, number>();
+  // Cast creation ids an agent-run-by-goal Fallback edit surfaces on its terminal status (per editId).
+  private readonly editCreationIds = new Map<string, readonly string[]>();
   private readonly runStartNodeIds = new Map<string, string>();
   private editSeq = 0;
   private runSeq = 0;
@@ -182,6 +210,15 @@ export class FakeSpace implements SpaceMcpPort {
     }
     const editId = `edit-${++this.editSeq}`;
     this.editPollsLeft.set(editId, 1); // one `running` poll, then terminal
+    // An agent-RUN-by-goal Fallback edit (neither an inject into JSON Master nor a Character pin) drives
+    // the canvas to a Cast: its terminal status reports the produced creation ids, from which the driver
+    // derives the recovered Cast (never a hard-coded list). `fallbackProducesNoCast` models an empty one.
+    if (pinned === null && !goal.includes(JSON_MASTER_NODE_NAME)) {
+      const ids = this.options.fallbackProducesNoCast
+        ? []
+        : castCreations().map((c) => c.identifier);
+      this.editCreationIds.set(editId, ids);
+    }
     return { editId };
   }
 
@@ -190,6 +227,10 @@ export class FakeSpace implements SpaceMcpPort {
     if (left > 0) {
       this.editPollsLeft.set(editId, left - 1);
       return { phase: "running" };
+    }
+    const creationIds = this.editCreationIds.get(editId);
+    if (creationIds !== undefined) {
+      return { phase: "succeeded", creationIds };
     }
     return { phase: "succeeded" };
   }
@@ -225,11 +266,12 @@ export class FakeSpace implements SpaceMcpPort {
         error: "start node is gone/stale on the canvas",
       };
     }
-    // Healthy: a downstream cast run fires exactly the 6 Cast-phase nodes and yields 6 Cast creations.
+    // Healthy: a downstream cast run fires exactly the 6 Cast-phase nodes and yields 6 Cast creations
+    // (or ZERO when modelling an empty cast, so the driver must fail `cast_empty` — C36).
     return {
       phase: "succeeded",
       firedNodeNames: [...CAST_PHASE_NODE_NAMES],
-      creationIds: castCreations().map((c) => c.identifier),
+      creationIds: this.options.castRunEmpty ? [] : castCreations().map((c) => c.identifier),
     };
   }
 
@@ -248,6 +290,15 @@ export class FakeSpace implements SpaceMcpPort {
     return ids
       .map((id) => all.find((c) => c.identifier === id))
       .filter((c): c is Creation => c !== undefined);
+  }
+
+  /**
+   * Confirm the chosen Character is pinned — the FAKE answers this via its own `PINNED:` marker (written
+   * by `edit` on a successful pin). The marker convention lives ONLY here; the driver asks the port and
+   * never inspects raw node values (C9), so a live adapter can answer this against real Space state.
+   */
+  async verifyPinned(character: string): Promise<boolean> {
+    return this.nodes.some((n) => isPinnedTo(n.value, character));
   }
 }
 
@@ -298,8 +349,6 @@ export interface FakeSpaceSessionOptions {
   readonly castFails?: boolean;
   /** When true, the next render's pin is a no-op so `pickAndRender` fails (`pin_unconfirmed`). */
   readonly renderFails?: boolean;
-  /** Resolve the chosen Character for a render job (default: the first Cast candidate, `cast-1`). */
-  readonly characterFor?: (ideaId: string) => string;
 }
 
 /**
@@ -337,7 +386,12 @@ export class FakeSpaceSession implements SpaceSession {
     this.busy = true;
     this.completed = false;
     this.started.push({ ideaId: job.idea_id, phase: job.phase });
-    this.latched = job.phase === "cast" ? await this.runCast() : await this.runRender(job.idea_id);
+    const core = job.phase === "cast" ? await this.runCast() : await this.runRender(job);
+    // C17: stamp the job's `(brand, idea_id)` onto the terminal result so the worker binds it to the
+    // right job — never to "whichever job is running".
+    this.latched = core.ok
+      ? { ok: true, idea_id: job.idea_id, brand: job.brand, outcome: core.outcome }
+      : { ok: false, idea_id: job.idea_id, brand: job.brand, error: core.error };
   }
 
   /** Test hook: advance the in-flight op to terminal so the next `poll()` returns its result. */
@@ -355,22 +409,28 @@ export class FakeSpaceSession implements SpaceSession {
   }
 
   /** Run a cast-gen through the real driver over a fresh FakeSpace (Phase A). */
-  private async runCast(): Promise<SpaceOpResult> {
+  private async runCast(): Promise<CoreOpResult> {
     const port = new FakeSpace(fakeSpaceState(), { injectNoOp: this.opts.castFails === true });
-    const out = await composeAndCast(port, fakeSpaceState(), validSpec());
+    const out = await composeAndCast(port, fakeSpaceState(), validSpec(), FAKE_POLL);
     if (!out.ok) return { ok: false, error: out.error };
-    const cast = out.cast.castIds.map((identifier, i) => ({
-      identifier,
-      url: out.cast.castUrls[i]!,
-    }));
-    return { ok: true, outcome: { phase: "cast", cast } };
+    // The driver already returns aligned {identifier, url} pairs — no zipping of parallel arrays (C36).
+    return { ok: true, outcome: { phase: "cast", cast: out.cast.cast.map((c) => ({ ...c })) } };
   }
 
-  /** Run a render through the real driver over a fresh FakeSpace (Phase B). */
-  private async runRender(ideaId: string): Promise<SpaceOpResult> {
-    const character = (this.opts.characterFor ?? (() => "cast-1"))(ideaId);
+  /**
+   * Run a render through the real driver over a fresh FakeSpace (Phase B). The Character comes from the
+   * render job's own `character` field — the Operator's Gate-2 pick persisted at pick time (C1) — NOT a
+   * fake-side default. A render job that reaches the seam without one is a persistence bug the fixture
+   * refuses to paper over (it would silently render the wrong Character), so it throws loudly.
+   */
+  private async runRender(job: QueueJob): Promise<CoreOpResult> {
+    if (job.character === undefined) {
+      throw new Error(
+        `FakeSpaceSession: render job for "${job.idea_id}" carries no character — the Operator's pick never reached the render (C1)`,
+      );
+    }
     const port = new FakeSpace(fakeSpaceState(), { pinNoOp: this.opts.renderFails === true });
-    const out = await pickAndRender(port, fakeSpaceState(), character);
+    const out = await pickAndRender(port, fakeSpaceState(), job.character, FAKE_POLL);
     if (!out.ok) return { ok: false, error: out.error };
     return {
       ok: true,

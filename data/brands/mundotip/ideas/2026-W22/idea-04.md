@@ -30,4 +30,5 @@ performance_score: null
 
 **Why it fits us (Fit Score rationale):** Segundo post del cluster T03 (1.55x); el gancho de "descubrimiento" es muy compatible con la voz curiosity-driven de MundoTip. Momentum cluster ≈ 0.63 normalizado, brand_fit alto. Relevance neutral (0.5) por falta de historial — predicción, no rendimiento.
 
-> OrganicGrowth stops here. The Operator writes the caption and shoots the Reel.
+> The `producer` renders this Idea into an **Asset** via the Magnific Space; the Operator picks the
+> **Character** and publishes. OrganicGrowth generates the Asset but never publishes it.

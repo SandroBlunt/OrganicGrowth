@@ -19,8 +19,10 @@ globs: *
    Never infer which post came from which idea.
 6. **Rejection reasons are logged verbatim.** v1 records them and does **not** auto-apply them to
    future suggestions.
-7. **State lives in files.** `data/brand-profile.yaml`, `data/seeds.yaml`, `ideas/<run>/`, and
-   `data/ledger.json`. Update `ledger.json` on every status change; keep it the source of truth.
+7. **State lives in files.** Per Brand under `data/brands/<slug>/`: `brand-profile.yaml`, `seeds.yaml`,
+   `ideas/<run>/`, and `ledger.json` (the global Production Queue is the one exception —
+   `data/queue.json`). Update the Brand's `ledger.json` on every status change; keep it the source of
+   truth.
 8. **Never fabricate.** If Apify returns nothing or errors, say so and stop — don't invent trends,
    ideas, or metrics.
 9. **Respect the brand profile.** Banned words and brand-safety rules in `brand-profile.yaml` are hard

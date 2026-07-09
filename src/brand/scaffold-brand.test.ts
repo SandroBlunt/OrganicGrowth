@@ -322,3 +322,124 @@ describe("scaffoldBrand — throws when Brand directory already exists", () => {
     assert.equal(sentinel, "original", "existing directory must not be modified on an overwrite attempt");
   });
 });
+
+// ---------------------------------------------------------------------------
+// scaffoldBrand — preserves the template's guidance comments (C43)
+// ---------------------------------------------------------------------------
+
+describe("scaffoldBrand — keeps the template's guidance comments while filling values", () => {
+  let tmpBrandsRoot: string;
+
+  before(async () => {
+    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-scaffold-comments-"));
+    await scaffoldBrand("commentbrand", buildTestContent(), {
+      brandsRoot: tmpBrandsRoot,
+      templatePath: REAL_TEMPLATE_PATH,
+    });
+  });
+
+  after(async () => {
+    await rm(tmpBrandsRoot, { recursive: true, force: true });
+  });
+
+  it("brand-profile.yaml keeps a section/header guidance comment", async () => {
+    const text = await readFile(join(tmpBrandsRoot, "commentbrand", "brand-profile.yaml"), "utf8");
+    assert.match(text, /hard brand constraints/, "the header guidance comment must survive scaffolding");
+    // ...while still carrying the Operator's real value (comment kept AND value filled).
+    assert.match(text, /Home improvement tips/);
+  });
+
+  it("seeds.yaml keeps the Apify-block guidance comment", async () => {
+    const text = await readFile(join(tmpBrandsRoot, "commentbrand", "seeds.yaml"), "utf8");
+    assert.match(text, /Apify actors, keyed by platform/, "the Apify-block guidance comment must survive scaffolding");
+  });
+
+  it("still strips the obsolete TODO fill-me-in prompts", async () => {
+    const profile = await readFile(join(tmpBrandsRoot, "commentbrand", "brand-profile.yaml"), "utf8");
+    const seeds = await readFile(join(tmpBrandsRoot, "commentbrand", "seeds.yaml"), "utf8");
+    assert.doesNotMatch(profile, /TODO/);
+    assert.doesNotMatch(seeds, /TODO/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scaffoldBrand — does not write invented actor slugs for non-Facebook platforms (C43)
+// ---------------------------------------------------------------------------
+
+describe("scaffoldBrand — non-Facebook seeds carry the unknown-actor placeholder", () => {
+  let tmpBrandsRoot: string;
+
+  const igAnswers: BrandInterviewAnswers = { ...TEST_ANSWERS, platform: "instagram" };
+
+  before(async () => {
+    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-scaffold-ig-"));
+    await scaffoldBrand(
+      "igbrand",
+      {
+        brandProfile: buildBrandProfile(igAnswers),
+        seeds: buildSeeds(igAnswers),
+        ledger: buildEmptyLedger(),
+      },
+      { brandsRoot: tmpBrandsRoot, templatePath: REAL_TEMPLATE_PATH },
+    );
+  });
+
+  after(async () => {
+    await rm(tmpBrandsRoot, { recursive: true, force: true });
+  });
+
+  it("seeds.yaml has apify.instagram actors set to the '...' placeholder, not an invented slug", async () => {
+    const text = await readFile(join(tmpBrandsRoot, "igbrand", "seeds.yaml"), "utf8");
+    const parsed = yamlParse(text) as { apify?: { instagram?: Record<string, unknown> } };
+    const ig = parsed.apify?.instagram;
+    assert.ok(ig !== undefined, "apify.instagram must be present");
+    assert.equal(ig["trends_actor"], "...");
+    assert.equal(ig["post_actor"], "...");
+    assert.doesNotMatch(text, /apify\/instagram/, "must not write a fabricated instagram actor slug");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scaffoldBrand — rejects an unsafe slug and surfaces real I/O errors (C37, C50)
+// ---------------------------------------------------------------------------
+
+describe("scaffoldBrand — slug + error-handling boundaries", () => {
+  let tmpBrandsRoot: string;
+
+  before(async () => {
+    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-scaffold-boundary-"));
+  });
+
+  after(async () => {
+    await rm(tmpBrandsRoot, { recursive: true, force: true });
+  });
+
+  it("rejects a path-traversal slug before touching the filesystem (C37)", async () => {
+    await assert.rejects(
+      () => scaffoldBrand("../evil", buildTestContent(), {
+        brandsRoot: tmpBrandsRoot,
+        templatePath: REAL_TEMPLATE_PATH,
+      }),
+      /Invalid Brand slug/,
+    );
+  });
+
+  it("rethrows a non-ENOENT guard error rather than treating it as 'not there' (C50)", async () => {
+    // Point brandsRoot at a plain file: the guard's stat(<file>/<slug>) fails with ENOTDIR.
+    const { writeFile } = await import("node:fs/promises");
+    const filePath = join(tmpBrandsRoot, "not-a-dir");
+    await writeFile(filePath, "i am a file");
+    await assert.rejects(
+      () => scaffoldBrand("newbrand", buildTestContent(), {
+        brandsRoot: filePath,
+        templatePath: REAL_TEMPLATE_PATH,
+      }),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.equal((err as NodeJS.ErrnoException).code, "ENOTDIR");
+        assert.doesNotMatch(err.message, /already exists/, "a real I/O error must not read as 'already exists'");
+        return true;
+      },
+    );
+  });
+});
