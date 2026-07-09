@@ -70,8 +70,10 @@ _Avoid_: note, comment.
 The strict, schema'd JSON the **Producer** generates from an accepted Idea to drive the Space's
 **"JSON master"** input node: 3 `character_concepts`, exactly 3 narrative `clips` (each with
 `image_prompt` + `video_prompt`), and top-level `post_copy` (≤180 chars, 1–3 emojis) and 3
-`thumbnails` — all bound by the Space's style guide (Pixar 3D, anthropomorphic character, Veo 3.1,
-8s clips, 9:16). The machine-readable sibling of a **Brief**.
+`thumbnails` — all bound by the Space's style guide (Pixar 3D, anthropomorphic character, ~8s clips,
+9:16). The Space's flow — never the Spec — selects the actual image and video **models** (default =
+whatever the Space is set to; the Operator overrides in the Space, see `docs/adr/0007`). The
+machine-readable sibling of a **Brief**.
 _Avoid_: prompt, payload, config (it's the Space's input *contract*).
 
 **Cast**:
