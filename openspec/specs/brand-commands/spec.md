@@ -6,10 +6,16 @@ TBD - created by archiving change issue-20-brand-scoped-granular-commands. Updat
 ### Requirement: Every granular command SHALL accept and require an explicit Brand argument
 
 The system SHALL require a `<brand>` argument as the first positional parameter of every granular
-command (`/run-trends`, `/review-ideas`, `/queue`, `/pick-cast`, `/log-post`, `/track-performance`,
-`/report`). The command SHALL operate only on the named Brand's paths (derived via the Brand
-resolver) and SHALL NOT fall back to any global default Brand when `<brand>` is absent. An absent
-`<brand>` SHALL produce a usage error (stderr + non-zero exit code), never a silent MundoTip fallback.
+command that operates on a single Brand's state (`/run-trends`, `/review-ideas`, `/pick-cast`,
+`/log-post`, `/track-performance`, `/report`). These commands SHALL operate only on the named Brand's
+paths (derived via the Brand resolver) and SHALL NOT fall back to any global default Brand when
+`<brand>` is absent. For them an absent `<brand>` SHALL produce a usage error (stderr + non-zero exit
+code), never a silent MundoTip fallback.
+
+`/queue` is the deliberate exception: it renders the single, global Production Queue that spans all
+Brands, so its Brand argument is an OPTIONAL filter, not a requirement — omitting it (or passing
+`--all`) shows every Brand's jobs. See the dedicated `/queue` requirement below. `/queue` therefore
+also never falls back to a default Brand; it simply shows all of them.
 
 #### Scenario: /report with a brand slug reads that Brand's ledger
 

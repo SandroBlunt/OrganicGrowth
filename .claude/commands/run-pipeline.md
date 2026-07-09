@@ -1,20 +1,30 @@
 ---
 name: run-pipeline
-description: "Start and conduct the whole weekly loop for a named Brand: readiness check, trends, ideas, review, production, publish, and performance offers — pausing only at the three human gates."
+description: "Start and conduct the whole weekly loop for a Brand (named, picked from a menu, or created on the fly): readiness check, trends, ideas, review, production, publish, and performance offers — pausing only at the three human gates."
 ---
 
 # /run-pipeline
 
-Usage: `/run-pipeline <brand>`
+Usage: `/run-pipeline [<brand>]`
 
-Start and conduct the **full weekly loop** for an existing Brand. `<brand>` is required — omitting it
-is an error, never a silent default. This is the single-entry-point conductor for the weekly content
-pipeline. It drives every phase automatically and pauses only at the three human gates.
+Start and conduct the **full weekly loop** for a Brand. This is the single-entry-point conductor for
+the weekly content pipeline. It drives every phase automatically and pauses only at the three human
+gates. `<brand>` is **optional** — the conductor never falls back to a silent default Brand; instead,
+how you invoke it selects the Brand:
+
+- **`/run-pipeline mundotip`** (known slug) → runs the loop for that Brand.
+- **`/run-pipeline newname`** (unknown slug) → offers to **create** that Brand. Accept and a short
+  staged interview runs (name, niche, voice, language/region, platform, seed pages), then the Brand is
+  scaffolded and the loop proceeds; decline and it stops cleanly (no directory created).
+- **`/run-pipeline`** (no argument) → asks **new or existing**, listing the existing Brand slugs. Pick
+  one to run it, or choose to create a new Brand (same staged interview). With no Brands yet, it goes
+  straight to the new-Brand interview.
 
 ## What it does
 
-1. **Resolves the Brand.** Identifies the Brand's ledger, profile, seeds, and queue paths via
-   `resolveBrand(brand)`. Every gate prompt restates the Brand so the Operator is always in context.
+1. **Resolves (or onboards) the Brand.** Per the invocation above. Once resolved, it identifies the
+   Brand's ledger, profile, seeds, and queue paths via `resolveBrand(brand)`. Every gate prompt
+   restates the Brand so the Operator is always in context.
 
 2. **Runs the readiness check (every launch, never cached).** Live-probes:
    - The Magnific Space (accessible? credits cover at least one cast+render cycle?).
@@ -26,8 +36,10 @@ pipeline. It drives every phase automatically and pauses only at the three human
 3. **Prints a `/rename` hint.** Outputs a line like `/rename mundotip · 2026-W23` — paste it in
    your terminal to rename the session. The conductor does NOT rename the session itself.
 
-4. **Detects in-flight work.** Reads the ledger and queue to determine the current phase. If prior
-   work is in progress (Ideas in `casting`, `produced`, or `posted` state), it shows the pending gates
+4. **Detects in-flight work.** Reads the ledger and queue to determine the current phase. Only genuine
+   production work counts as in-flight — Ideas in `casting`, `produced`, or `posted`/`tracking` state
+   (phases `production`, `publish`, `tracking`). Un-reviewed `suggested` Ideas (phase `review`) are
+   **not** in-flight — you just haven't started. When in-flight work exists, it shows the pending gates
    and asks you to choose:
    - `resume` — re-enqueues any stranded `accepted` Ideas and picks up where you left off.
    - `fresh` — starts a brand-new weekly Run (trend research from scratch).
@@ -57,7 +69,8 @@ pipeline. It drives every phase automatically and pauses only at the three human
 
 ## Guardrails
 
-- **Brand is explicit** — `<brand>` is required; never falls back to a default Brand.
+- **Brand is explicit, but optional to pass.** `<brand>` may be omitted — the conductor then asks
+  new-vs-existing (or offers to create an unknown slug). It never falls back to a silent default Brand.
 - **Readiness gate is HERE only.** The granular commands (`/run-trends`, `/review-ideas`,
   `/pick-cast`, `/log-post`, `/queue`, `/report`, `/track-performance`) are unguarded power-tools.
 - **Generate, never publish.** The conductor pauses for Publish — it never posts to Facebook itself.
