@@ -7,7 +7,7 @@
  *
  *   • injectSpec(port, spec)             — Fallback-Protocol inject into `JSON Master` + readback confirm.
  *   • runRunPoint(port, startNodeId,mode)— start a run, poll to terminal, return fired-nodes + creations.
- *   • fetchCast(port, creationIds)       — resolve Cast creation ids to image URLs.
+ *   • fetchCast(port, creationIds)       — resolve Cast creation ids to aligned {identifier, url} pairs.
  *   • composeAndCast(port, state, spec)  — Phase A: resolve the cast run-point (gate === "cast") from the
  *                                          parsed Execution Protocol, inject, run cast, fetch the Cast —
  *                                          recovering via the in-canvas agent when the run-point is
@@ -19,7 +19,7 @@
  * (generate-never-publish).
  */
 
-import type { EditStatus, RunStatus, SpaceMcpPort } from "./port.ts";
+import type { Creation, EditStatus, RunStatus, SpaceMcpPort } from "./port.ts";
 import type { ProductionSpec } from "../production-spec/contract.ts";
 import { parse } from "../execution-protocol/parse.ts";
 import type { SpaceStateLike } from "../execution-protocol/parse.ts";
@@ -48,6 +48,8 @@ export type DriverErrorCode =
   | "cast_run_point_unresolved"
   /** A run failed for a reason other than a missing/stale start node. */
   | "run_failed"
+  /** The cast (named-run or agent-fallback) surfaced no Cast creations to show the Operator. */
+  | "cast_empty"
   /** A run failed because its start node is gone/stale (the recovery trigger). */
   | "run_point_stale"
   /** The natural-language pin edit failed at the agent (terminal `failed`). */
@@ -78,10 +80,13 @@ export type RunResult =
   | { readonly ok: true; readonly outcome: RunOutcome }
   | { readonly ok: false; readonly error: DriverError };
 
-/** The Phase-A result: the candidate Cast image URLs (plus whether the agent fallback was used). */
+/**
+ * The Phase-A result: the candidate Cast as aligned `{ identifier, url }` pairs (plus whether the agent
+ * fallback was used). Pairs — not two parallel arrays — so a creation's id and url can never diverge
+ * (C36); an empty Cast is never returned as success (the op fails `cast_empty` instead).
+ */
 export interface CastResult {
-  readonly castIds: readonly string[];
-  readonly castUrls: readonly string[];
+  readonly cast: readonly Creation[];
   /** True when recovery via the in-canvas agent (Fallback Protocol) was used to produce the Cast. */
   readonly usedAgentFallback: boolean;
 }
@@ -123,24 +128,73 @@ export function isClipOrVideoNode(name: string): boolean {
   return CLIP_VIDEO_NODE_MARKERS.some((marker) => name.includes(marker));
 }
 
-// --- Polling helpers (hide the poll loop; bounded so a stuck fake/run can't loop forever) -----------
+// --- Polling helpers (hide the poll loop; a live Space op takes MINUTES, so poll on an injected
+//     interval against a TIME budget — never a raw instant-count that "fails" in milliseconds, C10) ---
 
-const MAX_POLLS = 50;
+/** Default real sleep between polls (production). Tests inject a no-op/tiny sleep to stay fast. */
+const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function pollEdit(port: SpaceMcpPort, editId: string): Promise<EditStatus> {
-  for (let i = 0; i < MAX_POLLS; i++) {
-    const status = await port.editStatus(editId);
-    if (status.phase !== "running") return status;
-  }
-  return { phase: "failed", error: "edit did not reach terminal within the poll budget" };
+/** Default gap between status polls (ms). A live Space op takes minutes; don't hammer the API. */
+export const DEFAULT_POLL_INTERVAL_MS = 5_000;
+
+/** Default total time budget (ms) for one op to reach terminal before the driver declares a timeout. */
+export const DEFAULT_POLL_BUDGET_MS = 15 * 60_000;
+
+/**
+ * How the driver waits between status polls. Injected so a live adapter gets a real multi-minute budget
+ * with a backoff sleep, while tests pass a no-op `sleep` (instant) and a deterministic `now`/budget.
+ */
+export interface PollOptions {
+  /** Sleep this many ms between polls. Default: real `setTimeout`. Tests pass a no-op to stay fast. */
+  readonly sleep?: (ms: number) => Promise<void>;
+  /** Gap between polls (ms). Default {@link DEFAULT_POLL_INTERVAL_MS}. */
+  readonly intervalMs?: number;
+  /** Total time budget (ms) before the op is declared timed-out. Default {@link DEFAULT_POLL_BUDGET_MS}. */
+  readonly budgetMs?: number;
+  /** Monotonic clock (ms). Default `Date.now`. Injected so tests drive the budget deterministically. */
+  readonly now?: () => number;
 }
 
-async function pollRun(port: SpaceMcpPort, runId: string): Promise<RunStatus> {
-  for (let i = 0; i < MAX_POLLS; i++) {
+interface ResolvedPoll {
+  readonly sleep: (ms: number) => Promise<void>;
+  readonly intervalMs: number;
+  readonly budgetMs: number;
+  readonly now: () => number;
+}
+
+function resolvePoll(poll: PollOptions): ResolvedPoll {
+  return {
+    sleep: poll.sleep ?? defaultSleep,
+    intervalMs: poll.intervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+    budgetMs: poll.budgetMs ?? DEFAULT_POLL_BUDGET_MS,
+    now: poll.now ?? Date.now,
+  };
+}
+
+async function pollEdit(port: SpaceMcpPort, editId: string, poll: PollOptions): Promise<EditStatus> {
+  const { sleep, intervalMs, budgetMs, now } = resolvePoll(poll);
+  const deadline = now() + budgetMs;
+  for (;;) {
+    const status = await port.editStatus(editId);
+    if (status.phase !== "running") return status;
+    if (now() >= deadline) {
+      return { phase: "failed", error: `edit did not reach terminal within the ${budgetMs}ms budget` };
+    }
+    await sleep(intervalMs);
+  }
+}
+
+async function pollRun(port: SpaceMcpPort, runId: string, poll: PollOptions): Promise<RunStatus> {
+  const { sleep, intervalMs, budgetMs, now } = resolvePoll(poll);
+  const deadline = now() + budgetMs;
+  for (;;) {
     const status = await port.runStatus(runId);
     if (status.phase !== "running") return status;
+    if (now() >= deadline) {
+      return { phase: "failed", error: `run did not reach terminal within the ${budgetMs}ms budget` };
+    }
+    await sleep(intervalMs);
   }
-  return { phase: "failed", error: "run did not reach terminal within the poll budget" };
 }
 
 // --- injectSpec (Fallback Protocol: natural-language edit into JSON Master + readback confirm) ------
@@ -163,11 +217,12 @@ export function injectGoal(spec: ProductionSpec | Record<string, unknown>): stri
 export async function injectSpec(
   port: SpaceMcpPort,
   spec: ProductionSpec | Record<string, unknown>,
+  poll: PollOptions = {},
 ): Promise<InjectResult> {
   const before = nodeText(await port.readState(), JSON_MASTER_NODE_NAME);
 
   const { editId } = await port.edit(injectGoal(spec));
-  const status = await pollEdit(port, editId);
+  const status = await pollEdit(port, editId, poll);
   if (status.phase === "failed") {
     return { ok: false, error: err("inject_edit_failed", status.error ?? "the inject edit failed") };
   }
@@ -203,9 +258,10 @@ export async function runRunPoint(
   port: SpaceMcpPort,
   startNodeId: string,
   mode: string,
+  poll: PollOptions = {},
 ): Promise<RunResult> {
   const { runId } = await port.run(startNodeId, mode);
-  const status = await pollRun(port, runId);
+  const status = await pollRun(port, runId, poll);
   if (status.phase === "failed") {
     if (status.startNodeMissing) {
       return {
@@ -224,15 +280,18 @@ export async function runRunPoint(
   };
 }
 
-// --- fetchCast (creation ids -> image URLs) ---------------------------------------------------------
+// --- fetchCast (creation ids -> aligned {identifier, url} Cast pairs) --------------------------------
 
-/** Resolve Cast creation identifiers to their image URLs (for the Operator to judge the look). */
+/**
+ * Resolve Cast creation identifiers to their `{ identifier, url }` pairs (for the Operator to judge the
+ * look). Returns pairs, not a parallel id/url array, so a creation's id and url can never drift apart —
+ * and unknown ids the port drops simply do not appear (the caller fails the op on an empty Cast, C36).
+ */
 export async function fetchCast(
   port: SpaceMcpPort,
   creationIds: readonly string[],
-): Promise<readonly string[]> {
-  const creations = await port.fetchCreations(creationIds);
-  return creations.map((c) => c.url);
+): Promise<readonly Creation[]> {
+  return port.fetchCreations(creationIds);
 }
 
 // --- composeAndCast (Phase A orchestration + Fallback-Protocol recovery) ----------------------------
@@ -245,16 +304,6 @@ export async function fetchCast(
 export function castFallbackGoal(): string {
   return "Generate the character variants (the Cast) from the current Spec and stop at the Cast — do not generate any clips or video.";
 }
-
-/** The Cast creation identifiers the agent-fallback path surfaces (the same 6 Cast candidates). */
-const FALLBACK_CAST_IDS: readonly string[] = [
-  "cast-1",
-  "cast-2",
-  "cast-3",
-  "cast-4",
-  "cast-5",
-  "cast-6",
-];
 
 /**
  * Phase A — Compose & Cast (ADR-0003). Resolve the cast run-point from the parsed Execution Protocol (the
@@ -274,9 +323,10 @@ export async function composeAndCast(
   port: SpaceMcpPort,
   spaceState: SpaceStateLike,
   spec: ProductionSpec | Record<string, unknown>,
+  poll: PollOptions = {},
 ): Promise<ComposeAndCastResult> {
   // Always inject the Spec first (the Space needs the contract before any cast, by-name or by-agent).
-  const injected = await injectSpec(port, spec);
+  const injected = await injectSpec(port, spec, poll);
   if (!injected.ok) {
     return { ok: false, error: injected.error };
   }
@@ -289,52 +339,50 @@ export async function composeAndCast(
 
   if (castRunPoint === null) {
     // Cannot resolve the named cast run-point from the protocol — recover via the in-canvas agent.
-    return recoverViaAgent(port);
+    return recoverViaAgent(port, poll);
   }
 
   // Run the named cast run-point downstream.
-  const run = await runRunPoint(port, castRunPoint.start_node_id, DOWNSTREAM_MODE);
+  const run = await runRunPoint(port, castRunPoint.start_node_id, DOWNSTREAM_MODE, poll);
   if (!run.ok) {
     if (run.error.code === "run_point_stale") {
       // The run-point is gone/stale on the canvas — recover via the in-canvas agent.
-      return recoverViaAgent(port);
+      return recoverViaAgent(port, poll);
     }
     return { ok: false, error: run.error };
   }
 
-  const castUrls = await fetchCast(port, run.outcome.creationIds);
-  return {
-    ok: true,
-    cast: {
-      castIds: run.outcome.creationIds,
-      castUrls,
-      usedAgentFallback: false,
-    },
-  };
+  const cast = await fetchCast(port, run.outcome.creationIds);
+  if (cast.length === 0) {
+    // A run that "succeeds" but surfaces no Cast is a failure, not an empty success (C36).
+    return { ok: false, error: err("cast_empty", "the cast run produced no Cast creations to surface.") };
+  }
+  return { ok: true, cast: { cast, usedAgentFallback: false } };
 }
 
 /**
  * Fallback Protocol recovery: delegate the cast to the in-canvas agent via a natural-language
  * run-by-goal edit, then fetch the resulting Cast. Used when the named cast run-point is missing/stale.
  */
-async function recoverViaAgent(port: SpaceMcpPort): Promise<ComposeAndCastResult> {
+async function recoverViaAgent(port: SpaceMcpPort, poll: PollOptions): Promise<ComposeAndCastResult> {
   const { editId } = await port.edit(castFallbackGoal());
-  const status = await pollEdit(port, editId);
+  const status = await pollEdit(port, editId, poll);
   if (status.phase === "failed") {
     return {
       ok: false,
       error: err("run_failed", status.error ?? "the agent-fallback cast failed"),
     };
   }
-  const castUrls = await fetchCast(port, FALLBACK_CAST_IDS);
-  return {
-    ok: true,
-    cast: {
-      castIds: FALLBACK_CAST_IDS,
-      castUrls,
-      usedAgentFallback: true,
-    },
-  };
+  // The recovered Cast is whatever the agent-run-by-goal edit reports it produced — never a hard-coded
+  // id list (C9). An adapter that reports no ids (or ids that resolve to nothing) fails cast_empty (C36).
+  const cast = await fetchCast(port, status.creationIds ?? []);
+  if (cast.length === 0) {
+    return {
+      ok: false,
+      error: err("cast_empty", "the agent-fallback cast produced no Cast creations to surface."),
+    };
+  }
+  return { ok: true, cast: { cast, usedAgentFallback: true } };
 }
 
 // ====================================================================================================
@@ -354,27 +402,26 @@ export function pinGoal(character: string): string {
   return `Pin the "${character}" creation as the "${CHARACTER_NODE_NAME}" Character creation node, so every clip and thumbnail renders against it.`;
 }
 
-/** Whether a Space-state node value reflects the chosen Character being pinned (readback confirmation). */
-function isPinnedToCharacter(state: SpaceStateLike, character: string): boolean {
-  return state.nodes.some((n) => typeof n.value === "string" && n.value === `PINNED:${character}`);
-}
-
 /**
  * Pin the Operator's chosen **Character** into the Space via the **Fallback Protocol** (a natural-
- * language `edit`), poll the edit to terminal, then **read back** the Space and confirm the chosen
- * `Character` creation node is pinned (ADR-0003 Phase B; Spike 1). Returns the confirmed Character on
- * success; an identifiable failure if the pin edit failed or the readback does not confirm the pin.
- * Mirrors `injectSpec`'s edit → poll → readback shape.
+ * language `edit`), poll the edit to terminal, then **confirm the pin through the port**
+ * (`port.verifyPinned`) — the port owns "is this Character pinned?", so the confirmation is implementable
+ * against real Space state, not a fake-only marker (ADR-0003 Phase B; Spike 1). Returns the confirmed
+ * Character on success; an identifiable failure if the pin edit failed or the pin cannot be confirmed.
+ * Mirrors `injectSpec`'s edit → poll → confirm shape.
  */
-export async function pinCharacter(port: SpaceMcpPort, character: string): Promise<PinResult> {
+export async function pinCharacter(
+  port: SpaceMcpPort,
+  character: string,
+  poll: PollOptions = {},
+): Promise<PinResult> {
   const { editId } = await port.edit(pinGoal(character));
-  const status = await pollEdit(port, editId);
+  const status = await pollEdit(port, editId, poll);
   if (status.phase === "failed") {
     return { ok: false, error: err("pin_edit_failed", status.error ?? "the pin edit failed") };
   }
 
-  const after = await port.readState();
-  if (!isPinnedToCharacter(after, character)) {
+  if (!(await port.verifyPinned(character))) {
     return {
       ok: false,
       error: err(
@@ -412,9 +459,10 @@ export async function pickAndRender(
   port: SpaceMcpPort,
   spaceState: SpaceStateLike,
   character: string,
+  poll: PollOptions = {},
 ): Promise<PickAndRenderResult> {
   // Pin the chosen Character first — every clip/thumbnail renders against it.
-  const pinned = await pinCharacter(port, character);
+  const pinned = await pinCharacter(port, character, poll);
   if (!pinned.ok) {
     return { ok: false, error: pinned.error };
   }
@@ -435,7 +483,7 @@ export async function pickAndRender(
   }
 
   // Run the clip run-point downstream — clip → Video Combiner → Final Output → one Asset.
-  const run = await runRunPoint(port, clipRunPoint.start_node_id, DOWNSTREAM_MODE);
+  const run = await runRunPoint(port, clipRunPoint.start_node_id, DOWNSTREAM_MODE, poll);
   if (!run.ok) {
     return { ok: false, error: run.error };
   }

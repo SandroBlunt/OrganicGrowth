@@ -26,9 +26,25 @@ async function exists(path: string): Promise<boolean> {
 }
 
 describe("specPathFor", () => {
-  it("derives ideas/<run>/idea-NN.spec.json beside the Brief", () => {
-    const path = specPathFor("idea-2026-W22-01", "2026-W22", "ideas");
-    assert.equal(path, join("ideas", "2026-W22", "idea-2026-W22-01.spec.json"));
+  it("derives the SHORT idea-NN.spec.json name from the full ledger id, beside the Brief", () => {
+    const path = specPathFor("idea-2026-W22-01", "2026-W22", "root");
+    // The ledger id is idea-<run>-NN; the Spec takes the Brief's short idea-NN name.
+    assert.equal(path, join("root", "2026-W22", "idea-01.spec.json"));
+  });
+
+  it("is idempotent when handed an already-short idea id", () => {
+    const path = specPathFor("idea-07", "2026-W22", "root");
+    assert.equal(path, join("root", "2026-W22", "idea-07.spec.json"));
+  });
+
+  it("matches the real mundotip tree convention (idea-NN.spec.json beside idea-NN.md)", async () => {
+    // The real Brief on disk is data/brands/mundotip/ideas/2026-W22/idea-01.md.
+    const ideasRoot = join("data", "brands", "mundotip", "ideas");
+    const briefPath = join(ideasRoot, "2026-W22", "idea-01.md");
+    assert.equal(await exists(briefPath), true);
+
+    const specPath = specPathFor("idea-2026-W22-01", "2026-W22", ideasRoot);
+    assert.equal(specPath, join(ideasRoot, "2026-W22", "idea-01.spec.json"));
   });
 });
 

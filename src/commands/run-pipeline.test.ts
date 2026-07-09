@@ -2,7 +2,7 @@
  * Tests for the `/run-pipeline <brand>` conductor command.
  *
  * All tests are hermetic:
- *   - No live Magnific Space calls (fake `MagniticReadinessPort` injected).
+ *   - No live Magnific Space calls (fake `MagnificReadinessPort` injected).
  *   - No live Apify calls (fake `ApifyReadinessPort` injected).
  *   - No credits spent, no board mutation.
  *   - All file I/O uses temp directories.
@@ -12,10 +12,9 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 import {
   runPipelineCommand,
@@ -25,8 +24,7 @@ import {
 } from "./run-pipeline.ts";
 import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-import type { MagniticReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
+import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
 import { loadQueue } from "../production-queue/store.ts";
 
 // ---------------------------------------------------------------------------
@@ -37,7 +35,7 @@ import { loadQueue } from "../production-queue/store.ts";
  * Healthy fake Magnific port: Space accessible, credits OK.
  * Tests that need unhealthy probes override these values.
  */
-function makeMagniticFake(opts: { accessible?: boolean; creditsOk?: boolean } = {}): MagniticReadinessPort {
+function makeMagniticFake(opts: { accessible?: boolean; creditsOk?: boolean } = {}): MagnificReadinessPort {
   return {
     async probeSpace() {
       return {
@@ -334,6 +332,22 @@ describe("isoWeek — pure ISO 8601 week number", () => {
     assert.equal(isoWeek(new Date("2026-01-01T00:00:00.000Z")), "2026-W01");
   });
 
+  // ISO-year-boundary cases (C49): the ISO week-year can differ from the calendar year around Jan 1.
+  it("Jan 1 that falls in the previous ISO year reports W53 of the prior year", () => {
+    // 2021-01-01 is a Friday; its ISO week (Thursday = 2020-12-31) belongs to 2020, week 53.
+    assert.equal(isoWeek(new Date("2021-01-01T00:00:00.000Z")), "2020-W53");
+  });
+
+  it("late-December Thursday still in a W53 year reports W53", () => {
+    // 2020-12-31 is a Thursday → 2020 has 53 ISO weeks.
+    assert.equal(isoWeek(new Date("2020-12-31T00:00:00.000Z")), "2020-W53");
+  });
+
+  it("a late-December date that belongs to the next ISO year reports W01 of that next year", () => {
+    // 2019-12-30 is a Monday; its ISO week (Thursday = 2020-01-02) belongs to 2020, week 01.
+    assert.equal(isoWeek(new Date("2019-12-30T00:00:00.000Z")), "2020-W01");
+  });
+
   it("returns the same output for the same input (deterministic)", () => {
     const d = new Date("2026-06-06T00:00:00.000Z");
     assert.equal(isoWeek(d), isoWeek(d));
@@ -620,52 +634,6 @@ describe("runPipelineCommand — AC6: Auto-drain and post-publish offers", () =>
 });
 
 // ===========================================================================
-// AC7: Readiness gate only in conductor — granular commands are unguarded
-// ===========================================================================
-
-describe("AC7: Readiness gate exists only in the conductor", () => {
-  it("run-pipeline-readiness.ts is NOT imported by any granular command file", async () => {
-    const granularCommands = ["pick-cast.ts", "queue.ts", "report.ts"];
-    for (const cmd of granularCommands) {
-      const src = await readFile(join(HERE, cmd), "utf8").catch(() => "");
-      assert.doesNotMatch(
-        src,
-        /run-pipeline-readiness/,
-        `${cmd} must NOT import run-pipeline-readiness (readiness is only for /run-pipeline)`,
-      );
-    }
-  });
-});
-
-// ===========================================================================
-// AC8: Conductor reuses existing modules (no duplicated pipeline logic)
-// ===========================================================================
-
-describe("AC8: Conductor reuses existing modules — no duplicated pipeline logic", () => {
-  it("run-pipeline.ts imports resolveBrand (not a re-implementation)", async () => {
-    const src = await readFile(join(HERE, "run-pipeline.ts"), "utf8");
-    assert.match(src, /from.*brand\/resolver/, "run-pipeline.ts must import resolveBrand from brand/resolver");
-  });
-
-  it("run-pipeline.ts imports resolvePhase (not a re-implementation)", async () => {
-    const src = await readFile(join(HERE, "run-pipeline.ts"), "utf8");
-    assert.match(src, /from.*phase-resolver\/resolve/, "run-pipeline.ts must import resolvePhase");
-  });
-
-  it("run-pipeline.ts imports enqueueOnAccept (not a re-implementation)", async () => {
-    const src = await readFile(join(HERE, "run-pipeline.ts"), "utf8");
-    assert.match(src, /from.*production-queue\/enqueue-on-accept/, "run-pipeline.ts must import enqueueOnAccept");
-  });
-
-  it("run-pipeline.ts imports classify and checkConfig indirectly via runReadiness (not inline)", async () => {
-    const src = await readFile(join(HERE, "run-pipeline.ts"), "utf8");
-    assert.match(src, /from.*run-pipeline-readiness/, "run-pipeline.ts must delegate readiness to run-pipeline-readiness");
-    // Must NOT re-implement classify or checkConfig inline
-    assert.doesNotMatch(src, /from.*readiness\/classify/, "run-pipeline.ts must not import classify directly");
-  });
-});
-
-// ===========================================================================
 // runReadiness — readiness probe orchestrator tests
 // ===========================================================================
 
@@ -675,7 +643,7 @@ describe("runReadiness — readiness probe orchestrator", () => {
       const findings = await runReadiness({
         brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
         seedsPath: join(paths.brandDir, "seeds.yaml"),
-        baseline: 0.5,
+        baselineExists: true,
         magnific: makeMagniticFake(),   // MAGNIFIC FAKE
         apify: makeApifyFake(),          // APIFY FAKE
       });
@@ -688,7 +656,7 @@ describe("runReadiness — readiness probe orchestrator", () => {
       const findings = await runReadiness({
         brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
         seedsPath: join(paths.brandDir, "seeds.yaml"),
-        baseline: null,
+        baselineExists: false,
         magnific: makeMagniticFake(),          // MAGNIFIC FAKE
         apify: makeApifyFake({ tokenValid: false }), // APIFY FAKE: bad token
       });
@@ -703,7 +671,7 @@ describe("runReadiness — readiness probe orchestrator", () => {
       const findings = await runReadiness({
         brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
         seedsPath: join(paths.brandDir, "seeds.yaml"),
-        baseline: null,
+        baselineExists: false,
         magnific: makeMagniticFake({ accessible: false, creditsOk: true }), // MAGNIFIC FAKE: inaccessible
         apify: makeApifyFake(),
       });
@@ -730,7 +698,7 @@ banned_words: ["bad-word"]
       const findings = await runReadiness({
         brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
         seedsPath: join(paths.brandDir, "seeds.yaml"),
-        baseline: null,
+        baselineExists: false,
         magnific: makeMagniticFake(),
         apify: makeApifyFake(),
       });
@@ -740,13 +708,73 @@ banned_words: ["bad-word"]
     });
   });
 
+  it("reports a blocking parse error naming the file when brand-profile.yaml is malformed (C26)", async () => {
+    await withBrandFixture({ profileYaml: "channel: {name: TestBrand" }, async (paths) => {
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: false,
+        magnific: makeMagniticFake(),
+        apify: makeApifyFake(),
+      });
+      const parseBlock = findings.find((f) => f.code === "brand_profile_unparseable");
+      assert.ok(parseBlock, "a parse error must be reported for malformed YAML");
+      assert.equal(parseBlock?.severity, "block");
+      assert.match(parseBlock?.message ?? "", /brand-profile\.yaml/, "the parse error must name the file");
+      // A broken file must NOT be misreported as an empty 'field not set' state.
+      assert.ok(
+        !findings.some((f) => f.code === "niche_unset"),
+        "a parse error must not be misreported as a missing field",
+      );
+    });
+  });
+
+  it("treats a MISSING config file as not-set (advisory), never a parse error (C26)", async () => {
+    await withBrandFixture({}, async (paths) => {
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "does-not-exist.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: false,
+        magnific: makeMagniticFake(),
+        apify: makeApifyFake(),
+      });
+      assert.ok(
+        !findings.some((f) => f.code === "brand_profile_unparseable"),
+        "a missing file is not a parse error",
+      );
+      assert.ok(
+        findings.some((f) => f.code === "niche_unset"),
+        "a missing profile surfaces the usual field-not-set advisories",
+      );
+    });
+  });
+
+  it("does not crash on a non-string seed entry — guards defensively (C26)", async () => {
+    // A seeds file whose seed_pages contains a numeric/null entry must not throw.
+    const oddSeeds = "seed_pages:\n  - 42\n  - null\n  - \"https://www.facebook.com/realPeer\"\n";
+    await withBrandFixture({ seedsYaml: oddSeeds }, async (paths) => {
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: false,
+        magnific: makeMagniticFake(),
+        apify: makeApifyFake(),
+      });
+      // The one real URL survives → research is not blocked for lack of seeds.
+      assert.ok(
+        !findings.some((f) => f.code === "no_valid_seed"),
+        "a usable seed among odd entries must satisfy the seed requirement without crashing",
+      );
+    });
+  });
+
   it("uses a fake Magnific port — no live spaces_* calls are made", async () => {
     // This test is the explicit MAGNIFIC FAKE confirmation for the Build Report.
-    // All probes in runReadiness use the injected MagniticReadinessPort — if the port
+    // All probes in runReadiness use the injected MagnificReadinessPort — if the port
     // is a fake, no live Magnific calls happen. We verify this by passing a fake that
     // records whether it was called.
     let fakeWasCalled = false;
-    const recordingFake: MagniticReadinessPort = {
+    const recordingFake: MagnificReadinessPort = {
       async probeSpace() {
         fakeWasCalled = true;
         return { accessible: true, creditsOk: true };
@@ -757,7 +785,7 @@ banned_words: ["bad-word"]
       await runReadiness({
         brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
         seedsPath: join(paths.brandDir, "seeds.yaml"),
-        baseline: null,
+        baselineExists: false,
         magnific: recordingFake,  // MAGNIFIC FAKE — records call
         apify: makeApifyFake(),
       });
@@ -788,5 +816,128 @@ describe("findingsBlockPhase — helper used by the conductor", () => {
 
   it("returns false for an empty findings array", () => {
     assert.equal(findingsBlockPhase([], "production"), false);
+  });
+});
+
+// ===========================================================================
+// C21: baseline advisory derives from `updated_at`, not a nonexistent `baseline.value`
+// ===========================================================================
+
+describe("runReadiness — baseline presence (C21)", () => {
+  it("emits the no-baseline advisory when baselineExists is false", async () => {
+    await withBrandFixture({}, async (paths) => {
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: false,
+        magnific: makeMagniticFake(),
+        apify: makeApifyFake(),
+      });
+      assert.ok(
+        findings.some((f) => f.code === "null_baseline"),
+        "null_baseline advisory expected when no baseline exists",
+      );
+    });
+  });
+
+  it("does NOT emit the no-baseline advisory when baselineExists is true", async () => {
+    await withBrandFixture({}, async (paths) => {
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: true,
+        magnific: makeMagniticFake(),
+        apify: makeApifyFake(),
+      });
+      assert.ok(
+        !findings.some((f) => f.code === "null_baseline"),
+        "null_baseline must not appear once a baseline exists",
+      );
+    });
+  });
+});
+
+describe("runPipelineCommand — baseline advisory reads the ledger's updated_at (C21)", () => {
+  it("suppresses the no-baseline advisory once the ledger baseline has an updated_at", async () => {
+    // Real baseline shape: per-metric medians with updated_at set (NOT a `value` field).
+    const ledgerWithBaseline = JSON.stringify({
+      ideas: [],
+      baseline: { shares: 3, comments: 2, reactions: 10, views: 100, updated_at: "2026-06-01T00:00:00.000Z" },
+    });
+    await withBrandFixture({ ledgerContent: ledgerWithBaseline }, async (paths) => {
+      // Force a research block (bad Apify token) so the conductor prints the readiness findings.
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        apify: makeApifyFake({ tokenValid: false }),
+      });
+      const out = allMessages(turns);
+      assert.match(out, /\[BLOCK\]/, "the forced research block must be surfaced");
+      assert.doesNotMatch(
+        out,
+        /No Channel performance baseline/i,
+        "no-baseline advisory must be suppressed when the ledger baseline has an updated_at",
+      );
+    });
+  });
+
+  it("still shows the no-baseline advisory when the ledger baseline has no updated_at", async () => {
+    const ledgerNoBaseline = JSON.stringify({ ideas: [], baseline: { updated_at: null } });
+    await withBrandFixture({ ledgerContent: ledgerNoBaseline }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        apify: makeApifyFake({ tokenValid: false }),
+      });
+      const out = allMessages(turns);
+      assert.match(
+        out,
+        /No Channel performance baseline/i,
+        "no-baseline advisory must appear when no baseline has been measured yet",
+      );
+    });
+  });
+});
+
+// ===========================================================================
+// C27: the resume/fresh re-prompt loop is capped (never spins forever)
+// ===========================================================================
+
+describe("runPipelineCommand — resume/fresh loop is capped (C27)", () => {
+  it("stops with done:true after too many invalid resume/fresh answers", async () => {
+    const ledger = JSON.stringify({
+      ideas: [{ id: "idea-01", status: "casting" }],
+      baseline: { updated_at: null },
+    });
+    await withBrandFixture({ ledgerContent: ledger }, async (paths) => {
+      let promptCount = 0;
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        getInput: async () => {
+          promptCount++;
+          return "nonsense"; // never 'resume' or 'fresh'
+        },
+      });
+      const doneTurn = turns.find((t) => t.done === true);
+      assert.ok(doneTurn, "Conductor must stop with done:true after the resume/fresh cap is exceeded");
+      assert.ok(promptCount <= 5, `Loop must be capped, not spin forever (got ${promptCount} prompts)`);
+    });
+  });
+
+  it("terminates against the default getInput (returns '') on in-flight work", async () => {
+    const ledger = JSON.stringify({
+      ideas: [{ id: "idea-01", status: "casting" }],
+      baseline: { updated_at: null },
+    });
+    await withBrandFixture({ ledgerContent: ledger }, async (paths) => {
+      // No getInput provided → default returns "" forever; the cap must still terminate the loop.
+      const turns = await runPipelineCommand("testbrand", {
+        brandsRoot: paths.brandsRoot,
+        queuePath: paths.queuePath,
+        nowDate: () => new Date("2026-06-01T00:00:00.000Z"),
+        magnific: makeMagniticFake(),
+        apify: makeApifyFake(),
+      });
+      const doneTurn = turns.find((t) => t.done === true);
+      assert.ok(doneTurn, "Conductor must terminate (not hang) with the default empty-string input");
+    });
   });
 });

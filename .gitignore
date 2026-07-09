@@ -7,6 +7,9 @@
 data/brands/*/your-data/*
 !data/brands/*/your-data/.gitkeep
 
+# Legacy/root private Meta exports — never commit anything dropped here.
+data/your-data/
+
 # Node / TypeScript build
 node_modules/
 dist/

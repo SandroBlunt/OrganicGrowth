@@ -10,7 +10,7 @@
  * ledger before it can be enqueued (the ledger stays the source of truth).
  */
 
-import { findIdea, loadIdeas, DEFAULT_LEDGER_PATH } from "../ledger/ledger.ts";
+import { findIdea, loadIdeas } from "../ledger/ledger.ts";
 import { enqueue, hasJobFor, type QueueState } from "./queue.ts";
 import { loadQueue, saveQueue, DEFAULT_QUEUE_PATH } from "./store.ts";
 
@@ -25,7 +25,11 @@ export interface EnqueueResult {
 }
 
 export interface EnqueueOnAcceptOptions {
-  readonly ledgerPath?: string;
+  /** REQUIRED: the Brand's ledger path. There is no ambient/brand-scoped default (acceptance is
+   *  always validated against the named Brand's own ledger, never a fallback Brand's). */
+  readonly ledgerPath: string;
+  /** The global Production Queue path; defaults to the brand-agnostic `DEFAULT_QUEUE_PATH`
+   *  (one queue shared across all Brands — ADR-0004/0006). */
   readonly queuePath?: string;
   /** Injected clock for deterministic timestamps in tests; defaults to now. */
   readonly now?: () => string;
@@ -56,7 +60,7 @@ export function planEnqueue(
     // Rejected (or suggested) Ideas never produce a job — credits only on accepted Ideas.
     return { enqueued: false, reason: "not-accepted", state: queue };
   }
-  if (hasJobFor(queue, ideaId)) {
+  if (hasJobFor(queue, brand, ideaId)) {
     return { enqueued: false, reason: "already-queued", state: queue };
   }
   return { enqueued: true, state: enqueue(queue, ideaId, now, brand) };
@@ -72,13 +76,13 @@ export function planEnqueue(
 export async function enqueueOnAccept(
   ideaId: string,
   brand: string,
-  options: EnqueueOnAcceptOptions = {},
+  options: EnqueueOnAcceptOptions,
 ): Promise<EnqueueResult> {
-  const ledgerPath = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
+  const ledgerPath = options.ledgerPath;
   const queuePath = options.queuePath ?? DEFAULT_QUEUE_PATH;
   const now = (options.now ?? (() => new Date().toISOString()))();
 
-  const ideas = await loadIdeas(ledgerPath);
+  const ideas = await loadIdeas(ledgerPath, brand);
   const queue = await loadQueue(queuePath);
   const result = planEnqueue(ideas, queue, ideaId, now, brand);
 

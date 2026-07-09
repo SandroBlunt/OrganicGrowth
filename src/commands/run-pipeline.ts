@@ -50,6 +50,8 @@
 
 import { readFile } from "node:fs/promises";
 import * as readline from "node:readline";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 import { resolveBrand, brandExists, listBrands } from "../brand/resolver.ts";
 import { deriveSlug, validateSlug, buildBrandProfile, buildSeeds, buildEmptyLedger } from "../brand/scaffolder.ts";
@@ -61,7 +63,7 @@ import { enqueueOnAccept } from "../production-queue/enqueue-on-accept.ts";
 import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
 import { reportCommand } from "./report.ts";
 import type { Finding } from "../readiness/types.ts";
-import type { MagniticReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
+import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
 import type { BrandInterviewAnswers } from "../brand/scaffolder.ts";
 
 // ---------------------------------------------------------------------------
@@ -125,7 +127,7 @@ export interface RunPipelineOptions {
   /** Injected clock returning a Date (for the ISO-week computation). Default: new Date(). */
   readonly nowDate?: () => Date;
   /** Injected probe ports (fake in tests, live adapters at runtime). */
-  readonly magnific?: MagniticReadinessPort;
+  readonly magnific?: MagnificReadinessPort;
   readonly apify?: ApifyReadinessPort;
   /**
    * Injected input function: the conductor calls `getInput(prompt)` when it needs an Operator
@@ -142,7 +144,7 @@ export interface RunPipelineOptions {
  * Default Magnific readiness port — wired to live Magnific at runtime. Tests ALWAYS inject a fake.
  * The live adapter is intentionally minimal (CLAUDE.md: tests use the fake; live probes deferred).
  */
-const DEFAULT_MAGNIFIC_PORT: MagniticReadinessPort = {
+const DEFAULT_MAGNIFIC_PORT: MagnificReadinessPort = {
   async probeSpace() {
     // Runtime placeholder: the live Magnific MCP adapter is wired by the Operator's agent runtime.
     // This path is NEVER exercised in tests (tests inject a fake). If called, assume not accessible.
@@ -187,7 +189,10 @@ async function* runNewBrandInterview(
   yield { message: "Starting new-Brand interview. I'll ask for the essentials before Trend Research." };
 
   // --- Brand name (used to derive + validate the slug) ---
+  // `finalSlug` is the filesystem directory name; `displayName` is the human-facing Brand name the
+  // Operator typed (preserved verbatim — e.g. "Mundo Tip!" must not collapse to the slug "mundo-tip").
   let finalSlug: string;
+  let displayName: string;
 
   if (slugHint !== undefined && slugHint.length > 0) {
     // A slug was pre-supplied (from the unknown-slug path). Validate it.
@@ -200,12 +205,15 @@ async function* runNewBrandInterview(
       return undefined;
     }
     finalSlug = slugHint;
+    // No display name was typed on the unknown-slug path — the slug is the best name we have.
+    displayName = slugHint;
     yield {
       message: `Using Brand slug: "${finalSlug}"`,
     };
   } else {
     // Ask for the Brand name and derive the slug from it.
     let derivedSlug = "";
+    let typedName = "";
     let nameAttempts = 0;
     while (derivedSlug.length === 0) {
       nameAttempts++;
@@ -233,8 +241,10 @@ async function* runNewBrandInterview(
         continue;
       }
       derivedSlug = slug;
+      typedName = rawName;
     }
     finalSlug = derivedSlug;
+    displayName = typedName;
     yield { message: `Brand slug: "${finalSlug}"` };
   }
 
@@ -359,7 +369,7 @@ async function* runNewBrandInterview(
 
   // --- Build and scaffold ---
   const answers: BrandInterviewAnswers = {
-    name: slugHint ?? finalSlug,
+    name: displayName,
     niche,
     voice,
     language,
@@ -548,28 +558,27 @@ export async function* conductorTurns(
 
   // --- Step 2: Readiness check (never cached) ---
 
-  // Read the ledger baseline for the classify call
-  let baseline: number | null = null;
+  // Determine whether the Channel has a performance baseline yet, for the readiness advisory.
+  // The real baseline is the tracker's per-metric medians {shares, comments, reactions, views,
+  // updated_at}; a baseline "exists" once `updated_at` is set. (There is no `baseline.value`.)
+  let baselineExists = false;
   try {
     const raw: unknown = JSON.parse(await readFile(brandPaths.ledger, "utf8"));
-    if (
-      typeof raw === "object" && raw !== null &&
-      "baseline" in raw &&
-      typeof (raw as Record<string, unknown>).baseline === "object"
-    ) {
-      const b = (raw as Record<string, unknown>).baseline as Record<string, unknown> | null;
-      if (b && typeof b.value === "number" && Number.isFinite(b.value)) {
-        baseline = b.value;
+    if (typeof raw === "object" && raw !== null && "baseline" in raw) {
+      const b = (raw as Record<string, unknown>).baseline;
+      if (b !== null && typeof b === "object" && "updated_at" in b) {
+        const updatedAt = (b as Record<string, unknown>).updated_at;
+        baselineExists = typeof updatedAt === "string" && updatedAt.length > 0;
       }
     }
   } catch {
-    // Ledger not readable yet — baseline stays null
+    // Ledger not readable yet — no baseline
   }
 
   const findings: Finding[] = await runReadiness({
     brandProfilePath: brandPaths.brandProfile,
     seedsPath: brandPaths.seeds,
-    baseline,
+    baselineExists,
     magnific,
     apify,
   });
@@ -603,7 +612,7 @@ export async function* conductorTurns(
 
   // --- Step 4: In-flight detection and resume-vs-fresh ---
 
-  const ideas = await loadIdeas(brandPaths.ledger);
+  const ideas = await loadIdeas(brandPaths.ledger, brand);
   const allJobs = await loadQueue(resolvedQueuePath);
   const brandJobs = allJobs.jobs.filter((j) => j.brand === brand);
   const phaseResult = resolvePhase(ideas, brandJobs);
@@ -638,8 +647,19 @@ export async function* conductorTurns(
 
     let response = (resumeResponse ?? "").trim().toLowerCase();
 
-    // Re-prompt until we get an explicit choice (no default)
+    // Re-prompt until we get an explicit choice (no default). Capped at 3 like the name/language/
+    // platform loops — an uncapped loop spins forever against the default getInput (which returns "").
+    const MAX_RESUME_ATTEMPTS = 3;
+    let resumeAttempts = 0;
     while (response !== "resume" && response !== "fresh") {
+      resumeAttempts++;
+      if (resumeAttempts > MAX_RESUME_ATTEMPTS) {
+        yield {
+          message: "Too many invalid attempts. A choice of 'resume' or 'fresh' is required. Stopping.",
+          done: true,
+        };
+        return;
+      }
       const retry: string | undefined = yield {
         message: `Please type 'resume' or 'fresh'. No other value is accepted.`,
         prompt: "resume or fresh? (type 'resume' or 'fresh')",
@@ -665,7 +685,12 @@ export async function* conductorTurns(
       }
       startFresh = false;
     } else {
-      yield { message: "Starting a fresh weekly Run." };
+      // NOTE: "fresh" does NOT reset anything on disk — existing queue jobs and casting/accepted
+      // Ideas are left untouched. It only re-enters the loop at Gate 1 instead of resuming the
+      // in-flight phase. Message says exactly that, so it does not imply a wipe it doesn't perform.
+      yield {
+        message: "Starting fresh from Gate 1 (Review). Existing production work is left in place — nothing on disk is reset.",
+      };
       startFresh = true;
     }
   }
@@ -693,7 +718,7 @@ export async function* conductorTurns(
     yield {
       message: [
         `Gate 1 complete. Brand: ${brand}`,
-        "Accepted Ideas have been enqueued for production.",
+        "Any Ideas you accepted during /review-ideas were auto-enqueued for production; if you accepted none, nothing was enqueued.",
         `After production drains to the Cast gate, run /run-pipeline ${brand} again to continue.`,
       ].join("\n"),
       done: false,
@@ -885,17 +910,32 @@ export async function main(): Promise<void> {
   const getInput = (prompt: string): Promise<string> =>
     new Promise((resolve) => rl.question(`${prompt} `, resolve));
 
+  // Stream the generator directly: print each turn's message BEFORE prompting for its input, so the
+  // Operator sees the context ("In-flight work detected…", gate instructions, readiness findings)
+  // that explains the bare prompt — not a wall of buffered text dumped only after the session ends.
   try {
-    const turns = await runPipelineCommand(brand, { getInput });
-    for (const turn of turns) {
+    const gen = conductorTurns(brand);
+    let result = await gen.next(undefined);
+    while (!result.done) {
+      const turn = result.value;
       process.stdout.write(turn.message + "\n");
+      if (turn.done) break;
+
+      let response: string | undefined;
+      if (turn.prompt !== undefined) {
+        response = await getInput(turn.prompt);
+      }
+      result = await gen.next(response);
     }
   } finally {
     rl.close();
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// C41: compare resolved paths, not a hand-built `file://` string — the latter breaks on paths with
+// spaces (percent-encoded in `import.meta.url`) or symlinks, silently making a direct run a no-op.
+const entryPoint = process.argv[1];
+if (entryPoint !== undefined && fileURLToPath(import.meta.url) === resolve(entryPoint)) {
   main().catch((err: unknown) => {
     process.stderr.write(`/run-pipeline failed: ${String(err)}\n`);
     process.exitCode = 1;

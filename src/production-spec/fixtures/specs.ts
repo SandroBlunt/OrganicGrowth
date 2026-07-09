@@ -96,6 +96,28 @@ export function fourEmojis(): Record<string, unknown> {
   return s;
 }
 
+/** clips is the right length (3) but the entries are plain numbers, not clip objects. */
+export function numericClips(): Record<string, unknown> {
+  const s = clone(validSpec());
+  s.clips = [1, 2, 3];
+  return s;
+}
+
+/** A clip whose image_prompt does NOT end with the required `Aspect Ratio 9:16.` line. */
+export function clipMissingAspectRatio(): Record<string, unknown> {
+  const s = clone(validSpec());
+  (s.clips as Record<string, unknown>[])[0]!.image_prompt =
+    "Pixar 3D render of the anthropomorphic alarm clock at dawn, no aspect line";
+  return s;
+}
+
+/** A clip missing its video_prompt (contract requires a non-empty video_prompt). */
+export function clipMissingVideoPrompt(): Record<string, unknown> {
+  const s = clone(validSpec());
+  delete (s.clips as Record<string, unknown>[])[0]!.video_prompt;
+  return s;
+}
+
 /** No thumbnails field at all. */
 export function missingThumbnails(): Record<string, unknown> {
   const s = clone(validSpec());

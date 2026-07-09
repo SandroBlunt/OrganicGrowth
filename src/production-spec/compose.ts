@@ -14,8 +14,8 @@
 import { generate as defaultGenerate, type Brief } from "./generate.ts";
 import { validate, type ValidationError } from "./validate.ts";
 import { scanForBannedWords, type BannedWordHit } from "./brand-safety.ts";
-import { loadBannedWords, DEFAULT_BRAND_PROFILE_PATH } from "./brand-profile.ts";
-import { saveSpec, specPathFor, DEFAULT_IDEAS_ROOT } from "./store.ts";
+import { loadBannedWords } from "./brand-profile.ts";
+import { saveSpec, specPathFor } from "./store.ts";
 import type { ProductionSpec } from "./contract.ts";
 
 /** Why a compose attempt did not write a Spec. */
@@ -36,10 +36,12 @@ export interface ComposeResult {
 }
 
 export interface ComposeOptions {
-  /** Root dir holding `ideas/<run>/...` (defaults to `ideas`). */
-  readonly ideasRoot?: string;
-  /** Path to the Brand Profile YAML (defaults to `data/brand-profile.yaml`). */
-  readonly brandProfilePath?: string;
+  /** REQUIRED: root dir holding `ideas/<run>/...` (e.g. `data/brands/<slug>/ideas`). No ambient
+   *  default — the Spec is always written under the named Brand's own ideas tree, never a fallback. */
+  readonly ideasRoot: string;
+  /** REQUIRED: path to the Brand's Brand Profile YAML. No ambient/brand-scoped default — the
+   *  brand-safety filter is always sourced from the named Brand's own profile, never a fallback's. */
+  readonly brandProfilePath: string;
   /** Injectable generator (defaults to the deterministic composer); enables fault-injection tests. */
   readonly generator?: (brief: Brief) => ProductionSpec | Record<string, unknown>;
 }
@@ -53,10 +55,10 @@ export interface ComposeOptions {
  */
 export async function composeSpec(
   brief: Brief,
-  options: ComposeOptions = {},
+  options: ComposeOptions,
 ): Promise<ComposeResult> {
-  const ideasRoot = options.ideasRoot ?? DEFAULT_IDEAS_ROOT;
-  const brandProfilePath = options.brandProfilePath ?? DEFAULT_BRAND_PROFILE_PATH;
+  const ideasRoot = options.ideasRoot;
+  const brandProfilePath = options.brandProfilePath;
   const generate = options.generator ?? defaultGenerate;
   const path = specPathFor(brief.id, brief.run, ideasRoot);
 

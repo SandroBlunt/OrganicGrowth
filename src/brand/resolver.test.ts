@@ -15,6 +15,9 @@ import {
   resolveBrand,
   brandExists,
   listBrands,
+  isValidBrandSlug,
+  assertValidBrandSlug,
+  BRAND_SLUG_PATTERN,
   DEFAULT_BRANDS_ROOT,
   DEFAULT_QUEUE_PATH,
   type BrandPaths,
@@ -182,6 +185,21 @@ describe("brandExists — Brand directory existence check", () => {
     await writeFile(filePath, "not a directory");
     assert.equal(await brandExists("file-not-dir", tmpBrandsRoot), false);
   });
+
+  it("rethrows a non-ENOENT stat error instead of reporting 'does not exist'", async () => {
+    // Point the brands root AT a file: stat(<file>/<slug>) fails with ENOTDIR, not ENOENT.
+    // A truly-absent path returns false; a real I/O error must surface, not masquerade as absent.
+    const filePath = join(tmpBrandsRoot, "a-plain-file");
+    await writeFile(filePath, "i am a file, not a directory");
+    await assert.rejects(
+      () => brandExists("anything", filePath),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.equal((err as NodeJS.ErrnoException).code, "ENOTDIR");
+        return true;
+      },
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -270,15 +288,63 @@ describe("listBrands — defensive handling of edge cases", () => {
 });
 
 // ---------------------------------------------------------------------------
-// slug validation in resolveBrand (does not throw on odd-looking slugs — it's defensive)
+// Slug validation — the tenancy boundary
 // ---------------------------------------------------------------------------
 
-describe("resolveBrand — handles unusual but valid slugs without crashing", () => {
-  it("an empty slug string produces paths under the brands root with an empty segment", () => {
-    // Defensive: does not throw. The caller is responsible for using a valid slug.
-    const paths = resolveBrand("", "data/brands");
-    assert.equal(typeof paths.ledger, "string");
-    assert.equal(typeof paths.queuePath, "string");
+describe("BRAND_SLUG_PATTERN / isValidBrandSlug — accepts only safe slugs", () => {
+  const valid = ["mundotip", "acme-corp", "brand123", "a", "a".repeat(64)];
+  const invalid = ["", "../..", "..", "a/b", "a\\b", "MundoTip", "mundo tip", "a".repeat(65), ".", "foo.bar", "café"];
+
+  for (const s of valid) {
+    it(`accepts ${JSON.stringify(s)}`, () => {
+      assert.equal(isValidBrandSlug(s), true);
+      assert.equal(BRAND_SLUG_PATTERN.test(s), true);
+    });
+  }
+  for (const s of invalid) {
+    it(`rejects ${JSON.stringify(s)}`, () => {
+      assert.equal(isValidBrandSlug(s), false);
+    });
+  }
+});
+
+describe("assertValidBrandSlug — throws a clear, slug-naming error on invalid input", () => {
+  it("does not throw for a valid slug", () => {
+    assert.doesNotThrow(() => assertValidBrandSlug("mundotip"));
+  });
+
+  it("throws for a path-traversal slug and names it", () => {
+    assert.throws(
+      () => assertValidBrandSlug("../.."),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes("../.."), "error must name the offending slug");
+        return true;
+      },
+    );
+  });
+});
+
+describe("resolveBrand — validates the slug before building paths (tenancy boundary)", () => {
+  it("still maps a valid slug to its paths", () => {
+    const paths = resolveBrand("mundotip", "data/brands");
+    assert.equal(paths.ledger, "data/brands/mundotip/ledger.json");
     assert.equal(paths.queuePath, "data/queue.json");
+  });
+
+  it("throws for an empty slug (no more silent empty path segment)", () => {
+    assert.throws(() => resolveBrand("", "data/brands"), /Invalid Brand slug/);
+  });
+
+  it("throws for a path-traversal slug instead of resolving outside the brands root", () => {
+    assert.throws(() => resolveBrand("../..", "data/brands"), /Invalid Brand slug/);
+  });
+
+  it("throws for a slug containing a path separator", () => {
+    assert.throws(() => resolveBrand("evil/child", "data/brands"), /Invalid Brand slug/);
+  });
+
+  it("throws for an uppercase slug (not what slugify produces)", () => {
+    assert.throws(() => resolveBrand("MundoTip", "data/brands"), /Invalid Brand slug/);
   });
 });

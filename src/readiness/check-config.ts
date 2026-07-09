@@ -9,17 +9,18 @@
  * Deterministic: same inputs always produce the same output in the same order.
  *
  * Off-niche seed detection:
- *   A seed page URL prefixed with `OFF_NICHE:` is treated as an off-niche seed. This marker
- *   is set by the Operator or config author in seeds.yaml (e.g. as a note in the URL string).
- *   The conductor can also strip this prefix before using the URL for scraping.
- *   This is a simple, parse-free convention that keeps the pure core testable without heuristics.
+ *   A seed entry can be marked off-niche in two ways, both read by `normalizeSeeds`:
+ *     - Structured form (preferred): `{ url: "https://…", off_niche: true }` in seeds.yaml.
+ *     - Legacy string form: a URL string prefixed with `OFF_NICHE:` (the prefix is stripped).
+ *   The structured form survives YAML parsing (a bare `# comment` does not), so the off-niche
+ *   advisory can actually fire on the data that needs it.
  *
  * Findings emitted (by code):
  *   config_todo         — advisory/research  — niche or voice contains a TODO placeholder
  *   niche_unset         — advisory/research  — niche is empty or missing
  *   voice_unset         — advisory/research  — voice is empty or missing
  *   no_valid_seed       — block/research     — seed_pages has fewer than 1 entry
- *   off_niche_seed      — advisory/research  — at least one seed page is marked OFF_NICHE
+ *   off_niche_seed      — advisory/research  — at least one seed page is flagged off-niche
  *   channel_url_missing — block/publish      — channel.url is missing or empty
  *   empty_banned_words  — advisory/research  — banned_words is empty or missing
  *
@@ -55,11 +56,61 @@ export interface BrandProfile {
 }
 
 /**
+ * A single raw `seed_pages` entry as it may appear in `seeds.yaml`:
+ *   - a plain URL string (optionally with the legacy `OFF_NICHE:` prefix), or
+ *   - a structured object `{ url, off_niche }`.
+ * Additional/unknown shapes are tolerated and dropped by `normalizeSeeds`.
+ */
+export type SeedEntry = string | { url?: unknown; off_niche?: unknown };
+
+/** A seed entry after normalization: a usable URL plus whether it is flagged off-niche. */
+export interface NormalizedSeed {
+  readonly url: string;
+  readonly offNiche: boolean;
+}
+
+/**
+ * Normalize the raw `seed_pages` value into a list of `{ url, offNiche }`.
+ *
+ * Defensive by contract (data-handling rule 4): NEVER throws on odd input. A non-array value,
+ * or an entry that is neither a non-empty string nor an object with a non-empty string `url`
+ * (e.g. `null`, a number, `{}`), is dropped rather than crashing the caller.
+ *
+ * Off-niche is read from either the structured `off_niche: true` field or the legacy
+ * `OFF_NICHE:` string prefix (which is stripped from the returned url).
+ *
+ * @param raw  The parsed `seeds.seed_pages` value (unknown — validated here).
+ */
+export function normalizeSeeds(raw: unknown): NormalizedSeed[] {
+  if (!Array.isArray(raw)) return [];
+  const out: NormalizedSeed[] = [];
+  for (const entry of raw) {
+    if (typeof entry === "string") {
+      const s = entry.trim();
+      if (s.length === 0) continue;
+      if (s.startsWith("OFF_NICHE:")) {
+        const url = s.slice("OFF_NICHE:".length).trim();
+        if (url.length > 0) out.push({ url, offNiche: true });
+        continue;
+      }
+      out.push({ url: s, offNiche: false });
+    } else if (entry !== null && typeof entry === "object") {
+      const obj = entry as { url?: unknown; off_niche?: unknown };
+      if (typeof obj.url === "string" && obj.url.trim().length > 0) {
+        out.push({ url: obj.url.trim(), offNiche: obj.off_niche === true });
+      }
+    }
+    // Any other shape (number, boolean, null, url-less object) is dropped defensively.
+  }
+  return out;
+}
+
+/**
  * Parsed shape of `seeds.yaml`. Only the fields checked by `checkConfig` are required;
  * additional fields are tolerated.
  */
 export interface Seeds {
-  seed_pages?: string[];
+  seed_pages?: SeedEntry[];
   keywords?: string[];
   language?: string;
   region?: string;
@@ -126,7 +177,9 @@ export function checkConfig(brandProfile: BrandProfile, seeds: Seeds): Finding[]
   }
 
   // --- Seed pages ---
-  const seedPages = seeds.seed_pages ?? [];
+  // Normalize first: this both guards against non-string entries (which would otherwise crash
+  // string operations) and reads the off-niche flag from either the structured or legacy form.
+  const seedPages = normalizeSeeds(seeds.seed_pages);
 
   if (seedPages.length < 1) {
     findings.push({
@@ -138,15 +191,15 @@ export function checkConfig(brandProfile: BrandProfile, seeds: Seeds): Finding[]
     });
   }
 
-  // Check for off-niche seed markers
-  const hasOffNiche = seedPages.some((p) => p.startsWith("OFF_NICHE:"));
+  // Check for off-niche seed markers (structured `off_niche: true` or legacy `OFF_NICHE:` prefix)
+  const hasOffNiche = seedPages.some((s) => s.offNiche);
   if (hasOffNiche) {
     findings.push({
       severity: "advisory",
       phase: "research",
       code: "off_niche_seed",
       message:
-        "One or more seed pages are marked as off-niche (OFF_NICHE: prefix). They may dilute trend research quality. Review seeds.yaml and remove or replace them.",
+        "One or more seed pages are marked as off-niche. They may dilute trend research quality. Review seeds.yaml and remove or replace them.",
     });
   }
 

@@ -34,6 +34,13 @@ export interface EditStatus {
   readonly phase: OperationPhase;
   /** Set when `phase === "failed"`: a short reason (e.g. the agent could not complete the goal). */
   readonly error?: string;
+  /**
+   * Set (terminal, success) when the edit was an agent-RUN-by-goal that produced creations — e.g. the
+   * Fallback-Protocol cast recovery, where the agent runs the canvas to a Cast. The driver derives the
+   * recovered Cast from THESE ids (never a hard-coded list), so a live adapter can satisfy the contract
+   * by reporting whatever the agent actually produced.
+   */
+  readonly creationIds?: readonly string[];
 }
 
 /**
@@ -92,4 +99,12 @@ export interface SpaceMcpPort {
 
   /** Fetch creations by identifier (for the Cast image URLs). */
   fetchCreations(ids: readonly string[]): Promise<readonly Creation[]>;
+
+  /**
+   * Confirm the chosen **Character** is pinned as the render reference (the readback confirmation of a
+   * pin edit — ADR-0003 Phase B). The driver never inspects raw node values to decide this: the port
+   * owns "is this Character pinned?" so a live adapter can answer it against real Space state, while the
+   * FAKE answers it via its own pin marker. Returns true when `character` is the pinned Character.
+   */
+  verifyPinned(character: string): Promise<boolean>;
 }

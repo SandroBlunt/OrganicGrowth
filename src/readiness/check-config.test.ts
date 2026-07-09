@@ -7,8 +7,8 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { checkConfig } from "./check-config.ts";
-import type { BrandProfile, Seeds } from "./check-config.ts";
+import { checkConfig, normalizeSeeds } from "./check-config.ts";
+import type { BrandProfile, Seeds, SeedEntry } from "./check-config.ts";
 import type { Finding } from "./types.ts";
 
 // ---------------------------------------------------------------------------
@@ -197,6 +197,88 @@ describe("checkConfig — off-niche seed flag (AC4e)", () => {
     const findings = checkConfig(HEALTHY_PROFILE, HEALTHY_SEEDS);
     const match = findingsWhere(findings, { code: "off_niche_seed" });
     assert.equal(match.length, 0, "no off_niche_seed finding for clean seeds");
+  });
+
+  it("structured { url, off_niche: true } entry → advisory on research (C44)", () => {
+    const seeds: Seeds = {
+      ...HEALTHY_SEEDS,
+      seed_pages: [
+        "https://www.facebook.com/lifehackIG",
+        { url: "https://www.facebook.com/tudodereceitasES", off_niche: true },
+      ],
+    };
+    const findings = checkConfig(HEALTHY_PROFILE, seeds);
+    const match = findingsWhere(findings, { severity: "advisory", phase: "research", code: "off_niche_seed" });
+    assert.equal(match.length, 1, "structured off_niche:true entry must raise the off_niche_seed advisory");
+    // The structured off-niche entry still counts as a valid seed (no no_valid_seed block).
+    const noSeed = findingsWhere(findings, { code: "no_valid_seed" });
+    assert.equal(noSeed.length, 0, "a structured seed entry must still count as a valid seed");
+  });
+
+  it("structured { url } entry without off_niche → no off_niche_seed finding (C44)", () => {
+    const seeds: Seeds = {
+      ...HEALTHY_SEEDS,
+      seed_pages: [{ url: "https://www.facebook.com/onNichePeer" }],
+    };
+    const findings = checkConfig(HEALTHY_PROFILE, seeds);
+    assert.equal(findingsWhere(findings, { code: "off_niche_seed" }).length, 0);
+    assert.equal(findingsWhere(findings, { code: "no_valid_seed" }).length, 0);
+  });
+});
+
+describe("checkConfig — defensive seed parsing (C26)", () => {
+  it("does not throw and drops non-string / url-less seed entries", () => {
+    const seeds = {
+      ...HEALTHY_SEEDS,
+      // A null and a numeric entry would crash a naive p.startsWith(); they must be dropped.
+      seed_pages: [null, 42, {}, "https://www.facebook.com/realPeer"] as unknown as SeedEntry[],
+    };
+    const findings = checkConfig(HEALTHY_PROFILE, seeds);
+    // The one real URL survives → no no_valid_seed block.
+    assert.equal(findingsWhere(findings, { code: "no_valid_seed" }).length, 0);
+  });
+
+  it("all entries invalid → no_valid_seed block (nothing usable survives)", () => {
+    const seeds = {
+      ...HEALTHY_SEEDS,
+      seed_pages: [null, 42, {}] as unknown as SeedEntry[],
+    };
+    const findings = checkConfig(HEALTHY_PROFILE, seeds);
+    assert.equal(
+      findingsWhere(findings, { severity: "block", phase: "research", code: "no_valid_seed" }).length,
+      1,
+      "when no usable seed survives, no_valid_seed must block research",
+    );
+  });
+});
+
+describe("normalizeSeeds — reads both seed forms defensively (C44/C26)", () => {
+  it("returns [] for a non-array value (never throws)", () => {
+    assert.deepEqual(normalizeSeeds(undefined), []);
+    assert.deepEqual(normalizeSeeds(null), []);
+    assert.deepEqual(normalizeSeeds("not-an-array"), []);
+  });
+
+  it("reads a plain URL string as on-niche", () => {
+    assert.deepEqual(normalizeSeeds(["https://x.test/a"]), [{ url: "https://x.test/a", offNiche: false }]);
+  });
+
+  it("reads the legacy OFF_NICHE: prefix, stripping it", () => {
+    assert.deepEqual(normalizeSeeds(["OFF_NICHE:https://x.test/b"]), [{ url: "https://x.test/b", offNiche: true }]);
+  });
+
+  it("reads the structured { url, off_niche } object form", () => {
+    assert.deepEqual(
+      normalizeSeeds([{ url: "https://x.test/c", off_niche: true }, { url: "https://x.test/d" }]),
+      [{ url: "https://x.test/c", offNiche: true }, { url: "https://x.test/d", offNiche: false }],
+    );
+  });
+
+  it("drops null, numeric, empty-string, and url-less entries", () => {
+    assert.deepEqual(
+      normalizeSeeds([null, 42, "", "  ", {}, { off_niche: true }, "https://x.test/e"]),
+      [{ url: "https://x.test/e", offNiche: false }],
+    );
   });
 });
 

@@ -291,6 +291,26 @@ describe("buildSeeds — maps interview answers to seeds shape", () => {
     assert.equal(typeof fb["post_actor"], "string");
     assert.ok((fb["post_actor"] as string).length > 0);
   });
+
+  it("uses the verified Facebook actor slugs (a technical default, not invented)", () => {
+    const seeds = buildSeeds(MINIMAL_ANSWERS);
+    const fb = (seeds.apify as Record<string, unknown>)["facebook"] as Record<string, string>;
+    assert.equal(fb["trends_actor"], "apify/facebook-posts-scraper");
+    assert.equal(fb["post_actor"], "apify/facebook-post-scraper");
+  });
+
+  for (const platform of ["instagram", "linkedin"] as const) {
+    it(`does NOT invent an actor slug for the not-yet-wired ${platform} — uses the "..." placeholder`, () => {
+      const seeds = buildSeeds({ ...MINIMAL_ANSWERS, platform });
+      const block = (seeds.apify as Record<string, unknown>)[platform] as Record<string, string> | undefined;
+      assert.ok(block !== undefined, `apify.${platform} must be present`);
+      assert.equal(block["trends_actor"], "...", "trends_actor must be the unknown placeholder");
+      assert.equal(block["post_actor"], "...", "post_actor must be the unknown placeholder");
+      // And must not carry a fabricated, unverified Apify actor slug.
+      assert.doesNotMatch(block["trends_actor"] ?? "", /apify\//);
+      assert.doesNotMatch(block["post_actor"] ?? "", /apify\//);
+    });
+  }
 });
 
 describe("buildSeeds — multiple seed pages", () => {

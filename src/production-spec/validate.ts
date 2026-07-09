@@ -19,6 +19,7 @@ import {
   MAX_POST_COPY_CHARS,
   MIN_POST_COPY_EMOJIS,
   MAX_POST_COPY_EMOJIS,
+  ASPECT_RATIO_LINE,
 } from "./contract.ts";
 
 /** Stable, machine-checkable identifiers for each contract violation. */
@@ -26,6 +27,7 @@ export type ValidationCode =
   | "not_an_object"
   | "character_concepts_count"
   | "clips_count"
+  | "clip_shape"
   | "post_copy_missing"
   | "post_copy_not_top_level"
   | "post_copy_length"
@@ -78,6 +80,38 @@ function someClipHasKey(clips: unknown, key: string): boolean {
 }
 
 /**
+ * Check one clip against the per-clip contract (`SpecClip` in `contract.ts`): a string `id`, a numeric
+ * `clip_id`, a non-empty `concept_title`, a non-empty `image_prompt` that ENDS WITH the Space's 9:16
+ * aspect-ratio line, and a non-empty `video_prompt`. Returns a human-readable reason on the first
+ * violation, or `null` when the clip conforms. Guards contents so a Spec like `clips: [1, 2, 3]` (right
+ * count, wrong shape) can never reach the Space (PRD #1 story 4).
+ */
+function clipContractError(clip: unknown, index: number): string | null {
+  if (!isObject(clip)) {
+    return `clip ${index} must be an object with the clip fields.`;
+  }
+  if (typeof clip.id !== "string" || clip.id.length === 0) {
+    return `clip ${index} must have a non-empty string id.`;
+  }
+  if (typeof clip.clip_id !== "number") {
+    return `clip ${index} must have a numeric clip_id.`;
+  }
+  if (typeof clip.concept_title !== "string" || clip.concept_title.length === 0) {
+    return `clip ${index} must have a non-empty concept_title.`;
+  }
+  if (typeof clip.image_prompt !== "string" || clip.image_prompt.length === 0) {
+    return `clip ${index} must have a non-empty image_prompt.`;
+  }
+  if (!clip.image_prompt.endsWith(ASPECT_RATIO_LINE)) {
+    return `clip ${index} image_prompt must end with "${ASPECT_RATIO_LINE}".`;
+  }
+  if (typeof clip.video_prompt !== "string" || clip.video_prompt.length === 0) {
+    return `clip ${index} must have a non-empty video_prompt.`;
+  }
+  return null;
+}
+
+/**
  * Validate a Production Spec against the contract. Returns `{ ok, errors }`; never throws on shape.
  *
  * @param spec the candidate Production Spec (untrusted shape — defensively narrowed)
@@ -104,13 +138,21 @@ export function validate(spec: unknown): ValidationResult {
     });
   }
 
-  // clips — exactly 3
+  // clips — exactly 3, and each must satisfy the per-clip contract (not just be present)
   const clips = spec.clips;
   if (!Array.isArray(clips) || clips.length !== REQUIRED_CLIPS) {
     const got = Array.isArray(clips) ? clips.length : "missing";
     errors.push({
       code: "clips_count",
       message: `clips must have exactly ${REQUIRED_CLIPS} entries (got ${got}).`,
+    });
+  }
+  if (Array.isArray(clips)) {
+    clips.forEach((clip, i) => {
+      const reason = clipContractError(clip, i);
+      if (reason !== null) {
+        errors.push({ code: "clip_shape", message: reason });
+      }
     });
   }
 

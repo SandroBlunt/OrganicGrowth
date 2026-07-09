@@ -8,7 +8,7 @@ import {
   hasJobOfPhase,
   type QueueState,
 } from "./queue.ts";
-import { renderQueue } from "./render.ts";
+import { formatQueue } from "./format.ts";
 
 const BRAND_A = "alpha";
 const BRAND_B = "beta";
@@ -73,6 +73,36 @@ describe("enqueue (append + no-duplicate)", () => {
     assert.equal(after.jobs[1]!.brand, BRAND_B);
   });
 
+  it("does NOT treat two Brands' identical Idea id as a duplicate — both enqueue (C6)", () => {
+    // Idea ids are not Brand-unique; the second Brand's job must NOT be masked by the first.
+    const before = fixtureWithOneJob(); // BRAND_A holds idea-2026-W22-01
+    const after = enqueue(before, "idea-2026-W22-01", "2026-06-05T11:00:00.000Z", BRAND_B);
+
+    assert.equal(after.jobs.length, 2, "the second Brand's colliding Idea id must still enqueue");
+    assert.equal(after.jobs[1]!.brand, BRAND_B);
+    assert.equal(after.jobs[1]!.idea_id, "idea-2026-W22-01");
+  });
+
+  it("re-enqueues an Idea whose only prior job FAILED — a failure is not a dead end (C4)", () => {
+    const withFailed: QueueState = {
+      jobs: [
+        {
+          idea_id: "idea-2026-W22-07",
+          brand: BRAND_A,
+          phase: "cast",
+          status: "failed",
+          enqueued_at: "2026-06-05T09:00:00.000Z",
+        },
+      ],
+      lock: { active_job: null },
+    };
+    const after = enqueue(withFailed, "idea-2026-W22-07", "2026-06-05T11:00:00.000Z", BRAND_A);
+    assert.equal(after.jobs.length, 2, "a fresh queued job is appended past the failed one");
+    const fresh = after.jobs.find((j) => j.status === "queued")!;
+    assert.equal(fresh.idea_id, "idea-2026-W22-07");
+    assert.equal(fresh.brand, BRAND_A);
+  });
+
   it("does NOT duplicate a job when the same idea_id is enqueued again", () => {
     const before = fixtureWithOneJob();
     const after = enqueue(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
@@ -101,8 +131,25 @@ describe("enqueue (append + no-duplicate)", () => {
 describe("hasJobFor", () => {
   it("is true for an idea already in the queue and false otherwise", () => {
     const q = fixtureWithOneJob();
-    assert.equal(hasJobFor(q, "idea-2026-W22-01"), true);
-    assert.equal(hasJobFor(q, "idea-2026-W22-99"), false);
+    assert.equal(hasJobFor(q, BRAND_A, "idea-2026-W22-01"), true);
+    assert.equal(hasJobFor(q, BRAND_A, "idea-2026-W22-99"), false);
+  });
+
+  it("is keyed on (brand, idea_id) — a different Brand's same Idea id does not match (C6)", () => {
+    const q = fixtureWithOneJob(); // BRAND_A holds idea-2026-W22-01
+    assert.equal(hasJobFor(q, BRAND_B, "idea-2026-W22-01"), false);
+  });
+
+  it("ignores a terminal (failed/done) job — the Idea reads as re-enqueueable (C4)", () => {
+    const q: QueueState = {
+      jobs: [
+        { idea_id: "idea-f", brand: BRAND_A, phase: "cast", status: "failed", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-d", brand: BRAND_A, phase: "render", status: "done", enqueued_at: "2026-06-05T10:01:00.000Z" },
+      ],
+      lock: { active_job: null },
+    };
+    assert.equal(hasJobFor(q, BRAND_A, "idea-f"), false, "a failed-only Idea has no live job");
+    assert.equal(hasJobFor(q, BRAND_A, "idea-d"), false, "a done-only Idea has no live job");
   });
 });
 
@@ -124,7 +171,7 @@ describe("enqueueRender (picking a Cast enqueues the render)", () => {
   }
 
   it("appends exactly one queued render-phase job for the idea_id", () => {
-    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
+    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A, "cast-2");
     const renders = after.jobs.filter((j) => j.phase === "render");
     assert.equal(renders.length, 1);
     const job = renders[0]!;
@@ -134,29 +181,40 @@ describe("enqueueRender (picking a Cast enqueues the render)", () => {
     assert.match(job.enqueued_at, ISO_8601);
   });
 
+  it("stamps the chosen Character onto the render job (C1)", () => {
+    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A, "cast-4");
+    const render = after.jobs.find((j) => j.phase === "render")!;
+    assert.equal(render.character, "cast-4", "the Operator's pick must ride on the render job");
+    // The cast job never carries a character.
+    const castJob = after.jobs.find((j) => j.phase === "cast")!;
+    assert.equal(castJob.character, undefined);
+  });
+
   it("stamps brand on the render job (AC1, AC6)", () => {
-    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_B);
+    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_B, "cast-1");
     const render = after.jobs.find((j) => j.phase === "render")!;
     assert.equal(render.brand, BRAND_B);
   });
 
   it("preserves the Idea's prior cast job (a render is distinct from the cast)", () => {
-    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
+    const after = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A, "cast-1");
     assert.equal(after.jobs.filter((j) => j.phase === "cast").length, 1);
     assert.equal(after.jobs.length, 2);
   });
 
   it("does NOT duplicate the render job when called again for the same Idea", () => {
-    const once = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
-    const twice = enqueueRender(once, "idea-2026-W22-01", "2026-06-05T13:00:00.000Z", BRAND_A);
+    const once = enqueueRender(castAtGate(), "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A, "cast-1");
+    const twice = enqueueRender(once, "idea-2026-W22-01", "2026-06-05T13:00:00.000Z", BRAND_A, "cast-5");
     assert.equal(twice.jobs.filter((j) => j.phase === "render").length, 1);
     assert.equal(twice, once); // idempotent: same reference, no work
+    // the first pick stands — the second (different) Character does NOT overwrite it
+    assert.equal(twice.jobs.find((j) => j.phase === "render")!.character, "cast-1");
   });
 
   it("is pure: it never mutates the input state", () => {
     const before = castAtGate();
     const snapshot = JSON.stringify(before);
-    enqueueRender(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A);
+    enqueueRender(before, "idea-2026-W22-01", "2026-06-05T12:00:00.000Z", BRAND_A, "cast-1");
     assert.equal(JSON.stringify(before), snapshot);
   });
 });
@@ -179,10 +237,13 @@ describe("hasJobOfPhase", () => {
       "idea-X",
       "2026-06-05T12:00:00.000Z",
       BRAND_A,
+      "cast-1",
     );
-    assert.equal(hasJobOfPhase(q, "idea-X", "cast"), true);
-    assert.equal(hasJobOfPhase(q, "idea-X", "render"), true);
-    assert.equal(hasJobOfPhase(q, "idea-Y", "render"), false);
+    assert.equal(hasJobOfPhase(q, BRAND_A, "idea-X", "cast"), true);
+    assert.equal(hasJobOfPhase(q, BRAND_A, "idea-X", "render"), true);
+    assert.equal(hasJobOfPhase(q, BRAND_A, "idea-Y", "render"), false);
+    // Composite-keyed: a different Brand's same Idea id does not match (C6).
+    assert.equal(hasJobOfPhase(q, BRAND_B, "idea-X", "render"), false);
   });
 });
 
@@ -202,9 +263,9 @@ describe("/queue renderer reflects all five worker statuses", () => {
         { idea_id: "idea-d", brand: BRAND_B, phase: "render", status: "done", enqueued_at: "2026-06-05T10:03:00.000Z" },
         { idea_id: "idea-f", brand: BRAND_B, phase: "render", status: "failed", enqueued_at: "2026-06-05T10:04:00.000Z" },
       ],
-      lock: { active_job: "idea-r" },
+      lock: { active_job: { brand: BRAND_A, idea_id: "idea-r" } },
     };
-    const out = renderQueue(state);
+    const out = formatQueue(state);
     for (const status of ["queued", "running", "awaiting_cast", "done", "failed"]) {
       assert.ok(out.includes(status), `expected /queue output to include status "${status}"`);
     }

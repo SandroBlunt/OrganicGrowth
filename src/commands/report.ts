@@ -20,6 +20,8 @@
  * a silent MundoTip fallback (issue #20).
  */
 
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import {
   loadReport,
   type ReportData,
@@ -127,7 +129,7 @@ export function renderReport(data: ReportData, brand?: string): string {
  */
 export async function reportCommand(brand: string, ledgerPath?: string, brandsRoot?: string): Promise<string> {
   const resolvedLedgerPath = ledgerPath ?? resolveBrand(brand, brandsRoot).ledger;
-  const data = await loadReport(resolvedLedgerPath);
+  const data = await loadReport(resolvedLedgerPath, brand);
   return renderReport(data, brand);
 }
 
@@ -149,7 +151,10 @@ export async function main(): Promise<void> {
   process.stdout.write(output + "\n");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// C41: compare resolved paths, not a hand-built `file://` string — the latter breaks on paths with
+// spaces (percent-encoded in `import.meta.url`) or symlinks, silently making a direct run a no-op.
+const entryPoint = process.argv[1];
+if (entryPoint !== undefined && fileURLToPath(import.meta.url) === resolve(entryPoint)) {
   main().catch((err: unknown) => {
     process.stderr.write(`/report failed: ${String(err)}\n`);
     process.exitCode = 1;

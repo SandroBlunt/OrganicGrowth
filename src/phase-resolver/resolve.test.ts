@@ -19,12 +19,12 @@ function idea(id: string, status: string): LedgerIdea {
   return { id, status };
 }
 
-function job(ideaId: string, brand = "test-brand"): QueueJob {
+function job(ideaId: string, brand = "test-brand", status: QueueJob["status"] = "queued"): QueueJob {
   return {
     idea_id: ideaId,
     brand,
     phase: "cast",
-    status: "queued",
+    status,
     enqueued_at: "2026-06-06T00:00:00Z",
   };
 }
@@ -172,6 +172,25 @@ describe("resolvePhase — stranded accepted Ideas (AC4)", () => {
     assert.ok(!result.strandedIdeas.includes("i2"));
     assert.ok(result.strandedIdeas.includes("i3"));
     assert.equal(result.strandedIdeas.length, 2);
+  });
+
+  it("accepted idea whose ONLY job is failed → stranded, not live (C4)", () => {
+    // A failed cast job is a dead end: the Idea needs re-enqueue, so the resolver must surface it.
+    const result = resolvePhase([idea("i1", "accepted")], [job("i1", "test-brand", "failed")]);
+    assert.ok(result.strandedIdeas.includes("i1"), "a failed-only accepted Idea must be stranded");
+    assert.equal(result.phase, "production");
+  });
+
+  it("accepted idea whose only job is done → stranded (no live work) (C4)", () => {
+    const result = resolvePhase([idea("i1", "accepted")], [job("i1", "test-brand", "done")]);
+    assert.ok(result.strandedIdeas.includes("i1"));
+  });
+
+  it("accepted idea with a live (queued) job alongside a failed one → NOT stranded (C4)", () => {
+    // A prior failure plus a fresh live job means the Idea is being produced — not stranded.
+    const jobs = [job("i1", "test-brand", "failed"), job("i1", "test-brand", "queued")];
+    const result = resolvePhase([idea("i1", "accepted")], jobs);
+    assert.deepEqual(result.strandedIdeas, []);
   });
 
   it("stranded accepted ideas do not add a gate to pendingGates", () => {
