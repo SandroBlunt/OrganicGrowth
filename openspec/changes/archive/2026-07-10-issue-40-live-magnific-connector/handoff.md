@@ -347,3 +347,35 @@ None. No defects found in this round.
   adapter plugs into that same loop correctly for the real running→terminal transition.
 
 **Verdict: PASS.** Slice is ready to proceed to a branch + PR per `/build-issue`'s gate behavior.
+
+---
+
+## Addendum — follow-up fixes (deferred, post-merge)
+
+This adapter-only slice deliberately did **not** fix the following; they are real mismatches the live
+capture surfaced, tracked here so the sibling runtime slices pick them up. None blocks this slice's
+acceptance (the adapter is correct against the port contract; these are about making a real end-to-end
+run work).
+
+1. **Live board `Producer Protocol` node is pre-canonical.** Node `909da70a…` holds a run-plan whose
+   text begins with a stray `f{` and does not parse under the canonical run-point schema, so the
+   existing Fallback Protocol recovers instead of running the canonical path. **Fix:** update the
+   on-board `Producer Protocol` node to the canonical schema (Operator-side board edit), or reconcile
+   the parser to accept the current shape. **Owner:** slice **#41** (worker host + wire end-to-end),
+   since that is the first slice to drive the canonical path live.
+
+2. **`driver.ts` pin-goal text names the wrong node.** The Character-pin goal in `driver.ts` is
+   hard-coded as `"Character #2"`, but the live board renamed that creation node to **"Selected
+   Character"** (`ba631f44…`). `verifyPinned` is already correct (it reads the node's
+   `creationIdentifier`, not the name), but the *pin edit* goal must be updated or it addresses a node
+   name that no longer exists on the live board. **Fix:** parameterize/rename the pin-goal target to
+   "Selected Character" (touches `driver.ts`, which this slice keeps unmodified). **Owner:** slice
+   **#41**.
+
+3. **Failure/recovery + Phase-B render shapes were never captured live.** `RunStatus.startNodeMissing`,
+   a failed `editStatus`, agent-recovery-with-creations, and a full Phase-B clip render are currently
+   **synthesized** in the replay double (clearly labeled). **Fix:** a second one-time sanctioned live
+   capture of those shapes, folded into `src/space-driver/fixtures/live-captures/`, when #41 exercises
+   the render path. **Owner:** slice **#41**.
+
+_Added 2026-07-10 as an addendum to this slice at the Operator's request, immediately before merge._
