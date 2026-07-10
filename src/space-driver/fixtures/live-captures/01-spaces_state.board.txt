@@ -1,0 +1,79 @@
+board:
+  uuid: a1f05d67-1b98-4d10-9251-6603bea3b578
+  elementsCount: 58
+  connectionsCount: 48
+  currentPageId: "1"
+page:
+  id: "1"
+  name: Page 1
+  order: 1
+  type: canvas
+  isCurrent: true
+pageIndex[1]{pageId,pageName,nodeCount,isCurrent}:
+  "1",Page 1,58,true
+selectedElementIds[0]:
+selectedConnectionIds[0]:
+nodes[58]{id,type,name,selected,x,y,width,height,pageId,sourceNodeId,groupId,panelIndex,workflowStatus}:
+  010b563f-f31d-4828-99be-b8f3a8f3cf78,prompt-generator,Video Prompt Clip 3,false,5377.34,5672.76,420,392,"1",null,4e98dc35-294b-4cc0-b20f-273ea0ed220d,null,idle
+  0169b3c9-20cf-4314-8a1c-b4d358fc43ea,text,Text #13,false,-1125.38,4100.11,367,205,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,idle
+  0454f66c-a5f4-4794-855c-96154f8479d7,text,Text #16,false,-12771.06,4028.73,738,655,"1",null,null,null,idle
+  08042ae4-f808-4103-a4a7-6438afbb1686,panel,Step 1 - Paste your JSON here,false,-3400.52,3245.04,1480,1141,"1",null,null,null,null
+  0f2231d5-b6bc-40e4-a0c8-8b46766c553e,panel,Step 2 - Character Generation,false,-1727.65,3263.69,2339,1136,"1",null,null,null,null
+  13fa679d-16e1-4177-b6e8-19d87ef6deb4,prompt-generator,Image Prompt Clip 1,false,3655.82,3687.47,420,392,"1",null,50554c71-6448-4488-b595-a381c939d57e,null,completed
+  1e4f51f1-d745-4ea4-a26b-3a579842810b,video-generator,Video Generator #4,false,5887.96,3328.76,420,747,"1",null,314baa6a-018e-425a-8164-00fc655851c6,null,idle
+  22bf912e-f1e9-4478-8a64-473813103082,panel,Clip 2 - Frames,false,3624.29,4295.57,1498.78,830.71,"1",null,null,null,null
+  26aaee96-607b-4925-87d3-84471c8ce5c3,video-combiner,Video Combiner,false,7934.33,3788.38,628,1200,"1",null,a754c484-498f-4dae-ae39-628ede54c9ee,null,idle
+  27469f08-a553-4c3c-b402-826b6f332f91,image-generator,Clip 1,false,4175.17,4335.57,419,750.71,"1",null,22bf912e-f1e9-4478-8a64-473813103082,null,idle
+  2adb1eb7-13d2-44b9-816d-5841f747005f,prompt-generator,Image Prompt Clip 2,false,3664.29,4676.51,420,392,"1",null,22bf912e-f1e9-4478-8a64-473813103082,null,completed
+  2cef2ec0-3cf4-4e88-a4e7-73eb9c43e863,image-generator,Clip 1 Watermark,false,4671.07,3329.85,420,753,"1",null,50554c71-6448-4488-b595-a381c939d57e,null,completed
+  314baa6a-018e-425a-8164-00fc655851c6,panel,Clip 1,false,5337.34,3288.76,1010.61,827,"1",null,null,null,null
+  354650bf-53be-4cbb-9c41-c782d3bbc574,prompt-generator,Image Prompt Clip 3,false,3655.82,5671.59,420,392,"1",null,95ce1b11-2f01-4099-8fa2-225d4a636188,null,completed
+  46c419ca-042a-4037-b898-be1039f9c229,prompt-generator,Copy,false,7503.2,6742.39,379,388,"1",null,d8d57a76-ca7e-4420-b7e6-0f217ce684cd,null,idle
+  47bbcceb-44ca-4d6a-af24-58885a9cbdb1,image-generator,Clip 1,false,4175.17,3328.76,419,750.71,"1",null,50554c71-6448-4488-b595-a381c939d57e,null,completed
+  48c8effa-735d-41c3-9d1e-caa439bd21d6,list,List #2,false,6936.99,6379.68,490,749,"1",null,d8d57a76-ca7e-4420-b7e6-0f217ce684cd,null,completed
+  4e98dc35-294b-4cc0-b20f-273ea0ed220d,panel,Clip 3,false,5337.34,5287.46,996.85,827,"1",null,null,null,null
+  50554c71-6448-4488-b595-a381c939d57e,panel,Clip 1 - Frames,false,3615.82,3288.76,1515.25,834.08,"1",null,null,null,null
+  51528e51-613b-40ca-8492-22dae8b02d44,text,Text #18,false,-12769.23,5502.8,738,655,"1",null,null,null,idle
+  65853b6d-5f83-41d9-a6da-4d4bc553ac43,creation,Solution,false,-5301.56,3261.64,1200,675,"1",null,null,null,null
+  6a3614f4-666e-4d86-9d3a-ea7987ea6ddf,image-generator,Image Generator #3,false,-11875.77,5502.8,1086.22,611,"1",null,null,null,idle
+  6bc54e3e-ffc9-4038-aeb7-667dc9f3b474,text,JSON Master,false,-3251.05,3349.91,1178,918,"1",null,08042ae4-f808-4103-a4a7-6438afbb1686,null,idle
+  77cb5df4-ee3c-49e5-9095-66d185a693f1,prompt-generator,Clip extractor,false,2469.27,3562.07,481,778,"1",null,f1b7e171-20de-4eb5-9bd3-2698d82c4c66,null,completed
+  7a033f4f-aea7-4a31-80f4-783b0987e15a,image-generator,Seedream Style,false,123.5,3322.13,420,747,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,idle
+  7ab18bfd-b78b-480d-9a1e-c8c04967f236,list,List #3,false,133.33,4110.61,395,200,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,completed
+  8c3e94bc-45dd-4b1a-9731-9eb84e5cfefe,references,character3d,false,-709.33,4105.11,192,192,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,idle
+  909da70a-282e-4f1d-b255-6765ac7a8b29,text,Producer Protocol,false,-3956.01,3261.64,380,230,"1",null,null,null,idle
+  90e2baa9-fa91-46ca-84c8-0205019fd116,text,Text #7,false,946.52,3328.76,439,186,"1",null,bc02b5b9-9652-4a20-a124-2bdbf3c6ef2d,null,idle
+  95ce1b11-2f01-4099-8fa2-225d4a636188,panel,Clip 3 - Frames,false,3615.82,5281.41,1534.6,839.83,"1",null,null,null,null
+  9b6e3db9-29b4-4eb2-bb6e-e37853b5356b,text,Text #11,false,2478.33,3317.61,368,178,"1",null,f1b7e171-20de-4eb5-9bd3-2698d82c4c66,null,idle
+  a4e8d4ad-9253-463e-aa73-e82e28fe25ce,text,Text #14,false,1834.87,3317.61,388,185,"1",null,f1b7e171-20de-4eb5-9bd3-2698d82c4c66,null,idle
+  a52dce7c-ba1e-4916-b298-6164c323e646,image-generator,Clip 3 Watermark,false,4690.42,5328.23,420,753,"1",null,95ce1b11-2f01-4099-8fa2-225d4a636188,null,completed
+  a754c484-498f-4dae-ae39-628ede54c9ee,panel,FInal Output,false,7157.5,3748.38,1443.83,1533.03,"1",null,null,null,null
+  ac5d12f9-035e-4dec-950d-dcb696f9219e,prompt-generator,Thumbnail #2,false,5385.68,6372.85,460,782,"1",null,d8d57a76-ca7e-4420-b7e6-0f217ce684cd,null,idle
+  acc945fc-b5c3-4ce4-bed1-6e0c2fd15224,image-generator,Nano Banana Style,false,-371.88,3322.13,420,747,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,idle
+  ad0a7110-ac30-4831-8cd8-c2a63d869173,image-generator,Clip 3,false,4184.86,5321.41,420,753,"1",null,95ce1b11-2f01-4099-8fa2-225d4a636188,null,completed
+  b457204d-dcd5-4f1b-ab12-09325824cd9c,list,List #4,false,-371.88,4105.11,416,200,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,idle
+  ba631f44-a804-4f8f-98c7-2c31b5eb1002,creation,Selected Character,false,946.52,3551.26,438.26,767,"1",null,bc02b5b9-9652-4a20-a124-2bdbf3c6ef2d,null,idle
+  bc02b5b9-9652-4a20-a124-2bdbf3c6ef2d,panel,Step 3 - Set Character,false,829.26,3261.64,682.26,1147.04,"1",null,null,null,null
+  bfd20cd1-9468-4e96-a237-157b9aefda8f,prompt-generator,Character Variants Generator,false,-1645.78,3613.47,420,392,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,idle
+  c1a94ff3-c2d0-44f8-a9e8-2042aef66c42,panel,Clip 2,false,5345.68,4297.11,979.84,833.88,"1",null,null,null,null
+  c1aeda89-6443-45d3-8d54-9dc0bccd6c9d,list,Character concepts list,false,-1148.24,3405.47,400,600,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,idle
+  c1be47c0-a98a-48e4-ba3e-70efa729445e,list,Thumbnails prompts #2,false,5945.46,6372.85,361,780,"1",null,d8d57a76-ca7e-4420-b7e6-0f217ce684cd,null,idle
+  c3f89f25-576c-4b68-9568-cf0f1f7ca1f5,text,Text #15,false,7333.27,5058.41,938,183,"1",null,a754c484-498f-4dae-ae39-628ede54c9ee,null,idle
+  cc1f9ff6-d19a-4f20-b296-dfbff4a51e0d,text,Text #12,false,-1645.78,3322.13,411,224,"1",null,0f2231d5-b6bc-40e4-a0c8-8b46766c553e,null,idle
+  cec8b411-9f11-4c90-b3d6-cb790dfa40e6,video-generator,Video Generator #5,false,5865.52,4337.11,420,747,"1",null,c1a94ff3-c2d0-44f8-a9e8-2042aef66c42,null,completed
+  cfbbc5e7-8dc1-42ec-a723-2c8c6eb3c5f7,image-generator,Clip 1 Watermark,false,4671.07,4348.11,412,738.17,"1",null,22bf912e-f1e9-4478-8a64-473813103082,null,idle
+  d1df20b0-bb61-4f90-bf6b-7291a03c9fd5,creation,Creation #3,false,7197.5,3790.51,669.72,1200,"1",null,a754c484-498f-4dae-ae39-628ede54c9ee,null,null
+  d8d57a76-ca7e-4420-b7e6-0f217ce684cd,panel,Thumbnail and Post Copy,false,5345.68,6332.85,2576.52,862,"1",null,null,null,null
+  dba44b96-a182-41f9-8473-a02b4c1dbac1,image-generator,Image Generator #1,false,-11876.8,4028.73,697,392,"1",null,null,null,completed
+  ebdb5917-ac4c-48ee-a23b-9abb096006f0,prompt-generator,Video Prompt Clip 1,false,5377.34,3683.76,420,392,"1",null,314baa6a-018e-425a-8164-00fc655851c6,null,idle
+  ec9f674e-fbab-4dd4-b14c-8e3fe6df8449,creation,Problem and Stack,false,-6633.28,3261.64,1200,675,"1",null,null,null,null
+  f1b7e171-20de-4eb5-9bd3-2698d82c4c66,panel,Step 4 - Generate,false,1731.28,3263.69,1316,1162,"1",null,null,null,null
+  f5b5b444-887e-4ea9-b249-4304d5b19b50,video-generator,Video Generator #6,false,5874.19,5327.46,420,747,"1",null,4e98dc35-294b-4cc0-b20f-273ea0ed220d,null,completed
+  f6d01b13-f057-4d3d-9613-fb9a67c98e71,image-generator,Clip 5 #2,false,6435.34,6379.68,419,750.71,"1",null,d8d57a76-ca7e-4420-b7e6-0f217ce684cd,null,completed
+  fb24993f-f677-487d-b08e-62afeaa2011b,prompt-generator,Video Prompt Clip 2,false,5385.68,4698.99,420,392,"1",null,c1a94ff3-c2d0-44f8-a9e8-2042aef66c42,null,idle
+  fe667ee4-e6e0-4ca2-bb31-514f8e07c8f8,text,Watermark instructions,false,1834.87,3562.07,393,335,"1",null,f1b7e171-20de-4eb5-9bd3-2698d82c4c66,null,idle
+NOTE: this file is a faithful hand-transfer of the live `spaces_state` TOON. The `nodeData[129]` and
+`connections[48]` sections are large; the byte-exact, machine-captured copy of the SAME board (all 58
+nodes with every field, plus the creation media identifiers) is in `00-spaces_show.fullboard.json`. Two
+node `x/y` values above were re-wrapped by the transfer and are NOT load-bearing (layout coordinates only);
+ids, names, types, and workflowStatus — the fields the parser reads — are exact. See README.md.

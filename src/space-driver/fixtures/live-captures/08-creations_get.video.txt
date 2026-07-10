@@ -1,0 +1,32 @@
+identifier: IaAOyRntvE
+family: 9ad7737c-ca82-4dae-a5af-acf6cc9f494b
+tool: video-combiner
+kind: video
+status: completed
+url: "https://pikaso.cdnpk.net/private/production/4522929259/9ad7737c-ca82-4dae-a5af-acf6cc9f494b-0.mp4?token=REDACTED"
+thumbnailUrl: "https://pikaso.cdnpk.net/private/production/4522929359/start_frame.jpg?token=REDACTED"
+createdAt: "2026-06-07T13:29:55+00:00"
+metadata:
+  mode: video-combine
+  width: 718
+  height: 1284
+  duration: 24
+  fps: 24
+  mediaCollection[4]:
+    - type: video
+      url: "https://pikaso.cdnpk.net/private/production/4522929259/9ad7737c-ca82-4dae-a5af-acf6cc9f494b-0.mp4?token=REDACTED"
+      createdAt: "2026-06-07T13:30:00.000000Z"
+    - type: frame
+      index: 0
+      timestamp: 0
+      url: "https://pikaso.cdnpk.net/private/production/4522929359/start_frame.jpg?token=REDACTED"
+      createdAt: "2026-06-07T13:30:01.000000Z"
+    - type: frame
+      index: -1
+      timestamp: -1
+      url: "https://pikaso.cdnpk.net/private/production/4522929371/end_frame.jpg?token=REDACTED"
+      createdAt: "2026-06-07T13:30:01.000000Z"
+    - type: audio
+      url: "https://pikaso.cdnpk.net/private/production/4522929375/audio.mp3?token=REDACTED"
+      createdAt: "2026-06-07T13:30:01.000000Z"
+webUrl: "https://www.magnific.com/app/creation/IaAOyRntvE?utm_source=mcp&utm_medium=ai_connector"
