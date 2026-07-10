@@ -24,3 +24,9 @@ brand_safety:
   - "No medical or 'cure' claims."
   - "No dangerous stunts presented as safe."
   - "No misleading 'miracle' framing."
+
+# Production: which Magnific Space the producer drives to turn an accepted Idea into an Asset.
+production:
+  space_id: "a1f05d67-1b98-4d10-9251-6603bea3b578"   # "Organic Character Explainer" cast→clips studio
+  # space_url: ""                                     # optional — space_id is enough on its own
+  watermark_handle: ""                                # TODO: the @handle stamped on MundoTip's videos (set before rendering)
