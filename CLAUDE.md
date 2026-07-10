@@ -35,14 +35,15 @@ Run once a week. Steps marked 👤 are the Operator. **The agent auto-advances t
 steps and pauses only at the three human gates (Review, Cast pick, Publish) — it never asks the
 Operator to run a step it can run itself, and never renders past a gate before the Operator acts.**
 
-> **Not-yet-wired caveat (production runtime).** The unattended production steps below (3 and 4 —
-> draining the Production Queue, running the Space, rendering the Asset) describe the *intended*
-> design, not a runtime that exists today. There is **no live Magnific adapter, no worker host, and no
-> real unattended-permission wiring** — the only Space implementations are the test fakes, and nothing
-> in production calls the queue worker. Until that runtime is built (a future build slice), accepting
-> an Idea enqueues it but no Cast or Asset is produced automatically. Treat every "the producer drains
-> the queue in the background / renders unattended" phrasing in this file as design intent, not
-> shipped behaviour.
+> **Production runtime (attended).** Production runs **in the Operator's session**, not in an unattended
+> background process. The `producer` is an interactive agent — given the Magnific MCP tools — that drives
+> the **live** Space while the Operator is present and approves the Space calls as they happen. There is
+> deliberately **no headless worker host and no unattended-permission wiring**: that "background,
+> self-draining" runtime was designed (epic #39) and then dropped as unnecessary, because the Operator is
+> already present at the Cast gate ([`docs/adr/0008`](./docs/adr/0008-producer-drives-the-space-attended.md)
+> supersedes [`docs/adr/0004`](./docs/adr/0004-producer-serialized-background-queue.md)). The **Production
+> Queue** stays as a simple to-do list of accepted Ideas; the producer works through it one at a time
+> while the Operator is present — nothing drains it in the background.
 
 1. `/run-trends` → `trend-scout` scrapes peer Pages (Apify) for posts beating their *own* page
    baseline → distills **Trends**; then `idea-strategist` turns the strongest into ~10 **Idea
@@ -50,16 +51,16 @@ Operator to run a step it can run itself, and never renders past a gate before t
 2. 👤 **Gate 1 — Review.** `/review-ideas` → Operator accepts/rejects conversationally; every
    **Rejection Reason** is logged verbatim (v1 does not auto-apply them). **Accepting an Idea enqueues
    it for production** — no separate kickoff.
-3. **Production (background, serialized).** As soon as an Idea is accepted, the `producer` works the
-   **Production Queue**: generates a **Production Spec** from the Brief + the Space's own system prompt,
-   injects it, runs the **cast** run-point, returns the **Cast**, and pauses that Idea at the Cast gate
-   (status `accepted → casting`). The Space runs **one generation at a time**, so the Producer
-   serializes the queue; an Idea waiting at its gate does **not** hold the Space — the next queued
-   cast-gen proceeds meanwhile. `/queue` shows the backlog.
+3. **Production (attended, serialized).** When an Idea is accepted it goes on the **Production Queue** (a
+   simple to-do list). The `producer` runs **in the Operator's session** and works the queue one Idea at
+   a time: it generates a **Production Spec** from the Brief + the Space's own system prompt, injects it,
+   runs the **cast** run-point, returns the **Cast**, and pauses that Idea at the Cast gate (status
+   `accepted → casting`). The Space runs **one generation at a time**, so the Producer drives one run to
+   completion before the next; the Operator approves the Space calls as they happen. `/queue` shows the
+   backlog.
 4. 👤 **Gate 2 — Cast pick.** `/pick-cast <idea-id> <n>` → Operator picks the **Character**; the
-   `producer` **queues the render**, then renders to completion *unattended* when the Space is free —
-   pins the Character, runs the **clip** run-point, saves the finished **Asset**. Status
-   `casting → produced`.
+   `producer` then renders the Asset in the same session — pins the Character, runs the **clip**
+   run-point, saves the finished **Asset**. Status `casting → produced`.
 5. 👤 **Gate 3 — Publish.** Operator publishes the Asset to the Channel's platform, then `/log-post <idea-id> <post-url>`
    links the published **Post** to its **Idea** (explicit attribution — never inferred). Status
    `produced → posted`.
@@ -149,10 +150,10 @@ those are the source of truth, not this list. What's worth knowing because it's 
 
 All state is plain files (no database), scoped per Brand under `data/brands/<slug>/`:
 `brand-profile.yaml`, `seeds.yaml`, `ideas/<run>/idea-NN.md` (one Brief each),
-`ideas/<run>/idea-NN.spec.json` (the **Production Spec**, written by the background `producer` when an
-accepted Idea is produced — there is **no `/produce`** command; accepting an Idea auto-enqueues it),
+`ideas/<run>/idea-NN.spec.json` (the **Production Spec**, written by the `producer` when an
+accepted Idea is produced — there is **no `/produce`** command; accepting an Idea adds it to the queue),
 and `ledger.json` (Idea ⇄ Cast ⇄ Asset ⇄ Post ⇄ Performance, with status). The Production Queue is the
-one exception — it is brand-agnostic at `data/queue.json` (ADR-0004, ADR-0006).
+one exception — it is brand-agnostic at `data/queue.json` (ADR-0006, ADR-0008).
 Lifecycle: `suggested → accepted → casting → produced → posted → tracking → scored` (or `rejected`).
 `/log-post` sets `posted`; `/track-performance` sets `tracking` while a Post is < 7 days old (measured
 but still climbing) and `scored` once it is 7+ days old (settled — final for the feedback loop).
