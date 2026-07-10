@@ -1,0 +1,17 @@
+identifier: 9RwKMfINYZ
+family: 8e273240-a6e6-4a9f-a0c6-b1ae33620fce
+tool: text-to-image
+status: completed
+url: "https://pikaso.cdnpk.net/private/production/4843244738/render.png?token=REDACTED"
+thumbnailUrl: "https://pikaso.cdnpk.net/private/production/4843244738/conversions/render-preview.jpg?token=REDACTED"
+previewUrl: "https://pikaso.cdnpk.net/private/production/4843244738/render.png?token=REDACTED&w=1024&preview=1"
+createdAt: "2026-07-10T08:11:43+00:00"
+metadata:
+  prompt: "Skeptic the Spatula: a wide-eyed anthropomorphic silicone spatula with a flexible flat head, raised eyebrow, springy arms and a 'wait, that can't be right' expression."
+  mode: imagen-nano-banana-2-flash
+  width: 768
+  height: 1344
+  resolution: 1k
+  seed: 879374091
+  credits: 75
+webUrl: "https://www.magnific.com/app/creation/9RwKMfINYZ?utm_source=mcp&utm_medium=ai_connector"

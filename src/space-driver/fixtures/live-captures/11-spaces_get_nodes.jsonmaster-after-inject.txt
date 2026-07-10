@@ -1,0 +1,15 @@
+board:
+  uuid: a1f05d67-1b98-4d10-9251-6603bea3b578
+  elementsCount: 1
+  connectionsCount: 2
+  currentPageId: "1"
+requestedNodeIds[1]: 6bc54e3e-ffc9-4038-aeb7-667dc9f3b474
+missingNodeIds[0]:
+nodes[1]{id,type,name,selected,x,y,width,height,pageId,sourceNodeId,groupId,panelIndex,workflowStatus}:
+  6bc54e3e-ffc9-4038-aeb7-667dc9f3b474,text,JSON Master,false,-3251.05,3349.91,1178,918,"1",null,08042ae4-f808-4103-a4a7-6438afbb1686,null,idle
+nodeData[2]{elementId,key,value}:
+  6bc54e3e-ffc9-4038-aeb7-667dc9f3b474,text,"{\"capture\":\"ISSUE40-INJECT\",\"character_concepts\":[\"Capture One\",\"Capture Two\",\"Capture Three\"],\"clips\":[],\"post_copy\":\"capture marker\",\"thumbnails\":[]}"
+  6bc54e3e-ffc9-4038-aeb7-667dc9f3b474,color,#1C1C1C
+connections[2]{id,sourceElementId,sourcePort,targetElementId,targetPort,dataType,pageId,sourcePageId,targetPageId,selected}:
+  20b066d1-58f4-43cb-8883-e72ba0249012,6bc54e3e-ffc9-4038-aeb7-667dc9f3b474,text,77cb5df4-ee3c-49e5-9095-66d185a693f1,prompt,text,"1","1","1",false
+  293b309c-d575-41ae-8fd2-2de0f158b9df,6bc54e3e-ffc9-4038-aeb7-667dc9f3b474,text,bfd20cd1-9468-4e96-a237-157b9aefda8f,prompt,text,"1","1","1",false
