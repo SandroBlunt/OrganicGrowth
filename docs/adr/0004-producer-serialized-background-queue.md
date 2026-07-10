@@ -1,6 +1,9 @@
 # Producer owns a serialized, auto-enqueued background Production Queue
 
-**Status:** accepted — extends ADR-0003 (the Producer execution model).
+**Status:** **Superseded by [ADR-0008](./0008-producer-drives-the-space-attended.md)** (2026-07-10) — the
+background/unattended queue model was dropped for the attended producer (the Operator is already present
+at the Cast gate, so nothing is truly hands-off). Originally: accepted, extending ADR-0003. The original
+decision is retained below for history.
 
 The Magnific Space runs **one generation at a time** (no parallelism). With several Ideas accepted in a
 Run, their generations must be serialized. We decided the `producer` owns this as a **Production Queue**,

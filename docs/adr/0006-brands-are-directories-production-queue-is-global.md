@@ -1,7 +1,8 @@
 # Brands are directories (not a registry); the Production Queue is global and brand-agnostic
 
-**Status:** accepted — extends ADR-0004 (the serialized background Production Queue); aligns with
-the Brand definition in CONTEXT.md.
+**Status:** accepted — extends ADR-0008 (the attended Production Queue, which supersedes ADR-0004's
+background model); aligns with the Brand definition in CONTEXT.md. The "queue is global and
+brand-agnostic" reasoning below is unaffected by attended-vs-background.
 
 OrganicGrowth manages many Brands. Each Brand owns its own Brand Profile, seeds, Your Data, ledger,
 and ideas. We need a way to enumerate all Brands and to map a Brand slug to its on-disk paths — without
