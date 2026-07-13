@@ -27,7 +27,9 @@ then set up the "but does the benchmark match real work?" tension. (Concept only
 #Grok #Claude #AInews #AIcoding #ModelComparison
 
 ## Source(s)
-- The Evolving AI Newsletter: https://newsletter.evolvingai.io/p/musk-s-grok-4-5-beats-opus-4-8-for-half-the-cost
+- xAI official (Grok 4.5 access): https://x.ai/cli
+- (Thin sourcing: no distinct tweet or benchmark paper was found embedded in the source article for
+  this specific comparison — worth a manual check before publishing.)
 
 ## Fit basis
 Model-vs-model comparison is explicitly in the niche, and the cost angle speaks straight to business

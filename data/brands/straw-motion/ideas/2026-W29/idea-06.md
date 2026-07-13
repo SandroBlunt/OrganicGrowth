@@ -28,7 +28,9 @@ place — then set up "is it good enough to switch?" Let the convenience angle c
 #X #ContentCreation #AInews #VideoEditing #CreatorTools
 
 ## Source(s)
-- The Evolving AI Newsletter: https://newsletter.evolvingai.io/p/anthropic-found-claude-echoing-human-logic
+- Nikita Bier (X Head of Product), announcement X post: https://twitter.com/nikitabier/status/2074218166033781048
+- News coverage: https://www.buzzincontent.com/news/x-rolls-out-new-video-editor-with-green-screen-multilingual-captions-on-ios-12141049
+- (No distinct official X corporate blog post was found for this specific feature.)
 
 ## Fit basis
 Generative-media / creator-tools lane, framed as news to stay on-format (the trend's own hooks lean

@@ -5,12 +5,16 @@
     "momentum": 0.95,
     "evidence": [
       {
-        "source": "The Evolving AI Newsletter",
-        "url": "https://newsletter.evolvingai.io/p/openai-wants-chatgpt-to-work-on-your-job"
+        "source": "OpenAI official (ChatGPT Work)",
+        "url": "https://openai.com/chatgpt-work/"
       },
       {
-        "source": "AI-Weekly",
-        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+        "source": "Anthropic official (Claude Cowork)",
+        "url": "https://claude.com/blog/cowork-web-mobile"
+      },
+      {
+        "source": "Meta official (Muse Spark)",
+        "url": "https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/"
       }
     ],
     "example_hooks": [
@@ -26,12 +30,12 @@
     "momentum": 0.9,
     "evidence": [
       {
-        "source": "The Evolving AI Newsletter",
-        "url": "https://newsletter.evolvingai.io/p/gpt-5-6-goes-live-for-everyone-tomorrow"
+        "source": "OpenAI's own X post (@OpenAI)",
+        "url": "https://twitter.com/OpenAI/status/2074704958419792299"
       },
       {
-        "source": "AI-Weekly",
-        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+        "source": "News coverage (regulatory approval context)",
+        "url": "https://www.cnbc.com/2026/07/08/openai-gets-us-regulatory-approval-for-gpt-5point6-rollout-axios-report.html"
       }
     ],
     "example_hooks": [
@@ -46,12 +50,16 @@
     "momentum": 0.88,
     "evidence": [
       {
-        "source": "The Evolving AI Newsletter",
-        "url": "https://newsletter.evolvingai.io/p/gpt-5-6-goes-live-for-everyone-tomorrow"
+        "source": "Anthropic official (Fable 5 redeployment)",
+        "url": "https://www.anthropic.com/news/redeploying-fable-5"
       },
       {
-        "source": "AI-Weekly",
-        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+        "source": "ClaudeDevs X post",
+        "url": "https://twitter.com/ClaudeDevs/status/2074606058128224365"
+      },
+      {
+        "source": "Anthropic cookbook (the cost-cutting playbook)",
+        "url": "https://github.com/anthropics/claude-cookbooks/blob/main/managed_agents/CMA_plan_big_execute_small.ipynb"
       }
     ],
     "example_hooks": [
@@ -66,8 +74,8 @@
     "momentum": 0.85,
     "evidence": [
       {
-        "source": "The Evolving AI Newsletter",
-        "url": "https://newsletter.evolvingai.io/p/musk-s-grok-4-5-beats-opus-4-8-for-half-the-cost"
+        "source": "xAI official (Grok 4.5 access) — thin sourcing, no tweet/paper found for this specific comparison",
+        "url": "https://x.ai/cli"
       }
     ],
     "example_hooks": [
@@ -82,12 +90,16 @@
     "momentum": 0.75,
     "evidence": [
       {
-        "source": "The Evolving AI Newsletter",
-        "url": "https://newsletter.evolvingai.io/p/anthropic-found-claude-echoing-human-logic"
+        "source": "Anthropic official research",
+        "url": "https://www.anthropic.com/research/global-workspace"
       },
       {
-        "source": "AI-Weekly",
-        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+        "source": "Anthropic's X post (@AnthropicAI)",
+        "url": "https://twitter.com/AnthropicAI/status/2074185348142280912"
+      },
+      {
+        "source": "Neuronpedia interactive demo",
+        "url": "https://neuronpedia.org/qwen3.6-27b/jlens"
       }
     ],
     "example_hooks": [
@@ -102,8 +114,12 @@
     "momentum": 0.55,
     "evidence": [
       {
-        "source": "The Evolving AI Newsletter",
-        "url": "https://newsletter.evolvingai.io/p/anthropic-found-claude-echoing-human-logic"
+        "source": "Nikita Bier (X Head of Product), announcement X post",
+        "url": "https://twitter.com/nikitabier/status/2074218166033781048"
+      },
+      {
+        "source": "News coverage — no distinct official X blog post found for this feature",
+        "url": "https://www.buzzincontent.com/news/x-rolls-out-new-video-editor-with-green-screen-multilingual-captions-on-ios-12141049"
       }
     ],
     "example_hooks": [
@@ -118,8 +134,8 @@
     "momentum": 0.4,
     "evidence": [
       {
-        "source": "AI-Weekly",
-        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+        "source": "Google official (Gemini/DeepMind blog)",
+        "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-omni-flash-nano-banana-2-lite/"
       }
     ],
     "example_hooks": [

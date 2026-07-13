@@ -27,8 +27,9 @@ then promise the plain-English "what this actually means." Curiosity carries the
 #Anthropic #Claude #AInews #AIresearch #HowAIWorks
 
 ## Source(s)
-- The Evolving AI Newsletter: https://newsletter.evolvingai.io/p/anthropic-found-claude-echoing-human-logic
-- AI-Weekly: https://ai-weekly.ai/newsletter-07-07-2026/
+- Anthropic official research: https://www.anthropic.com/research/global-workspace
+- Anthropic's X post (@AnthropicAI): https://twitter.com/AnthropicAI/status/2074185348142280912
+- Neuronpedia interactive demo: https://neuronpedia.org/qwen3.6-27b/jlens
 
 ## Fit basis
 Fits the "tech evolution" side of the niche and makes a strong curiosity piece for AI-curious

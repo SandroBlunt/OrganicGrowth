@@ -27,8 +27,8 @@ hype or not?" — so the viewer stays for the honest verdict rather than the mar
 #GPT5 #OpenAI #AInews #AItools #NoHypeAI
 
 ## Source(s)
-- The Evolving AI Newsletter: https://newsletter.evolvingai.io/p/gpt-5-6-goes-live-for-everyone-tomorrow
-- AI-Weekly: https://ai-weekly.ai/newsletter-07-07-2026/
+- OpenAI's own X post (announcement): https://twitter.com/OpenAI/status/2074704958419792299
+- News coverage (regulatory approval context): https://www.cnbc.com/2026/07/08/openai-gets-us-regulatory-approval-for-gpt-5point6-rollout-axios-report.html
 
 ## Fit basis
 Clean model-release news, a core "AI news / comparing models" beat and easy to keep plain-spoken.

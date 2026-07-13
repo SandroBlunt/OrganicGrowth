@@ -27,7 +27,7 @@ actually let you do?" so it's a meaning breakdown, not a spec dump. (Concept onl
 #GenerativeAI #AIimages #AInews #Gemini #AItools
 
 ## Source(s)
-- AI-Weekly: https://ai-weekly.ai/newsletter-07-07-2026/
+- Google official (Gemini/DeepMind blog): https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-omni-flash-nano-banana-2-lite/
 
 ## Fit basis
 Squarely in the "generative media" half of the niche, with a cost angle the business audience feels.

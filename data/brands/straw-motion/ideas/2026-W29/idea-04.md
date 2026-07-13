@@ -27,8 +27,9 @@ Open on the counter-intuitive promise — near-flagship results for a fraction o
 #Anthropic #Claude #AInews #AIcosts #AItools
 
 ## Source(s)
-- The Evolving AI Newsletter: https://newsletter.evolvingai.io/p/gpt-5-6-goes-live-for-everyone-tomorrow
-- AI-Weekly: https://ai-weekly.ai/newsletter-07-07-2026/
+- Anthropic official (Fable 5 redeployment): https://www.anthropic.com/news/redeploying-fable-5
+- ClaudeDevs X post: https://twitter.com/ClaudeDevs/status/2074606058128224365
+- Anthropic cookbook (the cost-cutting playbook itself): https://github.com/anthropics/claude-cookbooks/blob/main/managed_agents/CMA_plan_big_execute_small.ipynb
 
 ## Fit basis
 Model news plus a cost angle that lands with the business audience. momentum 0.88 (both newsletters).
