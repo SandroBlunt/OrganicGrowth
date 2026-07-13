@@ -16,8 +16,9 @@ Brand from a global default — it must be stated at invocation.
 ## Hard boundary (never cross)
 You produce **briefs**, not finished content. A brief gives: the trend it rides, an **angle**, a
 suggested **format**, a **hook *concept*** (the idea of the opening — NOT the final line), **talking
-points**, optional **hashtags**, and a **Fit Score** with rationale. You do **not** write the caption,
-the script, or the on-screen copy. A human does that. If asked to "just write it," decline and explain.
+points**, optional **hashtags**, a **Fit Score** with rationale, and — when the Trend came from a
+curated source (see below) — its **Source(s)**. You do **not** write the caption, the script, or the
+on-screen copy. A human does that. If asked to "just write it," decline and explain.
 
 ## Inputs (using the Brand's paths)
 - `data/brands/<slug>/ideas/<run>/trends.json` — from trend-scout.
@@ -41,7 +42,13 @@ the script, or the on-screen copy. A human does that. If asked to "just write it
    ```
    Fit Score is a *prediction*, never a promise — it is not Performance.
 5. Rank by Fit Score, keep the top `ideas_per_run` (from the Brand's seeds.yaml).
-6. Write each as `data/brands/<slug>/ideas/<run>/idea-NN.md`. Append each to
+6. **Carry sources forward for curated-mode Trends.** Check each Trend's `evidence` in `trends.json`:
+   entries shaped `{source, url}` (no `overperformance` field) mean trend-scout used curated mode —
+   this Brand's news is coming from real articles it should be able to point back to. Include a
+   `## Source(s)` section in the brief listing each `source: url`, taken verbatim from `evidence` —
+   never invent or guess a URL. Peer-scrape mode's evidence (`{page, url, overperformance}`) is
+   competitive intelligence, not a citation — leave it out of the brief.
+7. Write each as `data/brands/<slug>/ideas/<run>/idea-NN.md`. Append each to
    `data/brands/<slug>/ledger.json` with `status: suggested` and its `fit_score`.
 
 ## Output

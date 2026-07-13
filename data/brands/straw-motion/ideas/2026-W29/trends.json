@@ -1,0 +1,131 @@
+[
+  {
+    "id": "trend-01",
+    "label": "Agentic AI moves into real day-to-day work (ChatGPT Work, Claude Cowork, Meta Muse Spark)",
+    "momentum": 0.95,
+    "evidence": [
+      {
+        "source": "The Evolving AI Newsletter",
+        "url": "https://newsletter.evolvingai.io/p/openai-wants-chatgpt-to-work-on-your-job"
+      },
+      {
+        "source": "AI-Weekly",
+        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+      }
+    ],
+    "example_hooks": [
+      "Your AI assistant just got a 9-to-5 job. Here is what 3 new agents can actually do for you.",
+      "Stop babysitting your AI. These tools finish your to-do list overnight.",
+      "OpenAI, Anthropic, and Meta all shipped 'AI that does your job' in the same week. We compared them."
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "trend-02",
+    "label": "GPT-5.6 goes fully live for everyone",
+    "momentum": 0.9,
+    "evidence": [
+      {
+        "source": "The Evolving AI Newsletter",
+        "url": "https://newsletter.evolvingai.io/p/gpt-5-6-goes-live-for-everyone-tomorrow"
+      },
+      {
+        "source": "AI-Weekly",
+        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+      }
+    ],
+    "example_hooks": [
+      "OpenAI's best model ever just went live for everyone. Here's the 60-second version.",
+      "GPT-5.6 dropped today. Is it actually worth the hype?"
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "trend-03",
+    "label": "Anthropic relaunches Fable 5 and shows a cheaper way to run it",
+    "momentum": 0.88,
+    "evidence": [
+      {
+        "source": "The Evolving AI Newsletter",
+        "url": "https://newsletter.evolvingai.io/p/gpt-5-6-goes-live-for-everyone-tomorrow"
+      },
+      {
+        "source": "AI-Weekly",
+        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+      }
+    ],
+    "example_hooks": [
+      "Anthropic just showed how to get 96% of their best model's power for less than half the price.",
+      "Claude's flagship model is back, and it comes with a genuinely smart cost-cutting trick."
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "trend-04",
+    "label": "Grok 4.5 beats Claude Opus 4.8 on coding benchmarks for half the cost",
+    "momentum": 0.85,
+    "evidence": [
+      {
+        "source": "The Evolving AI Newsletter",
+        "url": "https://newsletter.evolvingai.io/p/musk-s-grok-4-5-beats-opus-4-8-for-half-the-cost"
+      }
+    ],
+    "example_hooks": [
+      "Musk's new model just beat Anthropic's best model, for half the price. We put it head-to-head.",
+      "Grok 4.5 vs Claude Opus 4.8: the coding benchmark showdown nobody expected."
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "trend-05",
+    "label": "Anthropic finds a region in Claude that mirrors human reasoning ('J-space')",
+    "momentum": 0.75,
+    "evidence": [
+      {
+        "source": "The Evolving AI Newsletter",
+        "url": "https://newsletter.evolvingai.io/p/anthropic-found-claude-echoing-human-logic"
+      },
+      {
+        "source": "AI-Weekly",
+        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+      }
+    ],
+    "example_hooks": [
+      "Anthropic just found the exact spot in Claude's 'brain' where it thinks like us.",
+      "Turns out AI reasoning might work a lot more like your brain than you'd think."
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "trend-06",
+    "label": "X ships an all-in-one creator video editor (green screen + captions)",
+    "momentum": 0.55,
+    "evidence": [
+      {
+        "source": "The Evolving AI Newsletter",
+        "url": "https://newsletter.evolvingai.io/p/anthropic-found-claude-echoing-human-logic"
+      }
+    ],
+    "example_hooks": [
+      "Elon just built a green-screen editor straight into X. No cameras, no studio.",
+      "You can now shoot, edit, and caption a video in one app. Here's the 30-second walkthrough."
+    ],
+    "suggested_format": "reel"
+  },
+  {
+    "id": "trend-07",
+    "label": "Generative image/video models get dramatically cheaper (Google Nano Banana 2 Lite, Gemini Omni Flash)",
+    "momentum": 0.4,
+    "evidence": [
+      {
+        "source": "AI-Weekly",
+        "url": "https://ai-weekly.ai/newsletter-07-07-2026/"
+      }
+    ],
+    "example_hooks": [
+      "$0.034 per 1,000 images. Generative media just got absurdly cheap.",
+      "Here's what a fraction-of-a-cent image model unlocks for solo creators."
+    ],
+    "suggested_format": "reel"
+  }
+]
