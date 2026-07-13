@@ -25,6 +25,7 @@ and are intentionally kept out of this table.*
 | Agent | Model | Role |
 |---|---|---|
 | `trend-scout` | Sonnet | Scrapes peer Pages via Apify; distills over-performing posts into **Trends** |
+| `news-digest` | Sonnet | Alternative to `trend-scout` for Brands with `curated_sources` in `seeds.yaml`: digests the Operator's own curated public newsletters into **Trends** instead of scraping peer Pages |
 | `idea-strategist` | Opus | Turns Trends into ranked, brand-fit **Idea briefs** with a predicted **Fit Score** |
 | `producer` | Opus | Drives a Magnific Space: generates a **Production Spec** from an accepted Idea, runs the Space to a **Cast**, then (after the Operator picks the **Character**) renders the **Asset** |
 | `performance-tracker` | Sonnet | Pulls posts' **public** metrics via Apify; computes **Performance Score**; updates the feedback loop |
@@ -46,8 +47,10 @@ Operator to run a step it can run itself, and never renders past a gate before t
 > while the Operator is present — nothing drains it in the background.
 
 1. `/run-trends` → `trend-scout` scrapes peer Pages (Apify) for posts beating their *own* page
-   baseline → distills **Trends**; then `idea-strategist` turns the strongest into ~10 **Idea
-   briefs** with **Fit Scores**, written to `data/brands/<slug>/ideas/<run>/`.
+   baseline → distills **Trends** (or, for a Brand with `curated_sources` set in `seeds.yaml`,
+   `news-digest` digests the Operator's own curated public newsletters into **Trends** instead); then
+   `idea-strategist` turns the strongest into ~10 **Idea briefs** with **Fit Scores**, written to
+   `data/brands/<slug>/ideas/<run>/`.
 2. 👤 **Gate 1 — Review.** `/review-ideas` → Operator accepts/rejects conversationally; every
    **Rejection Reason** is logged verbatim (v1 does not auto-apply them). **Accepting an Idea enqueues
    it for production** — no separate kickoff.
@@ -121,8 +124,8 @@ writes a Build Report, `qa` appends a QA Verdict, and retries append Round-N blo
 overwritten). This is **not** a session handoff and **not** OpenSpec `tasks.md`. **Spec store:** all
 specs and changes live under `openspec/` (`project.md`, `specs/`, `changes/`).
 
-**Two pipelines, one repo:** the content loop (`trend-scout` / `idea-strategist` / `producer` /
-`performance-tracker`) discovers Trends and produces Assets weekly; the build pipeline (`developer` /
+**Two pipelines, one repo:** the content loop (`trend-scout` or `news-digest` / `idea-strategist` /
+`producer` / `performance-tracker`) discovers Trends and produces Assets weekly; the build pipeline (`developer` /
 `qa`) writes the code that makes that loop work, and only when handed a GitHub slice. They share no
 agents, no gates, and no schedule.
 

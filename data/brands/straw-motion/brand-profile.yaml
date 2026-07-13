@@ -1,0 +1,31 @@
+# Brand Profile template — copy this file to data/brands/<slug>/brand-profile.yaml and fill in.
+# The idea-strategist treats these as hard brand constraints.
+
+channel:
+  name: Straw Motion
+  platform: facebook
+  url: https://www.facebook.com/profile.php?id=61591885769033
+
+niche: "Where agentic AI meets generative media: building agents/workflows,
+  generative-media workflows, comparing models, AI news, and how the technology
+  is evolving"
+language: en
+region: "US"
+
+voice: >-
+  Easy, no-BS, plain language — never jargon-heavy. Ambitious and confident, the
+  way a founder or business owner talks: direct, big-picture, no fluff. Speaks
+  to both seasoned builders and total AI beginners without talking down to
+  anyone.
+
+formats:
+  - reel
+
+# Brand-safety / hard rules an Idea must respect:
+required_cta: "" # Optional: set a verbatim CTA if you enforce one (leave blank otherwise)
+required_hashtags: []
+banned_words: []
+brand_safety:
+  - No medical or 'cure' claims.
+  - No dangerous stunts presented as safe.
+  - No misleading 'miracle' framing.
