@@ -37,9 +37,9 @@ _Avoid_: user, admin (be specific — the Operator is the marketer driving the l
 **Trend**:
 A theme with current momentum on the Channel's platform, surfaced from Apify by scraping *other
 people's* public posts (engagement + recency). Momentum is carried more by topics/formats/sounds than by
-hashtags. For a Brand with `curated_sources` set, `news-digest` surfaces Trends from the Operator's own
-curated public newsletters instead — momentum there means editorial prominence in the source, not
-peer over-performance.
+hashtags. For a Brand with `curated_sources` set in `seeds.yaml`, trend-scout surfaces Trends from the
+Operator's own curated public newsletters instead of scraping peers — momentum there means editorial
+prominence in the source, not peer over-performance.
 _Avoid_: hashtag (a Trend is more than a tag), topic.
 
 **Run** (weekly Trend Research Run):

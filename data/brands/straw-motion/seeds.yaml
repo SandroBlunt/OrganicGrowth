@@ -10,9 +10,8 @@ seed_pages:
   - https://www.youtube.com/@curiousrefuge
 
 # Curated newsletter sources for the "No-Hype News" format: fully public archives (no login/paywall)
-# that the Operator already curates and prioritizes. When this list is non-empty, /run-trends uses
-# the news-digest agent (public-archive pull + summarize) instead of trend-scout (peer-page scrape)
-# for this Brand — see .claude/agents/news-digest.md.
+# that the Operator already curates and prioritizes. When this list is non-empty, trend-scout digests
+# these instead of scraping peer Pages via Apify — see .claude/agents/trend-scout.md.
 curated_sources:
   - https://ai-weekly.ai/
   - https://newsletter.evolvingai.io/
