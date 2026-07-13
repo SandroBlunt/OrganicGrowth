@@ -69,18 +69,31 @@ Brand from a global default — it must be stated at invocation.
    `lookback_days`, then `WebFetch` each such issue's full page. Only ever fetch these public pages —
    never an inbox, never an authenticated source.
 4. From each issue, pull out the individual news stories (not the whole issue as one blob). For each,
-   note: a short label, the source name, the issue URL, and how prominently it was featured (lead
-   story vs. a smaller mention) — this becomes its momentum rank.
-5. Cluster near-duplicate stories covered by more than one source into one Trend; otherwise each story
-   is its own Trend.
-6. Rank Trends by momentum (editorial prominence, normalised 0–1 — lead stories near 1.0).
+   note: a short label and how prominently it was featured (lead story vs. a smaller mention) — this
+   becomes its momentum rank.
+5. **Find each story's real, underlying link(s) — never cite the newsletter page as the source.** A
+   newsletter is a curator, not the origin: re-fetch (or re-prompt `WebFetch` on) the issue asking
+   specifically for the outbound hyperlinks embedded in that story's text — the original X/Twitter
+   post, the company's own blog/announcement, a paper, an interactive tool/demo, or (only as a
+   fallback) reputable third-party news coverage. Evidence for that story is these direct links, each
+   labeled with what it is (e.g. "Anthropic official blog", "X/@AnthropicAI", "Neuronpedia demo") — not
+   `{source: "<newsletter name>", url: "<newsletter issue URL>"}`. **Never fabricate a link.** If a
+   story genuinely has no discoverable outbound link, say so explicitly in that Trend's evidence
+   (`{source: "no direct link found in source article", url: null}`) rather than inventing one or
+   silently substituting the newsletter's own URL.
+6. Cluster near-duplicate stories covered by more than one source into one Trend (merge their evidence
+   links); otherwise each story is its own Trend.
+7. Rank Trends by momentum (editorial prominence, normalised 0–1 — lead stories near 1.0).
 
 ## Output (both modes)
 Write both files to the Brand's ideas directory, in the same shape either way:
 - `data/brands/<slug>/ideas/<run>/trends.json` — array of
   `{ id, label, momentum, evidence:[...], example_hooks:[], suggested_format }`. In peer-scrape mode
-  each evidence entry is `{page, url, overperformance}`; in curated mode it's `{source, url}` — there
-  is no `overperformance` field for curated mode, since that concept doesn't apply.
+  each evidence entry is `{page, url, overperformance}`. In curated mode each evidence entry is
+  `{source, url}` where `url` is the story's own real underlying link (a tweet, an official
+  blog/announcement, a paper, a demo — see step 5 above) — never the newsletter issue's own URL, and
+  never `overperformance` (that concept doesn't apply). A story can carry more than one evidence entry
+  when it has several primary links (e.g. an official post *and* the announcement tweet).
 - `data/brands/<slug>/ideas/<run>/trends.md` — a short human-readable ranked summary, noting which
   mode produced it.
 Then hand off: tell the caller the Brand, the run id, and that idea-strategist can now turn these
@@ -93,7 +106,10 @@ into briefs.
 - **Public data only.** Peer-scrape mode sees reactions, comments, shares, views — nothing private.
   Curated mode only fetches public archive/issue pages — never an inbox or any authenticated source.
 - **Never fabricate.** If Apify returns nothing/errors, or a curated source is unreachable / has no
-  new issue, say so and stop — do not invent trends.
+  new issue, say so and stop — do not invent trends. Same for links: never invent or guess a URL — if
+  you can't find a story's real underlying link, say so in its evidence instead of substituting one.
+- **Cite the real thing, not the curator.** Curated mode's evidence is the story's own underlying
+  link(s) (tweet, official post, paper, demo) — the newsletter that surfaced it is not the citation.
 - **No Ideas, no content.** You produce Trends; the idea-strategist produces Ideas.
 - **Don't misrepresent momentum.** In curated mode it means editorial prominence, not measured
   audience over-performance — never present it as the latter.
