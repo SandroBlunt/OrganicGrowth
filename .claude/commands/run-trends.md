@@ -1,6 +1,6 @@
 ---
 name: run-trends
-description: "Launch the weekly Trend Research Run for a named Brand: scrape peer Pages for trends, then suggest brand-fit Idea briefs with Fit Scores."
+description: "Launch the weekly Trend Research Run for a named Brand: scrape peer Pages (or, for Brands with curated_sources, digest curated newsletters) for trends, then suggest brand-fit Idea briefs with Fit Scores."
 ---
 
 # /run-trends
@@ -21,11 +21,16 @@ ISO week, e.g. `2026-W23`).
    State the active Brand in the output: "Running trends for Brand: `<brand>`."
 2. **Determine the run id** (e.g. `2026-W23`) and ensure `data/brands/<slug>/ideas/<run>/` exists.
 3. **Check parameters.** Read `data/brands/<slug>/seeds.yaml` and `data/brands/<slug>/brand-profile.yaml`.
-   If either still has `TODO` placeholders (seed Pages, Channel URL), pause and ask the Operator to fill
-   them — don't guess.
-4. **Scout trends.** Invoke the **trend-scout** agent with Brand `<brand>`. It scrapes the seed Pages
-   via Apify, keeps posts that beat their own page baseline, clusters them into Trends, and writes
-   `data/brands/<slug>/ideas/<run>/trends.json` + `trends.md`.
+   If neither `seed_pages` nor `curated_sources` has any usable entries (e.g. only `TODO`
+   placeholders), pause and ask the Operator to fill them — don't guess.
+4. **Scout trends.** Choose the source agent based on `seeds.yaml`:
+   - If `curated_sources` is non-empty, invoke the **news-digest** agent with Brand `<brand>`. It
+     pulls the latest issues from those public newsletter archives and clusters the notable stories
+     into Trends.
+   - Otherwise, invoke the **trend-scout** agent with Brand `<brand>`. It scrapes `seed_pages` via
+     Apify, keeps posts that beat their own page baseline, and clusters them into Trends.
+   Either way, the agent writes `data/brands/<slug>/ideas/<run>/trends.json` + `trends.md` in the same
+   shape.
 5. **Suggest ideas.** Invoke the **idea-strategist** agent with Brand `<brand>` on the trends file. It
    writes ~`ideas_per_run` briefs to `data/brands/<slug>/ideas/<run>/idea-NN.md`, each appended to
    `data/brands/<slug>/ledger.json` as `status: suggested` with a Fit Score.
@@ -38,4 +43,5 @@ ISO week, e.g. `2026-W23`).
 - Sequential: trends first, then ideas. Don't suggest Ideas without fresh Trends.
 - Never generate finished content — briefs only.
 - One Run per week unless the Operator explicitly asks for another.
-- If Apify fails or returns nothing, report it and stop; do not invent trends or ideas.
+- If Apify (trend-scout) or a curated source (news-digest) fails or returns nothing, report it and
+  stop; do not invent trends or ideas.
