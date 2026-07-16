@@ -20,8 +20,11 @@ import { writeFileAtomic } from "../fs/safe-io.ts";
  * run (`idea-2026-W22-01`). The Spec must sit BESIDE its Brief as `idea-NN.spec.json`, so we strip the
  * run prefix; if the id is already short (no run prefix), we fall back to the final `-NN` segment. This
  * keeps the derivation idempotent (`idea-01` → `idea-01`).
+ *
+ * Exported so other Brief-path-deriving modules (e.g. `src/format/brief-path.ts`, issue #53) reuse
+ * the SAME id→filename rule instead of re-deriving it.
  */
-function briefShortName(ideaId: string, run: string): string {
+export function briefShortName(ideaId: string, run: string): string {
   const prefix = `idea-${run}-`;
   const nn = ideaId.startsWith(prefix)
     ? ideaId.slice(prefix.length)

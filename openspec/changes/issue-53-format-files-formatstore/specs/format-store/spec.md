@@ -139,6 +139,23 @@ this is not validated against it).
   (`"peer"` for mundotip, `"curated"` for straw-motion) and whose `voice`/`niche` match the
   pre-migration `brand-profile.yaml` content
 
+### Requirement: Pre-existing per-Idea format values are migrated off the retired media-sense
+
+Straw Motion's already-`status: suggested`, pre-slice ledger Ideas SHALL have their per-Idea
+`format` field migrated from the retired media-sense value (`"reel"`) to the real Format slug they
+actually belong to (`"unhypped-news"`) — the per-Idea `format` field SHALL NOT be left holding the
+media-sense meaning on any ledger record this slice touches (acceptance criterion #2). This is a
+data-only migration: each Idea's `brief_path`, `id`, `run`, and every other field are unchanged, and
+`resolveBriefPathCandidates` resolves these Ideas via their recorded `brief_path` regardless of this
+migration (the Requirement above), so the migration is safe — it never changes which file an
+Operator's `/review-ideas` loads.
+
+#### Scenario: straw-motion's real pending Ideas carry the real Format slug, not the media-sense value
+
+- **GIVEN** the real `data/brands/straw-motion/ledger.json`
+- **WHEN** its `status: suggested` Ideas (`idea-01`..`idea-07`, run `2026-W29`) are read
+- **THEN** every one's `format` field equals `"unhypped-news"`, never `"reel"`
+
 ### Requirement: The media-sense of "format" is retired from brand-profile.yaml
 
 The system SHALL remove `brand-profile.yaml`'s `formats: [reel]` field (the old MEDIA sense of
@@ -153,3 +170,47 @@ files. `readiness/check-config.ts`'s `BrandProfile` type SHALL drop the correspo
 - **GIVEN** a Brand scaffolded via `scaffoldBrand` from the current skeleton template
 - **WHEN** its `brand-profile.yaml` is parsed
 - **THEN** it has no `formats` key at all
+
+### Requirement: A suggested Idea's Brief path is resolved by trusting the ledger's own brief_path first
+
+The system SHALL provide `resolveBriefPathCandidates(idea, brand, brandsRoot?)`
+(`src/format/brief-path.ts`), returning an ORDERED list of candidate Brief paths for a
+`status: suggested` ledger Idea. When the Idea record carries a non-empty `brief_path`, that value
+SHALL be returned VERBATIM as the ONLY candidate (ledger-as-source-of-truth, always-rules #7) — it
+SHALL NOT be second-guessed or overridden by reconstructing a path from the Idea's `format`/`run`,
+because a record's `format` field is not a reliable indicator of where its Brief physically lives
+(pre-existing records may carry the retired media-sense value, or even a genuinely correct Format
+slug, while their Brief still sits at the pre-Format-namespacing path). Only when `brief_path` is
+absent SHALL the system reconstruct candidates: the Format-namespaced path
+`data/brands/<slug>/ideas/<format>/<run>/idea-NN.md` first (when `format` is a valid slug), then the
+legacy Brand-level path `data/brands/<slug>/ideas/<run>/idea-NN.md`. `/review-ideas` SHALL use this
+resolver instead of hand-building the Brief path itself.
+
+#### Scenario: A recorded brief_path is trusted exclusively, even when the Idea's format is stale or wrong
+
+- **GIVEN** a ledger Idea record with `brief_path: "data/brands/straw-motion/ideas/2026-W29/idea-01.md"`
+  and `format: "reel"` (the retired media-sense value)
+- **WHEN** `resolveBriefPathCandidates` is called for it
+- **THEN** it returns exactly `["data/brands/straw-motion/ideas/2026-W29/idea-01.md"]` — the
+  recorded path, verbatim, and nothing else
+
+#### Scenario: The real, currently-pending straw-motion Ideas resolve to their actual Brief files
+
+- **GIVEN** the real `data/brands/straw-motion/ledger.json`'s 7 `status: suggested` Ideas (run
+  `2026-W29`), each carrying a real `brief_path`
+- **WHEN** `resolveBriefPathCandidates` is called for each
+- **THEN** every returned candidate path exists on disk (proven against the real files, not a
+  synthetic fixture)
+
+#### Scenario: A record with no brief_path falls back to the Format-namespaced path, then the legacy path
+
+- **GIVEN** an Idea record with no `brief_path` and `format: "life-hacks"`
+- **WHEN** `resolveBriefPathCandidates` is called for it
+- **THEN** it returns `[<Format-namespaced path>, <legacy Brand-level path>]`, in that order
+
+#### Scenario: A garbled format value never crashes the resolver
+
+- **GIVEN** an Idea record with no `brief_path` and a `format` value that is not a valid Format slug
+  (e.g. contains a path-traversal sequence)
+- **WHEN** `resolveBriefPathCandidates` is called for it
+- **THEN** it does not throw — it degrades to the legacy Brand-level path candidate

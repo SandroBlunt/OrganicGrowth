@@ -63,8 +63,11 @@ on-screen copy. A human does that. If asked to "just write it," decline and expl
    production plan is labeled **"Suggested Recipe:"** (e.g. "Suggested Recipe: Character Explainer
    with Cast (Reel, ~30–40s)") — never **"Format:"**, which is reserved for the editorial line above
    (ADR-0009: the word "format" means ONLY the editorial line, never the media/production plan).
-   Append each to `data/brands/<slug>/ledger.json` with `status: suggested`, its `fit_score`, and its
-   `format`.
+   Append each to `data/brands/<slug>/ledger.json` with `status: suggested`, its `fit_score`, its
+   `format`, AND `brief_path` set VERBATIM to the exact path just written in this step
+   (`data/brands/<slug>/ideas/<format>/<run>/idea-NN.md`). Always write `brief_path` — it is what
+   `/review-ideas` trusts to find this Idea's Brief (`src/format/brief-path.ts`); never leave it for
+   `/review-ideas` to reconstruct from `format`/`run`.
 
 ## Output
 A ranked summary (Brand: `<brand>` · Format: `<format>`) of id · title · fit_score · the trend it

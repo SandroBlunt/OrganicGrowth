@@ -92,4 +92,31 @@ describe("idea-strategist tags every Idea with its Format and reads voice from i
     assert.match(doc, /Suggested Recipe/);
     assert.match(doc, /never.*"Format:"|"Format:".*never/is, "must forbid the media-sense 'Format:' brief heading");
   });
+
+  it("always writes brief_path verbatim on every ledger record (QA Round 1 D1 fix)", async () => {
+    const doc = await readDoc(".claude", "agents", "idea-strategist.md");
+    assert.match(doc, /Always write `brief_path`/i);
+    assert.match(doc, /brief_path.*VERBATIM/is, "brief_path must be the exact path just written, not reconstructed");
+  });
+});
+
+describe("/review-ideas resolves a suggested Idea's Brief via resolveBriefPathCandidates, trusting brief_path (QA Round 1 D1)", () => {
+  it("delegates to the shared resolver instead of hand-building the path from format/run", async () => {
+    const doc = await readDoc(".claude", "commands", "review-ideas.md");
+    assert.match(doc, /resolveBriefPathCandidates/);
+    assert.match(doc, /src\/format\/brief-path\.ts/);
+    assert.match(doc, /do \*\*not\*\* hand-build the path/i);
+  });
+
+  it("trusts a recorded brief_path exclusively before falling back to any reconstructed candidate", async () => {
+    const doc = await readDoc(".claude", "commands", "review-ideas.md");
+    assert.match(doc, /trusted\s+\*\*exclusively\*\*/i);
+    assert.match(doc, /try that path first/i);
+  });
+
+  it("documents the Format-namespaced-then-legacy fallback order for records with no brief_path", async () => {
+    const doc = await readDoc(".claude", "commands", "review-ideas.md");
+    assert.match(doc, /brands\/<slug>\/ideas\/<Idea\.format>\/<run>\/idea-NN\.md/);
+    assert.match(doc, /legacy Brand-level path/i);
+  });
 });

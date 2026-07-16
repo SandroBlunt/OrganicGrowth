@@ -77,9 +77,10 @@
   file instead of `brand-profile.yaml`/`seeds.yaml`; tags every brief's front-matter and every ledger
   record with `format: <formatSlug>`; renames the brief body's media-shape heading from
   "**Format:**" to "**Suggested Recipe:**" (the media-sense retirement, ADR-0009).
-- [x] 7.4 Update `.claude/commands/review-ideas.md`'s brief-loading step to derive the
-  Format-namespaced brief path from each ledger Idea's own `format` field (no new CLI arg needed —
-  a Run is scoped to one Format, so a run's Ideas share one `format`).
+- [x] 7.4 ~~Update `.claude/commands/review-ideas.md`'s brief-loading step to derive the
+  Format-namespaced brief path from each ledger Idea's own `format` field~~ — **superseded by
+  Round 2, §10** (this naive derivation is exactly what QA Round 1's D1 defect caught: it breaks on
+  real pre-existing Ideas. See §10.2 for the fix that replaced it.)
 - [x] 7.5 Update the one `/run-trends` mention in `src/commands/run-pipeline.ts`'s Gate-1 message to
   name `<format>` (string-only change; conductor stays Brand-scoped — Non-Goals).
 - [x] 7.6 Write failing tests, THEN make them pass (`format/format-docs.test.ts`, a regular
@@ -106,3 +107,40 @@
 - [x] 9.3 Write the Build Report into `handoff.md`, explicitly flagging that this slice makes zero
   Magnific Space calls (no Space involvement at all — Format files are plain YAML) and listing the
   Non-Goals/Known Limits transparently.
+
+## 10. QA Round 1 fixes (D1 high, D2 low)
+
+- [x] 10.1 Write failing tests (`format/brief-path.test.ts`): a pure `resolveBriefPathCandidates`
+  trusts a recorded `brief_path` EXCLUSIVELY (even when `format` is stale/wrong); falls back to
+  `[Format-namespaced, legacy]` candidates only when `brief_path` is absent; never throws on a
+  garbled `format` value; and — the exact QA repro — every one of the REAL, currently-pending
+  `data/brands/straw-motion/ledger.json` `status: suggested` Ideas resolves to a Brief path that
+  actually exists on disk.
+- [x] 10.2 Implement `resolveBriefPathCandidates` in `src/format/brief-path.ts` (reuses
+  `briefShortName`, exported from `src/production-spec/store.ts` for this purpose — the SAME
+  id→filename rule the Producer's Spec path already uses, not re-derived).
+- [x] 10.3 Rewrite `.claude/commands/review-ideas.md` step 2 to delegate to
+  `resolveBriefPathCandidates` instead of hand-building the path from `format`/`run`: try the
+  ledger's own `brief_path` first (exclusively, when present), else the Format-namespaced path, else
+  the legacy Brand-level path; STOP and report if none exist.
+- [x] 10.4 Update `.claude/agents/idea-strategist.md` step 8 to always write `brief_path` VERBATIM
+  onto every new ledger record (matching the pre-existing convention the real straw-motion data
+  already used, now made explicit) — so every record `resolveBriefPathCandidates` sees going forward
+  hits the trusted, single-candidate path, and the Format-namespaced/legacy reconstruction stays a
+  rarely-needed fallback for old/hand-authored records only.
+- [x] 10.5 Migrate `data/brands/straw-motion/ledger.json`'s 7 real `status: suggested` Ideas'
+  `format` field from the retired media-sense value `"reel"` to the real Format slug
+  `"unhypped-news"` — a pure data fix (every other field, including `brief_path`, is byte-for-byte
+  unchanged) that closes acceptance criterion #2 for this real, currently-pending data, on top of
+  (not instead of) the `brief_path`-trusting resolver fix in §10.1–10.3 (which is what actually keeps
+  `/review-ideas` working — see the handoff's Round-2 justification for why both were done).
+- [x] 10.6 Add spec deltas (`specs/format-store/spec.md`): ADDED "A suggested Idea's Brief path is
+  resolved by trusting the ledger's own brief_path first" (+4 scenarios) and ADDED "Pre-existing
+  per-Idea format values are migrated off the retired media-sense" (+1 scenario).
+- [x] 10.7 Add `format-docs.test.ts` coverage: `idea-strategist.md` always writes `brief_path`
+  verbatim; `review-ideas.md` delegates to `resolveBriefPathCandidates`, trusts `brief_path`
+  exclusively, and documents the Format-namespaced-then-legacy fallback order.
+- [x] 10.8 D2: remove the stale, inert `formats: [reel]` line from the `HEALTHY_PROFILE_YAML` fixture
+  strings in `src/commands/run-pipeline.test.ts` and `src/commands/run-pipeline-onboarding.test.ts`.
+- [x] 10.9 Re-run `npm test` (755/755), `npm run build` (exit 0), and
+  `npx openspec validate issue-53-format-files-formatstore --strict` (valid) — all green.

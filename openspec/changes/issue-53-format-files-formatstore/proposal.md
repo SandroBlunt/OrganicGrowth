@@ -40,8 +40,15 @@ or the Production Queue re-grain (later slices).
   run several Formats; there is no "the" default one). Its Run output path becomes
   Format-namespaced: `data/brands/<slug>/ideas/<format>/<run>/` (was `ideas/<run>/`).
   `trend-scout` reads `sources.mode`/`sources.*` from the Format file (never `seeds.yaml`);
-  `idea-strategist` reads `voice`/`ideas_per_run` from the Format file and tags every suggested Idea
-  (brief front-matter + ledger record) with `format: <formatSlug>`.
+  `idea-strategist` reads `voice`/`ideas_per_run` from the Format file, tags every suggested Idea
+  (brief front-matter + ledger record) with `format: <formatSlug>`, and always writes `brief_path`
+  verbatim onto the ledger record.
+- **Add `resolveBriefPathCandidates`** (`src/format/brief-path.ts`, added in QA Round 2 fixing
+  defect D1): `/review-ideas` resolves a `status: suggested` Idea's Brief path by trusting the
+  ledger's own `brief_path` EXCLUSIVELY when present (ledger-as-source-of-truth), only reconstructing
+  a path (Format-namespaced, then legacy Brand-level) when `brief_path` is absent. A record's
+  `format` field is NOT a reliable indicator of where its Brief physically lives — Round 1 found this
+  the hard way against real data (see Non-Goals-adjacent note below and the handoff's Round-2 report).
 - **Scaffolder gains a `formats/` directory**: `templates/brand-skeleton/formats/.gitkeep` is copied
   into every newly scaffolded Brand, so `formats/` exists from day one. The full Format-interview
   onboarding flow (asking the Operator for a Format's voice/sources conversationally) is **out of
@@ -52,8 +59,10 @@ or the Production Queue re-grain (later slices).
 
 - **The Recipe registry** (`default_recipes` validated against real Recipes) — issue #54.
 - **Per-Asset ledger / AssetStore / queue re-key to `(brand, idea, recipe)`** — issues #55/#56. The
-  ledger's per-Idea `format` field is written by `idea-strategist` (a prompt-level change) but is
-  NOT given a typed reader in `ledger.ts` here — that reshape rides with the ledger grain change.
+  ledger's per-Idea `format` and `brief_path` fields are written by `idea-strategist` (a prompt-level
+  change) and read by `resolveBriefPathCandidates` (a plain function taking already-parsed fields),
+  but `ledger.ts` itself is NOT given a typed reader for either field here — that reshape rides with
+  the ledger grain change.
 - **The Producer's Production Spec path** (`production-spec/store.ts::specPathFor`) is NOT made
   Format-aware. The single-recipe Producer (`producer.md`, `driver.ts`, `compose.ts`) is completely
   unchanged and keeps writing Specs beside Briefs at the OLD Brand-level `ideas/<run>/` path. This is
@@ -80,8 +89,10 @@ or the Production Queue re-grain (later slices).
 
 - `format-store`: the per-Format YAML file schema + the typed `FormatStore` (pure defensive parser,
   path resolution, directory listing, a clear not-found error) — files behind the store boundary
-  (ADR-0014). Includes the mundotip/straw-motion migration and the `formats:[reel]` media-sense
-  retirement from `brand-profile.yaml`.
+  (ADR-0014). Includes the mundotip/straw-motion migration, the `formats:[reel]` media-sense
+  retirement from `brand-profile.yaml`, `resolveBriefPathCandidates` (Round 2 — trusts a ledger
+  Idea's own `brief_path` before reconstructing one), and the straw-motion ledger `format`-value
+  migration (Round 2).
 - `format-scoped-trend-research`: `/run-trends <brand> <format>` requiring the Format argument, its
   Format-namespaced Run output path, and `trend-scout`/`idea-strategist` reading
   sources/mode/voice/`ideas_per_run` from the Format file and tagging every Idea with its Format.
@@ -94,18 +105,28 @@ or the Production Queue re-grain (later slices).
 
 ## Impact
 
-- **New code:** `src/format/store.ts` (+ `store.test.ts`, `format-docs.test.ts`),
+- **New code:** `src/format/store.ts` (+ `store.test.ts`), `src/format/brief-path.ts` (+
+  `brief-path.test.ts`, Round 2), `src/format/format-docs.test.ts`,
   `data/brands/{mundotip,straw-motion}/formats/*.yaml`, `templates/brand-skeleton/formats/.gitkeep`.
 - **Modified code:** `src/brand/resolver.ts` (+test), `src/brand/scaffolder.ts` (+test — drops
   `formats`), `src/readiness/check-config.ts` (+test — drops unused `formats` field),
   `src/commands/run-pipeline.ts` (one string: the Gate-1 `/run-trends` hint now names `<format>`),
-  `templates/brand-skeleton/brand-profile.yaml`, `data/brands/{mundotip,straw-motion}/brand-profile.yaml`
-  (drop `formats: [reel]`; add a pointer comment to the new Format file), `.claude/commands/run-trends.md`,
-  `.claude/agents/trend-scout.md`, `.claude/agents/idea-strategist.md`, `.claude/commands/review-ideas.md`
-  (one paragraph: briefs load from the Format-namespaced path via each ledger Idea's own `format` field).
-- **Not touched:** `producer.md`, `src/production-spec/**`, `src/space-driver/**`, `src/ledger/ledger.ts`,
+  `src/commands/run-pipeline.test.ts`/`run-pipeline-onboarding.test.ts` (Round 2 D2: drop a stale
+  inert `formats: [reel]` fixture line), `src/production-spec/store.ts` (Round 2: `export` added to
+  the existing, unchanged `briefShortName` helper — zero behavior change, reused by
+  `brief-path.ts` instead of re-derived), `templates/brand-skeleton/brand-profile.yaml`,
+  `data/brands/{mundotip,straw-motion}/brand-profile.yaml` (drop `formats: [reel]`; add a pointer
+  comment to the new Format file), `data/brands/straw-motion/ledger.json` (Round 2: migrate the 7
+  real `status: suggested` Ideas' `format` from `"reel"` to `"unhypped-news"` — every other field,
+  including `brief_path`, byte-for-byte unchanged), `.claude/commands/run-trends.md`,
+  `.claude/agents/trend-scout.md`, `.claude/agents/idea-strategist.md` (Round 2: always write
+  `brief_path`), `.claude/commands/review-ideas.md` (Round 2: delegate to
+  `resolveBriefPathCandidates` instead of hand-building the path).
+- **Not touched:** `producer.md`, `src/space-driver/**`, `src/ledger/ledger.ts`,
   `src/production-queue/**`, `CLAUDE.md` (deferred to issue #59's "flip docs to present tense"),
   `CONTEXT.md` (already documents the target Format model from PR #61 — no further change needed).
+  `src/production-spec/**`'s actual Spec-generation/path LOGIC is untouched (only the one `export`
+  keyword noted above) — see the Producer's Spec-path Non-Goal below, still in force.
 - **Hermetic:** every test is plain filesystem + markdown-text assertions — zero `spaces_*`/
   `creations_*` calls, zero credits, zero board mutation. The existing Magnific-fake-backed test
   suite (`space-driver/**`) is completely untouched and stays green.

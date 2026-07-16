@@ -70,7 +70,6 @@ channel:
   url: "https://www.facebook.com/testbrand"
 niche: "Test niche for testing"
 voice: "Test voice for testing"
-formats: [reel]
 banned_words: ["bad-word"]
 brand_safety: []
 `.trim();
