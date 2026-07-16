@@ -76,13 +76,18 @@ Phase-A completion, never inferred). The driver SHALL NOT publish anything — P
 The Space driver SHALL recover via the **Fallback Protocol** — delegating to the Space's in-canvas agent
 with a natural-language run-by-goal `spaces_edit` — rather than hard-failing when the named cast run-point
 cannot be resolved (it is absent or ambiguous in the parsed Execution Protocol) or the run reports the
-start node missing/stale (ADR-0003; PRD #1 story 27). The fallback SHALL still surface a Cast.
+start node missing/stale (ADR-0003; PRD #1 story 27). The fallback SHALL still surface a Cast. This
+recovery is the *Character Explainer with Cast* Recipe's own instance of the GENERIC first-leg recovery
+`driveToNextGate` provides for any Recipe (`generic-gate-driver`'s "Fallback-Protocol recovery applies
+only to a Recipe's first leg" requirement, ADR-0010, issue #57) — the Cast gate is this Recipe's first
+(and only) declared gate.
 
 #### Scenario: A missing/stale cast run-point recovers via the agent fallback
 
 - **GIVEN** a fake Space whose cast run-point is missing/stale (the run reports the start node gone, or it
   cannot be resolved from the Execution Protocol)
-- **WHEN** the driver composes and casts
+- **WHEN** the driver drives the first leg toward the Cast gate (`driveToNextGate` with
+  `targetGate: "cast"`)
 - **THEN** it falls back to the in-canvas agent with a natural-language run-by-goal edit (the Fallback
   Protocol) instead of hard-failing
 - **AND** a Cast is still surfaced
@@ -123,12 +128,16 @@ the Space's in-canvas agent (re-pinning the `Character` creation node, confirmed
 then **read back** the Space and confirm the chosen `Character` creation node is pinned (ADR-0003). The
 driver SHALL poll the edit to terminal before reading back. If the readback does not confirm the pin, the
 driver SHALL report an identifiable failure rather than proceeding as if the pin succeeded. The driver
-SHALL depend only on the narrow injected Magnific port, never on the live Space.
+SHALL depend only on the narrow injected Magnific port, never on the live Space. This pin is the
+*Character Explainer with Cast* Recipe's own instance of the GENERIC `pinPick(port, pick, nodeName, poll)`
+(ADR-0010, issue #57): the target node name (`"Character #2"`) is this Recipe's own
+`space.nodes.pinnedReference` value, supplied explicitly by the caller — the driver itself hard-codes no
+node name.
 
 #### Scenario: Pinning the chosen Character is confirmed by readback
 
 - **GIVEN** a fake Space at the Cast gate and a chosen Character (a Cast candidate identifier)
-- **WHEN** the driver pins the Character
+- **WHEN** the driver pins the Character into the `"Character #2"` node (`pinPick`)
 - **THEN** it issues a natural-language edit naming the chosen Character (the Fallback Protocol)
 - **AND** after polling the edit to terminal it reads back the Space
 - **AND** the readback confirms the chosen `Character` creation node is pinned
@@ -221,8 +230,12 @@ different Recipe's job) and the next leg's `gate` cursor is resolved from that R
 via the Recipe registry (`null` when the Cast gate was the Recipe's last gate — today's only wired
 case). When MORE THAN ONE of the Idea's Assets is simultaneously paused at the Cast gate (a future
 multi-Recipe scenario), the command SHALL REFUSE — naming every gated Recipe — rather than guessing
-which one the pick resolves (explicit attribution, always-rules #5); this command stays scoped to the
-Cast gate specifically (generalizing to any Recipe's own pick-gate is issue #57).
+which one the pick resolves (explicit attribution, always-rules #5). As of issue #57, `/pick-cast` is a
+**thin alias**: it keeps this Cast-gate-specific ledger-reading half UNCHANGED, but its queue-resume
+mechanics (resolving the next gate, enqueueing the next leg, clearing the gate) SHALL be performed by
+`resumeGate` — the SAME generic primitive the standalone `/pick <brand> <idea-id> <recipe> <gate>
+<pick>` command uses for ANY wired Recipe's ANY declared gate (`generic-gate-driver`) — so the two
+commands can never drift on how a pick resumes production.
 
 #### Scenario: pick-cast selects the nth Cast member from the Recipe's Asset as the Character
 
@@ -263,19 +276,27 @@ Cast gate specifically (generalizing to any Recipe's own pick-gate is issue #57)
 - **THEN** the command behaves exactly as it would against an already-migrated record (the reader's
   transparent normalization makes the two indistinguishable)
 
+#### Scenario: pick-cast's queue-resume matches calling the generic resumeGate directly
+
+- **GIVEN** an Idea at the Cast gate and a valid 1-based `<n>` the Operator picks
+- **WHEN** `/pick-cast` resumes production
+- **THEN** the resulting queue state is IDENTICAL to what calling `resumeGate(brand, ideaId, recipe,
+  "cast", <resolved Character>, queuePath, now)` directly would produce — the next-leg job's `brand`,
+  `recipe`, `gate`, `pick`, and `enqueued_at`, and the cleared gate's `done` status
+
 ### Requirement: Phase B fits the existing narrow Magnific port
 
 The Phase-B operations SHALL use the **existing** narrow injected `SpaceMcpPort` without extending it:
-pinning a Character is a natural-language `edit` polled to terminal (the Fallback Protocol's transport);
-running the clip run-point is `run` + poll `runStatus` to terminal; fetching the finished Asset is
-`fetchCreations`. Each Phase-B driver operation (`pinCharacter`, the clip `runRunPoint`, `fetchAsset`)
-SHALL be unit-testable against a fake implementing that port, with no credits spent, no board mutation,
-and no network. The live adapter implementing the port is deferred to a later slice.
+pinning a Character is a natural-language `edit` polled to terminal (the Fallback Protocol's transport,
+via the generic `pinPick`); running the clip run-point is `run` + poll `runStatus` to terminal; fetching
+the finished Asset is `fetchCreations`. Each Phase-B driver operation (`pinPick`, the clip `runRunPoint`,
+`fetchAsset`) SHALL be unit-testable against a fake implementing that port, with no credits spent, no
+board mutation, and no network. The live adapter implementing the port is deferred to a later slice.
 
-#### Scenario: pinCharacter issues the edit and verifies via the port
+#### Scenario: pinPick issues the edit and verifies via the port
 
 - **GIVEN** a fake implementing the Magnific port
-- **WHEN** `pinCharacter` runs
+- **WHEN** `pinPick` runs
 - **THEN** it issues the edit and polls edit-status to terminal through the port, then reads back to
   confirm the pin
 - **AND** it makes no call outside the injected port
