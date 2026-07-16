@@ -1,15 +1,17 @@
 ---
 name: pick-cast
-description: "Gate 2 — Cast pick: the Operator picks the Character (the nth Cast member) for a casting Idea of the named Brand; the Producer then resumes the job in the Operator's session and renders the Asset one generation at a time."
+description: "Gate 2 — Cast pick: the Operator picks the Character (the nth Cast member) for an Idea of the named Brand whose Asset is paused at the Cast gate; the Producer then resumes the job in the Operator's session and renders the Asset one generation at a time."
 ---
 
 # /pick-cast
 
-**Gate 2 — Cast pick.** A `casting` Idea is paused at the Cast gate with its rendered **Cast** on the
-Brand's ledger. The Operator picks the **Character** to render; the Producer then **resumes the job in
-the Operator's session** and renders it to completion, one generation at a time (pins the Character, runs
-the clip run-point, saves the **Asset**). A gate-paused job does not hold the Space. Status moves
-`casting → produced`. OrganicGrowth **renders the Asset but never publishes it.**
+**Gate 2 — Cast pick.** An Idea with an Asset **paused at the Cast gate** (`in_production`,
+`pending_gate: "cast"` — ADR-0011; the retired flat `casting` Idea-status is gone, the Idea itself stays
+`accepted`) has its rendered **Cast** on the Brand's ledger. The Operator picks the **Character** to
+render; the Producer then **resumes the job in the Operator's session** and renders it to completion, one
+generation at a time (pins the Character, runs the clip run-point, saves the **Asset**). A gate-paused job
+does not hold the Space. That Asset moves `in_production → produced`. OrganicGrowth **renders the Asset
+but never publishes it.**
 
 > **Multi-format (ADR-0009/0010, issue #57):** the Cast pick is the *Character Explainer with Cast*
 > Recipe's own local pick-gate — "Cast"/"Character" are that Recipe's vocabulary, not a universal step.
@@ -27,8 +29,9 @@ Usage: `/pick-cast <brand> <idea-id> <n>`
 Character is written onto the Idea's enqueued **next-leg job** in the global Production Queue
 (`data/queue.json`) as a `pick` field, keyed to the RESOLVED Asset's own `(brand, idea, recipe)`
 (issue #56) — **not** onto the ledger. The Producer pins that Character when it resumes the job in the
-Operator's session. The ledger still owns the Idea's status (`casting → produced`); the pick itself
-lives on the queue job. If more than one of the Idea's Assets is paused at the Cast gate at once (a
+Operator's session. The ledger still owns that Asset's status (`in_production → produced`; the Idea
+itself stays `accepted` throughout — ADR-0011); the pick itself lives on the queue job. If more than one
+of the Idea's Assets is paused at the Cast gate at once (a
 future multi-Recipe scenario), the command REFUSES rather than guessing which Recipe's gate the
 Operator means (explicit attribution, always-rules #5).
 
@@ -51,8 +54,8 @@ Operator means (explicit attribution, always-rules #5).
 > **How the render runs:** once the pick is in, the Producer resumes the job **in the Operator's
 > session** and renders it one generation at a time — there is no unattended background worker
 > (ADR-0008). This command only records the Character on the queue job; recording the pick does not
-> move the Idea to `produced` on its own — the Producer does that when it resumes the job. A
-> gate-paused job does not hold the Space.
+> move that Asset to `produced` on its own (the Idea itself stays `accepted` throughout) — the Producer
+> does that when it resumes the job. A gate-paused job does not hold the Space.
 
 ## Guardrails
 - **Brand is explicit** — `<brand>` is required; never fall back to a default Brand.

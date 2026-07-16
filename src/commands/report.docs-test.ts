@@ -28,10 +28,18 @@ describe("command surface — final and matches the shipped Producer feature", (
 
   it("CLAUDE.md documents the final lifecycle and carries no stale '/produce' wiring", async () => {
     const claude = await readFile(join(REPO_ROOT, "CLAUDE.md"), "utf8");
+    // ADR-0011: the Idea itself only ever carries suggested/accepted/rejected...
     assert.match(
       claude,
-      /suggested → accepted → casting → produced → posted → tracking → scored/,
-      "CLAUDE.md must document the final lifecycle",
+      /suggested \/ accepted \/ rejected/,
+      "CLAUDE.md must document the Idea's own suggested/accepted/rejected lifecycle (ADR-0011)",
+    );
+    // ...production state (the retired flat casting/produced/posted/tracking/scored) now lives on each
+    // chosen Recipe's own Asset instead.
+    assert.match(
+      claude,
+      /queued → in_production → produced → posted → tracking → scored/,
+      "CLAUDE.md must document the per-Asset production lifecycle (ADR-0011)",
     );
     assert.doesNotMatch(
       claude,
@@ -101,21 +109,67 @@ describe("command surface — final and matches the shipped Producer feature", (
       "producer.md must restate the Brand at Gate 2 (Cast pick)");
   });
 
-  it("pick-cast.md is honest that the unattended render runtime is not yet wired (audit C2)", async () => {
+  it("pick-cast.md is honest that production is attended — no unattended background worker (ADR-0008)", async () => {
     const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "pick-cast.md"), "utf8");
-    // It must flag the unattended render as not-yet-wired, not something that runs on pick today.
+    // Before the attended producer was restored (PR #46), this doc had to flag the render runtime as
+    // not-yet-wired (audit finding C2). That gap is closed: the render genuinely runs today, in the
+    // Operator's own session — pin the CURRENT, true claim instead of the old honesty disclaimer.
     assert.match(
       doc,
-      /not yet (wired|built|operational|runnable)|not built yet/i,
-      "pick-cast.md must state the unattended render runtime is not yet wired",
+      /Operator's session/i,
+      "pick-cast.md must state the render runs in the Operator's session",
     );
-    // The honesty note must be traceable to the audit finding.
-    assert.match(doc, /\bC2\b/, "pick-cast.md must cite audit C2 for the wiring gap");
+    assert.match(
+      doc,
+      /no unattended background worker/i,
+      "pick-cast.md must state there is no unattended background worker",
+    );
+    assert.match(doc, /ADR-0008/, "pick-cast.md must cite ADR-0008 for the attended-runtime decision");
+    // It must never re-introduce the stale "not yet wired" disclaimer now that the flow is built.
+    assert.doesNotMatch(
+      doc,
+      /not yet (wired|built|operational|runnable)/i,
+      "pick-cast.md must not claim the render runtime is not yet wired — it is attended and wired today",
+    );
     // It must still promise the command records the Character correctly (the part that does work).
     assert.match(
       doc,
       /records the Character/i,
       "pick-cast.md must state it still records the Character correctly today",
+    );
+  });
+
+  it("pick-cast.md describes the Asset-grain Cast-gate lifecycle, not the retired flat Idea status (QA-1 regression)", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "pick-cast.md"), "utf8");
+    // ADR-0011 retired the flat Idea `casting` status: the Idea itself stays `accepted` throughout: it
+    // is the ASSET that pauses `in_production` (with `pending_gate: "cast"`) and then moves `produced`.
+    // A QA Round-1 defect (QA-1) found pick-cast.md still claiming the Idea's OWN status moved
+    // `casting → produced` — these two guards target the EXACT phrasing of that regressed claim
+    // (verified against the pre-fix doc text), not a broad ban on the word "casting" (which the doc is
+    // still allowed to use historically, e.g. "the retired flat `casting` Idea-status is gone").
+    assert.doesNotMatch(
+      doc,
+      /casting\s*→\s*produced/i,
+      "pick-cast.md must not claim the Idea's status chain runs casting → produced — that flat Idea " +
+        "status is retired (ADR-0011); it is the Asset that moves in_production → produced",
+    );
+    assert.doesNotMatch(
+      doc,
+      /`casting`\s+Idea\s+is\s+paused/i,
+      "pick-cast.md must not claim a `casting` Idea is paused at the Cast gate — the Idea stays " +
+        "`accepted`; it is the Asset that pauses in_production at pending_gate: \"cast\" (ADR-0011)",
+    );
+    // Positive, checkable claims: the doc must actually name the real Asset-grain vocabulary, not just
+    // omit the retired one.
+    assert.match(
+      doc,
+      /in_production/,
+      "pick-cast.md must describe the Asset's `in_production` status (ADR-0011)",
+    );
+    assert.match(
+      doc,
+      /pending_gate/,
+      "pick-cast.md must describe the Cast pause as the Asset's `pending_gate`, not an Idea status",
     );
   });
 });

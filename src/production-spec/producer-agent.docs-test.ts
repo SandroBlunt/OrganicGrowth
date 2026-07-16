@@ -39,23 +39,36 @@ describe("producer agent definition", () => {
     assert.match(text, /Cast/);
   });
 
-  it("is honest that production past Spec composition is not yet wired (audit C2)", async () => {
+  it("is honest that production is attended and wired end-to-end today (ADR-0008), not just Spec composition", async () => {
     const text = await readFile(PRODUCER_AGENT, "utf8");
-    // The doc must flag its full role as the TARGET design, not what runs today.
-    assert.match(
+    // Before the attended producer was restored (PR #46), this doc had to flag full production as the
+    // TARGET design, not what ran today (audit finding C2, "not yet wired"). That gap is closed: the
+    // whole flow — Spec, Cast, pick, render, Copy — runs attended in the Operator's own session. Pinning
+    // the OLD "not yet wired" disclaimer here would now itself be a false claim — assert its ABSENCE.
+    assert.doesNotMatch(
       text,
       /not yet (runnable|wired|operational|built)/i,
-      "producer.md must state the unattended production flow is not yet wired",
+      "producer.md must NOT claim production is not yet wired — it is attended and wired today (ADR-0008)",
     );
-    // It must point at the audit finding so the honesty note is traceable.
-    assert.match(text, /\bC2\b/, "producer.md must cite audit C2 for the wiring gap");
-    // It must warn against claiming production ran unattended.
+    // It must name the attended runtime explicitly (ADR-0008) rather than staying silent about it.
+    assert.match(text, /ADR-0008/, "producer.md must cite ADR-0008 for the attended-runtime decision");
     assert.match(
       text,
-      /(do not claim|never claim|not).{0,40}unattended/i,
-      "producer.md must not let the agent claim unattended production works today",
+      /attended|Operator's session/i,
+      "producer.md must state it runs attended, in the Operator's own session",
     );
-    // Spec composition is the one step that IS wired — it must still own that.
-    assert.match(text, /Spec composition/i, "producer.md must state Spec composition is what works today");
+    // The queue-job schema it documents must match the CURRENT generic gate/Recipe cursor (issue #56/57)
+    // — not the retired fixed cast/render phase split. A real, checkable pin against production code.
+    assert.match(text, /`recipe`/, "producer.md must describe the queue job's `recipe` field");
+    assert.match(
+      text,
+      /awaiting_pick/,
+      "producer.md must describe the CURRENT `awaiting_pick` queue status",
+    );
+    assert.doesNotMatch(
+      text,
+      /awaiting_cast/,
+      "producer.md must not describe the retired `awaiting_cast` queue status",
+    );
   });
 });
