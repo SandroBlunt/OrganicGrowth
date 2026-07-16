@@ -811,12 +811,30 @@ export async function* conductorTurns(
     const producedIdeas = ideas.filter((i) => ideaHasAssetStatus(i, "produced"));
 
     if (producedIdeas.length > 0) {
+      // ADR-0012: the composed Copy is stored structured on each produced Asset and surfaced VERBATIM
+      // here — the Operator reviews the exact caption/hashtags they are about to publish, never a
+      // summary. `/log-post` is attribution-explicit (Idea, Recipe) — the hint names both (issue #56).
+      const lines: string[] = [
+        `Gate 3 — Publish. Brand: ${brand}`,
+        `${producedIdeas.length} Asset(s) are ready for publication.`,
+      ];
+      for (const idea of producedIdeas) {
+        const producedAssets = (idea.assets ?? []).filter((a) => a.status === "produced");
+        for (const asset of producedAssets) {
+          lines.push(
+            `  Idea: ${idea.id} — Recipe: ${asset.recipe} — publish and run ` +
+              `/log-post ${brand} ${idea.id} ${asset.recipe} <facebook-url>`,
+          );
+          if (asset.copy !== undefined) {
+            lines.push(`    Copy: ${asset.copy.caption}`);
+            if (asset.copy.hashtags.length > 0) {
+              lines.push(`    Hashtags: ${asset.copy.hashtags.join(" ")}`);
+            }
+          }
+        }
+      }
       yield {
-        message: [
-          `Gate 3 — Publish. Brand: ${brand}`,
-          `${producedIdeas.length} Asset(s) are ready for publication.`,
-          ...producedIdeas.map((i) => `  Idea: ${i.id} — publish and run /log-post ${brand} ${i.id} <facebook-url>`),
-        ].join("\n"),
+        message: lines.join("\n"),
         prompt: "Press Enter when you have published and logged the Post URL (or type 'done')",
       };
 

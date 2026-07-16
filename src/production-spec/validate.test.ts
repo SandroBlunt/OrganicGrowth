@@ -8,11 +8,7 @@ import {
   numericClips,
   clipMissingAspectRatio,
   clipMissingVideoPrompt,
-  longPostCopy,
-  zeroEmojis,
-  fourEmojis,
   missingThumbnails,
-  nestedPostCopy,
   nestedThumbnails,
 } from "./fixtures/specs.ts";
 
@@ -74,25 +70,17 @@ describe("validate — per-clip contract (C18)", () => {
   });
 });
 
-describe("validate — post_copy length", () => {
-  it("rejects a Spec whose post_copy exceeds 180 chars", () => {
-    const result = validate(longPostCopy());
-    assert.equal(result.ok, false);
-    assert.equal(hasCode(result, "post_copy_length"), true);
-  });
-});
-
-describe("validate — post_copy emoji count", () => {
-  it("rejects a Spec whose post_copy has 0 emojis", () => {
-    const result = validate(zeroEmojis());
-    assert.equal(result.ok, false);
-    assert.equal(hasCode(result, "post_copy_emoji_count"), true);
+describe("validate — post_copy is retired from the contract (ADR-0012)", () => {
+  it("accepts a well-formed Spec with no post_copy field at all", () => {
+    const spec = validSpec() as Record<string, unknown>;
+    assert.equal("post_copy" in spec, false);
+    assert.equal(validate(spec).ok, true);
   });
 
-  it("rejects a Spec whose post_copy has 4 emojis", () => {
-    const result = validate(fourEmojis());
-    assert.equal(result.ok, false);
-    assert.equal(hasCode(result, "post_copy_emoji_count"), true);
+  it("a stray post_copy field present on the Spec is simply ignored (not part of the contract)", () => {
+    const spec = validSpec() as Record<string, unknown>;
+    spec.post_copy = "A".repeat(500); // would have failed the old 180-char rule
+    assert.equal(validate(spec).ok, true);
   });
 });
 
@@ -105,13 +93,6 @@ describe("validate — thumbnails presence", () => {
 });
 
 describe("validate — top-level placement", () => {
-  it("rejects a Spec whose post_copy is nested inside a clip", () => {
-    const result = validate(nestedPostCopy());
-    assert.equal(result.ok, false);
-    // post_copy is missing at top level AND found nested -> both signalled
-    assert.equal(hasCode(result, "post_copy_not_top_level"), true);
-  });
-
   it("rejects a Spec whose thumbnails are nested inside a clip", () => {
     const result = validate(nestedThumbnails());
     assert.equal(result.ok, false);

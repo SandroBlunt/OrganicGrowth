@@ -10,13 +10,16 @@
  * slice deliberately uses a deterministic template so the build is hermetic and the "generated Spec
  * passes validation" criterion is provable without a model. The contract enforced here is the same
  * one a model-drafted Spec would have to pass — the validator is the contract's guardian either way.
+ *
+ * `post_copy` is RETIRED here (ADR-0012, issue #58) — the Spec is media instructions only. Copy is
+ * composed separately, later, by `src/copy/` (its own deterministic-by-default drafter mirrors this
+ * module's philosophy — see `src/copy/draft.ts`).
  */
 
 import {
   REQUIRED_CHARACTER_CONCEPTS,
   REQUIRED_CLIPS,
   REQUIRED_THUMBNAILS,
-  MAX_POST_COPY_CHARS,
   ASPECT_RATIO_LINE,
   type ProductionSpec,
   type SpecClip,
@@ -35,8 +38,6 @@ export interface Brief {
   readonly character_concepts?: readonly string[];
   /** Narrative beats, one per clip; padded/trimmed to exactly 3. */
   readonly beats?: readonly string[];
-  /** Suggested social copy; defaulted (with emoji) when absent or out of contract. */
-  readonly post_copy?: string;
 }
 
 /** Pad an array to exactly `n` entries using `fill(i)`, or trim to the first `n`. */
@@ -69,42 +70,6 @@ function buildClip(lead: string, beat: string, index: number): SpecClip {
   };
 }
 
-/** Suffix that gives default post_copy its required emojis (exactly two, with a leading space). */
-const POST_COPY_EMOJI_TAIL = " ☀️✨";
-
-/**
- * Coerce a Brief's suggested post_copy into the contract (<=180 chars, 1-3 emojis). If the Brief's
- * copy already conforms it is kept verbatim; otherwise the Brief title is truncated by code point and
- * the emoji tail appended, so the result always satisfies the contract. Pure: no I/O.
- */
-function buildPostCopy(brief: Brief): string {
-  const candidate = brief.post_copy?.trim();
-  if (
-    candidate &&
-    [...candidate].length <= MAX_POST_COPY_CHARS &&
-    countEmojis(candidate) >= 1 &&
-    countEmojis(candidate) <= 3
-  ) {
-    return candidate;
-  }
-  // Truncate the title by CODE POINT (so an emoji is never split), then append the emoji tail.
-  const room = MAX_POST_COPY_CHARS - [...POST_COPY_EMOJI_TAIL].length;
-  const head = [...brief.title].slice(0, Math.max(0, room)).join("").trimEnd();
-  return head + POST_COPY_EMOJI_TAIL;
-}
-
-/** Count emoji (grapheme clusters whose head is an Extended_Pictographic code point). */
-function countEmojis(text: string): number {
-  const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
-  let count = 0;
-  for (const { segment } of segmenter.segment(text)) {
-    const first = segment.codePointAt(0);
-    if (first === undefined) continue;
-    if (/\p{Extended_Pictographic}/u.test(String.fromCodePoint(first))) count += 1;
-  }
-  return count;
-}
-
 /**
  * Compose a contract-conformant Production Spec from an accepted Brief. Deterministic and pure.
  *
@@ -130,7 +95,6 @@ export function generate(brief: Brief): ProductionSpec {
   return {
     character_concepts: concepts,
     clips,
-    post_copy: buildPostCopy(brief),
     thumbnails,
   };
 }

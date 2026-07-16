@@ -27,7 +27,13 @@
  * candidate images the Operator chooses from) lives here too: it is now RECIPE-LOCAL data carried on
  * an Asset's optional `cast`/`character` fields, not a universal Asset field (CONTEXT.md: "Cast" /
  * "Character" are that Recipe's own vocabulary).
+ *
+ * `copy` is STRUCTURED (`src/copy/contract.ts`'s `Copy` — `{ caption, hashtags }`), not a bare string
+ * (ADR-0012, issue #58): the composed Copy step stores its full result here, and the Publish gate
+ * surfaces it verbatim.
  */
+
+import type { Copy } from "../copy/contract.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,7 +75,9 @@ export interface LedgerAssetRecord {
    */
   readonly pending_gate?: string;
   readonly spec_path?: string;
-  readonly copy?: string;
+  /** The Asset's composed Copy — structured `{ caption, hashtags }` (ADR-0012, issue #58), stored once
+   *  the copy step runs (after the media renders) and surfaced verbatim at the Publish gate. */
+  readonly copy?: Copy;
   /** Recipe-local: the *Character Explainer with Cast* Recipe's Cast candidates (CONTEXT.md "Cast"). */
   readonly cast?: readonly LedgerCastCandidate[];
   /** Recipe-local: the *Character Explainer with Cast* Recipe's picked Character. */
@@ -141,6 +149,20 @@ export function parseCastArray(raw: unknown): LedgerCastCandidate[] {
 }
 
 /**
+ * Parse one raw structured Copy (`{ caption, hashtags }` — ADR-0012, issue #58). Returns `null` on any
+ * malformed shape (a missing/blank `caption` is required; a missing/non-array `hashtags` degrades to
+ * `[]` rather than failing the whole Copy) — never throws.
+ */
+export function parseCopy(raw: unknown): Copy | null {
+  if (!isObject(raw)) return null;
+  if (!nonEmptyString(raw.caption)) return null;
+  const hashtags = Array.isArray(raw.hashtags)
+    ? raw.hashtags.filter((h): h is string => typeof h === "string")
+    : [];
+  return { caption: raw.caption, hashtags };
+}
+
+/**
  * Parse one raw Asset record. Requires a non-empty `recipe` and a valid `status`; every other field
  * is included ONLY when present and well-typed (never assigned as `undefined` — keeps the result
  * clean under `exactOptionalPropertyTypes`). Returns `null` on a malformed required field — never
@@ -152,13 +174,14 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
   if (!isAssetStatus(raw.status)) return null;
 
   const cast = parseCastArray(raw.cast);
+  const copy = parseCopy(raw.copy);
 
   return {
     recipe: raw.recipe,
     status: raw.status,
     ...(nonEmptyString(raw.pending_gate) ? { pending_gate: raw.pending_gate } : {}),
     ...(nonEmptyString(raw.spec_path) ? { spec_path: raw.spec_path } : {}),
-    ...(nonEmptyString(raw.copy) ? { copy: raw.copy } : {}),
+    ...(copy !== null ? { copy } : {}),
     ...(cast.length > 0 ? { cast } : {}),
     ...(nonEmptyString(raw.character) ? { character: raw.character } : {}),
     ...(nonEmptyString(raw.asset_url) ? { asset_url: raw.asset_url } : {}),

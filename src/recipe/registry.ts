@@ -37,9 +37,6 @@ import {
   type ValidationResult,
 } from "../production-spec/validate.ts";
 import {
-  MAX_POST_COPY_CHARS,
-  MIN_POST_COPY_EMOJIS,
-  MAX_POST_COPY_EMOJIS,
   REQUIRED_CHARACTER_CONCEPTS,
   REQUIRED_CLIPS,
   REQUIRED_THUMBNAILS,
@@ -123,6 +120,18 @@ export interface Recipe {
 const CHARACTER_EXPLAINER_SPACE_ID = "a1f05d67-1b98-4d10-9251-6603bea3b578";
 
 /**
+ * The seeded Recipe's OWN copy-shape params (ADR-0012, issue #58). Before this slice these were the
+ * global `MAX_POST_COPY_CHARS`/`MIN_POST_COPY_EMOJIS`/`MAX_POST_COPY_EMOJIS` constants on the
+ * Production-Spec contract (`post_copy` was part of the Spec then). Copy now leaves the Spec entirely
+ * (`src/copy/`) and its shape moves HERE, onto the Recipe that owns it — a different Recipe declares
+ * its own bounds; these are no longer shared globals. The VALUES are unchanged (180 chars, 1-3 emojis)
+ * so the wired production path's copy behavior does not change, only where the numbers live.
+ */
+const CHARACTER_EXPLAINER_COPY_MAX_CHARS = 180;
+const CHARACTER_EXPLAINER_COPY_MIN_EMOJIS = 1;
+const CHARACTER_EXPLAINER_COPY_MAX_EMOJIS = 3;
+
+/**
  * The Execution Protocol run-point names for the seeded Recipe, read from the SAME
  * `canonicalProtocol()` this Recipe's Space actually runs (`execution-protocol/protocol.ts`) — never
  * re-typed as independent string literals, so the registry can't drift from the real protocol.
@@ -163,16 +172,17 @@ const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
     description:
       `Exactly ${REQUIRED_CHARACTER_CONCEPTS} character_concepts; exactly ${REQUIRED_CLIPS} clips ` +
       "(each a Pixar-3D image_prompt ending in the 9:16 aspect-ratio line + a video_prompt); " +
-      `${REQUIRED_THUMBNAILS} top-level thumbnails; a top-level post_copy.`,
+      `${REQUIRED_THUMBNAILS} top-level thumbnails. Media instructions only — no post_copy (ADR-0012).`,
     validate: validateProductionSpec,
   },
   copyShape: {
     description:
-      "Today's copy is the Production Spec's own top-level post_copy field (ADR-0012 moves copy out " +
-      "of the Spec entirely in a later slice; this Recipe's copy shape is unchanged here).",
-    maxChars: MAX_POST_COPY_CHARS,
-    minEmojis: MIN_POST_COPY_EMOJIS,
-    maxEmojis: MAX_POST_COPY_EMOJIS,
+      "Copy is composed OUT of the Space, separately, by the shared copy step (`src/copy/`) — a " +
+      "caption of at most 180 chars with 1-3 emojis, plus hashtags (ADR-0012). These are this " +
+      "Recipe's OWN params, not global constants.",
+    maxChars: CHARACTER_EXPLAINER_COPY_MAX_CHARS,
+    minEmojis: CHARACTER_EXPLAINER_COPY_MIN_EMOJIS,
+    maxEmojis: CHARACTER_EXPLAINER_COPY_MAX_EMOJIS,
   },
 };
 

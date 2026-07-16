@@ -23,7 +23,9 @@ Brand from a global default. You restate the Brand at every human gate.
 - **Generate, never publish.** You produce an Asset; a human publishes it. You never post to Facebook,
   never log a Post URL, never touch a Channel.
 - **Banned words never survive.** The Brand Profile's hard filters (banned words, brand-safety) hold
-  through production. A Spec containing a banned word is rejected — never injected, never rendered.
+  through production. A Spec containing a banned word is rejected — never injected, never rendered. The
+  SAME hard filter applies to the composed Copy (`src/copy/validate.ts`'s banned-word check) — REJECT
+  the draft and STOP, never silently rewrite it (ADR-0012).
 - **Two human gates inside production.** You pause at the **Cast** gate (the Operator picks the
   Character) and you **never render past a gate before the Operator acts**. (Review is the gate before you.)
 - **One Space generation at a time.** The Space has no parallelism. Drive ONE run to terminal before
@@ -90,9 +92,27 @@ For a `casting` Idea whose Character the Operator has picked:
    - `replace_text`: in `Watermark instructions`, replace ONLY the `@handle` with
      `production.watermark_handle` from the Brand Profile; leave the rest of the prompt untouched.
    - `run` the clip node (e.g. `Clip extractor`, `downstream`) and wait for the clip/video nodes.
-   - `run` the `Video Combiner` node and wait — the combined video is the **Asset**.
-2. **Save the Asset** to the Brand's ledger: `character`, `asset_url`, `produced_at` (ISO-8601), and set
-   the Idea `casting → produced`. **STOP.** You never publish — a human does, then runs `/log-post`.
+   - `run` the `Video Combiner` node and wait — the combined video is the **Asset**'s media.
+2. **Compose the Copy** — a separate, OUT-OF-SPACE step, done LATE (now that the media and the picked
+   Character exist, so the copy can refer to them — e.g. name the Character, or "swipe for all 5"),
+   in the Format's own voice (ADR-0012):
+   - **Draft** the caption + hashtags yourself, in the Format's voice, from the Idea's material and
+     what was actually produced. This is YOUR job as the LLM — never a fixed template.
+   - **Inject the Brand's required parts deterministically**: `src/copy/inject.ts`'s
+     `injectRequiredParts` appends `required_cta`/`required_hashtags` from the Brand Profile when
+     absent, and dedupes when your draft already included them.
+   - **Check it** against the chosen Recipe's own copy shape (`Recipe.copyShape` —
+     `src/recipe/registry.ts`; NOT a global 180-char/1-3-emoji constant) with the pure, hermetic
+     `src/copy/validate.ts`'s `validateCopy`: length, emoji count, the required CTA/hashtags are
+     present, and NO banned word. If length/emoji/required-parts fail, redraft and re-check — this is
+     bounded judgement, never an unbounded auto-loop. **A banned word is REJECT-ONLY: STOP and tell the
+     Operator — never silently swap the word yourself.**
+   - The **watermark @handle is NOT copy** — it stays the Space parameter you already set in step 1
+     above; never fold it into the caption or hashtags.
+3. **Save the Asset** to the Brand's ledger: `character`, `asset_url`, `produced_at` (ISO-8601), the
+   composed `copy` (structured `{ caption, hashtags }`), and set the Idea `casting → produced`.
+   **STOP.** You never publish — a human does, then runs `/log-post`, which surfaces the saved Copy
+   verbatim at the Publish gate for the Operator to review before they post it.
 
 ## Guardrails
 - **Brand is explicit.** Only read/write the stated Brand's paths. Restate the Brand at every gate.
@@ -100,10 +120,15 @@ For a `casting` Idea whose Character the Operator has picked:
   resolve node IDs from it. Missing/unparseable protocol or a missing Space → STOP and report.
 - **Generate, never publish.** Saving a Spec or an Asset is not publishing; you never post.
 - **Respect the brand profile.** Banned words / brand-safety are hard filters; a Spec carrying one is
-  never injected or rendered.
+  never injected or rendered. `required_cta`/`required_hashtags` are live rules too — injected
+  deterministically into the composed Copy, never skipped.
 - **Validate before the Space.** A malformed Spec never reaches the Space (it would waste a run / credits).
+- **Copy leaves the Space entirely.** The Space renders media only — no `post_copy` field, no caption
+  text. Compose the Copy as its own step, LATE (after the media exists), and check it with
+  `src/copy/validate.ts` before saving it (ADR-0012).
 - **The ledger is canonical.** Only `accepted` Ideas are produced; write the Cast at the Cast gate and
-  the Asset at completion; update status on every transition; keep `data/queue.json` consistent.
+  the Asset (media + composed Copy) at completion; update status on every transition; keep
+  `data/queue.json` consistent.
 - **Queue jobs follow the store schema** (`src/production-queue/queue.ts`): fields `idea_id`, `brand`,
   `phase` (`cast` | `render`), `status` (`queued` | `running` | `awaiting_cast` | `done` | `failed`),
   `enqueued_at`. No other fields, no other status words — the store silently DROPS jobs it can't parse

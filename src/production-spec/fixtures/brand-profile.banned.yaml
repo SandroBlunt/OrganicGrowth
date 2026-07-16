@@ -11,6 +11,10 @@ channel:
 niche: "Test niche"
 language: es
 
+required_cta: "Link in bio!"
+required_hashtags:
+  - "#lifehacks"
+
 banned_words:
   - cure
   - miracle

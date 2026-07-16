@@ -11,6 +11,7 @@ import {
   earlierAssetStatus,
   parseCastCandidate,
   parseCastArray,
+  parseCopy,
   parseAssetRecord,
   parseAssetsArray,
   findAsset,
@@ -95,6 +96,32 @@ describe("parseCastArray — drops malformed entries, never throws", () => {
   });
 });
 
+describe("parseCopy — structured Copy, defensive (ADR-0012, issue #58)", () => {
+  it("parses a well-formed Copy", () => {
+    const raw = { caption: "Check this out! 🎉", hashtags: ["#tip", "#morning"] };
+    assert.deepEqual(parseCopy(raw), raw);
+  });
+
+  it("defaults hashtags to [] when missing or non-array", () => {
+    assert.deepEqual(parseCopy({ caption: "x" }), { caption: "x", hashtags: [] });
+    assert.deepEqual(parseCopy({ caption: "x", hashtags: "nope" }), { caption: "x", hashtags: [] });
+  });
+
+  it("drops non-string hashtag entries defensively", () => {
+    assert.deepEqual(parseCopy({ caption: "x", hashtags: ["#a", 7, "#b"] }), {
+      caption: "x",
+      hashtags: ["#a", "#b"],
+    });
+  });
+
+  it("returns null when caption is missing, blank, or the value isn't an object", () => {
+    assert.equal(parseCopy({ hashtags: [] }), null);
+    assert.equal(parseCopy({ caption: "" }), null);
+    assert.equal(parseCopy(null), null);
+    assert.equal(parseCopy("nope"), null);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // parseAssetRecord / parseAssetsArray
 // ---------------------------------------------------------------------------
@@ -119,7 +146,7 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       status: "in_production",
       pending_gate: "cast",
       spec_path: "ideas/2026-W22/idea-01.character-explainer-with-cast.spec.json",
-      copy: "Check this out! 🎉",
+      copy: { caption: "Check this out! 🎉", hashtags: ["#tip"] },
       cast: [{ identifier: "cast-1", url: "https://x/1.png" }],
       character: "cast-1",
       asset_url: "https://x/asset.mp4",

@@ -8,11 +8,6 @@ import {
   isWiredRecipe,
 } from "./registry.ts";
 import { validate as validateProductionSpec } from "../production-spec/validate.ts";
-import {
-  MAX_POST_COPY_CHARS,
-  MIN_POST_COPY_EMOJIS,
-  MAX_POST_COPY_EMOJIS,
-} from "../production-spec/contract.ts";
 import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME } from "../space-driver/driver.ts";
 import { canonicalProtocol } from "../execution-protocol/protocol.ts";
 import { validSpec } from "../production-spec/fixtures/specs.ts";
@@ -76,9 +71,14 @@ describe("The seeded Recipe declares gates + spec-shape + copy-shape + Space tar
     assert.equal(recipe.specShape.validate({}).ok, false);
   });
 
-  it("declares a copy-shape matching today's post_copy contract constants exactly", () => {
-    assert.equal(recipe.copyShape.maxChars, MAX_POST_COPY_CHARS);
-    assert.equal(recipe.copyShape.minEmojis, MIN_POST_COPY_EMOJIS);
-    assert.equal(recipe.copyShape.maxEmojis, MAX_POST_COPY_EMOJIS);
+  it("declares a copy-shape of its OWN — 180 chars, 1-3 emojis — no longer sourced from a shared Spec-contract constant (ADR-0012, issue #58)", () => {
+    assert.equal(recipe.copyShape.maxChars, 180);
+    assert.equal(recipe.copyShape.minEmojis, 1);
+    assert.equal(recipe.copyShape.maxEmojis, 3);
+  });
+
+  it("the Spec no longer carries post_copy — copy is composed separately (ADR-0012)", () => {
+    assert.equal(recipe.specShape.validate(validSpec()).ok, true);
+    assert.equal("post_copy" in validSpec(), false);
   });
 });

@@ -1,0 +1,14 @@
+# Fixture Brand Profile for the Copy step's tests ONLY (`src/copy/`) — the real profile's DEFAULT
+# shape: no required CTA, no required hashtags, no banned words configured. Mirrors a fresh Channel
+# that hasn't set any brand-safety rules yet.
+
+channel:
+  name: TestChannel
+  platform: facebook
+
+niche: "Test niche"
+language: en
+
+required_cta: ""
+required_hashtags: []
+banned_words: []

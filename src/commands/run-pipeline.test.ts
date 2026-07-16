@@ -551,6 +551,45 @@ describe("runPipelineCommand — AC5: Loop pauses at gates and does not render p
     });
   });
 
+  it("surfaces the composed Copy verbatim at Gate 3, and names the Recipe in the /log-post hint (ADR-0012)", async () => {
+    const ledger = JSON.stringify({
+      ideas: [
+        {
+          id: "idea-01",
+          status: "accepted",
+          assets: [
+            {
+              recipe: "character-explainer-with-cast",
+              status: "produced",
+              asset_url: "https://x/asset.mp4",
+              copy: { caption: "Your first ten minutes decide your whole day ☀️", hashtags: ["#lifehacks", "#morning"] },
+            },
+          ],
+        },
+      ],
+      baseline: { updated_at: null },
+    });
+
+    await withBrandFixture({ ledgerContent: ledger }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          if (/resume or fresh/i.test(prompt)) return "resume";
+          return "done";
+        },
+      });
+      const out = allMessages(turns);
+      assert.match(out, /Gate 3|Publish/i, "Gate 3 must be surfaced for produced Assets");
+      assert.match(out, /Your first ten minutes decide your whole day ☀️/, "the composed caption must be surfaced verbatim");
+      assert.match(out, /#lifehacks #morning/, "the composed hashtags must be surfaced verbatim");
+      assert.match(
+        out,
+        /\/log-post testbrand idea-01 character-explainer-with-cast <facebook-url>/,
+        "the /log-post hint must name the Recipe explicitly (attribution is (Idea, Recipe), never inferred)",
+      );
+    });
+  });
+
   it("recovers correctly across sessions — re-invoking with casting Ideas resumes at Gate 2", async () => {
     const ledger = JSON.stringify({
       ideas: [{ id: "idea-01", status: "casting" }],
