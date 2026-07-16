@@ -48,9 +48,10 @@ describe("scanForBannedWords", () => {
     assert.equal(result.ok, true);
   });
 
-  it("rejects a Spec whose post_copy contains a banned word and names the word", () => {
+  it("rejects a Spec whose clip prompt contains a banned word and names the word", () => {
     const spec = validSpec();
-    spec.post_copy = "This miracle trick changes your morning ☀️☕";
+    (spec.clips as Record<string, unknown>[])[0]!.video_prompt =
+      "This miracle trick changes your morning, gentle voice line.";
     const result = scanForBannedWords(spec, banned);
     assert.equal(result.ok, false);
     assert.ok(result.hits.some((h) => h.word === "miracle"));
@@ -58,13 +59,13 @@ describe("scanForBannedWords", () => {
 
   it("matches case-insensitively", () => {
     const spec = validSpec();
-    spec.post_copy = "A GUARANTEED morning boost ☀️☕";
+    (spec.thumbnails as string[])[0] = "A GUARANTEED morning boost. Aspect Ratio 9:16.";
     const result = scanForBannedWords(spec, banned);
     assert.equal(result.ok, false);
     assert.ok(result.hits.some((h) => h.word === "guaranteed"));
   });
 
-  it("scans clip prompts and thumbnails, not just post_copy", () => {
+  it("scans clip prompts and thumbnails", () => {
     const spec = validSpec();
     (spec.clips as Record<string, unknown>[])[0]!.image_prompt =
       "Pixar 3D the clock with a miracle glow. Aspect Ratio 9:16.";
@@ -84,8 +85,16 @@ describe("scanForBannedWords", () => {
   it("does not match a banned word embedded inside an unrelated word", () => {
     const spec = validSpec();
     // "secure" contains "cure" but is not the banned word "cure" — whole-word match only.
-    spec.post_copy = "Feel secure every morning ☀️☕";
+    (spec.clips as Record<string, unknown>[])[0]!.video_prompt = "Feel secure every morning.";
     const result = scanForBannedWords(spec, banned);
+    assert.equal(result.ok, true);
+  });
+
+  it("no longer scans a post_copy field even if one is present (ADR-0012: copy leaves the Spec)", () => {
+    const spec = validSpec() as Record<string, unknown>;
+    spec.post_copy = "This miracle trick changes your morning ☀️☕";
+    const result = scanForBannedWords(spec, banned);
+    // The stray post_copy field is simply not collected/scanned — no hit from it.
     assert.equal(result.ok, true);
   });
 });

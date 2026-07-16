@@ -22,7 +22,15 @@
  * The contract is the shape the Space's `JSON master` input node enforces (CONTEXT.md "Production
  * Spec"; PRD #1): exactly 3 anthropomorphic `character_concepts`; exactly 3 narrative `clips` using
  * `character_concepts[0]`, each clip a Pixar-3D `image_prompt` that ends with the 9:16 line and a
- * `video_prompt`; and TOP-LEVEL `post_copy` (<=180 chars, 1-3 emojis) and `thumbnails` (3 prompts).
+ * `video_prompt`; and a TOP-LEVEL `thumbnails` (3 prompts).
+ *
+ * --- post_copy is RETIRED here (ADR-0012, issue #58) ---
+ *
+ * Copy leaves the Space and the Production Spec ENTIRELY — the Space makes media only. The former
+ * `post_copy` field (and its 180-char / 1-3-emoji contract) is now composed as a separate, out-of-Space
+ * step (`src/copy/`), in the shape the chosen **Recipe** declares (`Recipe.copyShape`,
+ * `src/recipe/registry.ts`) rather than as a global constant here — a different Recipe can declare
+ * different bounds. See `docs/adr/0012-copy-shared-parameterized-out-of-space-step.md`.
  */
 
 /** Required count of `character_concepts` in a Production Spec. */
@@ -33,13 +41,6 @@ export const REQUIRED_CLIPS = 3;
 
 /** Required count of `thumbnails` (top-level image prompts) in a Production Spec. */
 export const REQUIRED_THUMBNAILS = 3;
-
-/** Maximum length, in characters, of a Spec's top-level `post_copy`. */
-export const MAX_POST_COPY_CHARS = 180;
-
-/** Inclusive emoji-count bounds for a Spec's `post_copy`. */
-export const MIN_POST_COPY_EMOJIS = 1;
-export const MAX_POST_COPY_EMOJIS = 3;
 
 /** The line every clip `image_prompt` must end with (the Space's 9:16 aspect-ratio rule). */
 export const ASPECT_RATIO_LINE = "Aspect Ratio 9:16.";
@@ -58,14 +59,13 @@ export interface SpecClip {
 }
 
 /**
- * The strict Production Spec the Space's `JSON master` node consumes. `post_copy` and `thumbnails` are
- * TOP-LEVEL by contract — never nested inside a clip.
+ * The strict Production Spec the Space's `JSON master` node consumes — MEDIA INSTRUCTIONS ONLY
+ * (ADR-0010/0012). `thumbnails` is TOP-LEVEL by contract — never nested inside a clip. There is no
+ * `post_copy` field: Copy is composed separately, out of the Space (`src/copy/`).
  */
 export interface ProductionSpec {
   readonly character_concepts: readonly string[];
   readonly clips: readonly SpecClip[];
-  /** TOP-LEVEL. <=180 chars, 1-3 emojis. */
-  readonly post_copy: string;
   /** TOP-LEVEL. Exactly 3 image prompts. */
   readonly thumbnails: readonly string[];
 }

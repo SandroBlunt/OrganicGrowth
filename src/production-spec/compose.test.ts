@@ -43,7 +43,6 @@ function acceptedBrief(): Brief {
       "A bright anthropomorphic window curtain",
     ],
     beats: ["The groggy wake-up", "The first ten minutes", "The energized payoff"],
-    post_copy: "Your first ten minutes decide your whole day ☀️☕",
   };
 }
 
@@ -71,8 +70,8 @@ describe("composeSpec — brand-safety gate", () => {
   it("REFUSES to write a Spec containing a banned word", async () => {
     await withTempDir(async (dir) => {
       const brief = acceptedBrief();
-      // Smuggle a banned word ("miracle") into the Brief's copy.
-      const dirty: Brief = { ...brief, post_copy: "This miracle trick fixes mornings ☀️☕" };
+      // Smuggle a banned word ("miracle") into the Brief's beats — it flows into a clip's concept_title.
+      const dirty: Brief = { ...brief, beats: ["This miracle trick", ...brief.beats!.slice(1)] };
 
       const result = await composeSpec(dirty, {
         ideasRoot: dir,
@@ -106,7 +105,6 @@ describe("composeSpec — validation gate", () => {
             { id: "c1", clip_id: 1, concept_title: "x", image_prompt: "p Aspect Ratio 9:16.", video_prompt: "v" },
             { id: "c2", clip_id: 2, concept_title: "y", image_prompt: "p Aspect Ratio 9:16.", video_prompt: "v" },
           ],
-          post_copy: "two clips only ☀️☕",
           thumbnails: ["t1", "t2", "t3"],
         }),
       });

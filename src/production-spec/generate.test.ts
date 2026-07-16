@@ -23,7 +23,6 @@ function sampleBrief(): Brief {
       "A bright anthropomorphic window curtain",
     ],
     beats: ["The groggy wake-up", "The first ten minutes", "The energized payoff"],
-    post_copy: "Your first ten minutes decide your whole day ☀️☕",
   };
 }
 
@@ -41,12 +40,11 @@ describe("generate — produces a contract-conformant Spec", () => {
     assert.equal(spec.thumbnails.length, REQUIRED_THUMBNAILS);
   });
 
-  it("places post_copy and thumbnails at the TOP level (not in clips)", () => {
+  it("places thumbnails at the TOP level (not in clips), and never emits post_copy (ADR-0012)", () => {
     const spec = generate(sampleBrief());
-    assert.equal(typeof spec.post_copy, "string");
     assert.ok(Array.isArray(spec.thumbnails));
+    assert.equal("post_copy" in spec, false);
     for (const clip of spec.clips) {
-      assert.equal("post_copy" in clip, false);
       assert.equal("thumbnails" in clip, false);
     }
   });
@@ -72,7 +70,7 @@ describe("generate — produces a contract-conformant Spec", () => {
 });
 
 describe("generate — degenerate Briefs still yield a valid Spec", () => {
-  it("synthesizes missing concepts/beats/post_copy to satisfy the contract", () => {
+  it("synthesizes missing concepts/beats to satisfy the contract", () => {
     const sparse: Brief = {
       id: "idea-2026-W22-09",
       run: "2026-W22",
@@ -82,16 +80,15 @@ describe("generate — degenerate Briefs still yield a valid Spec", () => {
     assert.equal(validate(spec).ok, true, JSON.stringify(validate(spec).errors));
   });
 
-  it("truncates an over-long title into a contract-valid post_copy", () => {
+  it("still yields a valid Spec for a Brief with an over-long title (no post_copy to truncate)", () => {
     const longTitle: Brief = {
       id: "idea-2026-W22-10",
       run: "2026-W22",
-      title: "Lorem ipsum dolor sit amet ".repeat(20), // > 180 chars, no emoji
+      title: "Lorem ipsum dolor sit amet ".repeat(20), // > 180 chars — irrelevant now (media-only Spec)
     };
     const spec = generate(longTitle);
     const result = validate(spec);
     assert.equal(result.ok, true, JSON.stringify(result.errors));
-    assert.ok([...spec.post_copy].length <= 180);
   });
 });
 

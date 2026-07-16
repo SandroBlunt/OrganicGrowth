@@ -1,0 +1,20 @@
+# Fixture Brand Profile for the Copy step's tests ONLY (`src/copy/`). Shape mirrors
+# data/brands/<slug>/brand-profile.yaml. Sets ALL THREE composed-Copy rules so the full
+# draft -> inject -> validate pipeline is provable end-to-end (ADR-0012, issue #58).
+
+channel:
+  name: TestChannel
+  platform: facebook
+
+niche: "Test niche"
+language: en
+
+required_cta: "Link in bio!"
+required_hashtags:
+  - "#lifehacks"
+  - "tips"
+
+banned_words:
+  - cure
+  - miracle
+  - guaranteed

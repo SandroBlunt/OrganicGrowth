@@ -10,7 +10,8 @@
  * brand-safety tests.
  */
 
-/** A well-formed Production Spec: 3 concepts, 3 clips, top-level post_copy (2 emojis) + 3 thumbnails. */
+/** A well-formed Production Spec: 3 concepts, 3 clips, top-level thumbnails (media instructions only —
+ *  `post_copy` is retired from the Spec, ADR-0012). */
 export function validSpec(): Record<string, unknown> {
   return {
     character_concepts: [
@@ -47,7 +48,6 @@ export function validSpec(): Record<string, unknown> {
           "Orbit around the clock, it dances with arms raised, upbeat voice says feel the difference, lively pop sfx.",
       },
     ],
-    post_copy: "Your first ten minutes decide your whole day ☀️☕",
     thumbnails: [
       "Pixar 3D close-up of the anthropomorphic alarm clock smiling at sunrise. Aspect Ratio 9:16.",
       "Pixar 3D the alarm clock opening curtains, golden light. Aspect Ratio 9:16.",
@@ -72,27 +72,6 @@ export function fourConcepts(): Record<string, unknown> {
 export function twoClips(): Record<string, unknown> {
   const s = clone(validSpec());
   (s.clips as unknown[]).pop();
-  return s;
-}
-
-/** post_copy longer than 180 chars. */
-export function longPostCopy(): Record<string, unknown> {
-  const s = clone(validSpec());
-  s.post_copy = "A".repeat(181) + " ☀️"; // > 180 chars, still has an emoji
-  return s;
-}
-
-/** post_copy with 0 emojis (contract requires 1-3). */
-export function zeroEmojis(): Record<string, unknown> {
-  const s = clone(validSpec());
-  s.post_copy = "Your first ten minutes decide your whole day";
-  return s;
-}
-
-/** post_copy with 4 emojis (contract allows at most 3). */
-export function fourEmojis(): Record<string, unknown> {
-  const s = clone(validSpec());
-  s.post_copy = "Your morning ☀️☕✨🌟";
   return s;
 }
 
@@ -122,15 +101,6 @@ export function clipMissingVideoPrompt(): Record<string, unknown> {
 export function missingThumbnails(): Record<string, unknown> {
   const s = clone(validSpec());
   delete s.thumbnails;
-  return s;
-}
-
-/** post_copy moved INTO the first clip instead of top-level (contract requires top-level). */
-export function nestedPostCopy(): Record<string, unknown> {
-  const s = clone(validSpec());
-  delete s.post_copy;
-  (s.clips as Record<string, unknown>[])[0]!.post_copy =
-    "Nested where it must not be ☀️☕";
   return s;
 }
 

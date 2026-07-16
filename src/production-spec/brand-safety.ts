@@ -3,8 +3,10 @@
  *
  * Enforces the Brand Profile's hard banned-word filter on a Production Spec, so production never
  * reintroduces something Review would have filtered: a banned word in ANY text field (concepts, clip
- * prompts, post_copy, thumbnails) rejects the Spec, and a rejected Spec is never written (always-rule
- * 9; PRD #1 story 30).
+ * prompts, thumbnails) rejects the Spec, and a rejected Spec is never written (always-rule 9; PRD #1
+ * story 30). `post_copy` is RETIRED here (ADR-0012 — copy leaves the Spec entirely); the banned-word
+ * scan for the composed Copy now lives in `src/copy/validate.ts`, which re-uses this module's own
+ * `scanTextFields` core so the two scans can never drift on the word-boundary/case-insensitivity rule.
  *
  * Pure and deterministic: no I/O. The banned-words list comes from `brand-profile.ts` (the I/O
  * boundary). Matching is case-insensitive and WHOLE-WORD (so the banned word "cure" does not flag the
@@ -60,10 +62,6 @@ function collectTextFields(spec: unknown): { field: string; text: string }[] {
     });
   }
 
-  if (typeof spec.post_copy === "string") {
-    out.push({ field: "post_copy", text: spec.post_copy });
-  }
-
   const thumbnails = spec.thumbnails;
   if (Array.isArray(thumbnails)) {
     thumbnails.forEach((t, i) => {
@@ -72,6 +70,44 @@ function collectTextFields(spec: unknown): { field: string; text: string }[] {
   }
 
   return out;
+}
+
+/** One `{ field, text }` pair to scan — the shape `collectTextFields` produces and `src/copy/validate.ts`
+ *  builds independently for the composed Copy's own fields (`caption`, `hashtags[i]`). */
+export interface TextField {
+  readonly field: string;
+  readonly text: string;
+}
+
+/**
+ * Scan a flat list of `{ field, text }` pairs for any of `bannedWords` (case-insensitive, whole-word).
+ * Returns `{ ok, hits }`. When `bannedWords` is empty the scan always passes. This is the SHARED core
+ * both `scanForBannedWords` (Spec-shape, below) and `src/copy/validate.ts`'s composed-Copy scan build
+ * on, so the word-boundary/case-insensitivity rule can never drift between the two (ADR-0012: the
+ * banned-word scan is re-pointed onto the composed Copy, reject-only).
+ *
+ * @param fields      the text fields to scan
+ * @param bannedWords the Brand Profile's banned words (from `loadBannedWords`)
+ */
+export function scanTextFields(
+  fields: readonly TextField[],
+  bannedWords: readonly string[],
+): BrandSafetyResult {
+  const hits: BannedWordHit[] = [];
+  if (bannedWords.length === 0) return { ok: true, hits };
+
+  for (const word of bannedWords) {
+    // Word-boundary, case-insensitive. `\b` works for ASCII banned words; for accented banned words it
+    // still anchors on the non-word boundary at each end of the run.
+    const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(word)}(?![\\p{L}\\p{N}])`, "iu");
+    for (const { field, text } of fields) {
+      if (pattern.test(text)) {
+        hits.push({ word, field });
+      }
+    }
+  }
+
+  return { ok: hits.length === 0, hits };
 }
 
 /**
@@ -85,20 +121,5 @@ export function scanForBannedWords(
   spec: unknown,
   bannedWords: readonly string[],
 ): BrandSafetyResult {
-  const hits: BannedWordHit[] = [];
-  if (bannedWords.length === 0) return { ok: true, hits };
-
-  const fields = collectTextFields(spec);
-  for (const word of bannedWords) {
-    // Word-boundary, case-insensitive. `\b` works for ASCII banned words; for accented banned words it
-    // still anchors on the non-word boundary at each end of the run.
-    const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(word)}(?![\\p{L}\\p{N}])`, "iu");
-    for (const { field, text } of fields) {
-      if (pattern.test(text)) {
-        hits.push({ word, field });
-      }
-    }
-  }
-
-  return { ok: hits.length === 0, hits };
+  return scanTextFields(collectTextFields(spec), bannedWords);
 }
