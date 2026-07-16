@@ -11,11 +11,13 @@ the Operator's session** and renders it to completion, one generation at a time 
 the clip run-point, saves the **Asset**). A gate-paused job does not hold the Space. Status moves
 `casting → produced`. OrganicGrowth **renders the Asset but never publishes it.**
 
-> **Target (multi-format — ADR-0009/0010):** the Cast pick is the *Character Explainer with Cast*
-> Recipe's local pick-gate; it generalizes to any Recipe's pick-gate, and `/pick-cast` becomes a
-> friendly alias for a generic "submit a pick" command. Not built yet — today the pick is Cast-only
-> (the underlying queue's job identity and gate cursor already generalized to `(brand, idea, recipe)` /
-> a named `gate`, issue #56; the generic multi-Recipe pick UX itself is issue #57).
+> **Multi-format (ADR-0009/0010, issue #57):** the Cast pick is the *Character Explainer with Cast*
+> Recipe's own local pick-gate — "Cast"/"Character" are that Recipe's vocabulary, not a universal step.
+> `/pick-cast` is now a **thin, friendly alias**: it stays Cast-only for finding the Idea's gated Asset
+> and turning the 1-based `<n>` into a Character, then delegates the actual queue-resume mechanics to
+> the same `resumeGate` primitive the generic **`/pick <brand> <idea-id> <recipe> <gate> <pick>`**
+> command uses for ANY wired Recipe's ANY declared gate — see `.claude/commands/pick.md`. The two
+> commands can never drift on how a pick resumes production.
 
 Usage: `/pick-cast <brand> <idea-id> <n>`
   - `<brand>` is required — the Brand the Idea belongs to (e.g. `mundotip`).

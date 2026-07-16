@@ -2,11 +2,20 @@
  * Execution Protocol — types, the read-API truncation cap, and the canonical `Producer Protocol`
  * artifact (pure, no I/O).
  *
- * The Execution Protocol is the ordered set of run-points that tells the Producer how to drive a Space
- * end-to-end (CONTEXT.md "Execution Protocol"; ADR-0003). It lives ON the Space itself — a single
- * `Producer Protocol` text node holding JSON — so it evolves with the canvas instead of drifting in a
- * separate repo. A run-point names the node to run (`start`), the run `mode` (`downstream`), and the
- * human `gate` (if any) that follows it.
+ * The Execution Protocol is the ordered set of **media** run-points that tells the Producer how to drive
+ * a Space's own nodes (CONTEXT.md "Execution Protocol"; ADR-0003, revised by ADR-0010). It lives ON the
+ * Space itself — a single `Producer Protocol` text node holding JSON — so it evolves with the canvas
+ * instead of drifting in a separate repo. A run-point names the node to run (`start`), the run `mode`
+ * (`downstream`), and the `gate` (if any) that follows it.
+ *
+ * --- THE GATE LIST IS OWNED BY THE RECIPE, NOT THIS PROTOCOL (ADR-0010) ---
+ *
+ * A run-point's `gate` still marks WHICH run-point a given gate pauses at, but the ORDERED gate list
+ * itself — how many gates a production plan has, and in what order — is declared on the in-repo
+ * **Recipe** (`src/recipe/registry.ts`'s `Recipe.gates`), not derived from this Protocol. `RunPointGate`
+ * therefore widens from the old fixed `"cast" | null` to **any** Recipe-declared gate name (or `null`
+ * for a run-point with no gate) — the generic run-until-gate driver (`space-driver/driver.ts`'s
+ * `driveToNextGate`) walks a Recipe's run-points in order and pauses at whichever gate each one names.
  *
  * --- WHY RUN-POINTS REFERENCE NODES BY NAME (ADR-0003, load-bearing) ---
  *
@@ -44,8 +53,12 @@ export const PRODUCER_PROTOCOL_NODE_NAME = "Producer Protocol";
 /** Run modes the Producer can drive a run-point in (ADR-0003: the cast/clip phases run `downstream`). */
 export type RunMode = "downstream" | "singular";
 
-/** The human gate that follows a run-point, if any. `null` means the protocol continues unattended. */
-export type RunPointGate = "cast" | null;
+/**
+ * The gate that follows a run-point, if any. `null` means the protocol continues unattended (no pause).
+ * Widened beyond the old fixed `"cast"` (ADR-0010, issue #57): any non-empty gate NAME a Recipe declares
+ * is valid — the parser does not hard-code which names exist, since that list lives on the Recipe.
+ */
+export type RunPointGate = string | null;
 
 /**
  * One run-point in the Execution Protocol: which node to run, in which mode, and the human gate (if

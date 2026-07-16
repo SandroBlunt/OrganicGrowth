@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import type { EditStatus, RunStatus, SpaceMcpPort } from "../port.ts";
-import { pinGoal } from "../driver.ts";
+import { pinGoal, CHARACTER_NODE_NAME } from "../driver.ts";
 import { FakeSpace } from "../fixtures/fake-space.ts";
 import { parse } from "../../execution-protocol/parse.ts";
 import { fakeSpaceState } from "../../execution-protocol/fixtures/space-state.ts";
@@ -77,7 +77,7 @@ function runSharedPortContract(label: string, make: () => ContractFixture): void
 
     it("verifyPinned confirms the pinned Character and rejects a different one, after the SAME pinGoal edit", async () => {
       const { port, pinnedCharacter, notPinnedCharacter } = make();
-      const { editId } = await port.edit(pinGoal(pinnedCharacter));
+      const { editId } = await port.edit(pinGoal(pinnedCharacter, CHARACTER_NODE_NAME));
       const status = await pollToTerminal<EditStatus>(() => port.editStatus(editId));
       assert.equal(status.phase, "succeeded");
       assert.equal(await port.verifyPinned(pinnedCharacter), true);

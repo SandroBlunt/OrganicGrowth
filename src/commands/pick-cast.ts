@@ -7,7 +7,7 @@
  * `<n>`, per the issue) as the chosen **Character**, and report it — recording the Operator's pick so
  * production resumes (the attended Phase-B render against the live Space happens when the Producer
  * resumes the job in the Operator's session, ADR-0008; the pure selection + the driver's
- * `pinCharacter`/`pickAndRender` are exercised hermetically here).
+ * `pinPick`/`driveToNextGate` are exercised hermetically in `space-driver/driver.test.ts`).
  *
  * As of issue #55, the Cast gate lives on the *Character Explainer with Cast* Recipe's own Asset, not
  * on a flat Idea status: an Idea is "at the Cast gate" when one of its Assets is
@@ -17,17 +17,22 @@
  * `ledger.ts`'s `loadIdeas` normalizes an un-migrated ledger transparently on the way in (ADR-0011), so
  * this shell needs no separate legacy-fallback path of its own.
  *
- * This command stays Cast-only scoped (its own doc's "Target" note: generalizing to any Recipe's own
- * pick-gate is issue #57's generic driver, not this slice). What DOES change here (issue #56): the
- * enqueued next-leg job carries the RESOLVED Asset's own `recipe`, never inferred when more than one
- * Asset could be at the gate — `findGateCandidateAsset` REFUSES with an identifiable message (never
- * guesses) when more than one of the Idea's Assets is paused at the Cast gate at once (a future
- * multi-Recipe scenario; today's one wired Recipe means this can only happen via a hand-edited ledger).
+ * As of issue #57 this command is a **thin alias** (ADR-0010): it stays Cast-only scoped for its
+ * ledger-reading half (finding the Idea's gated Asset, selecting the nth Cast member as the Character —
+ * the *Character Explainer with Cast* Recipe's own vocabulary/UX) but DELEGATES its queue-resume
+ * mechanics to the GENERIC `resumeGate` (`src/commands/pick.ts`) — the same primitive the generic
+ * `/pick <brand> <idea-id> <recipe> <gate> <pick>` command uses for ANY wired Recipe's ANY declared
+ * gate. The two commands can therefore never drift on how a pick actually resumes production. What DOES
+ * change on top of that (issue #56): the enqueued next-leg job carries the RESOLVED Asset's own
+ * `recipe`, never inferred when more than one Asset could be at the gate — `findGateCandidateAsset`
+ * REFUSES with an identifiable message (never guesses) when more than one of the Idea's Assets is
+ * paused at the Cast gate at once (a future multi-Recipe scenario; today's one wired Recipe means this
+ * can only happen via a hand-edited ledger).
  *
  * All logic lives in the deep modules (`ledger.ts` for the read, `asset/asset.ts` for the gate/roll-up
- * folding, the pure `selectCharacter` here for the 1-based pick). No Magnific, no Apify, no network in
- * this shell. An unknown Idea, an Idea with no Cast, or an out-of-range `<n>` returns an identifiable,
- * non-crashing message — it never invents a Character.
+ * folding, the pure `selectCharacter` here for the 1-based pick, `resumeGate` for the queue resume). No
+ * Magnific, no Apify, no network in this shell. An unknown Idea, an Idea with no Cast, or an
+ * out-of-range `<n>` returns an identifiable, non-crashing message — it never invents a Character.
  *
  * Brand is always explicit: `<brand>` is a required first argument. The Brand's ledger path is derived
  * via `resolveBrand(brand).ledger`. The Production Queue is the shared global queue (brand-agnostic,
@@ -38,14 +43,13 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { loadIdeas, findIdea, type LedgerIdea } from "../ledger/ledger.ts";
 import { ideaAtGate, deriveIdeaRollup, type LedgerAssetRecord, type LedgerCastCandidate } from "../asset/asset.ts";
-import { getRecipe } from "../recipe/registry.ts";
-import { enqueueNextLeg } from "../production-queue/queue.ts";
-import { markPickConsumed } from "../production-queue/scheduler.ts";
-import { loadQueue, saveQueue, DEFAULT_QUEUE_PATH } from "../production-queue/store.ts";
+import { resumeGate } from "./pick.ts";
+import { DEFAULT_QUEUE_PATH } from "../production-queue/store.ts";
 import { resolveBrand } from "../brand/resolver.ts";
 
 /** The Cast gate's name — this command stays scoped to the *Character Explainer with Cast* Recipe's
- *  own gate (its Target note: generalizing to any Recipe's own gate is issue #57). */
+ *  own gate; the generic pick/resume mechanics for ANY gate are `resumeGate` (`src/commands/pick.ts`,
+ *  issue #57). */
 const CAST_GATE = "cast";
 
 /** The result of selecting a Character from a Cast: the chosen identifier, or an identifiable reason. */
@@ -90,21 +94,6 @@ function findGateCandidateAsset(
 ): LedgerAssetRecord | null {
   if (atGate.length === 1) return atGate[0]!;
   return (idea.assets ?? []).find((a) => a.cast !== undefined) ?? null;
-}
-
-/**
- * The gate a Recipe's job targets AFTER `gate` clears, or `null` when `gate` was the Recipe's LAST
- * gate (the next leg renders the Asset with no further pause). Resolves via the Recipe registry so the
- * queue's generic gate cursor (issue #56) is driven by the Recipe's REAL gate list, not a hard-coded
- * assumption. An unwired/unknown Recipe defensively resolves to `null` — production only ever reaches
- * this point for a wired Recipe, so this is a belt-and-braces fallback, never a live path.
- */
-function nextGateAfter(recipe: string, gate: string): string | null {
-  const def = getRecipe(recipe);
-  if (def === null) return null;
-  const index = def.gates.indexOf(gate);
-  if (index === -1) return null;
-  return def.gates[index + 1] ?? null;
 }
 
 /** Options for `/pick-cast` (injected paths + clock keep the shell testable without ambient I/O). */
@@ -162,7 +151,8 @@ export async function pickCastCommand(
   const atGate = assetsAtCastGate(idea);
   if (atGate.length > 1) {
     // Explicit attribution (always-rules #5): never guess which Recipe's gate the Operator means when
-    // several are paused at once. Disambiguating this conversationally is issue #57's generic driver.
+    // several are paused at once. Disambiguating this conversationally is future work — the generic
+    // `/pick` command (issue #57) still requires an explicit `<recipe>` argument, never a guess.
     const recipes = atGate.map((a) => a.recipe).join(", ");
     return `/pick-cast ${ideaId}: MULTIPLE Assets are paused at the Cast gate (${recipes}) — refusing to guess which one. [Brand: ${brand}]`;
   }
@@ -186,19 +176,15 @@ export async function pickCastCommand(
     return `/pick-cast ${ideaId}: ${selected.reason} [Brand: ${brand}]`;
   }
 
-  // The Character is picked. Persist the pick onto the next-leg job (C1, generalized) so it survives to
-  // the render, and CLEAR the Cast gate (C24: markPickConsumed → the gated job becomes `done`). Both act
-  // on one loaded queue state; the next-leg job is stamped with the Brand (AC6), the RESOLVED Asset's
-  // own Recipe (issue #56 — never a different Recipe's job), and the chosen Character. `enqueueNextLeg`
-  // returns the SAME reference on an idempotent no-op, so a re-pick is reported honestly rather than
-  // claiming work it did not do (C23).
+  // The Character is picked. Delegate the queue-resume mechanics to the GENERIC `resumeGate` (issue #57)
+  // — the same primitive the generic `/pick` command uses for any Recipe's any gate: it persists the
+  // pick onto the next-leg job (C1, generalized) so it survives to the render, and CLEARS the Cast gate
+  // (C24: markPickConsumed → the gated job becomes `done`). The next-leg job is stamped with the Brand
+  // (AC6) and the RESOLVED Asset's own Recipe (issue #56 — never a different Recipe's job).
+  // `newlyQueued: false` on an idempotent re-pick, so it is reported honestly rather than claiming work
+  // it did not do (C23).
   const recipe = candidateAsset.recipe;
-  const nextGate = nextGateAfter(recipe, CAST_GATE);
-  const queue = await loadQueue(queuePath);
-  const withNextLeg = enqueueNextLeg(queue, ideaId, now, brand, recipe, nextGate, selected.character);
-  const newlyQueued = withNextLeg !== queue;
-  const consumed = markPickConsumed(withNextLeg, brand, ideaId, recipe);
-  await saveQueue(consumed.ok ? consumed.state : withNextLeg, queuePath);
+  const { newlyQueued } = await resumeGate(brand, ideaId, recipe, CAST_GATE, selected.character, queuePath, now);
 
   if (!newlyQueued) {
     // Idempotent no-op: a render is already queued for this Idea, so this pick changed nothing. Report

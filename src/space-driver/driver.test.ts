@@ -5,16 +5,17 @@ import {
   injectSpec,
   runRunPoint,
   fetchCast,
-  composeAndCast,
+  driveToNextGate,
   isClipOrVideoNode,
   injectGoal,
-  castFallbackGoal,
-  pinCharacter,
+  fallbackGoal,
+  pinPick,
   pinGoal,
   fetchAsset,
-  pickAndRender,
   JSON_MASTER_NODE_NAME,
+  CHARACTER_NODE_NAME,
   DOWNSTREAM_MODE,
+  type DriveLegInput,
   type PollOptions,
 } from "./driver.ts";
 import type { Creation, EditStatus, RunStatus, SpaceMcpPort } from "./port.ts";
@@ -26,14 +27,18 @@ import {
   fallbackCastIds,
   CAST_START_NODE_NAME,
   CLIP_START_NODE_NAME,
-  CHARACTER_NODE_NAME,
   ASSET_CREATION_ID,
   ASSET_URL,
   isPinnedTo,
 } from "./fixtures/fake-space.ts";
 import { fakeSpaceState } from "../execution-protocol/fixtures/space-state.ts";
-import type { SpaceStateLike } from "../execution-protocol/parse.ts";
+import type { SpaceStateLike, SpaceStateNode } from "../execution-protocol/parse.ts";
 import { parse } from "../execution-protocol/parse.ts";
+import {
+  PRODUCER_PROTOCOL_NODE_NAME,
+  serializeProtocol,
+  type ProtocolDocument,
+} from "../execution-protocol/protocol.ts";
 import { validSpec } from "../production-spec/fixtures/specs.ts";
 
 /**
@@ -131,7 +136,7 @@ function clipNodeId(): string {
   return clip!.start_node_id;
 }
 
-// === AC1 / AC5: injectSpec — Fallback-Protocol inject + readback confirm =============================
+// === injectSpec — Fallback-Protocol inject + readback confirm ========================================
 
 describe("injectSpec — inject into JSON Master via the Fallback Protocol and confirm by readback", () => {
   it("issues a natural-language edit targeting JSON Master and confirms the text changed", async () => {
@@ -178,9 +183,9 @@ describe("injectSpec — inject into JSON Master via the Fallback Protocol and c
   });
 });
 
-// === AC2 / AC5: runRunPoint — start + poll to terminal; yields the Cast and stops at the Cast ========
+// === runRunPoint — start + poll to terminal; yields the Cast and stops at the Cast ===================
 
-describe("runRunPoint — run the cast run-point downstream, poll to terminal, return the Cast", () => {
+describe("runRunPoint — run a run-point downstream, poll to terminal, return the fired nodes + creations", () => {
   it("polls the run to terminal and returns the 6 Cast creations", async () => {
     const space = new FakeSpace();
     const result = await runRunPoint(space, castNodeId(), DOWNSTREAM_MODE, FAST);
@@ -227,9 +232,9 @@ describe("isClipOrVideoNode — clip/video node guard", () => {
   });
 });
 
-// === AC5: fetchCast — creations -> image URLs through the port =======================================
+// === fetchCast — creations -> image URLs through the port ============================================
 
-describe("fetchCast — resolve Cast creation identifiers to aligned {identifier, url} pairs", () => {
+describe("fetchCast — resolve creation identifiers to aligned {identifier, url} pairs", () => {
   it("returns the 6 Cast pairs (id + url) for the Cast creation identifiers", async () => {
     const space = new FakeSpace();
     const cast = await fetchCast(space, fallbackCastIds());
@@ -242,166 +247,7 @@ describe("fetchCast — resolve Cast creation identifiers to aligned {identifier
   });
 });
 
-// === AC3: composeAndCast — Phase A surfaces the Cast; the run stops at the Cast ======================
-
-describe("composeAndCast — Phase A returns the Cast and stops at the Cast", () => {
-  it("injects the Spec, runs the cast run-point, and surfaces the Cast image URLs", async () => {
-    const space = new FakeSpace();
-    const result = await composeAndCast(space, fakeSpaceState(), validSpec(), FAST);
-
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-
-    assert.equal(result.cast.usedAgentFallback, false);
-    assert.equal(result.cast.cast.length, 6);
-    assert.deepEqual([...result.cast.cast].map((c) => c.url).sort(), [...expectedCastUrls()].sort());
-
-    // The Cast is aligned {identifier, url} pairs (ids and urls cannot diverge — C36): the returned
-    // pairs equal the expected id→url mapping exactly, index for index.
-    const expectedPairs = fallbackCastIds().map((identifier, i) => ({
-      identifier,
-      url: expectedCastUrls()[i]!,
-    }));
-    assert.deepEqual([...result.cast.cast], expectedPairs);
-
-    // Inject ran (one edit targeting JSON Master) and exactly one cast run was started.
-    assert.equal(space.editGoals.length, 1);
-    assert.match(space.editGoals[0]!, new RegExp(JSON_MASTER_NODE_NAME));
-    assert.equal(space.runs.length, 1);
-    assert.equal(space.runs[0]!.startNodeId, castNodeId());
-  });
-
-  it("the cast run within Phase A fires no clip/video nodes (resolves the cast run-point by name)", async () => {
-    const space = new FakeSpace();
-    const result = await composeAndCast(space, fakeSpaceState(), validSpec(), FAST);
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-    // Only the cast run-point's node was started; the resolved node is the named cast generator's node.
-    assert.equal(space.runs.length, 1);
-    const parsed = parse(fakeSpaceState());
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok) return;
-    const cast = parsed.runPoints.find((rp) => rp.gate === "cast")!;
-    assert.equal(cast.start_name, CAST_START_NODE_NAME);
-    assert.equal(space.runs[0]!.startNodeId, cast.start_node_id);
-  });
-});
-
-// === AC4: composeAndCast — recovery via the in-canvas agent on a missing/stale run-point =============
-
-describe("composeAndCast — Fallback Protocol recovery on a missing/stale run-point", () => {
-  it("falls back to the in-canvas agent (run-by-goal) when the run reports the start node stale", async () => {
-    // parse() succeeds (canonical protocol) so the run-point resolves, but the RUN reports it stale.
-    const space = new FakeSpace(fakeSpaceState(), { castRunPointStale: true });
-    const result = await composeAndCast(space, fakeSpaceState(), validSpec(), FAST);
-
-    assert.equal(result.ok, true, "must recover, not hard-fail");
-    if (!result.ok) return;
-    assert.equal(result.cast.usedAgentFallback, true);
-    assert.equal(result.cast.cast.length, 6);
-
-    // A natural-language run-by-goal fallback edit was issued (in addition to the inject edit).
-    const fallbackEdits = space.editGoals.filter((g) => !g.includes(JSON_MASTER_NODE_NAME));
-    assert.equal(fallbackEdits.length, 1);
-    assert.equal(fallbackEdits[0]!, castFallbackGoal());
-  });
-
-  it("falls back when the cast run-point cannot be resolved from the Execution Protocol", async () => {
-    // This fake's protocol does not resolve a clean cast run-point (the protocol is stale/broken), so the
-    // driver cannot drive by name and must delegate to the in-canvas agent.
-    const space = new FakeSpaceWithAgentFallbackCast();
-    const result = await composeAndCast(space, await space.readState(), validSpec(), FAST);
-
-    assert.equal(result.ok, true, "must recover, not hard-fail");
-    if (!result.ok) return;
-    assert.equal(result.cast.usedAgentFallback, true);
-    assert.equal(space.fellBackToAgent, true);
-    assert.equal(result.cast.cast.length, 6);
-
-    // It never started a by-name run (the run-point was unresolvable); recovery is via the agent edit.
-    assert.equal(space.runs.length, 0);
-  });
-
-  it("hard-fails only when the inject itself cannot be confirmed (not a recovery case)", async () => {
-    const space = new FakeSpace(fakeSpaceState(), { injectNoOp: true });
-    const result = await composeAndCast(space, fakeSpaceState(), validSpec(), FAST);
-    assert.equal(result.ok, false);
-    if (result.ok) return;
-    assert.equal(result.error.code, "inject_unconfirmed");
-  });
-});
-
-// ====================================================================================================
-// === PHASE B — pick the Cast, render, link the Asset (casting → produced) ============================
-// ====================================================================================================
-
-// === AC1 / AC5: pinCharacter — Fallback-Protocol pin + readback confirm ==============================
-
-describe("pinCharacter — pin the chosen Character via the Fallback Protocol and confirm by readback", () => {
-  it("issues a natural-language edit naming the chosen Character and confirms the pin by readback", async () => {
-    const space = new FakeSpace();
-    const result = await pinCharacter(space, "cast-3", FAST);
-
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-
-    // The Fallback Protocol was used: exactly one natural-language edit naming the Character creation node.
-    assert.equal(space.editGoals.length, 1);
-    assert.match(space.editGoals[0]!, new RegExp(CHARACTER_NODE_NAME));
-    assert.ok(space.editGoals[0]!.includes("cast-3"));
-
-    // The readback confirms a Character creation node is pinned to the chosen candidate.
-    const after = await space.readState();
-    const pinned = after.nodes.some((n) => isPinnedTo(n.value, "cast-3"));
-    assert.equal(pinned, true);
-  });
-
-  it("makes no call outside the injected port (edits + polls + reads back through the port)", async () => {
-    const space = new FakeSpace();
-    await pinCharacter(space, "cast-1", FAST);
-    // The only Space interaction was the pin edit through the port; no run was started.
-    assert.equal(space.runs.length, 0);
-    assert.equal(space.editGoals.length, 1);
-  });
-
-  it("reports an identifiable failure when the readback does NOT confirm the pin", async () => {
-    const space = new FakeSpace(fakeSpaceState(), { pinNoOp: true });
-    const result = await pinCharacter(space, "cast-3", FAST);
-    assert.equal(result.ok, false);
-    if (result.ok) return;
-    assert.equal(result.error.code, "pin_unconfirmed");
-  });
-
-  it("embeds the chosen Character identifier in the pin goal", () => {
-    const goal = pinGoal("cast-4");
-    assert.match(goal, new RegExp(CHARACTER_NODE_NAME));
-    assert.ok(goal.includes("cast-4"));
-  });
-});
-
-// === AC2 / AC5: the clip runRunPoint renders the clip chain to one Asset =============================
-
-describe("runRunPoint — run the clip run-point downstream to the render chain and one Asset", () => {
-  it("polls the clip run to terminal, fires the Video Combiner + Final Output, and yields one Asset", async () => {
-    const space = new FakeSpace();
-    const result = await runRunPoint(space, clipNodeId(), DOWNSTREAM_MODE, FAST);
-
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-
-    // The render chain fired (clip → Video Combiner → Final Output) and exactly one Asset was produced.
-    assert.ok(result.outcome.firedNodeNames.includes("Video Combiner"));
-    assert.ok(result.outcome.firedNodeNames.includes("Final Output"));
-    assert.deepEqual(result.outcome.creationIds, [ASSET_CREATION_ID]);
-
-    // It started a run at the resolved clip node ID, in downstream mode, through the port.
-    assert.equal(space.runs.length, 1);
-    assert.equal(space.runs[0]!.startNodeId, clipNodeId());
-    assert.equal(space.runs[0]!.mode, DOWNSTREAM_MODE);
-  });
-});
-
-// === AC5: fetchAsset — Asset creation -> media URL through the port ==================================
+// === fetchAsset — Asset creation -> media URL through the port =======================================
 
 describe("fetchAsset — resolve the finished Asset's creation identifier to its media URL", () => {
   it("returns the finished Asset's media URL for the Asset creation identifier", async () => {
@@ -411,28 +257,132 @@ describe("fetchAsset — resolve the finished Asset's creation identifier to its
   });
 });
 
-// === AC2 / AC3 / AC4: pickAndRender — Phase B pins, renders to one Asset, never publishes ============
+// ====================================================================================================
+// === driveToNextGate — the generic run-until-gate engine (ADR-0010, issue #57) ========================
+// ====================================================================================================
 
-describe("pickAndRender — Phase B pins the Character, renders the Asset, and stops (no publish)", () => {
-  it("pins the chosen Character, runs the clip run-point, and surfaces one finished Asset URL", async () => {
+// === The wired *Character Explainer with Cast* Recipe behaves identically (cast → pick → render) ====
+
+describe("driveToNextGate — the wired recipe: first leg (targetGate: cast) pauses with the Cast", () => {
+  it("injects the Spec, runs the cast run-point, and PAUSES with the Cast candidates", async () => {
     const space = new FakeSpace();
-    const result = await pickAndRender(space, fakeSpaceState(), "cast-3", FAST);
+    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
 
     assert.equal(result.ok, true);
     if (!result.ok) return;
-    assert.equal(result.asset.assetId, ASSET_CREATION_ID);
-    assert.equal(result.asset.assetUrl, ASSET_URL);
+    assert.equal(result.outcome.kind, "paused");
+    if (result.outcome.kind !== "paused") return;
+
+    assert.equal(result.outcome.gate, "cast");
+    assert.equal(result.outcome.usedFallback, false);
+    assert.equal(result.outcome.candidates.length, 6);
+    assert.deepEqual([...result.outcome.candidates].map((c) => c.url).sort(), [...expectedCastUrls()].sort());
+
+    // The Cast is aligned {identifier, url} pairs (ids and urls cannot diverge — C36).
+    const expectedPairs = fallbackCastIds().map((identifier, i) => ({
+      identifier,
+      url: expectedCastUrls()[i]!,
+    }));
+    assert.deepEqual([...result.outcome.candidates], expectedPairs);
+
+    // Inject ran (one edit targeting JSON Master) and exactly one cast run was started, at the resolved
+    // cast node — the SAME node `parse()` resolves by name from the Execution Protocol.
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, new RegExp(JSON_MASTER_NODE_NAME));
+    assert.equal(space.runs.length, 1);
+    assert.equal(space.runs[0]!.startNodeId, castNodeId());
+    const parsed = parse(fakeSpaceState());
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    const cast = parsed.runPoints.find((rp) => rp.gate === "cast")!;
+    assert.equal(cast.start_name, CAST_START_NODE_NAME);
+  });
+
+  it("falls back to the in-canvas agent when the cast run-point is stale, still pausing with the Cast", async () => {
+    const space = new FakeSpace(fakeSpaceState(), { castRunPointStale: true });
+    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
+
+    assert.equal(result.ok, true, "must recover, not hard-fail");
+    if (!result.ok) return;
+    assert.equal(result.outcome.kind, "paused");
+    if (result.outcome.kind !== "paused") return;
+    assert.equal(result.outcome.usedFallback, true);
+    assert.equal(result.outcome.candidates.length, 6);
+
+    // A natural-language run-by-goal fallback edit was issued (in addition to the inject edit).
+    const fallbackEdits = space.editGoals.filter((g) => !g.includes(JSON_MASTER_NODE_NAME));
+    assert.equal(fallbackEdits.length, 1);
+    assert.equal(fallbackEdits[0]!, fallbackGoal("cast"));
+  });
+
+  it("falls back when the cast run-point cannot be resolved from the Execution Protocol at all", async () => {
+    const space = new FakeSpaceWithAgentFallbackCast();
+    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const result = await driveToNextGate(space, await space.readState(), input, FAST);
+
+    assert.equal(result.ok, true, "must recover, not hard-fail");
+    if (!result.ok) return;
+    assert.equal(result.outcome.kind, "paused");
+    if (result.outcome.kind !== "paused") return;
+    assert.equal(result.outcome.usedFallback, true);
+    assert.equal(space.fellBackToAgent, true);
+    assert.equal(result.outcome.candidates.length, 6);
+
+    // It never started a by-name run (the run-point was unresolvable); recovery is via the agent edit.
+    assert.equal(space.runs.length, 0);
+  });
+
+  it("hard-fails only when the inject itself cannot be confirmed (not a recovery case)", async () => {
+    const space = new FakeSpace(fakeSpaceState(), { injectNoOp: true });
+    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "inject_unconfirmed");
+  });
+});
+
+describe("driveToNextGate — the wired recipe: resumed leg (targetGate: null) pins, renders, and FINISHES", () => {
+  it("pins the chosen Character, runs the clip run-point, and surfaces one finished Asset URL", async () => {
+    const space = new FakeSpace();
+    const input: DriveLegInput = {
+      kind: "resumed",
+      targetGate: null,
+      pick: "cast-3",
+      pinnedReferenceNodeName: CHARACTER_NODE_NAME,
+    };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.outcome.kind, "finished");
+    if (result.outcome.kind !== "finished") return;
+    assert.equal(result.outcome.usedFallback, false);
+    assert.equal(result.outcome.asset.pick, "cast-3");
+    assert.equal(result.outcome.asset.assetId, ASSET_CREATION_ID);
+    assert.equal(result.outcome.asset.assetUrl, ASSET_URL);
 
     // A pin edit (naming the Character) ran, and exactly one clip run was started at the clip node.
     assert.equal(space.editGoals.length, 1);
     assert.match(space.editGoals[0]!, new RegExp(CHARACTER_NODE_NAME));
     assert.equal(space.runs.length, 1);
     assert.equal(space.runs[0]!.startNodeId, clipNodeId());
+
+    const readback = await space.readState();
+    assert.ok(readback.nodes.some((n) => isPinnedTo(n.value, "cast-3")));
   });
 
-  it("resolves the clip run-point by name as the non-cast-gate run-point (never hard-coded)", async () => {
+  it("resolves the clip run-point by name as the null-gate run-point (never hard-coded)", async () => {
     const space = new FakeSpace();
-    const result = await pickAndRender(space, fakeSpaceState(), "cast-1", FAST);
+    const input: DriveLegInput = {
+      kind: "resumed",
+      targetGate: null,
+      pick: "cast-1",
+      pinnedReferenceNodeName: CHARACTER_NODE_NAME,
+    };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
     assert.equal(result.ok, true);
     if (!result.ok) return;
 
@@ -446,19 +396,32 @@ describe("pickAndRender — Phase B pins the Character, renders the Asset, and s
 
   it("renders the Asset and takes NO publish action (no publish path exists)", async () => {
     const space = new FakeSpace();
-    const result = await pickAndRender(space, fakeSpaceState(), "cast-2", FAST);
+    const input: DriveLegInput = {
+      kind: "resumed",
+      targetGate: null,
+      pick: "cast-2",
+      pinnedReferenceNodeName: CHARACTER_NODE_NAME,
+    };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
     assert.equal(result.ok, true);
     if (!result.ok) return;
+    if (result.outcome.kind !== "finished") return;
     // The driver surfaces the Asset for the Operator and stops; the only Space calls were the pin edit
     // and the single clip render run — no publish/post primitive exists on the port or the driver.
     assert.equal(space.editGoals.length, 1);
     assert.equal(space.runs.length, 1);
-    assert.equal(result.asset.assetUrl, ASSET_URL);
+    assert.equal(result.outcome.asset.assetUrl, ASSET_URL);
   });
 
-  it("fails with the identifiable pin failure when the Character pin cannot be confirmed", async () => {
+  it("fails with pin_unconfirmed when the pin cannot be confirmed; never runs the clip render", async () => {
     const space = new FakeSpace(fakeSpaceState(), { pinNoOp: true });
-    const result = await pickAndRender(space, fakeSpaceState(), "cast-3", FAST);
+    const input: DriveLegInput = {
+      kind: "resumed",
+      targetGate: null,
+      pick: "cast-3",
+      pinnedReferenceNodeName: CHARACTER_NODE_NAME,
+    };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "pin_unconfirmed");
@@ -467,8 +430,254 @@ describe("pickAndRender — Phase B pins the Character, renders the Asset, and s
   });
 });
 
+// === candidates_empty — an empty gate/render result fails the op instead of an ok with nothing to show
+
+describe("candidates_empty — an empty result fails the op instead of returning ok with nothing to show", () => {
+  it("fails candidates_empty when the named cast run surfaces no creations", async () => {
+    const space = new FakeSpace(fakeSpaceState(), { castRunEmpty: true });
+    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "candidates_empty");
+  });
+
+  it("fails candidates_empty when the agent fallback surfaces no creations (never invents candidates)", async () => {
+    const space = new FakeSpace(fakeSpaceState(), {
+      castRunPointStale: true,
+      fallbackProducesNoCast: true,
+    });
+    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "candidates_empty");
+  });
+});
+
+// === run_point_unresolved — a RESUMED leg gets no Fallback-Protocol recovery (ADR-0003 recovery scope)
+
+describe("driveToNextGate — a resumed leg's unresolved run-point fails directly (no recovery)", () => {
+  it("fails run_point_unresolved when the target gate has no matching run-point, without falling back", async () => {
+    const space = new FakeSpace();
+    const input: DriveLegInput = {
+      kind: "resumed",
+      targetGate: "nonexistent-gate",
+      pick: "cast-1",
+      pinnedReferenceNodeName: CHARACTER_NODE_NAME,
+    };
+    const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "run_point_unresolved");
+    // No recovery was attempted: the only edit was the pin, and no run was started.
+    assert.equal(space.editGoals.length, 1);
+    assert.equal(space.runs.length, 0);
+  });
+});
+
+// === pinPick / pinGoal — generalized over the target node name (ADR-0010) ============================
+
+describe("pinPick — pin a resolved candidate via the Fallback Protocol and confirm by readback", () => {
+  it("issues a natural-language edit naming the target node and confirms the pin by readback", async () => {
+    const space = new FakeSpace();
+    const result = await pinPick(space, "cast-3", CHARACTER_NODE_NAME, FAST);
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, new RegExp(CHARACTER_NODE_NAME));
+    assert.ok(space.editGoals[0]!.includes("cast-3"));
+
+    const after = await space.readState();
+    assert.equal(after.nodes.some((n) => isPinnedTo(n.value, "cast-3")), true);
+  });
+
+  it("embeds the chosen candidate AND the target node name in the pin goal", () => {
+    const goal = pinGoal("cast-4", CHARACTER_NODE_NAME);
+    assert.match(goal, new RegExp(CHARACTER_NODE_NAME));
+    assert.ok(goal.includes("cast-4"));
+  });
+
+  it("reports an identifiable failure when the readback does NOT confirm the pin", async () => {
+    const space = new FakeSpace(fakeSpaceState(), { pinNoOp: true });
+    const result = await pinPick(space, "cast-3", CHARACTER_NODE_NAME, FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "pin_unconfirmed");
+  });
+});
+
 // ====================================================================================================
-// === C10 — poll loops honour a TIME budget with an injected sleep (survive a real multi-minute op) ===
+// === AC4 — a ZERO-gate recipe runs straight through; a MULTI-gate recipe pauses/resumes at each =====
+// ====================================================================================================
+
+/** One test-only run-point: its unique node name, its gate (or `null`), and the creation ids its run
+ *  produces. Used to build ad hoc, fully synthetic Recipes' protocols/Spaces — never the wired one. */
+interface FakeRunPointSpec {
+  readonly name: string;
+  readonly gate: string | null;
+  readonly creationIds: readonly string[];
+}
+
+/**
+ * A minimal, fully CONFIGURABLE fake `SpaceMcpPort` for proving `driveToNextGate` generalizes to any
+ * number of gates (zero, one, several) — never reusing the wired `FakeSpace`'s hard-coded Cast/Character
+ * node names, so this is a genuinely independent proof the driver hard-codes nothing Recipe-specific.
+ * Every edit/run succeeds on its first poll (the poll LOOP itself is already covered by the `C10`/wired
+ * tests above and by `injectSpec`/`runRunPoint`'s own tests) — this fake exists to exercise gate-walking,
+ * not polling.
+ */
+class ConfigurableFakeSpace implements SpaceMcpPort {
+  private readonly runPoints: readonly FakeRunPointSpec[];
+  private nodes: SpaceStateNode[];
+  private readonly pinned = new Set<string>();
+  public readonly editGoals: string[] = [];
+  public readonly runs: Array<{ startNodeId: string; mode: string }> = [];
+  private readonly runIdToNodeId = new Map<string, string>();
+  private editSeq = 0;
+  private runSeq = 0;
+
+  constructor(runPoints: readonly FakeRunPointSpec[]) {
+    this.runPoints = runPoints;
+    const protocolDoc: ProtocolDocument = {
+      run_points: runPoints.map((rp) => ({ start: rp.name, mode: "downstream", gate: rp.gate })),
+    };
+    this.nodes = [
+      { id: "node-json-master", name: JSON_MASTER_NODE_NAME, value: "placeholder" },
+      ...runPoints.map((rp, i) => ({ id: `node-run-point-${i}`, name: rp.name })),
+      { id: "node-producer-protocol", name: PRODUCER_PROTOCOL_NODE_NAME, value: serializeProtocol(protocolDoc) },
+    ];
+  }
+
+  async readState(): Promise<SpaceStateLike> {
+    return { nodes: this.nodes.map((n) => ({ ...n })) };
+  }
+
+  async edit(goal: string): Promise<{ readonly editId: string }> {
+    this.editGoals.push(goal);
+    if (goal.includes(JSON_MASTER_NODE_NAME)) {
+      this.nodes = this.nodes.map((n) =>
+        n.name === JSON_MASTER_NODE_NAME ? { ...n, value: "INJECTED" } : n,
+      );
+    } else {
+      const match = goal.match(/Pin the "([^"]+)" creation as the "[^"]+" creation node/);
+      if (match) {
+        this.pinned.add(match[1]!);
+      }
+    }
+    return { editId: `edit-${++this.editSeq}` };
+  }
+
+  async editStatus(): Promise<EditStatus> {
+    return { phase: "succeeded" };
+  }
+
+  async run(startNodeId: string, mode: string): Promise<{ readonly runId: string }> {
+    this.runs.push({ startNodeId, mode });
+    const runId = `run-${++this.runSeq}`;
+    this.runIdToNodeId.set(runId, startNodeId);
+    return { runId };
+  }
+
+  async runStatus(runId: string): Promise<RunStatus> {
+    const startNodeId = this.runIdToNodeId.get(runId);
+    const runPoint = this.runPoints.find((_rp, i) => `node-run-point-${i}` === startNodeId);
+    if (runPoint === undefined) {
+      return { phase: "failed", error: `no configured run-point for node id ${String(startNodeId)}` };
+    }
+    return { phase: "succeeded", firedNodeNames: [runPoint.name], creationIds: [...runPoint.creationIds] };
+  }
+
+  async fetchCreations(ids: readonly string[]): Promise<readonly Creation[]> {
+    return ids.map((id) => ({ identifier: id, url: `https://fake.example/${id}` }));
+  }
+
+  async verifyPinned(candidate: string): Promise<boolean> {
+    return this.pinned.has(candidate);
+  }
+}
+
+describe("driveToNextGate — a ZERO-gate recipe runs straight through, no pause", () => {
+  it("a single gateless run-point: first leg injects the Spec, runs it, and FINISHES with the Asset", async () => {
+    const space = new ConfigurableFakeSpace([{ name: "Zero Gate Render", gate: null, creationIds: ["asset-zero"] }]);
+    const input: DriveLegInput = { kind: "first", targetGate: null, spec: validSpec() };
+    const result = await driveToNextGate(space, await space.readState(), input, FAST);
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.outcome.kind, "finished");
+    if (result.outcome.kind !== "finished") return;
+    assert.equal(result.outcome.asset.assetId, "asset-zero");
+    assert.equal(result.outcome.asset.assetUrl, "https://fake.example/asset-zero");
+    // A gateless Recipe's single first-and-final leg has no preceding pick to carry.
+    assert.equal(result.outcome.asset.pick, undefined);
+
+    // Exactly the Spec inject and one run — no pin, no pause.
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, new RegExp(JSON_MASTER_NODE_NAME));
+    assert.equal(space.runs.length, 1);
+  });
+});
+
+describe("driveToNextGate — a MULTI-gate recipe pauses at each declared gate and resumes with each pick", () => {
+  it("walks 2 gates (gateA, gateB) plus a final render — 3 legs, 3 runs, pausing/resuming at each", async () => {
+    const space = new ConfigurableFakeSpace([
+      { name: "Gate A Generator", gate: "gateA", creationIds: ["a-1", "a-2"] },
+      { name: "Gate B Generator", gate: "gateB", creationIds: ["b-1", "b-2"] },
+      { name: "Final Render", gate: null, creationIds: ["asset-final"] },
+    ]);
+
+    // Leg 1 — the Recipe's FIRST leg targets gateA (its first declared gate).
+    const leg1Input: DriveLegInput = { kind: "first", targetGate: "gateA", spec: validSpec() };
+    const leg1 = await driveToNextGate(space, await space.readState(), leg1Input, FAST);
+    assert.equal(leg1.ok, true);
+    if (!leg1.ok) return;
+    assert.equal(leg1.outcome.kind, "paused");
+    if (leg1.outcome.kind !== "paused") return;
+    assert.equal(leg1.outcome.gate, "gateA");
+    assert.deepEqual([...leg1.outcome.candidates].map((c) => c.identifier).sort(), ["a-1", "a-2"]);
+
+    // Leg 2 — RESUMED after gateA's pick, targets gateB (the Recipe's NEXT declared gate).
+    const leg2Input: DriveLegInput = {
+      kind: "resumed",
+      targetGate: "gateB",
+      pick: "a-1",
+      pinnedReferenceNodeName: "Gate A Reference",
+    };
+    const leg2 = await driveToNextGate(space, await space.readState(), leg2Input, FAST);
+    assert.equal(leg2.ok, true);
+    if (!leg2.ok) return;
+    assert.equal(leg2.outcome.kind, "paused");
+    if (leg2.outcome.kind !== "paused") return;
+    assert.equal(leg2.outcome.gate, "gateB");
+    assert.deepEqual([...leg2.outcome.candidates].map((c) => c.identifier).sort(), ["b-1", "b-2"]);
+
+    // Leg 3 — RESUMED after gateB's pick, targets null (the Recipe's LAST gate cleared — final render).
+    const leg3Input: DriveLegInput = {
+      kind: "resumed",
+      targetGate: null,
+      pick: "b-2",
+      pinnedReferenceNodeName: "Gate B Reference",
+    };
+    const leg3 = await driveToNextGate(space, await space.readState(), leg3Input, FAST);
+    assert.equal(leg3.ok, true);
+    if (!leg3.ok) return;
+    assert.equal(leg3.outcome.kind, "finished");
+    if (leg3.outcome.kind !== "finished") return;
+    assert.equal(leg3.outcome.asset.assetId, "asset-final");
+    assert.equal(leg3.outcome.asset.pick, "b-2");
+
+    // Exactly 3 runs total — one per leg/gate — and each resumed leg's pin targeted its OWN node name.
+    assert.equal(space.runs.length, 3);
+    assert.ok(space.editGoals.some((g) => g.includes("Gate A Reference") && g.includes("a-1")));
+    assert.ok(space.editGoals.some((g) => g.includes("Gate B Reference") && g.includes("b-2")));
+  });
+});
+
+// ====================================================================================================
+// === C10 — polling waits on a time budget, not a raw instant count (survive a real multi-minute op) ===
 // ====================================================================================================
 
 describe("C10 — polling waits on a time budget, not a raw instant count", () => {
@@ -521,47 +730,21 @@ describe("C10 — polling waits on a time budget, not a raw instant count", () =
 });
 
 // ====================================================================================================
-// === C36 — the cast never succeeds with an empty (or divergent) Cast ================================
+// === C9 — pinPick confirms via port.verifyPinned, not a fake-only node value =========================
 // ====================================================================================================
 
-describe("C36 — an empty Cast fails the op instead of returning ok with nothing to show", () => {
-  it("fails cast_empty when the named cast run surfaces no creations", async () => {
-    const space = new FakeSpace(fakeSpaceState(), { castRunEmpty: true });
-    const result = await composeAndCast(space, fakeSpaceState(), validSpec(), FAST);
-    assert.equal(result.ok, false);
-    if (result.ok) return;
-    assert.equal(result.error.code, "cast_empty");
-  });
-
-  it("fails cast_empty when the agent Fallback surfaces no creations (never invents a Cast)", async () => {
-    // The by-name run-point is stale (→ recovery), and the agent-run-by-goal edit produces NO ids.
-    const space = new FakeSpace(fakeSpaceState(), {
-      castRunPointStale: true,
-      fallbackProducesNoCast: true,
-    });
-    const result = await composeAndCast(space, fakeSpaceState(), validSpec(), FAST);
-    assert.equal(result.ok, false);
-    if (result.ok) return;
-    assert.equal(result.error.code, "cast_empty");
-  });
-});
-
-// ====================================================================================================
-// === C9 — pin confirmation goes through the port (no fake-only PINNED marker in the driver) =========
-// ====================================================================================================
-
-describe("C9 — pinCharacter confirms via port.verifyPinned, not a fake-only node value", () => {
+describe("C9 — pinPick confirms via port.verifyPinned, not a fake-only node value", () => {
   it("confirms the pin against a port that never writes a PINNED marker (live-honest adapter)", async () => {
     const space = new PinConfirmingSpace(true);
-    const result = await pinCharacter(space, "cast-3", FAST);
+    const result = await pinPick(space, "cast-3", CHARACTER_NODE_NAME, FAST);
     assert.equal(result.ok, true);
     if (!result.ok) return;
-    assert.equal(result.character, "cast-3");
+    assert.equal(result.pick, "cast-3");
   });
 
   it("fails pin_unconfirmed when the port reports the Character is not pinned", async () => {
     const space = new PinConfirmingSpace(false);
-    const result = await pinCharacter(space, "cast-3", FAST);
+    const result = await pinPick(space, "cast-3", CHARACTER_NODE_NAME, FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "pin_unconfirmed");
