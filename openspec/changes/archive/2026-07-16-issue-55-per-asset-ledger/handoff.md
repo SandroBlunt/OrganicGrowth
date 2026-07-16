@@ -239,3 +239,208 @@ Every task in `tasks.md` is checked off; every acceptance criterion maps to a na
   already had these same 3 failures before this slice; unaffected either way.
 - **`LedgerAssetRecord.cast`/`.character`** are a deliberate, documented extension beyond ADR-0011's
   literal field list, scoped to the one wired Recipe's own gate — see Self-review notes.
+
+---
+
+## QA Verdict — Round 1: PASS
+
+Verified against commit `6e00629` on branch `issue-55-per-asset-ledger`. Read-run-report only; no
+product code, tests, specs, or data touched by qa.
+
+### Suite result
+
+- `npm test` (`tsc -p tsconfig.json --noEmit` + `node --import tsx --test "src/**/*.test.ts"`) →
+  **873/873 tests, 264/264 suites, 0 fail** — matches the developer's claim exactly (baseline was
+  795/236 before this slice; +78 tests / +28 suites).
+- `npm run build` (`tsc -p tsconfig.build.json`) → exit 0, clean.
+- `npx openspec validate issue-55-per-asset-ledger --strict` → `Change 'issue-55-per-asset-ledger' is
+  valid`.
+- `npm run test:docs` (NOT part of the required gate) → 3 pre-existing failures. Verified independently
+  by checking out the pre-slice tree (`9d3508b`) and re-running: same 3 failures, unrelated to this
+  slice's diff. The developer's "pre-existing, not part of `npm test`" claim is confirmed accurate.
+
+### Per-criterion results (issue #55 acceptance criteria)
+
+1. **`assets:[]` sub-collection + per-Asset stages; `casting` removed from the Idea status vocabulary;
+   Idea status is a derived roll-up — PASS.** `src/asset/asset.ts` defines `AssetStatus` (six stages,
+   `casting` absent) and `LedgerAssetRecord` matching the issue's literal field list plus two
+   documented, justified extension fields (`cast`/`character`, ADR-0009's "Cast/Character are that
+   Recipe's own vocabulary"). `src/ledger/ledger.ts`'s `IdeaStatus` narrows to
+   `"suggested"|"accepted"|"rejected"`. Proven by `asset.test.ts` (`isAssetStatus("casting") === false`),
+   `deriveIdeaRollup`/`rollupAssetStatus` + their tests, and `ledger.test.ts`'s "status is the derived
+   roll-up" describe block, exercised end-to-end through `loadReport`.
+2. **`AssetStore` behind the store boundary; the phase-resolver folds Assets — PASS.**
+   `src/asset/store.ts` (`loadIdeaAssets`/`writeAsset`, 8 tests) is the only I/O for Assets nested in
+   `ledger.json`. `src/phase-resolver/resolve.ts`'s `foldAssetIntoPhase` folds every Asset of an
+   `accepted` Idea (not a flat status); `resolve.test.ts` is fully rewritten at the new grain (53
+   tests, including a two-Assets-at-different-stages scenario).
+3. **One-time idempotent migration; running it twice is a no-op; un-migrated records still load —
+   PASS, independently verified.** See "Migration idempotency and losslessness" below — I re-derived
+   this from the raw git diff of the real ledgers myself, not from the developer's claim.
+4. **Every `casting`/`PRODUCTION_STATES` reference updated to the Asset grain — PASS, with one
+   pre-existing, documented, orphaned exception.** `report.ts`'s `PRODUCTION_STATES` is
+   `["casting","in_production","produced"]` with `casting` kept only as tolerance for a directly-fed
+   `ReportData` (never reached from a real ledger read — confirmed by `loadReport`'s normalization).
+   `pick-cast.ts`/`run-pipeline.ts` use `ideaAtGate`/`ideaHasAssetStatus` throughout — no flat
+   `idea.status === "casting"` check remains in any live command. The one un-migrated live reference is
+   `src/production-queue/worker.ts` (a `"casting"|"produced"` `writeStatus` type + one call site) — see
+   Defect list, low severity; independently confirmed orphaned (no command imports `worker.ts`'s
+   `drain`/`tick`; only its own test and a type-only import from `fake-space.ts` reference it).
+5. **Built test-first against the fake; single-recipe path green; strict validate + suite green —
+   PASS.** Every new module has a matching, thorough test file; `tasks.md`'s "write failing tests"
+   tasks precede "implement" tasks for every module and are all checked off. The single-recipe path
+   (`pick-cast.test.ts`'s 23 pre-existing tests, `run-pipeline.test.ts`'s 46 pre-existing tests) passes
+   byte-for-byte UNCHANGED — confirmed via `git diff --stat` showing 0 lines changed in
+   `run-pipeline.test.ts` and additive-only changes in `pick-cast.test.ts`. `space-driver/**`,
+   `production-spec/**`, `production-queue/**` (the Magnific-fake-backed suites) are byte-for-byte
+   untouched (confirmed via `git diff --stat`) and pass as part of the 873.
+
+### Per-scenario results (spec deltas)
+
+Checked every Requirement/Scenario in `specs/{asset-store,phase-resolver,report-surface,cast-render}/
+spec.md` against a real test:
+
+- **`asset-store`** (9 Requirements, 20 scenarios) — all traced to `asset.test.ts` (37 tests),
+  `migrate.test.ts` (17 tests), `store.test.ts` (8 tests), `migrate-assets.test.ts` (17 tests
+  including the real-ledger round-trip). PASS on every scenario I spot-checked, including the two I
+  scrutinized hardest: "A second migration run is a no-op" (byte-identical assertion,
+  `migrate-assets.test.ts:205-218`) and "Migrating the real mundotip and straw-motion ledgers is
+  lossless and idempotent" (`migrate-assets.test.ts:236-278`) — both independently re-verified by me
+  outside the test suite (see below).
+- **`phase-resolver`** (5 Requirements, 13 scenarios) — all traced to `resolve.test.ts`'s rewritten
+  fixtures. PASS, including the "one Idea with two Assets at different stages" scenario (new, issue
+  #55-added) and the stranded-Idea exclusion-for-Asset-bearing-Ideas scenario.
+- **`report-surface`** (1 Requirement, 4 scenarios) — traced to `report.test.ts`'s new "Asset grain"
+  describe block (lines 179-282) plus the pre-existing Fit/Performance-distinction and baseline tests
+  (untouched, still passing). PASS.
+- **`cast-render`** (1 Requirement, 4 scenarios) — traced to `pick-cast.test.ts`'s new "against a
+  canonical, already-migrated ledger" describe block (lines 384-446) plus every pre-existing test
+  (legacy-shaped fixtures = the reader-tolerance scenario, verified unchanged). PASS.
+
+### Always-rules + Magnific-fake checks
+
+- **Generate-never-publish** — PASS. No publish/Facebook code touched; this slice is pure schema/data.
+- **Public-metrics-only** — PASS (not applicable; no metrics code touched).
+- **Relative-not-absolute** — PASS. `report.ts`'s baseline-relative rendering is untouched and its
+  tests still pass.
+- **Explicit-attribution** — PASS with a documented, in-scope deferral. `post_url` stays Idea-scoped
+  (not yet `(Idea, Recipe)`-scoped, per ADR-0011's own anticipated follow-up); this affects no real
+  ledger today (verified: no Idea in either real ledger has ever left `accepted`) and is explicitly
+  named as a Non-Goal in `proposal.md`, not a silent gap.
+- **Ledger-as-source-of-truth** — PASS, verified independently (see below): the migration is lossless,
+  the two real ledgers are correctly migrated, and `AssetStore.writeAsset` preserves every unrelated
+  field (`store.test.ts`'s merge/preserve tests).
+- **Magnific fake / no live Space** — PASS.
+  `grep -rn "spaces_\|creations_\|FakeSpace\|MagnificSpace" src/asset/ src/ledger/migrate-assets.ts
+  src/ledger/migrate-assets.test.ts src/ledger/ledger.ts src/ledger/ledger.test.ts
+  src/phase-resolver/ src/commands/report.ts src/commands/pick-cast.ts src/commands/run-pipeline.ts`
+  → **no matches**, independently re-run by qa. `git diff --stat 9d3508b 6e00629 -- src/space-driver
+  src/production-spec src/production-queue` → empty. This slice makes zero Magnific calls, live or
+  fake — it is pure schema/data-shape work, as the developer flagged.
+
+### Migration idempotency and losslessness — independently re-verified
+
+I did not take the developer's claim on faith. I:
+1. Ran `git diff 9d3508b 6e00629 -- data/brands/{mundotip,straw-motion}/ledger.json` myself — confirmed
+   the only change per Idea is `"assets": []` added, plus a cosmetic `fit_score` trailing-zero
+   reformat (`0.60`→`0.6`, `0.70`→`0.7`; same numeric value, an artifact of `JSON.stringify` round-
+   tripping through `JSON.parse`, consistent with every existing ledger writer in this codebase).
+2. Wrote a script diffing every key of every Idea (excluding `assets`/`fit_score`) between the pre- and
+   post-migration real ledgers for both Brands — **zero missing keys, zero extra keys, zero value
+   differences** beyond the two known ones. Confirmed `assets` is `[]` for all 17 Ideas (10 mundotip +
+   7 straw-motion) and `baseline` is untouched in both files.
+3. Confirmed via the real ledgers that no Idea in either Brand has ever left `accepted`/`suggested`/
+   `rejected` — so the developer's claim that "no in-flight production state existed to lose" is true
+   of the actual data, not just asserted.
+4. Re-ran `migrateLedgerFile` behavior reasoning against `migrateIdeaRecord`'s source and confirmed the
+   idempotency guard (`deepEqual` + `wasLegacyProductionStatus`-gated key-stripping) is structurally
+   sound for every real-world (canonical or genuinely-legacy) input.
+
+### Reader tolerance — independently re-verified, one gap found (see Defect 1)
+
+Confirmed old-shape fixtures genuinely still work: `ledger.test.ts`'s legacy-`"casting"`/`"produced"`
+tests, `pick-cast.test.ts`'s 23 unmodified legacy-shaped tests, and `run-pipeline.test.ts`'s 46
+unmodified legacy-shaped tests all pass against `normalizeIdeaStatus`'s transparent fold — no code path
+in `ledger.ts`, `store.ts`, `report.ts`, `pick-cast.ts`, or `run-pipeline.ts` assumes the new shape and
+throws on an un-migrated record (checked every reader: all treat `idea.assets` as `?? []`).
+
+I also probed `normalizeIdeaStatus` directly with an adversarial input outside the tests
+(`node --import tsx`) and found one real gap in the pure normalizer — see Defect 1. It does not throw
+(data-handling rule 4 holds) and is unreachable through any current writer or the real data, but it is
+a genuine, fixable correctness gap in the one function this whole slice's reader-tolerance guarantee
+rests on.
+
+### `run-pipeline.ts` mutual-exclusivity fix — scrutinized, correct
+
+Confirmed the bug is real: pre-fix, `acceptedIdeas = ideas.filter(i => i.status === "accepted")` would
+include an Idea whose Asset is already paused at the Cast gate (its base status is permanently
+`"accepted"` post-#55, unlike the old flat-scalar model where `"accepted"` and `"casting"` were
+mutually exclusive by construction). This would fire the "auto-draining" branch forever and Gate 2
+would never be reached. The fix (`&& (i.assets ?? []).length === 0`) restores mutual exclusivity
+correctly. Verified the existing (unmodified) test `"pauses at Gate 2 (Cast pick) when Ideas are at
+'casting' status"` (`run-pipeline.test.ts:514`) does in fact exercise this: reasoned through the
+pre-fix code path by hand against that test's single-Idea legacy fixture — the unfixed filter would
+also have matched this Idea (post-normalization its base status is `"accepted"`), firing the wrong
+branch first and producing output that does not match the test's `/Gate 2|Cast pick/i` assertion. The
+fix is correct and the regression-catching claim is accurate.
+
+### `exactOptionalPropertyTypes` — sound
+
+`tsconfig.json` has `exactOptionalPropertyTypes: true`, confirmed. `parseAssetRecord` and
+`buildLegacyAsset` build every optional field via conditional spread (`...(cond ? {field: x} : {})`),
+never assigning an explicit `undefined` — the sound pattern under this flag. `tsc --noEmit` (part of
+`npm test`) is clean. No unsoundness found.
+
+### `casting` retirement — grep results
+
+`grep -rn '"casting"' src --include="*.ts"` (excluding tests) finds real (non-comment) code in exactly
+one place: `src/production-queue/worker.ts:140,387` (a `writeStatus(ideaId, status: "casting" |
+"produced")` type and one call site). Independently confirmed orphaned: no command file (`src/
+commands/**`) or `.claude/commands/*.md` imports or wires `worker.ts`'s `drain`/`tick`; the only
+references are `worker.ts`'s own test and a type-only import in `space-driver/fixtures/fake-space.ts`.
+This is consistent with prior, already-recorded project history (ADR-0008 superseding ADR-0004; the
+unattended-worker epic #39 closed not-planned) — `worker.ts` was already dead/orphaned before this
+slice, not newly missed by it. See Defect 2 (low severity, informational).
+
+### Defect list
+
+1. **[low] `normalizeIdeaStatus` does not re-narrow `status` when a raw record has BOTH a legacy
+   top-level status (e.g. `"casting"`) AND an already-non-empty `assets` array** — a genuinely
+   self-contradictory/malformed hybrid shape that no current writer in this codebase produces (the
+   migration and `AssetStore.writeAsset` always update `status` and `assets` together), but the pure
+   function's own contract ("running it twice is a no-op," "normalizing an already-canonical record
+   passes through") does not correctly describe this input, and the retired `"casting"` value leaks
+   through unchanged into `LedgerIdea.status` (typed as `string`, not the narrower `IdeaStatus`) and
+   would render in `/report`.
+   **Repro:**
+   ```
+   node --import tsx -e '
+   import("./src/asset/migrate.ts").then(({ normalizeIdeaStatus }) => {
+     const raw = { id: "i1", status: "casting", assets: [{ recipe: "character-explainer-with-cast", status: "queued" }] };
+     console.log(normalizeIdeaStatus(raw));
+   });'
+   # → { status: "casting", assets: [...] }  — expected status to be narrowed to "accepted" (or similar), not echoed as "casting"
+   ```
+   Root cause: `normalizeIdeaStatus`'s first branch (`existingAssets.length > 0 || CANONICAL_IDEA_STATUSES.has(rawStatus)`)
+   short-circuits on `existingAssets.length > 0` alone and returns `rawStatus` verbatim without checking
+   it is canonical. Suggested fix (not required to be applied by qa — developer's call): when
+   `existingAssets.length > 0`, still clamp `rawStatus` to a canonical value (e.g. `CANONICAL_IDEA_STATUSES.has(rawStatus) ? rawStatus : "accepted"`)
+   rather than trusting it unconditionally. Not blocking this round: unreachable via any real ledger,
+   any current writer, or the wired single-recipe path; does not affect the two real Brand ledgers
+   (independently confirmed empty-assets, canonical-status-only).
+2. **[low, informational, not newly introduced by this slice] `src/production-queue/worker.ts` still
+   references the retired `"casting"` status literally** (a type + one call site), and its own OpenSpec
+   capability documentation still describes `writeIdeaCast`/`writeIdeaStatus`/`writeIdeaAsset`, which
+   this slice removed from `ledger.ts`. Confirmed this module is orphaned (no live command wires it up)
+   and was already orphaned before this slice (ADR-0008 supersedes the ADR-0004 runtime it belongs to).
+   The issue's acceptance criterion 4 names "e.g. the report projection" as its example, which IS fully
+   updated; this dead module is a pre-existing documentation/dead-code debt, correctly out of scope per
+   the developer's documented Non-Goals. No repro needed — informational only, does not affect any live
+   path.
+
+Neither defect blocks this round: both are unreachable through the real data, the real writers, or the
+wired single-recipe path, and both are honestly surfaced (not hidden) by the developer's own Known
+Limits section. Given the suite is genuinely green, the migration is independently verified lossless
+and idempotent against both real ledgers, the OpenSpec change faithfully matches the issue and ADR-
+0009/0011/0014, no live Magnific call exists anywhere in this slice's diff, and every acceptance
+criterion maps to a real, passing test — **this slice PASSES Round 1.**
