@@ -21,8 +21,10 @@ media_focus: reel
 sources:
   mode: curated   # peer | curated — Unhypped News digests curated newsletters, not peer Pages
 
-  # Peer Pages are NOT usable for this Format yet — only the Facebook actor is wired today, and
-  # these are Instagram/YouTube. See issue #48. Kept here for when more sources are added later.
+  # Instagram and YouTube Apify actors are now wired (data/brands/straw-motion/seeds.yaml, issue
+  # #48), so these peer pages ARE scrapable if this Format is ever switched to peer mode — an
+  # editorial/Operator decision, not made by this slice. Kept here (curated mode stays active) for
+  # when the Operator wants to try peer-scrape instead of/alongside the curated newsletters below.
   seed_pages:
     - https://www.instagram.com/evolving.ai/
     - https://www.instagram.com/theaifield/

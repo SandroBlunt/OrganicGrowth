@@ -1,9 +1,11 @@
 # Seeds template — copy to data/brands/<slug>/seeds.yaml and fill in.
 # trend-scout reads this file for Trend Research Run parameters.
 
-# Peer / competitor Pages to scrape for trending content. Not yet usable for this Brand — only the
-# Facebook actor is wired today, and these are Instagram/YouTube. See issue #48. Kept here for when
-# more sources/formats are added later.
+# Peer / competitor Pages to scrape for trending content. This legacy Brand-level copy is not the
+# source of truth for a Run's sources anymore (that's the Format file — formats/unhypped-news.yaml,
+# ADR-0013); kept here for onboarding/readiness. Instagram and YouTube actors are now wired (issue
+# #48), so these ARE scrapable once a Format's sources.mode is switched to "peer" (an Operator/
+# editorial decision — unhypped-news.yaml stays in curated mode today).
 seed_pages:
   - https://www.instagram.com/evolving.ai/
   - https://www.instagram.com/theaifield/
@@ -26,10 +28,17 @@ format_focus: reel # Target format: reel | image | carousel
 ideas_per_run: 10 # How many Idea briefs to suggest per Run
 overperformance_only: true # Only mine peer posts beating their OWN page baseline
 
-# Apify actors, keyed by platform.
-# trend-scout + performance-tracker use the pair matching the Channel's platform (brand-profile.yaml).
-# Facebook is wired today; Instagram/LinkedIn are roadmap.
+# Apify actors, keyed by platform. trend-scout resolves the platform per SOURCE URL (this Brand's
+# Channel is Facebook, but its recorded competitors above are Instagram/YouTube — see
+# src/apify/platform.ts); performance-tracker resolves the platform from each logged post_url.
+# Facebook, Instagram, and YouTube are wired (verified live — issue #48); LinkedIn is roadmap.
 apify:
   facebook:
     trends_actor: apify/facebook-posts-scraper
     post_actor: apify/facebook-post-scraper
+  instagram:
+    trends_actor: apify/instagram-scraper
+    post_actor: apify/instagram-post-scraper
+  youtube:
+    trends_actor: streamers/youtube-scraper
+    post_actor: streamers/youtube-scraper

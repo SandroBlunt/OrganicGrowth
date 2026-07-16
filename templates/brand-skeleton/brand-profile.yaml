@@ -3,7 +3,7 @@
 
 channel:
   name: ""           # TODO: Brand / Channel name (e.g. MundoTip)
-  platform: facebook # facebook | instagram | linkedin (facebook is the only wired platform today)
+  platform: facebook # facebook | instagram | linkedin | youtube (facebook, instagram, and youtube have verified Apify actors today; linkedin is roadmap)
   url: ""            # TODO: Channel URL (e.g. https://www.facebook.com/YourPage)
 
 niche: ""            # TODO: One-line niche description (e.g. "Life hacks, household tips & tricks")

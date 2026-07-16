@@ -368,21 +368,22 @@ describe("scaffoldBrand — keeps the template's guidance comments while filling
 });
 
 // ---------------------------------------------------------------------------
-// scaffoldBrand — does not write invented actor slugs for non-Facebook platforms (C43)
+// scaffoldBrand — does not write invented actor slugs for a not-yet-wired platform (C43;
+// LinkedIn as of issue #48 — Instagram gained a verified actor pair, see the describe block below)
 // ---------------------------------------------------------------------------
 
-describe("scaffoldBrand — non-Facebook seeds carry the unknown-actor placeholder", () => {
+describe("scaffoldBrand — a not-yet-wired platform's seeds carry the unknown-actor placeholder", () => {
   let tmpBrandsRoot: string;
 
-  const igAnswers: BrandInterviewAnswers = { ...TEST_ANSWERS, platform: "instagram" };
+  const liAnswers: BrandInterviewAnswers = { ...TEST_ANSWERS, platform: "linkedin" };
 
   before(async () => {
-    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-scaffold-ig-"));
+    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-scaffold-li-"));
     await scaffoldBrand(
-      "igbrand",
+      "librand",
       {
-        brandProfile: buildBrandProfile(igAnswers),
-        seeds: buildSeeds(igAnswers),
+        brandProfile: buildBrandProfile(liAnswers),
+        seeds: buildSeeds(liAnswers),
         ledger: buildEmptyLedger(),
       },
       { brandsRoot: tmpBrandsRoot, templatePath: REAL_TEMPLATE_PATH },
@@ -393,14 +394,60 @@ describe("scaffoldBrand — non-Facebook seeds carry the unknown-actor placehold
     await rm(tmpBrandsRoot, { recursive: true, force: true });
   });
 
-  it("seeds.yaml has apify.instagram actors set to the '...' placeholder, not an invented slug", async () => {
+  it("seeds.yaml has apify.linkedin actors set to the '...' placeholder, not an invented slug", async () => {
+    const text = await readFile(join(tmpBrandsRoot, "librand", "seeds.yaml"), "utf8");
+    const parsed = yamlParse(text) as { apify?: { linkedin?: Record<string, unknown> } };
+    const li = parsed.apify?.linkedin;
+    assert.ok(li !== undefined, "apify.linkedin must be present");
+    assert.equal(li["trends_actor"], "...");
+    assert.equal(li["post_actor"], "...");
+    assert.doesNotMatch(text, /apify\/linkedin/, "must not write a fabricated linkedin actor slug");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scaffoldBrand — Instagram and YouTube carry their verified actor pairs (issue #48)
+// ---------------------------------------------------------------------------
+
+describe("scaffoldBrand — Instagram and YouTube seeds carry verified actor slugs, not placeholders", () => {
+  let tmpBrandsRoot: string;
+
+  before(async () => {
+    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-scaffold-igyt-"));
+  });
+
+  after(async () => {
+    await rm(tmpBrandsRoot, { recursive: true, force: true });
+  });
+
+  it("seeds.yaml has apify.instagram set to the verified actor pair", async () => {
+    const igAnswers: BrandInterviewAnswers = { ...TEST_ANSWERS, platform: "instagram" };
+    await scaffoldBrand(
+      "igbrand",
+      { brandProfile: buildBrandProfile(igAnswers), seeds: buildSeeds(igAnswers), ledger: buildEmptyLedger() },
+      { brandsRoot: tmpBrandsRoot, templatePath: REAL_TEMPLATE_PATH },
+    );
     const text = await readFile(join(tmpBrandsRoot, "igbrand", "seeds.yaml"), "utf8");
-    const parsed = yamlParse(text) as { apify?: { instagram?: Record<string, unknown> } };
-    const ig = parsed.apify?.instagram;
-    assert.ok(ig !== undefined, "apify.instagram must be present");
-    assert.equal(ig["trends_actor"], "...");
-    assert.equal(ig["post_actor"], "...");
-    assert.doesNotMatch(text, /apify\/instagram/, "must not write a fabricated instagram actor slug");
+    const parsed = yamlParse(text) as { apify?: { instagram?: Record<string, string> } };
+    assert.equal(parsed.apify?.instagram?.["trends_actor"], "apify/instagram-scraper");
+    assert.equal(parsed.apify?.instagram?.["post_actor"], "apify/instagram-post-scraper");
+  });
+
+  it("seeds.yaml has apify.youtube set to the verified actor pair; channel.platform is youtube", async () => {
+    const ytAnswers: BrandInterviewAnswers = { ...TEST_ANSWERS, platform: "youtube" };
+    await scaffoldBrand(
+      "ytbrand",
+      { brandProfile: buildBrandProfile(ytAnswers), seeds: buildSeeds(ytAnswers), ledger: buildEmptyLedger() },
+      { brandsRoot: tmpBrandsRoot, templatePath: REAL_TEMPLATE_PATH },
+    );
+    const seedsText = await readFile(join(tmpBrandsRoot, "ytbrand", "seeds.yaml"), "utf8");
+    const parsed = yamlParse(seedsText) as { apify?: { youtube?: Record<string, string> } };
+    assert.equal(parsed.apify?.youtube?.["trends_actor"], "streamers/youtube-scraper");
+    assert.equal(parsed.apify?.youtube?.["post_actor"], "streamers/youtube-scraper");
+
+    const profileText = await readFile(join(tmpBrandsRoot, "ytbrand", "brand-profile.yaml"), "utf8");
+    const profile = yamlParse(profileText) as { channel?: { platform?: string } };
+    assert.equal(profile.channel?.platform, "youtube");
   });
 });
 

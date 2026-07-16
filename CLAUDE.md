@@ -4,8 +4,8 @@ Guidance for Claude Code when operating in this repository.
 
 ## Project Overview
 
-**OrganicGrowth** is an organic-social *intelligence + production* system for **Facebook, Instagram, or
-LinkedIn** (Facebook-first today). It runs a weekly loop: discover what's trending among peer accounts → suggest brand-fit **Idea
+**OrganicGrowth** is an organic-social *intelligence + production* system for **Facebook, Instagram,
+YouTube, or LinkedIn** (Facebook-first today). It runs a weekly loop: discover what's trending among peer accounts → suggest brand-fit **Idea
 briefs** → **render each accepted Idea into a publish-ready Asset** via a Magnific Space → (a human
 publishes it) → track the posts' performance → feed it back so the next round of ideas is sharper.
 

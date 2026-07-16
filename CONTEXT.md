@@ -1,7 +1,7 @@
 # OrganicGrowth
 
-OrganicGrowth is an organic-social **intelligence + production** system for **Facebook, Instagram, or
-LinkedIn** (Facebook-first today): it finds trending themes, turns the strongest into brand-fit **Ideas**, produces each accepted
+OrganicGrowth is an organic-social **intelligence + production** system for **Facebook, Instagram,
+YouTube, or LinkedIn** (Facebook-first today): it finds trending themes, turns the strongest into brand-fit **Ideas**, produces each accepted
 Idea through one or more **Recipes** — each rendering a publish-ready **Asset** via a Magnific **Space** — and tracks how the resulting posts perform —
 feeding real performance back so the next round of ideas is sharper. It **generates the Asset but
 never publishes**: a human reviews, publishes the Reel/Post to the Channel, and logs the URL. The
@@ -253,11 +253,15 @@ decision, designed fresh for OrganicGrowth.
   the Operator picks **one or many** per Idea, each yielding one **Asset** → one **Post**). The code's
   `formats: [reel]` in `brand-profile.yaml` (today the *media* sense) is to be renamed so "format" only
   ever means the editorial line.
-- **platform** — OrganicGrowth grows organic presence on **Facebook, Instagram, or LinkedIn**.
-  Production is identical across them (a 9:16 short video); only **trend-scout** and
+- **platform** — OrganicGrowth grows organic presence on **Facebook, Instagram, YouTube, or
+  LinkedIn**. Production is identical across them (a 9:16 short video); only **trend-scout** and
   **performance-tracker** bind to a platform — via that platform's **Apify actors** (`seeds.yaml`) plus
   a per-platform metric mapping into the **Performance Score**. `platform` is a first-class field
-  (`brand-profile.yaml`); **Facebook is the only wired platform today** — Instagram/LinkedIn are roadmap.
+  (`brand-profile.yaml`); **Facebook, Instagram, and YouTube have verified Apify actors** (issue #48)
+  — **LinkedIn is the one remaining roadmap platform**. A peer/competitor source's platform (for
+  Trend Research) or a logged Post's platform (for Performance) is detected from its own URL, and can
+  differ from the Brand's own Channel platform (e.g. a Facebook Channel with Instagram/YouTube
+  competitors).
 - **Apify does two jobs; Meta export is optional** — **Apify** scrapes *other people's* posts for
   **Trend** discovery AND *our own* posts (by logged URL) for **Performance** — both **public metrics
   only** (reactions, comments, shares, views). Richer first-party signals (Saves, Net-follows,

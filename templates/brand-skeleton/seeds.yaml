@@ -15,16 +15,24 @@ format_focus: reel # Target format: reel | image | carousel
 ideas_per_run: 10  # How many Idea briefs to suggest per Run
 overperformance_only: true  # Only mine peer posts beating their OWN page baseline
 
-# Apify actors, keyed by platform.
-# trend-scout + performance-tracker use the pair matching the Channel's platform (brand-profile.yaml).
-# Facebook is wired today; Instagram/LinkedIn are roadmap.
+# Apify actors, keyed by platform. trend-scout resolves the platform per SOURCE URL (a Format's
+# peer/curated sources can span more than one platform, e.g. a Facebook Channel with Instagram/YouTube
+# competitors); performance-tracker resolves the platform from each logged post_url. Neither assumes
+# the Channel's own platform (brand-profile.yaml) — see src/apify/platform.ts.
+# Facebook, Instagram, and YouTube are wired (verified live — issue #48); LinkedIn is roadmap.
 apify:
   facebook:
     trends_actor: "apify/facebook-posts-scraper"  # scrapes an account's recent posts
     post_actor:   "apify/facebook-post-scraper"   # scrapes one post's public metrics by URL
-  # instagram:
-  #   trends_actor: "apify/instagram-scraper"
-  #   post_actor:   "apify/instagram-post-scraper"
+  instagram:
+    trends_actor: "apify/instagram-scraper"        # scrapes a profile's recent posts/reels
+    post_actor:   "apify/instagram-post-scraper"   # scrapes one post's public metrics by URL
+    # Instagram does not publicly expose a share count — Performance's `shares` is always 0 for
+    # Instagram-sourced posts (noted, not fabricated; src/apify/normalize-metrics.ts).
+  youtube:
+    trends_actor: "streamers/youtube-scraper"      # scrapes a channel's recent videos
+    post_actor:   "streamers/youtube-scraper"      # same actor also scrapes one video's public metrics by URL
+    # YouTube does not publicly expose a share count either — same 0-and-noted treatment as Instagram.
   # linkedin:
   #   trends_actor: "..."
   #   post_actor:   "..."
