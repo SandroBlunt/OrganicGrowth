@@ -11,6 +11,8 @@ import {
   writeIdeaCast,
   applyIdeaAsset,
   writeIdeaAsset,
+  applyIdeaRecipeSelection,
+  writeIdeaRecipeSelection,
   loadIdeas,
   loadReport,
   type LedgerIdea,
@@ -18,6 +20,8 @@ import {
   type LedgerCastCandidate,
   type LedgerIdeaWithAsset,
   type LedgerAsset,
+  type LedgerIdeaWithRecipes,
+  type LedgerDeclinedRecipe,
 } from "./ledger.ts";
 import type { QueueJob } from "../production-queue/queue.ts";
 
@@ -440,6 +444,128 @@ describe("writeIdeaAsset — records the Asset fields on the Idea record (ADR-00
       };
       assert.equal(after.ideas[0]!.status, "casting");
       assert.equal(after.ideas[0]!.asset_url, undefined);
+    });
+  });
+});
+
+describe("applyIdeaRecipeSelection — pure recipe/declined set (issue #54)", () => {
+  const ideas: LedgerIdeaWithRecipes[] = [
+    { id: "idea-A", status: "accepted" },
+    { id: "idea-B", status: "accepted" },
+  ];
+  const declined: LedgerDeclinedRecipe[] = [
+    { recipe: "carousel", reason: "not wired yet, skip for now" },
+  ];
+
+  it("sets the target Idea's recipes + declined_recipes and leaves others unchanged", () => {
+    const after = applyIdeaRecipeSelection(ideas, "idea-A", ["character-explainer-with-cast"], declined);
+    const a = after.find((i) => i.id === "idea-A")!;
+    assert.deepEqual(a.recipes, ["character-explainer-with-cast"]);
+    assert.deepEqual(a.declined_recipes, declined);
+    const b = after.find((i) => i.id === "idea-B")!;
+    assert.equal(b.recipes, undefined);
+    assert.equal(b.declined_recipes, undefined);
+  });
+
+  it("is pure: it never mutates the input array or its records", () => {
+    const snapshot = JSON.stringify(ideas);
+    applyIdeaRecipeSelection(ideas, "idea-A", ["character-explainer-with-cast"], declined);
+    assert.equal(JSON.stringify(ideas), snapshot);
+  });
+
+  it("returns the array unchanged for an unknown Idea", () => {
+    const after = applyIdeaRecipeSelection(ideas, "idea-ZZZ", ["character-explainer-with-cast"], declined);
+    assert.deepEqual(after, ideas);
+  });
+
+  it("records an empty recipes list with a declined default (the Operator declined everything)", () => {
+    const after = applyIdeaRecipeSelection(ideas, "idea-A", [], declined);
+    const a = after.find((i) => i.id === "idea-A")!;
+    assert.deepEqual(a.recipes, []);
+    assert.deepEqual(a.declined_recipes, declined);
+  });
+});
+
+describe("writeIdeaRecipeSelection — records the chosen + declined Recipes on the Idea record (issue #54)", () => {
+  async function withLedger(fn: (path: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-recipes-"));
+    const path = join(dir, "ledger.json");
+    try {
+      await fn(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("writes recipes + declined_recipes for the target Idea, preserving unrelated fields", async () => {
+    await withLedger(async (path) => {
+      const seed = {
+        baseline: { note: "seed" },
+        ideas: [
+          { id: "idea-A", run: "2026-W22", status: "accepted", title: "A", post_url: null },
+          { id: "idea-B", run: "2026-W22", status: "accepted", title: "B", post_url: null },
+        ],
+      };
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+
+      await writeIdeaRecipeSelection(
+        "idea-A",
+        ["character-explainer-with-cast"],
+        [{ recipe: "carousel", reason: "not ready to try that format yet" }],
+        { ledgerPath: path },
+      );
+
+      const after = JSON.parse(await readFile(path, "utf8")) as {
+        baseline: { note: string };
+        ideas: Array<{
+          id: string;
+          title: string;
+          recipes?: string[];
+          declined_recipes?: LedgerDeclinedRecipe[];
+        }>;
+      };
+      const a = after.ideas.find((i) => i.id === "idea-A")!;
+      const b = after.ideas.find((i) => i.id === "idea-B")!;
+      assert.deepEqual(a.recipes, ["character-explainer-with-cast"]);
+      assert.deepEqual(a.declined_recipes, [
+        { recipe: "carousel", reason: "not ready to try that format yet" },
+      ]);
+      assert.equal(b.recipes, undefined);
+      // unrelated fields preserved
+      assert.equal(a.title, "A");
+      assert.equal(after.baseline.note, "seed");
+    });
+  });
+
+  it("declined reasons are stored VERBATIM, never altered or summarized", async () => {
+    await withLedger(async (path) => {
+      const seed = { ideas: [{ id: "idea-A", status: "accepted" }] };
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+
+      const verbatimReason = "Not this week — want to see the Cast Reel land first before trying a second Recipe.";
+      await writeIdeaRecipeSelection(
+        "idea-A",
+        [],
+        [{ recipe: "character-explainer-with-cast", reason: verbatimReason }],
+        { ledgerPath: path },
+      );
+
+      const after = JSON.parse(await readFile(path, "utf8")) as {
+        ideas: Array<{ id: string; declined_recipes?: LedgerDeclinedRecipe[] }>;
+      };
+      assert.equal(after.ideas[0]!.declined_recipes![0]!.reason, verbatimReason);
+    });
+  });
+
+  it("leaves the ledger untouched for an unknown Idea", async () => {
+    await withLedger(async (path) => {
+      const seed = { ideas: [{ id: "idea-A", status: "accepted" }] };
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+      await writeIdeaRecipeSelection("idea-ZZZ", ["character-explainer-with-cast"], [], { ledgerPath: path });
+      const after = JSON.parse(await readFile(path, "utf8")) as {
+        ideas: Array<{ id: string; recipes?: unknown }>;
+      };
+      assert.equal(after.ideas[0]!.recipes, undefined);
     });
   });
 });

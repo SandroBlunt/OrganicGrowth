@@ -41,7 +41,7 @@ sources:
 
 ideas_per_run: 10   # how many Idea briefs to suggest per Run of THIS Format
 
-# Recipe slugs pre-filled at Review for this Format's Ideas (ADR-0009). The in-repo Recipe registry
-# (issue #54) is not wired yet, so this is not validated against it — today's single wired Recipe:
+# Recipe slugs pre-filled at Review for this Format's Ideas (ADR-0009). /review-ideas offers only
+# WIRED Recipes (src/recipe/registry.ts, issue #54) — today's single wired Recipe:
 default_recipes:
   - character-explainer-with-cast
