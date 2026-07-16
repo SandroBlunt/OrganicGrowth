@@ -59,28 +59,52 @@ describe("AC8: Conductor reuses existing modules — no duplicated pipeline logi
 });
 
 // ===========================================================================
-// C2: The conductor doc is honest that the unattended production runtime is
-// not yet wired — it must not promise a flow that cannot run today.
+// The conductor doc is honest that production is ATTENDED (ADR-0008) — it must
+// not promise an unattended/background flow that was deliberately never built.
+//
+// Before the attended producer was restored (PR #46), this suite required run-pipeline.md to flag
+// production as "not yet wired" (audit finding C2). That gap is closed — production genuinely runs
+// today, in the Operator's own session — so pinning the OLD disclaimer would now itself be dishonest.
+// This suite pins the CURRENT, true claim instead: attended, one generation at a time, and explicit
+// that there is deliberately no unattended background runtime (ADR-0008 supersedes ADR-0004).
 // ===========================================================================
 
-describe("C2: run-pipeline.md is honest that unattended production is not yet wired", () => {
-  it("run-pipeline.md flags the auto-drain / unattended-render flow as not yet operational", async () => {
+describe("run-pipeline.md is honest that production is attended (ADR-0008)", () => {
+  it("run-pipeline.md documents the attended runtime and the deliberate absence of an unattended one", async () => {
     const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "run-pipeline.md"), "utf8");
-    // The doc still describes unattended production as the target...
-    assert.match(doc, /unattended/i, "run-pipeline.md must still name the unattended production flow");
-    // ...but must now flag it as not-yet-wired rather than promising it works today.
+    assert.match(doc, /attended/i, "run-pipeline.md must name the attended production runtime");
     assert.match(
+      doc,
+      /deliberately \*{0,2}no\b[\s\S]{0,10}headless worker host/i,
+      "run-pipeline.md must state there is deliberately no headless worker host",
+    );
+    assert.match(
+      doc,
+      /unattended-permission wiring/i,
+      "run-pipeline.md must state there is no unattended-permission wiring",
+    );
+    assert.match(doc, /ADR-0008/, "run-pipeline.md must cite ADR-0008 for the attended-runtime decision");
+    assert.match(
+      doc,
+      /in your session/i,
+      "run-pipeline.md must state production runs in the Operator's own session",
+    );
+    // It must never re-introduce the stale "not yet wired" disclaimer now that the flow is built.
+    assert.doesNotMatch(
       doc,
       /not yet (wired|operational|runnable|built)/i,
-      "run-pipeline.md must state the unattended production runtime is not yet wired",
+      "run-pipeline.md must not claim production is not yet wired — it is attended and wired today",
     );
-    // The gap must be traceable to the audit finding.
-    assert.match(doc, /\bC2\b/, "run-pipeline.md must cite audit C2 for the wiring gap");
-    // It must tell the Operator the production phases are manual/blocked for now.
-    assert.match(
+  });
+
+  it("run-pipeline.md describes gates as per-Recipe (ADR-0009/0010) without calling the model unbuilt", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "run-pipeline.md"), "utf8");
+    assert.match(doc, /per-Recipe/, "run-pipeline.md must describe gates as per-Recipe");
+    assert.match(doc, /ADR-0009/, "run-pipeline.md must cite ADR-0009 for the per-Recipe gate model");
+    assert.doesNotMatch(
       doc,
-      /manual|blocked|pending/i,
-      "run-pipeline.md must treat the production phases as manual/blocked until the runtime ships",
+      /being migrated onto that\s*model|single-recipe build/i,
+      "run-pipeline.md must not describe the multi-format model as future/unbuilt — it is built",
     );
   });
 });

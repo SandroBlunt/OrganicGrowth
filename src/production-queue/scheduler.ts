@@ -1,10 +1,11 @@
 /**
  * Production Queue scheduler — pure deep module.
  *
- * The decision logic a driver (a future `/57` generic run-until-gate driver, or today's `/pick-cast`
- * shell) drives: given a `QueueState`, decide which job runs next under the Magnific Space's
- * single-concurrency constraint, and move jobs through their lifecycle while keeping the
- * single-active-run lock in step. Like `queue.ts` this module is *pure and deterministic*: it never
+ * This is NOT ADR-0004's abandoned unattended-worker code (`worker.ts`, deleted in issue #56) — it is
+ * the LIVE decision logic the generic gate-resume flow drives (`/pick` and `/pick-cast`,
+ * `src/commands/pick.ts`, issue #57): given a `QueueState`, decide which job runs next under the
+ * Magnific Space's single-concurrency constraint, and move jobs through their lifecycle while keeping
+ * the single-active-run lock in step. Like `queue.ts` this module is *pure and deterministic*: it never
  * touches the filesystem, the network, the Magnific Space, or the clock. FIFO ordering is by each
  * job's injected `enqueued_at`, never by `Date.now()`. I/O lives in `store.ts`; orchestration lives in
  * the `commands/` shell.
