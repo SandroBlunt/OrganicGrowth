@@ -171,3 +171,118 @@ Recipe/Space-agnostic.
   (e.g. Straw Motion's "Unhypped News") — out of scope for this slice (a product/content decision, not
   required by the acceptance criteria); the Recipe is available to any Brand via `isWiredRecipe` the
   moment a Format or the Operator names it.
+
+---
+
+## QA Verdict — Round 1 (code): PASS-PENDING-CAPTURE
+
+Scope of this round, per the orchestrator's brief: a **code verification**. Acceptance criterion 1e
+(live-Space record/replay capture) is KNOWN-PARTIAL by design — attended captures land on this branch
+AFTER this round, before the PR — and is assessed here as **PENDING**, not failed. Every other criterion
+is assessed fully and must be genuinely green.
+
+All commands were actually run by `qa` (not assumed); real output is reported below.
+
+### Suite result
+
+| Command | Claimed | Actual |
+|---|---|---|
+| `npm test` | 1112/1112 (baseline 1053) | **1112/1112 pass, 0 fail** — confirmed |
+| `npm run test:docs` | 25/25 | **25/25 pass, 0 fail** — confirmed |
+| `npm run build` | green | **green** (`tsc -p tsconfig.build.json`, no errors) |
+| `npx openspec validate issue-60-second-recipe-carousel --strict` | green | **"Change 'issue-60-second-recipe-carousel' is valid"** — confirmed |
+| `npx openspec validate --all --strict` | 21/21 | **"Totals: 21 passed, 0 failed (21 items)"** — confirmed |
+
+All four Build Report claims verified as actually green, not assumed.
+
+### Per-criterion results (issue #60 acceptance criteria)
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | A second Recipe exists in the registry with its own gates/spec-shape/copy-shape/Space; its Space is captured as record/replay fixtures for the fake | **PASS** (registry/gates/spec-shape/copy-shape/Space) + **PENDING** (fixture capture) | `src/recipe/registry.ts`'s `NEWS_CAROUSEL` entry: `gates: []`, `specShape.validate = validateNewsCarouselSpec`, `copyShape` = 2200/0/2 (vs wired 180/1/3), `space.id = a2402c48-…` ("AI News", distinct from wired `a1f05d67-…`). All proven by `registry.test.ts` (spot-checked test names against real file — verbatim match). Fixture capture: `src/space-driver/fixtures/live-captures-ai-news/00-spaces_state.pre-tidy.txt` + `README.md` committed, honestly marked partial; the real dump's node names (`JSON Master #2`→`JSON Master`, `Image Prompt Slide 1..7`, `Assistant Prompt #2`→`Carousel Prompt Guide`, `Straw_motion_logo`→`Brand Logo`) were spot-checked against `fake-carousel-space.ts`/`carousel-space-state.ts` and match exactly — the fake is genuinely patterned on the real capture, not invented. **See Defect list — none; PENDING per instructions.** |
+| 2 | One Idea produced through two Recipes yields two Assets with distinct copy, each independently attributable via `/log-post <brand> <idea> <recipe> <url>` | **PASS** | `src/commands/two-recipes.test.ts` — scrutinized hard, does NOT stub past the interesting parts: `produceWiredAsset` drives the real `driveToNextGate` (cast leg → pick → render leg) against `FakeSpace`; `produceCarouselAsset` drives the real `driveSelectedRunPoints` against `FakeCarouselSpace`; both call the real `composeCopy`, real `writeAsset`, real `loadIdeaAssets`, real `logPostCommand(brand, idea, recipe, url, …)` (signature matches the issue's stated CLI shape exactly), real `loadReport`/`loadIdeas`/`findIdea`. Asserts `wired.copy.caption !== carousel.copy.caption` (genuinely distinct, not coincidental), `wired.post_url !== carousel.post_url`, each Asset carries only its own Post. |
+| 3 | A gate-count different from the wired recipe (e.g. zero gates) is exercised end-to-end | **PASS** | `driveSelectedRunPoints` architecturally can never pause — it always calls `finishLeg(port, null, …)` (`targetGate` hard-coded `null`), so the News Carousel Recipe cannot set a gate cursor by construction. `driver.test.ts`'s 5 new `driveSelectedRunPoints` tests (5-of-7, full 7, minimum 5, unresolved-name short-circuit, mid-list-failure short-circuit) + `queue.test.ts`'s new two-Recipe job test (`gate=cast/awaiting_pick` vs `gate=final/done`) prove zero-gate vs one-gate side by side. The wired one-gate Recipe's pre-existing 31 tests are UNMODIFIED (`diff` of `driver.test.ts` against the pre-slice commit shows only additive imports + appended `describe` blocks after the original 675 lines — zero existing assertions touched) and all still pass (confirmed: pre-slice `driver.test.ts` run in isolation = 31/31; post-slice full file = 40/40). |
+| 4 | `/queue`, `/report`, `/track-performance` correctly show the two Assets at independent stages | **PASS** (with one honestly-flagged limit) | `/queue`: `queue.test.ts`'s new test, two independent job lines for one Idea, never collapsed. `/report`: `two-recipes.test.ts`'s "shows both Assets at independent stages when only ONE has posted" — wired stays `produced`, carousel advances to `posted`, both rows present. `/track-performance`: this command is entirely prompt-driven (`.claude/commands/track-performance.md`, no TS runtime, unmodified by this slice) — proven indirectly via the `AssetStore.writeAsset` per-`(Idea,Recipe)` isolation test (writing the wired Asset's `performance_score` leaves the carousel sibling untouched at `posted`/no score). This is the same indirect-proof pattern used for this command in prior slices; honestly disclosed as a Known Limit, not silently claimed as a direct execution. |
+| 5 | Built test-first; strict validate + full test suite green | **PASS** | See Suite result table above — all four commands independently re-run and confirmed green by `qa`, not assumed from the Build Report. |
+
+### Per-scenario results (spec deltas → issue)
+
+Spot-checked every ADDED/MODIFIED requirement in `openspec/changes/issue-60-second-recipe-carousel/specs/**` against a real, named, passing test. All resolve.
+
+| Capability | Requirement | Scenario(s) | Result | Covering test |
+|---|---|---|---|---|
+| `news-carousel-recipe` | 5-7 slide Spec, media instructions only | well-formed 5/6/7; <5 or >7 rejected; dup/gapped `slide_index` rejected; missing `image_prompt` rejected | PASS | `news-carousel-validate.test.ts` |
+| `news-carousel-recipe` | Only run-points for slides present are driven | 5-slide names exactly 5, never 6/7; sorted regardless of array order | PASS | `news-carousel-contract.test.ts` |
+| `news-carousel-recipe` | Zero gates, own copy shape, "AI News" Space | gates/space/validator distinct from wired; copy shape 2200/0/2 vs 180/1/3 | PASS | `registry.test.ts` |
+| `news-carousel-recipe` | Node shapes sourced from real captured dump, never invented | pre-tidy capture committed + marked partial; fake's node names match Operator's canonical list | PASS (capture sub-scenario: PENDING per instructions) | `live-captures-ai-news/README.md` (manually inspected) + `carousel-space-state.ts`/`fake-carousel-space.ts` (spot-checked against the real dump) |
+| `recipe-registry` (RENAMED+MODIFIED) | Wired Recipe unchanged | validator reference-equality, copy-shape literal, node names, run-point names all unchanged | PASS | `registry.test.ts` (wired-Recipe describe block, unmodified assertions) |
+| `recipe-registry` (ADDED) | Registry holds a genuinely different second Recipe | 2 entries; carousel has no pinned/cast/clip fields; unregistered slug still resolves to null/false | PASS | `registry.test.ts` |
+| `generic-gate-driver` (ADDED) | `AssetResult.media` resolves every creation | single-creation → 1-element array; multi-creation → all, in order, `assetId`/`assetUrl` = first | PASS | `driver.test.ts` ("AssetResult.media" describe block) |
+| `generic-gate-driver` (ADDED) | `driveSelectedRunPoints` | drives only named run-points; collects all media in order; unresolved name stops immediately; mid-list failure stops immediately; empty list fails without touching the Space | PASS | `driver.test.ts` ("driveSelectedRunPoints" describe block, 6 tests incl. the empty-list case) |
+| `asset-store` (MODIFIED) | `asset_urls`/`asset_url` mutually exclusive; `assetMediaUrls` | multi-media parses, `asset_url` stays undefined; empty array dropped, not garbled; accessor returns the right list for either shape or `[]` for neither | PASS | `asset.test.ts` |
+| `production-spec` (MODIFIED) | Injectable validator, Recipe-segmented Spec | carousel-shaped Spec written under its OWN validator even though the wired validator would reject it; refused when the injected validator rejects; two Recipes' Specs never overwrite each other | PASS | `compose.test.ts` |
+
+`production-queue`/`report-surface`/`post-attribution` were correctly left untouched — their base specs (`openspec/specs/`) already contain generic two-Recipe scenarios (a `"carousel"` placeholder slug), confirmed by direct inspection; this slice's tests are additional concrete proof against the real `news-carousel` slug, not a spec change. No drift found.
+
+### Always-rules + Magnific-fake checks
+
+| Check | Result | Evidence |
+|---|---|---|
+| **Generate-never-publish** | PASS | `driveSelectedRunPoints` and `driveToNextGate` both only ever return a surfaced Asset/media list; neither calls anything publish-shaped. `producer.md`'s new News Carousel section ends step 6 with "**STOP.** You never publish." |
+| **Public-metrics-only** | PASS (unaffected) | No metrics code touched by this slice (confirmed via file-touch list; `performance` fields only written by test fixtures mimicking `/track-performance`'s existing, unmodified behavior). |
+| **Relative-not-absolute** | PASS (unaffected) | No scoring/baseline code touched by this slice. |
+| **Explicit-attribution** | PASS | `logPostCommand(brand, ideaId, recipe, url, …)` requires an explicit `recipe` argument naming exactly one `(Idea, Recipe)` Asset; proven by `two-recipes.test.ts`'s attribution test (each Asset carries only its own `post_url`, never inferred, never collapsed). |
+| **Ledger-as-source-of-truth** | PASS | Every new field (`asset_urls`) is read/written exclusively through `AssetStore`/`asset.ts` parsing; confirmed both real brand ledgers (`data/brands/mundotip/ledger.json`, `data/brands/straw-motion/ledger.json`) still load cleanly under the widened schema — ran `loadIdeas`/`loadReport` against both: `mundotip ideas: 10 report ideas: 10`, `straw-motion ideas: 7 report ideas: 7`, no errors. |
+| **Magnific fake used; no live-Space calls** | PASS | `grep -rn "mcp__magnific\|spaces_run(\|spaces_edit(\|creations_get(\|creations_show(\|creations_wait("  src/` → **zero matches**. Full diff grep for `spaces_*`/`creations_*` shows only comments/docstrings/fixture filenames, never a tool invocation. `FakeCarouselSpace` implements `SpaceMcpPort` purely in-memory (no network). |
+| **`driveToNextGate` itself untouched** | PASS | Diffed the function's own body line-by-line against the pre-slice commit (`f24fcd9`): zero changes within `driveToNextGate`'s own lines; all new code is appended after it. The shared `finishLeg` helper it calls DID change (resolves `media` via one `fetchCast` call instead of `fetchAsset`+`fetchCast`) — a declared, honest refactor, not a silent one. Verified it does not regress the wired path: diffed `driver.test.ts` against pre-slice — the original 31 tests are pure textual carry-forward (only new imports + new `describe` blocks appended after line 675, zero existing assertions edited) — and ran the pre-slice 31-test file standalone (31/31 pass) plus the full post-slice 40-test file (40/40 pass). |
+| **`asset_urls`/`asset_url` mutual exclusivity is defensive, doesn't break existing ledgers** | PASS | Purely additive schema change (`asset.ts` diff: new optional field + 2 new functions, no field removed/renamed). Both real brand ledgers load without error (see above). |
+
+### Defect list
+
+None blocking this round. One item noted for the Operator/next slice, not a code defect in this round:
+
+- **Severity: low (tracking note, not a defect).** `composeSpec`'s default brand-safety scan
+  (`production-spec/brand-safety.ts`'s `collectTextFields`) does not yet read a carousel Spec's
+  `slides[].image_prompt` fields — confirmed by reading `collectTextFields`: it is hard-coded to
+  `character_concepts`/`clips[].{concept_title,image_prompt,video_prompt}`, the wired contract's own
+  field names. A banned word inside a News Carousel Spec's `image_prompt` would NOT currently be
+  caught by the default scan (though `composeSpec`'s *validator* is correctly Recipe-generic and
+  proven). This is honestly disclosed in the Build Report's Known Limits and is explicitly out of this
+  slice's stated scope (issue #60 does not ask for banned-word coverage of the new shape). Repro: call
+  `composeSpec` with a News Carousel-shaped Spec containing a banned word in `image_prompt` and observe
+  it is not flagged by the default banned-word scan. Recommend a follow-up ticket to parameterize
+  `collectTextFields` per Recipe (mirroring `copy/validate.ts`'s already-parameterized scan) before this
+  Recipe is offered to a real Brand's Review flow.
+
+### Capture criterion — explicitly PENDING (not failed, per Round-1 code-verification scope)
+
+Acceptance criterion 1e ("its Space is captured as record/replay fixtures for the fake") is **PENDING**:
+
+- Present: a real, sanitized, read-only pre-tidy `spaces_state` dump (`00-spaces_state.pre-tidy.txt`,
+  152 nodes/103 connections) + an honest `README.md` that itself states the capture is partial.
+- Confirmed genuine (not invented): spot-checked the real dump's raw node rows against
+  `fake-carousel-space.ts`/`carousel-space-state.ts` — `JSON Master #2`, `Image Prompt Slide 1`..`7`
+  (`prompt-generator` nodes, each instructed "return ONLY image_prompt from slide_index: N"),
+  `Assistant Prompt #2` (the writing guide, renamed `Carousel Prompt Guide`), `Straw_motion_logo`
+  (renamed `Brand Logo`) — all present in the dump exactly as the README and the fake both claim. No
+  invented shape found.
+- Missing (as declared): real `spaces_run`/`spaces_run_status`, `spaces_edit`/`spaces_edit_status`
+  (post-tidy `JSON Master` inject), and `creations_get` captures — the record/replay set
+  `live-captures/` holds for the FIRST Space. These are explicitly scoped to land on this branch,
+  attended, with the Operator, after this round and before the PR.
+- No live-Space call was made by the `developer` or by `qa` during this verification.
+
+**This is assessed as PENDING per the orchestrator's explicit instruction, not as a failure, and does
+not block the PASS-PENDING-CAPTURE verdict.**
+
+### Overall verdict
+
+**PASS-PENDING-CAPTURE.** Every acceptance criterion other than the live-capture criterion (1e,
+explicitly PENDING) is genuinely proven by a real, passing, non-stubbed test — including the hardest one
+to fake, criterion 2's `two-recipes.test.ts`, which drives both Recipes' real orchestrators end-to-end
+against their respective fakes rather than stubbing past the interesting parts. The suite, build, and
+both `openspec validate --strict` runs were independently re-run by `qa` and confirmed green, not
+assumed. The wired one-gate Recipe's pre-existing behavior is provably byte-for-byte unchanged (diffed
+against the pre-slice commit). No live Magnific calls anywhere. All checked always-rules hold. No
+blocking defects. Once the attended live-Space captures land (criterion 1e), this slice is ready for a
+PR.
