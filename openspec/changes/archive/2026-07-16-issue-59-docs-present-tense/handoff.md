@@ -407,3 +407,113 @@ See the Round-1 Build Report above — nothing in Round 2 changes any of Round 1
 (a second wired Recipe remains future work / issue #60; `producer.md`'s Space-targeting re-point remains
 deferred per `src/recipe/registry.ts`'s own docstring; there is still no standing lint beyond the
 `*.docs-test.ts` convention this slice extends).
+
+---
+
+## QA Verdict — Round 2: PASS
+
+### Suite result
+
+All four gates re-run directly by qa, genuinely green:
+
+- `npm test` → **994/994 pass**, 0 fail (283 suites) — unaffected, as expected.
+- `npm run test:docs` → **25/25 pass**, 0 fail (5 suites) — up from 24/24 (one net-new regression subtest).
+- `npm run build` (`tsc -p tsconfig.build.json`) → clean, exit 0.
+- `npx openspec validate issue-59-docs-present-tense --strict` → `Change 'issue-59-docs-present-tense' is valid`.
+- `npx openspec validate --all --strict` → `Totals: 19 passed, 0 failed (19 items)`.
+
+### Defect QA-1 — verified fixed
+
+Re-read `.claude/commands/pick-cast.md` in full. All four instances of the retired flat Idea-status
+claim are gone:
+- Frontmatter, opening paragraph, "Gate 2 — Brand" paragraph, and the "How the render runs" callout now
+  all correctly say the Idea stays `accepted` and the **Asset** moves `in_production`
+  (`pending_gate: "cast"`) `→ produced`.
+- `grep -n "casting" .claude/commands/pick-cast.md` → exactly **one** hit left, and it is the
+  historical/explanatory sentence ("the retired flat `casting` Idea-status is gone, the Idea itself stays
+  `accepted`") — correctly framed as past-tense explanation, not a present-tense claim. Confirmed by qa
+  directly reading the file, not by trusting the Build Report.
+- Cross-checked the replacement wording against the real code: `src/ledger/ledger.ts`'s
+  `IdeaStatus = "suggested" | "accepted" | "rejected"` and `src/asset/asset.ts`'s `ideaAtGate` (checks
+  `status === "in_production" && pending_gate === gate`) — the doc's new claims match exactly.
+- `.claude/commands/pick.md`'s parallel tightening ("does not move that Asset forward... the Idea itself
+  is untouched by the pick") is a genuine precision improvement, consistent and not overstated.
+
+**Regression test judged genuinely load-bearing, not a rubber stamp.** qa independently reproduced the
+developer's own claimed verification: checked out the pre-fix (Round-1, commit `f38730f`) text of
+`pick-cast.md` into the working tree, ran `node --import tsx --test src/commands/report.docs-test.ts`,
+and confirmed the new subtest ("pick-cast.md describes the Asset-grain Cast-gate lifecycle, not the
+retired flat Idea status (QA-1 regression)") **fails** (`not ok 14`) with the exact expected assertion
+message ("must not claim the Idea's status chain runs casting → produced..."). Restored the fixed file
+(`git status --short` clean afterward) and re-ran the same test file — green (14/14). The two
+`doesNotMatch` guards target the exact defect phrasing, and the two `match` guards pin real, checkable
+positive claims (`in_production`, `pending_gate`) rather than only asserting an absence — matches the
+`producer-agent.docs-test.ts` `awaiting_cast` guard pattern already judged non-rubber-stamp in Round 1.
+
+### Own independent sweep for the same defect class (instruction 4)
+
+qa ran its own grep across every command/agent doc, independent of the developer's claimed sweep:
+```
+grep -rn "casting" .claude/commands/*.md .claude/agents/*.md CLAUDE.md
+grep -rln "awaiting_cast\|phase: *cast\|accepted → casting" .claude/commands/*.md .claude/agents/*.md CLAUDE.md docs/*.md
+```
+Result: the only remaining `casting` hits are the four legitimate, already-cleared cases (`pick-cast.md`'s
+one historical note; `report.md`'s two legacy-tolerance mentions, matching `report.ts`'s
+`PRODUCTION_STATES` constant; `producer.md`/`run-pipeline.md`/`CLAUDE.md`'s "retired" explanatory notes).
+No `awaiting_cast`/`phase: cast`/`accepted → casting` hits anywhere. A broader sweep of the remaining
+untouched command docs (`log-post.md`, `queue.md`, `review-ideas.md`, `run-trends.md`,
+`track-performance.md`, the four content-agent `.md` files, plus the engineering `developer.md`/`qa.md`/
+`build-issue.md`) for `Target (`/`not yet`/`not built`/`being migrated`/`single-recipe`/`casting` turned
+up only unrelated, accurate uses of "not yet" (a real Asset-status guard in `log-post.md`, a genuine v1
+scope note in `review-ideas.md`, a genuine onboarding-copy caveat in `trend-scout.md`) — none describing
+the multi-format model itself as unbuilt. No new defect found.
+
+### OpenSpec re-check (archive-safety + no Round-1 regression)
+
+- `grep -n "^## " openspec/changes/issue-59-docs-present-tense/specs/docs-conformance/spec.md` →
+  `## ADDED Requirements` only, still the sole header — the two new Scenarios were added under existing
+  `ADDED` Requirements, no `MODIFIED`/`REMOVED`/`RENAMED` header introduced. `ls openspec/specs/` still has
+  no `docs-conformance` directory, so there is nothing to conflict against — archive-safe by construction,
+  confirmed independently (not just re-trusting Round 1's finding).
+- `npx openspec validate --all --strict` (19/19) confirms none of the 18 already-archived capability specs
+  regressed.
+- `git diff f38730f c839227 --name-only` confirms Round 2 touched exactly 7 files
+  (`pick-cast.md`, `pick.md`, `report.docs-test.ts`, `handoff.md`, `proposal.md`, `tasks.md`,
+  `specs/docs-conformance/spec.md`) — nothing from Round 1's already-passed set (`CLAUDE.md`,
+  `producer.md`, `run-pipeline.md`, `scheduler.ts`, `run-pipeline.docs-test.ts`,
+  `producer-agent.docs-test.ts`) was touched or reopened.
+
+### Always-rules + Magnific-fake re-check
+
+- **Ledger-as-source-of-truth** — now **PASS** outright (was PASS-code/FAIL-doc in Round 1): the doc/code
+  mismatch that was the only gap here is fixed; `pick-cast.md` now accurately describes the Asset-grain
+  ledger write.
+- **Generate-never-publish, public-metrics-only, relative-not-absolute, explicit-attribution** — unchanged
+  from Round 1's PASS (no code touched; `pick-cast.md`'s attribution/publish language untouched by the
+  Round-2 diff).
+- **Magnific fake / no live-Space calls** — **PASS**. `git diff f38730f c839227 -- .claude/commands/pick-cast.md .claude/commands/pick.md src/commands/report.docs-test.ts | grep -n "spaces_\|creations_\|mcp__magnific"` → zero hits. Round 2 touches no Magnific-port code, no fixtures.
+- **Scope discipline** — **PASS**. `git diff f38730f c839227 --name-only` confirms product code is
+  untouched in Round 2 (only two `.md` docs, one `.docs-test.ts` file, and OpenSpec/handoff files).
+
+### Per-criterion results (Round 2)
+
+| # | Acceptance criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | `CLAUDE.md`/`producer.md` present tense, stale notes removed (extended to sibling docs per orchestrator scope) | **PASS** | `pick-cast.md` now correctly matches `CLAUDE.md`/`producer.md`/`run-pipeline.md`'s Asset-grain vocabulary; qa's own grep sweep confirms no remaining false claim anywhere in the command/agent doc set. |
+| 1b | `pick-cast.md`/`run-pipeline.md` updated, docs-tests pass | **PASS** | `pick-cast.md` now genuinely accurate (not just test-green); new regression test pins it. |
+| 2 | Dead worker.ts/scheduler.ts reconciled | **PASS** (unchanged from Round 1 — not touched in Round 2, re-confirmed still true). |
+| 3 | `producer-agent.docs-test.ts` passes, no false honesty strings | **PASS** (unchanged from Round 1). |
+| 4 | Strict validate + full suite + docs-test green | **PASS** — 994/994, 25/25, build clean, both validate commands green, all reproduced directly by qa. |
+
+### Overall
+
+**QA Verdict — Round 2: PASS.** Defect QA-1 is fully and correctly resolved: all four instances of the
+false, retired flat Idea-status claim in `pick-cast.md` are fixed and now match the real per-Asset
+lifecycle, the parallel imprecision in `pick.md` is tightened, the developer's own independent re-sweep
+of every other command/agent doc found nothing else (confirmed by qa's own independent sweep — no new
+defect), a genuinely load-bearing regression test was added and independently re-verified by qa
+(round-tripped the pre-fix text, confirmed the new test fails, restored, confirmed green again), and the
+OpenSpec delta remains archive-safe (`ADDED`-only, no capability archived yet). All four required gates
+are genuinely green, no product-code behavior changed, no live-Space/Magnific calls anywhere in the diff,
+and all five always-rules now hold cleanly including ledger-as-source-of-truth (the one rule that was only
+partially satisfied in Round 1). This slice is ready to proceed to a PR.
