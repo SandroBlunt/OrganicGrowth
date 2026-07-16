@@ -8,6 +8,8 @@ import { pickCastCommand, selectCharacter, main as pickCastMain } from "./pick-c
 import { loadQueue, saveQueue } from "../production-queue/store.ts";
 import type { QueueState } from "../production-queue/queue.ts";
 
+const RECIPE = "character-explainer-with-cast";
+
 /** Run `fn` with a temp ledger AND a temp queue path, so the command never touches real state. */
 async function withLedger(
   seed: unknown,
@@ -99,31 +101,32 @@ describe("pickCastCommand — records the chosen Character from the Idea's ledge
   });
 });
 
-// === pickCastCommand — picking a Cast enqueues the render (AC3) ======================================
+// === pickCastCommand — picking a Cast enqueues the next leg (AC3, generalized gate cursor issue #56) ===
 
-describe("pickCastCommand — picking a Cast enqueues the render", () => {
-  it("enqueues exactly one queued render-phase job for the Idea on a valid pick", async () => {
+describe("pickCastCommand — picking a Cast enqueues the next leg", () => {
+  it("enqueues exactly one queued FINAL-leg job (gate: null) for the Idea on a valid pick", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
       await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
       const q = await loadQueue(queuePath);
-      const renders = q.jobs.filter((j) => j.idea_id === "idea-A" && j.phase === "render");
-      assert.equal(renders.length, 1);
-      assert.equal(renders[0]!.status, "queued");
-      assert.equal(renders[0]!.enqueued_at, PICK_NOW);
+      const nextLegs = q.jobs.filter((j) => j.idea_id === "idea-A" && j.gate === null);
+      assert.equal(nextLegs.length, 1);
+      assert.equal(nextLegs[0]!.status, "queued");
+      assert.equal(nextLegs[0]!.recipe, RECIPE);
+      assert.equal(nextLegs[0]!.enqueued_at, PICK_NOW);
     });
   });
 
-  it("does NOT enqueue a render for an out-of-range pick (no Character ⇒ no render)", async () => {
+  it("does NOT enqueue a next leg for an out-of-range pick (no Character ⇒ no render)", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
       await pickCastCommand("mundotip", "idea-A", 9, { ledgerPath, queuePath, now: () => PICK_NOW });
       const q = await loadQueue(queuePath);
-      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 0);
+      assert.equal(q.jobs.filter((j) => j.gate === null).length, 0);
     });
   });
 
-  it("does NOT enqueue a render for an unknown Idea", async () => {
+  it("does NOT enqueue a next leg for an unknown Idea", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
       await pickCastCommand("mundotip", "idea-ZZZ", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
@@ -132,24 +135,24 @@ describe("pickCastCommand — picking a Cast enqueues the render", () => {
     });
   });
 
-  it("render job carries the Brand from the pickCastCommand brand argument (AC6)", async () => {
+  it("next-leg job carries the Brand from the pickCastCommand brand argument (AC6)", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
       await pickCastCommand("mundotip", "idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
       const q = await loadQueue(queuePath);
-      const render = q.jobs.find((j) => j.idea_id === "idea-A" && j.phase === "render");
-      assert.ok(render !== undefined, "render job must exist");
-      assert.equal(render!.brand, "mundotip", "render job must carry the brand from the command arg");
+      const nextLeg = q.jobs.find((j) => j.idea_id === "idea-A" && j.gate === null);
+      assert.ok(nextLeg !== undefined, "next-leg job must exist");
+      assert.equal(nextLeg!.brand, "mundotip", "next-leg job must carry the brand from the command arg");
     });
   });
 
-  it("does not duplicate the render job when the same Cast is picked twice", async () => {
+  it("does not duplicate the next-leg job when the same Cast is picked twice", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
       await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
       await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => "2026-06-05T13:00:00.000Z" });
       const q = await loadQueue(queuePath);
-      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 1);
+      assert.equal(q.jobs.filter((j) => j.gate === null).length, 1);
     });
   });
 });
@@ -157,14 +160,14 @@ describe("pickCastCommand — picking a Cast enqueues the render", () => {
 // === pickCastCommand — the pick reaches the render, the gate clears, re-picks are honest ============
 
 describe("pickCastCommand — persists the pick, clears the gate, and reports honestly", () => {
-  it("stamps the chosen Character onto the render job so it reaches the render (C1)", async () => {
+  it("stamps the chosen Character onto the next-leg job so it reaches the render (C1)", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
       await pickCastCommand("mundotip", "idea-A", 3, { ledgerPath, queuePath, now: () => PICK_NOW });
       const q = await loadQueue(queuePath);
-      const render = q.jobs.find((j) => j.idea_id === "idea-A" && j.phase === "render");
-      assert.ok(render !== undefined, "a render job must be enqueued");
-      assert.equal(render!.character, "cast-3", "the render job must carry the Operator's picked Character");
+      const nextLeg = q.jobs.find((j) => j.idea_id === "idea-A" && j.gate === null);
+      assert.ok(nextLeg !== undefined, "a next-leg job must be enqueued");
+      assert.equal(nextLeg!.pick, "cast-3", "the next-leg job must carry the Operator's picked Character");
     });
   });
 
@@ -172,20 +175,20 @@ describe("pickCastCommand — persists the pick, clears the gate, and reports ho
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
       await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
-      // Reload from disk (a fresh worker/session would do exactly this) — the pick must still be there.
+      // Reload from disk (a fresh driver/session would do exactly this) — the pick must still be there.
       const reloaded = await loadQueue(queuePath);
-      const render = reloaded.jobs.find((j) => j.phase === "render")!;
-      assert.equal(render.character, "cast-2");
+      const nextLeg = reloaded.jobs.find((j) => j.gate === null)!;
+      assert.equal(nextLeg.pick, "cast-2");
     });
   });
 
-  it("clears the Cast gate — the awaiting_cast cast job becomes done (C24)", async () => {
+  it("clears the Cast gate — the awaiting_pick cast job becomes done (C24)", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
       // Seed the queue as it stands at Gate 2: the cast job sits at its gate awaiting the pick.
       const atGate: QueueState = {
         jobs: [
-          { idea_id: "idea-A", brand: "mundotip", phase: "cast", status: "awaiting_cast", enqueued_at: "2026-06-05T10:00:00.000Z" },
+          { idea_id: "idea-A", brand: "mundotip", recipe: RECIPE, gate: "cast", status: "awaiting_pick", enqueued_at: "2026-06-05T10:00:00.000Z" },
         ],
         lock: { active_job: null },
       };
@@ -194,14 +197,14 @@ describe("pickCastCommand — persists the pick, clears the gate, and reports ho
       await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
 
       const q = await loadQueue(queuePath);
-      const castJob = q.jobs.find((j) => j.idea_id === "idea-A" && j.phase === "cast")!;
-      assert.equal(castJob.status, "done", "the Cast gate must not linger at awaiting_cast forever");
-      // the render was still enqueued alongside the cleared gate
-      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 1);
+      const castJob = q.jobs.find((j) => j.idea_id === "idea-A" && j.gate === "cast")!;
+      assert.equal(castJob.status, "done", "the Cast gate must not linger at awaiting_pick forever");
+      // the next leg was still enqueued alongside the cleared gate
+      assert.equal(q.jobs.filter((j) => j.gate === null).length, 1);
     });
   });
 
-  it("refuses a pick when the Idea is not at the Cast gate — no render enqueued (C23)", async () => {
+  it("refuses a pick when the Idea is not at the Cast gate — no next leg enqueued (C23)", async () => {
     // The Idea already produced; its `cast` is still on the ledger, but a stale re-pick must do nothing.
     const seed = { ideas: [{ id: "idea-A", status: "produced", cast }] };
     await withLedger(seed, async ({ ledgerPath, queuePath }) => {
@@ -209,7 +212,7 @@ describe("pickCastCommand — persists the pick, clears the gate, and reports ho
       assert.match(out, /not at the Cast gate/i);
       assert.match(out, /produced/, "the refusal names the Idea's actual status");
       const q = await loadQueue(queuePath);
-      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 0, "no render for a non-casting Idea");
+      assert.equal(q.jobs.filter((j) => j.gate === null).length, 0, "no next leg for a non-casting Idea");
     });
   });
 
@@ -224,11 +227,38 @@ describe("pickCastCommand — persists the pick, clears the gate, and reports ho
       assert.match(second, /no change/i);
       assert.doesNotMatch(second, /render queued/i);
 
-      // Exactly one render, still carrying the FIRST pick — the re-pick did not overwrite it.
+      // Exactly one next leg, still carrying the FIRST pick — the re-pick did not overwrite it.
       const q = await loadQueue(queuePath);
-      const renders = q.jobs.filter((j) => j.phase === "render");
-      assert.equal(renders.length, 1);
-      assert.equal(renders[0]!.character, "cast-2", "the earlier pick governs; the re-pick did not overwrite it");
+      const nextLegs = q.jobs.filter((j) => j.gate === null);
+      assert.equal(nextLegs.length, 1);
+      assert.equal(nextLegs[0]!.pick, "cast-2", "the earlier pick governs; the re-pick did not overwrite it");
+    });
+  });
+});
+
+// === pickCastCommand — refuses to guess when several Assets are simultaneously gated (issue #56) =====
+
+describe("pickCastCommand — never guesses which Recipe's gate the pick resolves", () => {
+  it("refuses (and names both Recipes) when TWO Assets are paused at the Cast gate at once", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [
+            { recipe: "character-explainer-with-cast", status: "in_production", pending_gate: "cast", cast },
+            { recipe: "carousel", status: "in_production", pending_gate: "cast", cast },
+          ],
+        },
+      ],
+    };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(out, /MULTIPLE/i);
+      assert.match(out, /character-explainer-with-cast/);
+      assert.match(out, /carousel/);
+      const q = await loadQueue(queuePath);
+      assert.equal(q.jobs.length, 0, "no pick is recorded when the gate is ambiguous");
     });
   });
 });
@@ -322,17 +352,17 @@ describe("pickCastCommand — brand-routing: resolves the correct Brand's ledger
         queuePath,
         now: () => "2026-06-06T12:00:00.000Z",
       });
-      // Both renders should be queued in the shared global queue
+      // Both next-leg jobs should be queued in the shared global queue
       const q = await loadQueue(queuePath);
-      const renders = q.jobs.filter((j) => j.phase === "render");
-      assert.equal(renders.length, 2, "one render job per brand in the shared global queue");
-      const ideaIds = renders.map((j) => j.idea_id).sort();
+      const nextLegs = q.jobs.filter((j) => j.gate === null);
+      assert.equal(nextLegs.length, 2, "one next-leg job per brand in the shared global queue");
+      const ideaIds = nextLegs.map((j) => j.idea_id).sort();
       assert.deepEqual(ideaIds, ["acme-idea", "mt-idea"]);
-      // Each render job carries the correct brand (never cross-contaminated)
-      const mtRender = renders.find((j) => j.idea_id === "mt-idea");
-      const acmeRender = renders.find((j) => j.idea_id === "acme-idea");
-      assert.equal(mtRender!.brand, "mundotip", "mundotip's render job must carry brand=mundotip");
-      assert.equal(acmeRender!.brand, "acme", "acme's render job must carry brand=acme");
+      // Each next-leg job carries the correct brand (never cross-contaminated)
+      const mtLeg = nextLegs.find((j) => j.idea_id === "mt-idea");
+      const acmeLeg = nextLegs.find((j) => j.idea_id === "acme-idea");
+      assert.equal(mtLeg!.brand, "mundotip", "mundotip's next-leg job must carry brand=mundotip");
+      assert.equal(acmeLeg!.brand, "acme", "acme's next-leg job must carry brand=acme");
     });
   });
 
@@ -370,9 +400,9 @@ describe("pickCastCommand — brand-routing: resolves the correct Brand's ledger
       // The resolver found the Idea and the Character was selected
       assert.match(out, /mt-resolver-idea/, "resolver fallback reads the correct Brand's ledger");
       assert.match(out, /cast-1/, "correct Cast member selected via resolver-derived path");
-      // The render was enqueued
+      // The next leg was enqueued
       const q = await loadQueue(queuePath);
-      assert.equal(q.jobs.filter((j) => j.idea_id === "mt-resolver-idea" && j.phase === "render").length, 1);
+      assert.equal(q.jobs.filter((j) => j.idea_id === "mt-resolver-idea" && j.gate === null).length, 1);
     } finally {
       await rm(tmpRoot, { recursive: true, force: true });
     }
@@ -397,7 +427,8 @@ describe("pickCastCommand — against a canonical, already-migrated ledger", () 
       assert.match(out, /idea-A/);
       assert.match(out, /cast-3/);
       const q = await loadQueue(queuePath);
-      assert.equal(q.jobs.filter((j) => j.idea_id === "idea-A" && j.phase === "render").length, 1);
+      assert.equal(q.jobs.filter((j) => j.idea_id === "idea-A" && j.gate === null).length, 1);
+      assert.equal(q.jobs.find((j) => j.gate === null)!.recipe, "character-explainer-with-cast");
     });
   });
 
@@ -416,7 +447,7 @@ describe("pickCastCommand — against a canonical, already-migrated ledger", () 
       assert.match(out, /not at the Cast gate/i);
       assert.match(out, /produced/, "the refusal names the Idea's rolled-up status");
       const q = await loadQueue(queuePath);
-      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 0);
+      assert.equal(q.jobs.filter((j) => j.gate === null).length, 0);
     });
   });
 

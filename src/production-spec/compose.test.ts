@@ -12,6 +12,8 @@ import type { Brief } from "./generate.ts";
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const BANNED_PROFILE = join(HERE, "fixtures", "brand-profile.banned.yaml");
 
+const RECIPE = "character-explainer-with-cast";
+
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), "og-compose-"));
   try {
@@ -51,10 +53,11 @@ describe("composeSpec — happy path", () => {
       const result = await composeSpec(acceptedBrief(), {
         ideasRoot: dir,
         brandProfilePath: BANNED_PROFILE,
+        recipe: RECIPE,
       });
 
       assert.equal(result.written, true);
-      const path = specPathFor("idea-2026-W22-01", "2026-W22", dir);
+      const path = specPathFor("idea-2026-W22-01", "2026-W22", dir, RECIPE);
       assert.equal(result.path, path);
       assert.equal(await exists(path), true);
 
@@ -74,6 +77,7 @@ describe("composeSpec — brand-safety gate", () => {
       const result = await composeSpec(dirty, {
         ideasRoot: dir,
         brandProfilePath: BANNED_PROFILE,
+        recipe: RECIPE,
       });
 
       assert.equal(result.written, false);
@@ -81,7 +85,7 @@ describe("composeSpec — brand-safety gate", () => {
       assert.ok(result.bannedHits && result.bannedHits.some((h) => h.word === "miracle"));
 
       // The banned word must NEVER survive into a saved Spec: no file written.
-      const path = specPathFor(brief.id, brief.run, dir);
+      const path = specPathFor(brief.id, brief.run, dir, RECIPE);
       assert.equal(await exists(path), false);
     });
   });
@@ -95,6 +99,7 @@ describe("composeSpec — validation gate", () => {
       const result = await composeSpec(brief, {
         ideasRoot: dir,
         brandProfilePath: BANNED_PROFILE,
+        recipe: RECIPE,
         generator: () => ({
           character_concepts: ["a", "b", "c"],
           clips: [
@@ -110,7 +115,7 @@ describe("composeSpec — validation gate", () => {
       assert.equal(result.reason, "validation");
       assert.ok(result.errors && result.errors.some((e) => e.code === "clips_count"));
 
-      const path = specPathFor(brief.id, brief.run, dir);
+      const path = specPathFor(brief.id, brief.run, dir, RECIPE);
       assert.equal(await exists(path), false);
     });
   });
@@ -122,6 +127,7 @@ describe("composeSpec — empty banned list (real profile shape)", () => {
       const result = await composeSpec(acceptedBrief(), {
         ideasRoot: dir,
         brandProfilePath: join(HERE, "fixtures", "does-not-exist.yaml"), // missing -> [] banned words
+        recipe: RECIPE,
       });
       assert.equal(result.written, true);
     });

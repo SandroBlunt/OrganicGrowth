@@ -1,5 +1,6 @@
 /**
- * `/review-ideas` Recipe-offering: prompt-conformance tests (issue #54 AC3/AC4).
+ * `/review-ideas` Recipe-offering: prompt-conformance tests (issue #54 AC3/AC4; the enqueue call
+ * updated for issue #56's Recipe-aware queue).
  *
  * `/review-ideas` is a prompt-driven command (`.claude/commands/review-ideas.md`) — there is no
  * compiled TS runtime for its conversational behavior to unit-test directly. These assertions pin the
@@ -90,11 +91,18 @@ describe("/review-ideas logs declined Recipes verbatim, mirroring Rejection Reas
   });
 });
 
-describe("/review-ideas keeps the wired production path unchanged (issue #54 zero-behaviour-change bar)", () => {
-  it("states the enqueueOnAccept call is byte-for-byte unchanged from before this slice", async () => {
+describe("/review-ideas enqueues the chosen Recipe set (issue #56 — Recipe-aware queue)", () => {
+  it("passes `chosen` (the resolved Recipe selection) as an explicit argument to enqueueOnAccept", async () => {
     const doc = await readReviewIdeasDoc();
-    assert.match(doc, /byte-for-byte unchanged/);
-    assert.match(doc, /enqueueOnAccept\(ideaId, brand, \{ ledgerPath: resolveBrand\(brand\)\.ledger \}\)/);
+    assert.match(doc, /enqueueOnAccept\(ideaId, brand, chosen, \{ ledgerPath: resolveBrand\(brand\)\.ledger \}\)/);
+    assert.match(doc, /chosen.*is what makes the queue Recipe-aware/is);
+  });
+
+  it("states one job is enqueued PER chosen Recipe, keyed on the composite (brand, idea, recipe)", async () => {
+    const doc = await readReviewIdeasDoc();
+    assert.match(doc, /ONE job PER chosen\s*\n?\s*Recipe/i);
+    assert.match(doc, /\(brand, idea, recipe\)/);
+    assert.match(doc, /never dropped as a duplicate/i);
   });
 
   it("only skips auto-enqueue when the Operator chose zero Recipes (a brand-new state, not a regression)", async () => {

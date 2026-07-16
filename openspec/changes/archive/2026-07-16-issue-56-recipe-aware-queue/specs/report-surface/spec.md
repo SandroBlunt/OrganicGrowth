@@ -1,32 +1,4 @@
-# report-surface Specification
-
-## Purpose
-TBD - created by archiving change issue-9-report-production-surface. Update Purpose after archive.
-## Requirements
-### Requirement: The Operator command surface and lifecycle are final and match the ledger
-
-The documented Operator command surface SHALL match the shipped Producer feature. There SHALL be **no
-`/produce` command** — accepting an Idea auto-enqueues it for production (ADR-0004), replacing the old
-explicit kickoff. The Operator's four touches SHALL be **accept → `/pick-cast` → publish → `/log-post`**,
-with **`/queue`** for backlog visibility; publishing remains the existing `/log-post` act (explicit
-attribution; the Post is linked to its Idea only via the logged URL). The documented **lifecycle** SHALL
-be `suggested → accepted → casting → produced → posted → tracking → scored` (or `rejected`) and SHALL
-match the statuses the ledger actually records.
-
-#### Scenario: No /produce command exists in the surface
-
-- **GIVEN** the shipped command surface (auto-enqueue on accept)
-- **WHEN** the documented commands are inspected
-- **THEN** there is no `/produce` command, and `/queue`, `/pick-cast`, and `/log-post` are present
-- **AND** the docs describe the four touches accept → pick-cast → publish → log-post
-
-#### Scenario: The documented lifecycle matches the ledger
-
-- **GIVEN** the lifecycle the ledger records (`suggested → accepted → casting → produced → posted →
-  tracking → scored`, or `rejected`)
-- **WHEN** the docs (CLAUDE.md) are inspected
-- **THEN** they document exactly that lifecycle, with `casting` and `produced` present
-- **AND** no documented status is one the ledger never records
+## MODIFIED Requirements
 
 ### Requirement: /report surfaces production alongside predicted Fit and a best-of-N measured Performance summary
 
@@ -128,3 +100,9 @@ crash a Run (always-rules #8: never fabricate; degrade defensively).
 - **WHEN** `/report` renders
 - **THEN** it returns a clear "empty" note and does not throw
 
+## RENAMED Requirements
+
+- FROM: `### Requirement: /report surfaces production alongside predicted and measured scores`
+- TO: `### Requirement: /report surfaces production alongside predicted Fit and a best-of-N measured Performance summary`
+- FROM: `### Requirement: /report is read-only over the ledger`
+- TO: `### Requirement: /report is read-only over the ledger, attributing each Post to its (Idea, Recipe) Asset`

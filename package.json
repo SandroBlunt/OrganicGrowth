@@ -13,6 +13,7 @@
     "test:docs": "node --import tsx --test \"src/**/*.docs-test.ts\"",
     "queue": "tsx src/commands/queue.ts",
     "pick-cast": "tsx src/commands/pick-cast.ts",
+    "log-post": "tsx src/commands/log-post.ts",
     "report": "tsx src/commands/report.ts",
     "run-pipeline": "tsx src/commands/run-pipeline.ts"
   },

@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { emptyQueue, enqueue } from "./queue.ts";
 import { loadQueue, saveQueue, parseQueueState } from "./store.ts";
 
+const RECIPE = "character-explainer-with-cast";
+
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), "og-queue-"));
   try {
@@ -33,7 +35,7 @@ describe("loadQueue / saveQueue", () => {
   it("round-trips a queue state through disk", async () => {
     await withTempDir(async (dir) => {
       const path = join(dir, "queue.json");
-      const state = enqueue(emptyQueue(), "idea-2026-W22-01", "2026-06-05T10:00:00.000Z", "mundotip");
+      const state = enqueue(emptyQueue(), "idea-2026-W22-01", "2026-06-05T10:00:00.000Z", "mundotip", RECIPE, "cast");
       await saveQueue(state, path);
       const loaded = await loadQueue(path);
       assert.deepEqual(loaded, state);
@@ -65,19 +67,20 @@ describe("loadQueue / saveQueue", () => {
   it("saves atomically, leaving no leftover temp file (C13)", async () => {
     await withTempDir(async (dir) => {
       const path = join(dir, "queue.json");
-      await saveQueue(enqueue(emptyQueue(), "idea-X", "2026-06-05T10:00:00.000Z", "alpha"), path);
+      await saveQueue(enqueue(emptyQueue(), "idea-X", "2026-06-05T10:00:00.000Z", "alpha", RECIPE, "cast"), path);
       const entries = await readdir(dir);
       assert.deepEqual(entries, ["queue.json"], "no sibling .tmp file survives a successful write");
     });
   });
 
-  it("writes valid JSON with the documented shape including brand", async () => {
+  it("writes valid JSON with the documented shape including brand + recipe + gate", async () => {
     await withTempDir(async (dir) => {
       const path = join(dir, "queue.json");
-      await saveQueue(enqueue(emptyQueue(), "idea-X", "2026-06-05T10:00:00.000Z", "alpha"), path);
+      await saveQueue(enqueue(emptyQueue(), "idea-X", "2026-06-05T10:00:00.000Z", "alpha", RECIPE, "cast"), path);
       const reloaded = await loadQueue(path);
       assert.equal(reloaded.jobs.length, 1);
-      assert.equal(reloaded.jobs[0]!.phase, "cast");
+      assert.equal(reloaded.jobs[0]!.recipe, RECIPE);
+      assert.equal(reloaded.jobs[0]!.gate, "cast");
       assert.equal(reloaded.jobs[0]!.status, "queued");
       assert.equal(reloaded.jobs[0]!.brand, "alpha");
       assert.equal(reloaded.lock.active_job, null);
@@ -91,65 +94,72 @@ describe("parseQueueState (defensive)", () => {
     assert.deepEqual(parseQueueState("nope"), emptyQueue());
   });
 
-  it("round-trips the chosen character on a render job (C1 persistence)", () => {
+  it("round-trips the chosen pick on a next-leg job (C1 persistence, generalized)", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-A", brand: "mundotip", phase: "render", status: "queued", enqueued_at: "2026-06-05T12:00:00.000Z", character: "cast-3" },
+        { idea_id: "idea-A", brand: "mundotip", recipe: RECIPE, gate: null, status: "queued", enqueued_at: "2026-06-05T12:00:00.000Z", pick: "cast-3" },
       ],
       lock: { active_job: null },
     };
     const state = parseQueueState(raw);
     assert.equal(state.jobs.length, 1);
-    assert.equal(state.jobs[0]!.character, "cast-3", "the Operator's pick must survive the disk round-trip");
+    assert.equal(state.jobs[0]!.pick, "cast-3", "the Operator's pick must survive the disk round-trip");
   });
 
-  it("a cast job carries no character (the field is render-only)", () => {
+  it("a first-leg job carries no pick (the field is next-leg-only)", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-A", brand: "mundotip", phase: "cast", status: "queued", enqueued_at: "2026-06-05T12:00:00.000Z" },
+        { idea_id: "idea-A", brand: "mundotip", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T12:00:00.000Z" },
       ],
       lock: { active_job: null },
     };
     const state = parseQueueState(raw);
-    assert.equal(state.jobs[0]!.character, undefined);
+    assert.equal(state.jobs[0]!.pick, undefined);
   });
 
-  it("WARNS on a render job with no persisted character — the pick was lost (C1)", () => {
+  it("round-trips a null gate (the final leg)", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-nochar", brand: "mundotip", phase: "render", status: "queued", enqueued_at: "2026-06-05T12:00:00.000Z" },
+        { idea_id: "idea-A", brand: "mundotip", recipe: RECIPE, gate: null, status: "queued", enqueued_at: "2026-06-05T12:00:00.000Z" },
+      ],
+      lock: { active_job: null },
+    };
+    const state = parseQueueState(raw);
+    assert.equal(state.jobs[0]!.gate, null);
+  });
+
+  it("drops a job with an invalid gate (not null and not a non-empty string)", () => {
+    const raw = {
+      jobs: [
+        { idea_id: "idea-bad-gate", brand: "alpha", recipe: RECIPE, gate: 5, status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
       ],
       lock: { active_job: null },
     };
     const { result, warnings } = captureWarn(() => parseQueueState(raw));
-    // The job is kept (never invented away), but the missing pick is surfaced, not silent.
-    assert.equal(result.jobs.length, 1);
-    assert.equal(result.jobs[0]!.character, undefined);
-    assert.ok(
-      warnings.some((w) => w.includes("idea-nochar") && w.includes("character")),
-      "a render job missing its character must warn (the C1 persistence bug)",
-    );
+    assert.equal(result.jobs.length, 0);
+    assert.ok(warnings.some((w) => w.includes("idea-bad-gate") && w.includes("invalid gate")));
   });
 
-  it("round-trips the brand field for a well-formed job (AC1)", () => {
+  it("round-trips the brand + recipe fields for a well-formed job (AC1, issue #56)", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-A", brand: "mundotip", phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-A", brand: "mundotip", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
       ],
       lock: { active_job: null },
     };
     const state = parseQueueState(raw);
     assert.equal(state.jobs.length, 1);
     assert.equal(state.jobs[0]!.brand, "mundotip");
+    assert.equal(state.jobs[0]!.recipe, RECIPE);
   });
 
   it("drops a job with a missing brand field — does not crash the drain (AC1)", () => {
     const raw = {
       jobs: [
         // brand field is absent
-        { idea_id: "idea-no-brand", phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-no-brand", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
         // valid job for comparison
-        { idea_id: "idea-good", brand: "alpha", phase: "render", status: "queued", enqueued_at: "2026-06-05T11:00:00.000Z", character: "cast-1" },
+        { idea_id: "idea-good", brand: "alpha", recipe: RECIPE, gate: null, status: "queued", enqueued_at: "2026-06-05T11:00:00.000Z", pick: "cast-1" },
       ],
       lock: { active_job: null },
     };
@@ -158,11 +168,25 @@ describe("parseQueueState (defensive)", () => {
     assert.equal(state.jobs[0]!.idea_id, "idea-good");
   });
 
+  it("drops a job with a missing recipe field — does not crash the drain (issue #56)", () => {
+    const raw = {
+      jobs: [
+        { idea_id: "idea-no-recipe", brand: "alpha", gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-good", brand: "alpha", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T11:00:00.000Z" },
+      ],
+      lock: { active_job: null },
+    };
+    const { result, warnings } = captureWarn(() => parseQueueState(raw));
+    assert.equal(result.jobs.length, 1, "recipeless job must be dropped");
+    assert.equal(result.jobs[0]!.idea_id, "idea-good");
+    assert.ok(warnings.some((w) => w.includes("idea-no-recipe") && w.includes("recipe")));
+  });
+
   it("drops a job with an empty-string brand — does not crash the drain (AC1)", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-empty-brand", brand: "", phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
-        { idea_id: "idea-good", brand: "beta", phase: "cast", status: "queued", enqueued_at: "2026-06-05T11:00:00.000Z" },
+        { idea_id: "idea-empty-brand", brand: "", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-good", brand: "beta", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T11:00:00.000Z" },
       ],
       lock: { active_job: null },
     };
@@ -174,9 +198,9 @@ describe("parseQueueState (defensive)", () => {
   it("drops malformed jobs but keeps well-formed ones", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-good", brand: "alpha", phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
-        { idea_id: "idea-bad-phase", brand: "alpha", phase: "wat", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
-        { brand: "alpha", phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-good", brand: "alpha", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-bad-status", brand: "alpha", recipe: RECIPE, gate: "cast", status: "wat", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { brand: "alpha", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
       ],
       lock: { active_job: null },
     };
@@ -188,7 +212,7 @@ describe("parseQueueState (defensive)", () => {
   it("WARNS (does not silently drop) an invalid status — a typo'd status leaves a trace (C38)", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-typo", brand: "alpha", phase: "cast", status: "quued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-typo", brand: "alpha", recipe: RECIPE, gate: "cast", status: "quued", enqueued_at: "2026-06-05T10:00:00.000Z" },
       ],
       lock: { active_job: null },
     };
@@ -200,18 +224,10 @@ describe("parseQueueState (defensive)", () => {
     );
   });
 
-  it("WARNS on an invalid phase and a missing enqueued_at (C38)", () => {
-    const { warnings: phaseWarn } = captureWarn(() =>
-      parseQueueState({
-        jobs: [{ idea_id: "idea-p", brand: "alpha", phase: "wat", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" }],
-        lock: { active_job: null },
-      }),
-    );
-    assert.ok(phaseWarn.some((w) => w.includes("idea-p") && w.includes("invalid phase")));
-
+  it("WARNS on a missing enqueued_at (C38)", () => {
     const { warnings: tsWarn } = captureWarn(() =>
       parseQueueState({
-        jobs: [{ idea_id: "idea-t", brand: "alpha", phase: "cast", status: "queued" }],
+        jobs: [{ idea_id: "idea-t", brand: "alpha", recipe: RECIPE, gate: "cast", status: "queued" }],
         lock: { active_job: null },
       }),
     );
@@ -219,28 +235,40 @@ describe("parseQueueState (defensive)", () => {
   });
 });
 
-describe("parseQueueState — lock is a composite (brand, idea_id) ref (C6/C39)", () => {
+describe("parseQueueState — lock is a composite (brand, idea_id, recipe) ref (C6/C39, issue #56)", () => {
   it("round-trips a lock that points at a present job", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-r", brand: "alpha", phase: "cast", status: "running", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-r", brand: "alpha", recipe: RECIPE, gate: "cast", status: "running", enqueued_at: "2026-06-05T10:00:00.000Z" },
       ],
-      lock: { active_job: { brand: "alpha", idea_id: "idea-r" } },
+      lock: { active_job: { brand: "alpha", idea_id: "idea-r", recipe: RECIPE } },
     };
     const state = parseQueueState(raw);
-    assert.deepEqual(state.lock.active_job, { brand: "alpha", idea_id: "idea-r" });
+    assert.deepEqual(state.lock.active_job, { brand: "alpha", idea_id: "idea-r", recipe: RECIPE });
   });
 
   it("does NOT match a lock whose brand differs from the running job's (C6)", () => {
     // A lock for (beta, idea-r) must not be satisfied by (alpha, idea-r) — different Brands.
     const raw = {
       jobs: [
-        { idea_id: "idea-r", brand: "alpha", phase: "cast", status: "running", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-r", brand: "alpha", recipe: RECIPE, gate: "cast", status: "running", enqueued_at: "2026-06-05T10:00:00.000Z" },
       ],
-      lock: { active_job: { brand: "beta", idea_id: "idea-r" } },
+      lock: { active_job: { brand: "beta", idea_id: "idea-r", recipe: RECIPE } },
     };
     const { result, warnings } = captureWarn(() => parseQueueState(raw));
     assert.equal(result.lock.active_job, null, "no same-brand job matches, so the lock is cleared");
+    assert.ok(warnings.some((w) => w.includes("phantom lock")));
+  });
+
+  it("does NOT match a lock whose recipe differs from the running job's (issue #56)", () => {
+    const raw = {
+      jobs: [
+        { idea_id: "idea-r", brand: "alpha", recipe: RECIPE, gate: "cast", status: "running", enqueued_at: "2026-06-05T10:00:00.000Z" },
+      ],
+      lock: { active_job: { brand: "alpha", idea_id: "idea-r", recipe: "carousel" } },
+    };
+    const { result, warnings } = captureWarn(() => parseQueueState(raw));
+    assert.equal(result.lock.active_job, null, "no same-recipe job matches, so the lock is cleared");
     assert.ok(warnings.some((w) => w.includes("phantom lock")));
   });
 
@@ -248,9 +276,9 @@ describe("parseQueueState — lock is a composite (brand, idea_id) ref (C6/C39)"
     // The only job is malformed (bad status) and gets dropped; the lock then points at nothing.
     const raw = {
       jobs: [
-        { idea_id: "idea-gone", brand: "alpha", phase: "cast", status: "bogus", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-gone", brand: "alpha", recipe: RECIPE, gate: "cast", status: "bogus", enqueued_at: "2026-06-05T10:00:00.000Z" },
       ],
-      lock: { active_job: { brand: "alpha", idea_id: "idea-gone" } },
+      lock: { active_job: { brand: "alpha", idea_id: "idea-gone", recipe: RECIPE } },
     };
     const { result, warnings } = captureWarn(() => parseQueueState(raw));
     assert.equal(result.jobs.length, 0);
@@ -264,13 +292,24 @@ describe("parseQueueState — lock is a composite (brand, idea_id) ref (C6/C39)"
   it("clears a lock that points at a never-existing job (C39)", () => {
     const raw = {
       jobs: [
-        { idea_id: "idea-real", brand: "alpha", phase: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
+        { idea_id: "idea-real", brand: "alpha", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
       ],
-      lock: { active_job: { brand: "alpha", idea_id: "idea-ghost" } },
+      lock: { active_job: { brand: "alpha", idea_id: "idea-ghost", recipe: RECIPE } },
     };
     const { result } = captureWarn(() => parseQueueState(raw));
     assert.equal(result.lock.active_job, null);
     assert.equal(result.jobs.length, 1);
+  });
+
+  it("treats a lock ref missing its recipe as no lock", () => {
+    const raw = {
+      jobs: [
+        { idea_id: "idea-r", brand: "alpha", recipe: RECIPE, gate: "cast", status: "running", enqueued_at: "2026-06-05T10:00:00.000Z" },
+      ],
+      lock: { active_job: { brand: "alpha", idea_id: "idea-r" } },
+    };
+    const state = parseQueueState(raw);
+    assert.equal(state.lock.active_job, null);
   });
 
   it("treats a non-object / string lock holder as no lock", () => {

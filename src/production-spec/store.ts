@@ -1,11 +1,13 @@
 /**
- * Production Spec persistence — the plain-file boundary for `ideas/<run>/idea-NN.spec.json`.
+ * Production Spec persistence — the plain-file boundary for
+ * `ideas/<run>/idea-NN.<recipe>.spec.json`.
  *
  * The Spec is written as the machine-readable SIBLING of the Brief: for `ideas/<run>/idea-NN.md` the
- * Spec is `ideas/<run>/idea-NN.spec.json` (same short `idea-NN` name), so the Operator can inspect
- * exactly what will drive a render (PRD #1 story 5). Kept thin and separate from the pure logic in
- * `validate.ts` / `generate.ts`; the gate that only valid, brand-safe Specs reach disk lives in the
- * `compose.ts` shell.
+ * Spec is `ideas/<run>/idea-NN.<recipe>.spec.json` (same short `idea-NN` name, PLUS a Recipe segment —
+ * ADR-0011, issue #56), so the Operator can inspect exactly what will drive a render (PRD #1 story 5)
+ * and so a second chosen Recipe for the same Idea gets its OWN Spec file rather than overwriting the
+ * first Recipe's. Kept thin and separate from the pure logic in `validate.ts` / `generate.ts`; the gate
+ * that only valid, brand-safe Specs reach disk lives in the `compose.ts` shell.
  */
 
 import { mkdir } from "node:fs/promises";
@@ -33,12 +35,14 @@ export function briefShortName(ideaId: string, run: string): string {
 }
 
 /**
- * The on-disk path of a Spec: `<ideasRoot>/<run>/idea-NN.spec.json` — sitting BESIDE the Brief
- * (`idea-NN.md`), matching the real `data/brands/<slug>/ideas/<run>/` tree. `ideasRoot` is required
- * (there is no ambient default; a bare `"ideas"` root was deliberately removed with the legacy folder).
+ * The on-disk path of a Spec: `<ideasRoot>/<run>/idea-NN.<recipe>.spec.json` — sitting BESIDE the
+ * Brief (`idea-NN.md`), matching the real `data/brands/<slug>/ideas/<run>/` tree. `ideasRoot` is
+ * required (there is no ambient default; a bare `"ideas"` root was deliberately removed with the
+ * legacy folder). `recipe` is REQUIRED (issue #56): the Recipe segment is what lets two Recipes of one
+ * Idea each keep their own Spec file instead of the second overwriting the first (ADR-0011).
  */
-export function specPathFor(ideaId: string, run: string, ideasRoot: string): string {
-  return join(ideasRoot, run, `${briefShortName(ideaId, run)}.spec.json`);
+export function specPathFor(ideaId: string, run: string, ideasRoot: string, recipe: string): string {
+  return join(ideasRoot, run, `${briefShortName(ideaId, run)}.${recipe}.spec.json`);
 }
 
 /**

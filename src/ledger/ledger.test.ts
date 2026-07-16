@@ -10,8 +10,6 @@ import {
   writeIdeaRecipeSelection,
   type LedgerIdeaWithRecipes,
   type LedgerDeclinedRecipe,
-  type LedgerAsset,
-  type LedgerCastCandidate,
 } from "./ledger.ts";
 import { DEFAULT_ASSET_RECIPE } from "../asset/migrate.ts";
 
@@ -354,20 +352,161 @@ describe("writeIdeaRecipeSelection — records the chosen + declined Recipes on 
   });
 });
 
-// === Legacy type re-exports still compile (production-queue/worker.ts compatibility) =================
+// === loadIdeas carries `recipes` through read-only (issue #56 — re-enqueue needs the ORIGINAL pick) ===
 
-describe("legacy re-exports — LedgerAsset / LedgerCastCandidate still compile (worker.ts compat, ADR-0004)", () => {
-  it("LedgerAsset accepts the scalar shape worker.ts constructs on a render completion", () => {
-    const asset: LedgerAsset = {
-      character: "cast-3",
-      asset_url: "https://magnific.example/asset/1.mp4",
-      produced_at: "2026-06-05T12:00:00.000Z",
-    };
-    assert.equal(asset.character, "cast-3");
+describe("loadIdeas — recipes (issue #54) is carried through read-only", () => {
+  async function withLedger(seed: unknown, fn: (path: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-recipes-read-"));
+    const path = join(dir, "ledger.json");
+    try {
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+      await fn(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("an Idea with a recorded recipes selection carries it through", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted", recipes: ["character-explainer-with-cast"] }] };
+    await withLedger(seed, async (path) => {
+      const ideas = await loadIdeas(path);
+      assert.deepEqual(ideas[0]!.recipes, ["character-explainer-with-cast"]);
+    });
   });
 
-  it("LedgerCastCandidate accepts the {identifier, url} shape", () => {
-    const cast: LedgerCastCandidate = { identifier: "cast-1", url: "https://x/1.png" };
-    assert.equal(cast.identifier, "cast-1");
+  it("an Idea with no recipes field omits it entirely (never fabricated)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted" }] };
+    await withLedger(seed, async (path) => {
+      const ideas = await loadIdeas(path);
+      assert.equal(ideas[0]!.recipes, undefined);
+    });
+  });
+
+  it("an empty recipes array omits the field too (nothing to carry)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted", recipes: [] }] };
+    await withLedger(seed, async (path) => {
+      const ideas = await loadIdeas(path);
+      assert.equal(ideas[0]!.recipes, undefined);
+    });
+  });
+
+  it("a garbled recipes field (not an array of strings) degrades to omitted, never crashes", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted", recipes: [1, null, "ok-one"] }] };
+    await withLedger(seed, async (path) => {
+      const ideas = await loadIdeas(path);
+      assert.deepEqual(ideas[0]!.recipes, ["ok-one"]);
+    });
+  });
+});
+
+// === loadReport — per-Recipe Asset breakdown + best-of-N Performance (issue #56, ADR-0011) ============
+
+describe("loadReport — per-Recipe assets and the best-of-N Performance summary", () => {
+  async function withLedger(seed: unknown, fn: (path: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-report-assets-"));
+    const path = join(dir, "ledger.json");
+    try {
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+      await fn(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("surfaces every chosen Recipe's Asset as its own row, keyed (Idea, Recipe)", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          title: "Two Recipes",
+          status: "accepted",
+          fit_score: 0.7,
+          assets: [
+            { recipe: "character-explainer-with-cast", status: "posted", post_url: "https://facebook.com/p/1", performance_score: 0.9 },
+            { recipe: "carousel", status: "produced" },
+          ],
+        },
+      ],
+    };
+    await withLedger(seed, async (path) => {
+      const report = await loadReport(path);
+      const idea = report.ideas[0]!;
+      assert.equal(idea.assets.length, 2);
+      const first = idea.assets.find((a) => a.recipe === "character-explainer-with-cast")!;
+      assert.equal(first.post_url, "https://facebook.com/p/1");
+      assert.equal(first.performance_score, 0.9);
+      const second = idea.assets.find((a) => a.recipe === "carousel")!;
+      assert.equal(second.post_url, null);
+      assert.equal(second.performance_score, null);
+    });
+  });
+
+  it("best_performance_score is the BEST among the Idea's Assets, not the first or the sum", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [
+            { recipe: "r1", status: "scored", performance_score: 0.4 },
+            { recipe: "r2", status: "scored", performance_score: 0.85 },
+          ],
+        },
+      ],
+    };
+    await withLedger(seed, async (path) => {
+      const report = await loadReport(path);
+      assert.equal(report.ideas[0]!.best_performance_score, 0.85);
+    });
+  });
+
+  it("best_performance_score is null when no Asset has been measured yet", async () => {
+    const seed = {
+      ideas: [{ id: "idea-A", status: "accepted", assets: [{ recipe: "r1", status: "posted" }] }],
+    };
+    await withLedger(seed, async (path) => {
+      const report = await loadReport(path);
+      assert.equal(report.ideas[0]!.best_performance_score, null);
+    });
+  });
+
+  it("an Idea with no Assets yet reports an empty assets array and a null best score", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted" }] };
+    await withLedger(seed, async (path) => {
+      const report = await loadReport(path);
+      assert.deepEqual(report.ideas[0]!.assets, []);
+      assert.equal(report.ideas[0]!.best_performance_score, null);
+    });
+  });
+
+  it("a legacy un-migrated Idea's top-level post_url/performance_score fold onto its one Asset", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "scored",
+          post_url: "https://facebook.com/p/legacy",
+          performance_score: 0.55,
+        },
+      ],
+    };
+    await withLedger(seed, async (path) => {
+      const report = await loadReport(path);
+      const idea = report.ideas[0]!;
+      assert.equal(idea.assets.length, 1);
+      assert.equal(idea.assets[0]!.post_url, "https://facebook.com/p/legacy");
+      assert.equal(idea.best_performance_score, 0.55);
+    });
+  });
+
+  it("preserves the single Channel baseline unchanged (never per-Recipe)", async () => {
+    const seed = {
+      ideas: [{ id: "idea-A", status: "accepted" }],
+      baseline: { updated_at: "2026-06-04T09:00:00.000Z" },
+    };
+    await withLedger(seed, async (path) => {
+      const report = await loadReport(path);
+      assert.deepEqual(report.baseline, { updated_at: "2026-06-04T09:00:00.000Z" });
+    });
   });
 });

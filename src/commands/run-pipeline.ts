@@ -57,8 +57,9 @@ import { resolveBrand, brandExists, listBrands } from "../brand/resolver.ts";
 import { deriveSlug, validateSlug, buildBrandProfile, buildSeeds, buildEmptyLedger } from "../brand/scaffolder.ts";
 import { scaffoldBrand } from "../brand/scaffold-brand.ts";
 import { resolvePhase } from "../phase-resolver/resolve.ts";
-import { loadIdeas } from "../ledger/ledger.ts";
+import { loadIdeas, findIdea } from "../ledger/ledger.ts";
 import { ideaAtGate, ideaHasAssetStatus } from "../asset/asset.ts";
+import { DEFAULT_ASSET_RECIPE } from "../asset/migrate.ts";
 import { loadQueue } from "../production-queue/store.ts";
 import { enqueueOnAccept } from "../production-queue/enqueue-on-accept.ts";
 import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
@@ -673,7 +674,15 @@ export async function* conductorTurns(
       if (phaseResult.strandedIdeas.length > 0) {
         const lines: string[] = [`Resuming: re-enqueueing ${phaseResult.strandedIdeas.length} stranded Idea(s)...`];
         for (const ideaId of phaseResult.strandedIdeas) {
-          await enqueueOnAccept(ideaId, brand, {
+          // Re-enqueue the SAME Recipes the Idea was originally accepted with (issue #54's recorded
+          // `recipes`, issue #56). An Idea accepted before Recipe selection existed (every real Idea
+          // today) carries no `recipes` — fall back to the one wired Recipe so today's single-recipe
+          // path keeps working unchanged.
+          const strandedIdea = findIdea(ideas, ideaId);
+          const recipes = strandedIdea?.recipes && strandedIdea.recipes.length > 0
+            ? strandedIdea.recipes
+            : [DEFAULT_ASSET_RECIPE];
+          await enqueueOnAccept(ideaId, brand, recipes, {
             ledgerPath: brandPaths.ledger,
             queuePath: resolvedQueuePath,
             now: nowFn,
