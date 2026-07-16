@@ -379,6 +379,69 @@ describe("pickCastCommand — brand-routing: resolves the correct Brand's ledger
   });
 });
 
+// === pickCastCommand — against a MIGRATED (canonical Asset-grain) ledger (issue #55, ADR-0011) =======
+
+describe("pickCastCommand — against a canonical, already-migrated ledger", () => {
+  it("selects the nth Cast member from the Recipe's Asset when the Idea is accepted + in_production/pending_gate:cast", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [{ recipe: "character-explainer-with-cast", status: "in_production", pending_gate: "cast", cast }],
+        },
+      ],
+    };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "idea-A", 3, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(out, /idea-A/);
+      assert.match(out, /cast-3/);
+      const q = await loadQueue(queuePath);
+      assert.equal(q.jobs.filter((j) => j.idea_id === "idea-A" && j.phase === "render").length, 1);
+    });
+  });
+
+  it("refuses a pick when the Recipe's Asset has already moved past in_production (e.g. produced)", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [{ recipe: "character-explainer-with-cast", status: "produced", cast, asset_url: "https://x/asset.mp4" }],
+        },
+      ],
+    };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(out, /not at the Cast gate/i);
+      assert.match(out, /produced/, "the refusal names the Idea's rolled-up status");
+      const q = await loadQueue(queuePath);
+      assert.equal(q.jobs.filter((j) => j.phase === "render").length, 0);
+    });
+  });
+
+  it("reports 'no Cast recorded' when the Idea has no Assets at all yet (accepted, awaiting production)", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted", assets: [] }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(out, /idea-A/);
+      assert.match(out, /no Cast recorded/i);
+    });
+  });
+
+  it("an in_production Asset with NO pending_gate (not yet paused) is not treated as a Cast-ready gate", async () => {
+    const seed = {
+      ideas: [
+        { id: "idea-A", status: "accepted", assets: [{ recipe: "character-explainer-with-cast", status: "in_production" }] },
+      ],
+    };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(out, /no Cast recorded/i);
+    });
+  });
+});
+
 // === CLI main() — usage-error path when <brand> is absent =============================================
 
 describe("pick-cast CLI main() — exits with usage error when <brand> is absent", () => {

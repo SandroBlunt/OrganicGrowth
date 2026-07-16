@@ -1,14 +1,24 @@
 /**
- * `/pick-cast <brand> <idea-id> <n>` command — orchestration shell (Gate 2 — Cast pick; ADR-0003 Phase B).
+ * `/pick-cast <brand> <idea-id> <n>` command — orchestration shell (Gate 2 — Cast pick; ADR-0003
+ * Phase B; re-grained onto the Asset in issue #55 / ADR-0011).
  *
  * Thin: load the Idea's recorded Cast from the Brand's ledger, select the **nth** Cast member (1-based
  * `<n>`, per the issue) as the chosen **Character**, and report it — recording the Operator's pick so
  * production resumes (the unattended Phase-B render against the live Space is the deferred worker slice;
  * the pure selection + the driver's `pinCharacter`/`pickAndRender` are exercised hermetically).
  *
- * All logic lives in the deep modules (`ledger.ts` for the read, the pure `selectCharacter` here for the
- * 1-based pick). No Magnific, no Apify, no network in this shell. An unknown Idea, an Idea with no Cast,
- * or an out-of-range `<n>` returns an identifiable, non-crashing message — it never invents a Character.
+ * As of issue #55, the Cast gate lives on the *Character Explainer with Cast* Recipe's own Asset, not
+ * on a flat Idea status: an Idea is "at the Cast gate" when one of its Assets is
+ * `in_production`/`pending_gate: "cast"` (`ideaAtGate`, `src/asset/asset.ts`), and the Cast candidates
+ * to pick from are read off THAT Asset's own `cast` field (`findGateCandidateAsset` below) — the
+ * retired top-level `idea.status === "casting"` / `idea.cast` scalars are never read directly here.
+ * `ledger.ts`'s `loadIdeas` normalizes an un-migrated ledger transparently on the way in (ADR-0011), so
+ * this shell needs no separate legacy-fallback path of its own.
+ *
+ * All logic lives in the deep modules (`ledger.ts` for the read, `asset/asset.ts` for the gate/roll-up
+ * folding, the pure `selectCharacter` here for the 1-based pick). No Magnific, no Apify, no network in
+ * this shell. An unknown Idea, an Idea with no Cast, or an out-of-range `<n>` returns an identifiable,
+ * non-crashing message — it never invents a Character.
  *
  * Brand is always explicit: `<brand>` is a required first argument. The Brand's ledger path is derived
  * via `resolveBrand(brand).ledger`. The Production Queue is the shared global queue (brand-agnostic,
@@ -17,7 +27,8 @@
 
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { loadIdeaCast, loadIdeas, findIdea, type LedgerCastCandidate } from "../ledger/ledger.ts";
+import { loadIdeas, findIdea, type LedgerIdea } from "../ledger/ledger.ts";
+import { ideaAtGate, deriveIdeaRollup, type LedgerAssetRecord, type LedgerCastCandidate } from "../asset/asset.ts";
 import { enqueueRender } from "../production-queue/queue.ts";
 import { markCastConsumed } from "../production-queue/scheduler.ts";
 import { loadQueue, saveQueue, DEFAULT_QUEUE_PATH } from "../production-queue/store.ts";
@@ -29,9 +40,9 @@ export type SelectResult =
   | { readonly ok: false; readonly reason: string };
 
 /**
- * Select the **nth** Cast member (1-based `<n>`) as the chosen Character. Pure: indexes into the Idea's
- * `cast` array; the chosen candidate's identifier IS the Character to pin. An out-of-range `n` (or an
- * empty Cast) returns an identifiable reason rather than throwing or inventing a Character.
+ * Select the **nth** Cast member (1-based `<n>`) as the chosen Character. Pure: indexes into the
+ * Cast candidate array; the chosen candidate's identifier IS the Character to pin. An out-of-range
+ * `n` (or an empty Cast) returns an identifiable reason rather than throwing or inventing a Character.
  */
 export function selectCharacter(cast: readonly LedgerCastCandidate[], n: number): SelectResult {
   if (!Number.isInteger(n) || n < 1 || n > cast.length) {
@@ -41,6 +52,21 @@ export function selectCharacter(cast: readonly LedgerCastCandidate[], n: number)
     };
   }
   return { ok: true, character: cast[n - 1]!.identifier };
+}
+
+/**
+ * The Asset whose Cast candidates `/pick-cast` should read: prefer the Asset actually PAUSED at the
+ * Cast gate (`in_production`/`pending_gate: "cast"` — the correct, current case); fall back to any
+ * Asset that still carries `cast` candidates even though production has moved on (mirrors the
+ * pre-#55 behavior of reading `idea.cast` regardless of status, so a stale re-pick against a
+ * `produced` Idea still names its recorded Cast in the refusal message). Returns `null` when neither
+ * exists — never invents a Character.
+ */
+function findGateCandidateAsset(idea: LedgerIdea): LedgerAssetRecord | null {
+  const assets = idea.assets ?? [];
+  const atGate = assets.find((a) => a.status === "in_production" && a.pending_gate === "cast");
+  if (atGate !== undefined) return atGate;
+  return assets.find((a) => a.cast !== undefined) ?? null;
 }
 
 /** Options for `/pick-cast` (injected paths + clock keep the shell testable without ambient I/O). */
@@ -88,18 +114,23 @@ export async function pickCastCommand(
   const queuePath = options.queuePath ?? DEFAULT_QUEUE_PATH;
   const now = (options.now ?? (() => new Date().toISOString()))();
 
-  const cast = await loadIdeaCast(ideaId, ledgerPath);
-  if (cast === null) {
+  const idea = findIdea(await loadIdeas(ledgerPath, brand), ideaId);
+  if (idea === null) {
     return `/pick-cast: no Cast recorded for Idea ${ideaId} (is it at the Cast gate?). No Character selected. [Brand: ${brand}]`;
   }
 
-  // C23: refuse a pick unless the Idea is actually at the Cast gate (ledger status `casting`). A
-  // `produced`/`posted` Idea still carries its `cast` on the ledger, so without this guard a stale
-  // re-pick would happily enqueue a pointless render. The ledger is the source of truth for status.
-  const idea = findIdea(await loadIdeas(ledgerPath, brand), ideaId);
-  const status = idea?.status ?? "unknown";
-  if (status !== "casting") {
-    return `/pick-cast ${ideaId}: Idea is "${status}", not at the Cast gate (casting) — no pick recorded. [Brand: ${brand}]`;
+  const candidateAsset = findGateCandidateAsset(idea);
+  if (candidateAsset === null || candidateAsset.cast === undefined) {
+    return `/pick-cast: no Cast recorded for Idea ${ideaId} (is it at the Cast gate?). No Character selected. [Brand: ${brand}]`;
+  }
+  const cast = candidateAsset.cast;
+
+  // C23: refuse a pick unless the Idea actually has an Asset paused at the Cast gate. An Idea whose
+  // Asset has moved on (e.g. `produced`) still carries its recorded `cast`, so without this guard a
+  // stale re-pick would happily enqueue a pointless render. The ledger is the source of truth.
+  if (!ideaAtGate(idea, "cast")) {
+    const rollup = deriveIdeaRollup(idea.status, idea.assets ?? []);
+    return `/pick-cast ${ideaId}: Idea is "${rollup}", not at the Cast gate (casting) — no pick recorded. [Brand: ${brand}]`;
   }
 
   const selected = selectCharacter(cast, n);

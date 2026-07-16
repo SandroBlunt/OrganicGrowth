@@ -21,7 +21,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-02",
@@ -36,7 +37,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-03",
@@ -51,7 +53,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-04",
@@ -66,7 +69,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-05",
@@ -81,7 +85,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-06",
@@ -96,7 +101,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-07",
@@ -111,7 +117,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-08",
@@ -119,14 +126,15 @@
       "title": "La rutina de 5 minutos que ordena tu mañana",
       "status": "rejected",
       "trend": "T01",
-      "fit_score": 0.60,
+      "fit_score": 0.6,
       "fit_basis": "0.50*relevance(0.5,no-history) + 0.30*momentum(0.89) + 0.20*brand_fit(0.92); variant of T01, slightly discounted to avoid cannibalizing idea-01; predicted, not measured",
       "rejection_reason": "Se canibaliza con idea-01: misma lane de rutina matutina. Con un solo Reel de mañana esta semana es suficiente.",
       "post_url": null,
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-09",
@@ -141,7 +149,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     },
     {
       "id": "idea-2026-W22-10",
@@ -156,7 +165,8 @@
       "posted_at": null,
       "performance_score": null,
       "created_at": "2026-05-31T00:00:00Z",
-      "updated_at": "2026-05-31T16:45:00Z"
+      "updated_at": "2026-05-31T16:45:00Z",
+      "assets": []
     }
   ]
 }

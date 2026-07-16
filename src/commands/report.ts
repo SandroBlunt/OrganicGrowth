@@ -1,10 +1,13 @@
 /**
- * `/report <brand>` command — the read-only pipeline view (issue #9, updated in issue #20).
+ * `/report <brand>` command — the read-only pipeline view (issue #9, updated in issue #20; the
+ * production states re-grained onto Assets in issue #55 / ADR-0011).
  *
  * Two parts:
  *   - `renderReport(data, brand?)` — a PURE deep module that formats the read-only `ReportData`
- *     projection for the Operator. It surfaces production (the `casting` and `produced` Ideas the
- *     Producer introduced) and shows each Idea's **Fit Score** (predicted) and **Performance Score**
+ *     projection for the Operator. It surfaces production (the `in_production` and `produced` Ideas
+ *     the Producer introduced — an Idea's `status` here is `loadReport`'s DERIVED roll-up across its
+ *     Assets, ADR-0011; `casting` is also tolerated for a Brand's not-yet-migrated ledger) and shows
+ *     each Idea's **Fit Score** (predicted) and **Performance Score**
  *     (measured) in SEPARATE, clearly-labelled columns so the two are never conflated (always-rules #3).
  *     A measured score is shown together with the Channel **baseline** it is relative to (always-rules
  *     #4). An untracked Idea's Performance cell is a placeholder (never `0`, never the Fit Score). A
@@ -37,8 +40,15 @@ function fmtScore(value: number | null): string {
   return value === null ? NONE : value.toFixed(2);
 }
 
-/** The lifecycle states that mean "currently in production" — the two the Producer introduced. */
-const PRODUCTION_STATES: readonly string[] = ["casting", "produced"];
+/**
+ * The (rolled-up) states that mean "currently in production" — the Producer-introduced Asset stages
+ * `loadReport` rolls an accepted Idea's status up to (ADR-0011). `"casting"` is ALSO included here so
+ * a Brand whose ledger has not yet been run through `ledger/migrate-assets.ts` still shows its
+ * mid-production Ideas in this section — `loadReport` normalizes transparently, so in practice this
+ * literal never reaches here from a real ledger read, but a caller feeding `renderReport` a raw
+ * `ReportData` directly (e.g. a test, or a future caller) stays tolerant either way.
+ */
+const PRODUCTION_STATES: readonly string[] = ["casting", "in_production", "produced"];
 
 /** One table row: id · title · status · Fit Score (predicted) · Performance Score (measured) · Post. */
 function ideaRow(idea: ReportIdea): string {
@@ -61,7 +71,8 @@ const COLUMN_HEADER = "id  |  title  |  status  |  Fit Score (predicted)  |  Per
  *
  * Sections:
  *   0. Brand header — restates the Brand being reported on so the Operator is never in doubt.
- *   1. Production — every Idea in `casting` and every Idea in `produced` (what is mid-pipeline now).
+ *   1. Production — every Idea rolled up to `in_production` and every Idea rolled up to `produced`
+ *      (what is mid-pipeline now; ADR-0011).
  *   2. All Ideas — the full run, one row each, Fit Score and Performance Score in separate columns.
  *   3. Baseline — the Channel baseline a Performance Score is relative to (or "not yet measured").
  *
@@ -102,7 +113,7 @@ export function renderReport(data: ReportData, brand?: string): string {
     "Fit Score is PREDICTED (pre-publication); Performance Score is MEASURED (post-publication). They are",
     "kept distinct — a placeholder (—) means not-yet-measured, never a zero score and never the Fit Score.",
     "",
-    "In production (casting / produced):",
+    "In production (in_production / produced):",
     ...productionLines,
     "",
     "All Ideas this Run:",
