@@ -48,9 +48,14 @@ export function specPathFor(ideaId: string, run: string, ideasRoot: string, reci
 /**
  * Write a Production Spec to `path` (pretty-printed, trailing newline); creates the run dir if absent.
  * Uses the shared atomic writer so an interrupted write never leaves a half-written Spec on disk.
+ *
+ * `spec`'s type widens beyond the wired Recipe's own `ProductionSpec`/`Record<string, unknown>` to
+ * `| object` (issue #60) so a DIFFERENT Recipe's own Spec shape (e.g. the News Carousel Recipe's
+ * `NewsCarouselSpec` — a plain interface with no index signature) can be saved too; this function only
+ * ever serializes it (`JSON.stringify`), never inspects its shape.
  */
 export async function saveSpec(
-  spec: ProductionSpec | Record<string, unknown>,
+  spec: ProductionSpec | Record<string, unknown> | object,
   path: string,
 ): Promise<void> {
   await mkdir(dirname(path), { recursive: true });

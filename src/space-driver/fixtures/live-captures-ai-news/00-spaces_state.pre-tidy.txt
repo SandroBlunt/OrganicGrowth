@@ -1,0 +1,597 @@
+board:
+  uuid: a2402c48-b688-436b-8cb6-23a4aad7822e
+  elementsCount: 152
+  connectionsCount: 103
+  currentPageId: "1"
+pages[1]{id,name,order,type}:
+  "1",Page 1,1,canvas
+pageNodes[1]:
+  - pageId: "1"
+    pageName: Page 1
+    nodeCount: 152
+    nodeIds[152]: 01b63eed-4762-4c63-a146-80558acc70be,01d27cd5-8fbf-43fe-baef-f785feec6cd7,0c0ad834-4017-49f6-a313-5ca83619b8b2,10c6b65e-df7e-440b-b8bb-8e8c82941642,127c1b59-f304-48f6-b638-ba1fb98002d6,173b9658-bfc3-4cfd-a9aa-e9be4c14725d,1b034cd7-01de-410c-9976-461e2ebd8499,1c1fa223-6cde-45da-8e7d-1760a1691e7e,1c7665a6-4c0f-4f06-bdbf-5f3568d1003c,1cbf4d62-1a18-4645-9511-86557f18b1c4,1cf7f984-42fd-4dff-85f0-d9b81df673a5,1e1ec82e-8a98-4afd-bcaa-fefbea491411,207dac02-56e6-43ef-a889-b24dc8c0d016,222cde81-cb0e-439a-8851-2aa8a5246a9f,23eb1f23-4714-4996-bf76-688316ab4de0,272404d4-15b3-4ff1-b62c-6fc350b24184,276583ef-fcaa-4f70-b8a2-750a9e586079,282d5492-b189-4484-a8a2-ca41aae787f9,28883c1c-284b-4cea-949d-d59ce6d770f9,2ba0e48d-f61b-45bb-8db2-f2df45e4bffe,2d2ab572-7119-475d-882f-a9609e6e7a23,2e2f124a-5771-42fe-93b5-623821205565,2e5ce2bf-ef65-4438-8a3a-966b6c35798f,2f2cfff5-dd62-465a-8147-84324acda944,316f3e39-8718-43e2-856e-ca8e49981387,36fae530-9da8-4a80-819c-c96da46c4fc0,38eed68c-3d94-4129-9ebc-ad7b170f4bbb,392ba811-3956-45fe-82e3-de2f6cc2cae1,3e5a1dc1-72db-4f1a-82d6-0e0a37eb7cbc,40bb3468-9621-4b93-b129-18e25d2c598e,40f3c408-df5b-4d10-8f12-d1fcd1ef49b8,42c1c167-5f71-4c5a-9693-461ffacdd753,42f293cf-4f0c-4048-8bc3-72f49792fbdc,439afa35-73bc-4b15-8f28-891f811edf98,47a42902-09ca-4270-93cf-18e9edc1a361,4905645a-83c9-428d-b782-df807430014c,4fbdd10c-4b96-4e4e-a081-4e0b8bbbe986,503831cd-966e-4f06-8ae9-666e29143713,52e5e2b4-f376-4d4f-af86-59ab668beecd,55db13c2-e859-4872-90c1-5b032ff1820a,56b92ec2-474e-4da7-b73f-c1f287407e55,5b60e5c2-ac7d-448f-b3d0-86621157e828,5e5ab2d6-8381-4d81-b89e-fdc3bfc8c3ad,5ed2e6ac-46a7-47a8-bdf2-abdfce9190ed,5f4546f8-caf8-4143-8f5c-16a3ab453c14,5f64f03e-e34c-4fac-92d4-24f3e6c2efa1,5ff19b6d-2e04-47fe-ba04-3571a2de811e,65c6c7c6-67a3-4a41-ad7b-dc0dee647a9a,6776d559-541e-4095-b625-6417b2e4f041,6a71f3fa-83af-4f70-985a-52c20dc689b7,6a758ed2-e49d-46c9-8eee-55cd8bad809d,6d4dfb79-3bbe-42a8-bd48-a58ed7663236,6da073be-eaf9-427b-b124-d87d3e2398fe,6e1c9b60-b158-4caa-b383-0cd8c06b76f0,71099e8b-0879-4306-a1c5-16c313d89519,722fc1be-9fe8-450b-a17e-3bafc12fc4ff,72b061f2-aa80-4499-9b5e-0267267f3b49,74b52a44-aa79-4f47-8a09-84116d6d51ea,75280796-de9f-472b-b3dd-82bc49c1243a,757d8947-417a-47ce-a2a6-7b6fc258196c,7596ced9-80b6-4561-9816-61bb4d8843d6,7596f3c8-3b01-47b4-a441-a3ce1dd623db,785ca0c6-16f5-44d5-889d-13b47222b138,788098c7-ab23-4506-9023-acdf13a6f1b7,7ab7f0d5-9d55-4a34-a2c0-61df4c104cc5,7e1d3f29-72a5-4177-b909-556bedcbff02,811a9b97-6c64-41f9-b615-d919bb19e7b8,823e4a32-5f9e-46ad-bcf6-50c1ae25d063,828b9fb4-8d14-4f3a-ad14-3f6f6ce64eb9,82f92db1-6205-4c85-af5f-8d31b5306047,8502aed0-50a3-4c14-a631-cfff3604bc0e,8678a779-970b-43a4-9595-217f0ddce90c,8764dc84-72ae-447a-8bde-297d4456193c,87d5c329-5492-490d-ad21-3ad4ec661b0b,884da854-9774-4f55-b315-5a1dfd57b62f,8a819ea5-c003-478a-ab30-d93b302b36c3,8ae996c9-a238-45cc-acf1-cda4f1adc795,8b5de7cc-3e5c-41a1-bb5e-97f55ce99e9f,8b7df507-04a6-45e8-8936-febbbb3c5731,8d135449-230a-4314-9ab7-627a37fe95b3,8e75694d-5e9f-482b-a92b-3952cf2c6787,8ec529af-606f-4928-a7b7-3c6a8fcb7ad1,8f72f049-f195-4e8e-b86d-72eb5c140458,8f75ed2c-1b00-4e6f-89d9-9e0c204db934,8f9ba302-5628-413e-950a-579acd730e1c,8fa5b41d-395c-4f8a-825f-78050407213e,93381d45-824e-4ae1-9e76-fc662842a0ee,9597feae-e250-4386-bb89-27f7c48953f2,976e4401-582b-498c-a39a-70b5bba89d99,9b3da880-494b-41d7-b886-e1ae4f721bef,9f422a43-e45f-4397-aaa4-4be56b1a5b28,a2377644-1025-43e6-9786-116a7ae3641c,a3f0c9d5-29bf-486f-b9c7-f2f33512629f,a3f8000a-54fa-40e3-9cfe-cdfcd4a0c327,a43f458d-cb0d-4f11-96d3-9f2c2bc6588d,a4665003-5dfb-4339-b526-cbd2ea095249,a48073ca-65d2-4fe6-99bd-9bdcd09b44ea,a4e074c4-e0c6-4d10-a3e0-6a1c37dbc27c,a8bbc8ea-1135-4ee9-b9e0-a6b5c3d94c94,aa74e8bb-4073-4f02-a736-5015f540667b,af2e2a63-1698-48b4-8050-5ed79f34ba57,b119b4d2-1ad6-4016-9541-6805f1dfe092,b194a506-feb6-4974-9fee-4601825081b1,b1e1d98b-8847-412d-8ac4-bf8fe20ecdab,b22890bf-7789-4146-b289-4926e502e79f,b3ce540f-753e-4d4f-ace4-2b1d2225f814,b57f0d46-79fa-4fd2-960a-f0e16703dd8f,b5e03f07-f12e-4d10-8f13-9f3960867103,b62f937b-0043-40ac-902d-e63138fbafd9,b63795cd-5dce-49d9-8515-1975caa9e2c6,b643fd78-a713-497e-9e8d-0ac6f92e1e66,b7a2fd9d-723a-422d-ac7a-9398ad71f5be,b84afe97-abef-444e-9eb3-be4e9cf9b0d9,b944ef11-919f-4426-9c75-1f4e40a4d95d,bc1e96fe-c1a3-440a-a0a7-93a3b1b0b63a,bdceff04-c4a2-49bf-8b8e-fefd53694d48,c1af0260-9938-4731-9f29-d5e796cf9140,c23da264-0934-4555-bcb0-7a7a5ecdc0de,c26269fb-e313-4d11-895b-a5b2fcd16cf9,c496041c-c05d-407d-a7bf-092df6aa64ab,c75ccb63-bb78-4297-8818-7d0ed99fae49,c823fa1e-c64e-44e2-a795-6381f86e816e,ca9633b2-0d77-448b-b413-78d6a02e9d8f,cad6b44d-867a-447d-9f49-3919ca4829c1,d090a99f-3554-4fe0-a491-d8ce2b6abf40,d1bdba32-136f-45e1-bc78-29c9963c6b19,d1ccbe66-cf31-40a3-a03b-79afdd360ab8,d3f8cde4-37c0-4ff1-8001-5060af38a0e7,d688ad7c-e685-4b9d-9dc3-08180322c593,d84b1a33-2a74-45c4-8024-bf6d07c13238,daa7a803-fae9-46d4-906d-86cc5ddacdf1,dfb55c2d-9a0b-48c5-995a-446c276865c5,e1b318b4-af6f-4643-a130-a0598588f847,e2c6485d-af2c-43eb-bbd0-beb42c28d9f0,e87d2b14-1bc0-4499-b3d1-db0b0308ed56,e8a32428-2c18-41df-abad-612762de43c7,e98260c3-94ad-439a-a930-a6f4b21503e5,e9b863d1-24db-4427-86c6-dc1627c95901,ed5536a0-41dd-4b13-a38b-dd260c42a78b,edb93767-2acb-49a1-9013-6531f60ed460,ef371326-a81a-4596-bc54-df82c5cb1120,ef610a06-8006-4c11-ac0d-cfc5ca05d141,ef7fe862-80f5-4d4b-9511-36d9be64c75d,efa92bec-a501-410a-9ee3-8539ef5d8e8d,f0040e01-a287-4462-9d31-c81e386bd96a,f3f55bb9-50ba-4653-af2c-dda835b10e91,f6a68866-4c2a-4867-98d3-bc9d869978c7,f85fa1f6-f454-4114-9240-0976ad992028,f9b6325e-9cbf-4c24-a6e8-9c4e883b8413,f9cc6424-ec8d-4bfc-a2b4-f63b876721d4,fc006236-c419-46bf-9f1b-cdfb170b214a,ffd2b53b-2c02-49f3-a4d4-3537704de3af
+selectedElementIds[0]:
+selectedConnectionIds[0]:
+nodes[152]{id,type,name,selected,x,y,width,height,pageId,sourceNodeId,groupId,panelIndex,workflowStatus}:
+  01b63eed-4762-4c63-a146-80558acc70be,list,List #6,false,1705.41,5962.28,400,600,"1",null,null,null,null
+  01d27cd5-8fbf-43fe-baef-f785feec6cd7,prompt-generator,Assistant #4,false,-1313.75,7310.12,527,859,"1",null,null,null,completed
+  0c0ad834-4017-49f6-a313-5ca83619b8b2,text,Text #4,false,10002.03,9861.64,567,693,"1",null,null,null,idle
+  10c6b65e-df7e-440b-b8bb-8e8c82941642,list,List #20,false,7796.43,12537.49,400,600,"1",null,null,null,idle
+  127c1b59-f304-48f6-b638-ba1fb98002d6,creation,Logo,false,5558.89,10889.2,483,278,"1",null,null,null,null
+  173b9658-bfc3-4cfd-a9aa-e9be4c14725d,image-generator,Image Generator #6,false,2274.59,7319.45,420,560,"1",null,null,null,idle
+  1b034cd7-01de-410c-9976-461e2ebd8499,prompt-generator,Image Prompt List #3,false,12080.91,203.2,420,392,"1",null,null,null,idle
+  1c1fa223-6cde-45da-8e7d-1760a1691e7e,list,List #2,false,580.27,3350.29,400,600,"1",null,null,null,null
+  1c7665a6-4c0f-4f06-bdbf-5f3568d1003c,text,Visual Theme Alternatives — Carousel #2,false,-136.73,1292.04,628,1101,"1",null,null,null,idle
+  1cbf4d62-1a18-4645-9511-86557f18b1c4,composer,Designer #1,false,4640,9500,420,600,"1",null,null,null,idle
+  1cf7f984-42fd-4dff-85f0-d9b81df673a5,creation,LOGO,false,8757.02,8134.34,483,278,"1",null,null,null,null
+  1e1ec82e-8a98-4afd-bcaa-fefbea491411,list,List #16,false,6970,11260,400,600,"1",null,null,null,null
+  207dac02-56e6-43ef-a889-b24dc8c0d016,list,List #14,false,1041.25,11387.78,400,600,"1",null,null,null,completed
+  222cde81-cb0e-439a-8851-2aa8a5246a9f,text,Text #3,false,10867.44,3487.35,599,523,"1",null,e9b863d1-24db-4427-86c6-dc1627c95901,null,idle
+  23eb1f23-4714-4996-bf76-688316ab4de0,image-generator,Seeddream #6,false,15198.49,3310.23,420,563,"1",null,f9b6325e-9cbf-4c24-a6e8-9c4e883b8413,null,idle
+  272404d4-15b3-4ff1-b62c-6fc350b24184,panel,Slide 3,false,15183.87,4632.95,1582.7,624.59,"1",null,null,null,null
+  276583ef-fcaa-4f70-b8a2-750a9e586079,text,Base prompt,false,-786.75,3266.52,380,460,"1",null,null,null,idle
+  282d5492-b189-4484-a8a2-ca41aae787f9,prompt-generator,Image Prompt Slide 1,false,14265.91,3321.65,420,392,"1",null,ef610a06-8006-4c11-ac0d-cfc5ca05d141,null,idle
+  28883c1c-284b-4cea-949d-d59ce6d770f9,image-generator,Seeddream #2,false,1035.41,1504.29,420,563,"1",null,null,null,idle
+  2ba0e48d-f61b-45bb-8db2-f2df45e4bffe,creation,image,false,-799.22,5205.97,499,278,"1",null,8e75694d-5e9f-482b-a92b-3952cf2c6787,null,null
+  2d2ab572-7119-475d-882f-a9609e6e7a23,creation,Then,false,10929.15,9192.23,288,354,"1",null,null,null,null
+  2e2f124a-5771-42fe-93b5-623821205565,image-generator,Image Generator #10,false,373.25,9304.93,420,560,"1",null,null,null,idle
+  2e5ce2bf-ef65-4438-8a3a-966b6c35798f,prompt-generator,Assistant #2,false,-26.93,5021.81,553,640,"1",null,null,null,completed
+  2f2cfff5-dd62-465a-8147-84324acda944,creation,image,false,3782.08,8678,288,354,"1",null,null,null,null
+  316f3e39-8718-43e2-856e-ca8e49981387,text,Assistant Prompt #2,false,11627.85,3731.48,837,1200,"1",null,e9b863d1-24db-4427-86c6-dc1627c95901,null,idle
+  36fae530-9da8-4a80-819c-c96da46c4fc0,text,Body,false,5697.35,11704.59,380,230,"1",null,null,null,idle
+  38eed68c-3d94-4129-9ebc-ad7b170f4bbb,panel,Storyboard — AI Just Got a Job,false,1047,80,697,843,"1",null,null,null,null
+  392ba811-3956-45fe-82e3-de2f6cc2cae1,creation,Straw_motion_logo,false,13195.39,2638.05,478.75,100,"1",null,null,null,null
+  3e5a1dc1-72db-4f1a-82d6-0e0a37eb7cbc,creation,Creation #4,false,1500,11380,288,354,"1",null,null,null,null
+  40bb3468-9621-4b93-b129-18e25d2c598e,prompt-generator,Assistant #5,false,5842.04,8912.93,420,392,"1",null,null,null,idle
+  40f3c408-df5b-4d10-8f12-d1fcd1ef49b8,list,List #27,false,14060.16,-139.93,840,897,"1",null,null,null,idle
+  42c1c167-5f71-4c5a-9693-461ffacdd753,text,Text #10,false,13550.68,-863.21,380,460,"1",null,null,null,idle
+  42f293cf-4f0c-4048-8bc3-72f49792fbdc,creation,Hook,false,9516.7,8272.78,288,354,"1",null,null,null,null
+  439afa35-73bc-4b15-8f28-891f811edf98,creation,Creation #3,false,1500,10760,288,352,"1",null,null,null,null
+  47a42902-09ca-4270-93cf-18e9edc1a361,image-generator,Seeddream #3,false,1619.19,1481.22,420,563,"1",null,null,null,idle
+  4905645a-83c9-428d-b782-df807430014c,list,Visual Concepts,false,-786.75,3895.28,420,392,"1",null,null,null,idle
+  4fbdd10c-4b96-4e4e-a081-4e0b8bbbe986,list,List #7,false,2944.59,7319.45,1644,598,"1",null,null,null,null
+  503831cd-966e-4f06-8ae9-666e29143713,composer,Designer #3,false,6300,11260,420,600,"1",null,null,null,idle
+  52e5e2b4-f376-4d4f-af86-59ab668beecd,text,Text #2,false,3352.01,11754.83,380,460,"1",null,null,null,idle
+  55db13c2-e859-4872-90c1-5b032ff1820a,image-generator,Image Generator #4,false,2274.59,5962.28,420,560,"1",null,null,null,idle
+  56b92ec2-474e-4da7-b73f-c1f287407e55,image-generator,Image Generator #1,false,1280,3360,420,560,"1",null,null,null,idle
+  5b60e5c2-ac7d-448f-b3d0-86621157e828,prompt-generator,Assistant #3,false,1035.41,5962.28,420,392,"1",null,null,null,completed
+  5e5ab2d6-8381-4d81-b89e-fdc3bfc8c3ad,image-generator,Image Generator #11,false,373.25,10078,420,560,"1",null,null,null,completed
+  5ed2e6ac-46a7-47a8-bdf2-abdfce9190ed,image-generator,Image Generator #13,false,373.25,11387.78,420,560,"1",null,null,null,completed
+  5f4546f8-caf8-4143-8f5c-16a3ab453c14,image-generator,Seeddream #10,false,15207.37,6071.81,387.54,519,"1",null,b119b4d2-1ad6-4016-9541-6805f1dfe092,null,idle
+  5f64f03e-e34c-4fac-92d4-24f3e6c2efa1,text,Sample idea,false,-162,118,545,942,"1",null,null,null,idle
+  5ff19b6d-2e04-47fe-ba04-3571a2de811e,creation,The Proof,false,11809.15,8772.23,288,354,"1",null,null,null,null
+  65c6c7c6-67a3-4a41-ad7b-dc0dee647a9a,list,List #4,false,1950,4007.93,1654,600,"1",null,null,null,null
+  6776d559-541e-4095-b625-6417b2e4f041,list,List #5,false,1950,4687.29,1651,593,"1",null,null,null,completed
+  6a71f3fa-83af-4f70-985a-52c20dc689b7,image-generator,Seeddream #5,false,15190.44,3986.19,420,563,"1",null,f3f55bb9-50ba-4653-af2c-dda835b10e91,null,idle
+  6a758ed2-e49d-46c9-8eee-55cd8bad809d,creation,StrawMotion Logo,false,5441.67,8409.17,288,278,"1",null,null,null,null
+  6d4dfb79-3bbe-42a8-bd48-a58ed7663236,creation,image,false,-799.22,4862.48,499,278,"1",null,8e75694d-5e9f-482b-a92b-3952cf2c6787,null,null
+  6da073be-eaf9-427b-b124-d87d3e2398fe,image-generator,Image Generator #14,false,6762.92,8732.9,420,560,"1",null,null,null,idle
+  6e1c9b60-b158-4caa-b383-0cd8c06b76f0,image-generator,Seeddream #26,false,16160.4,7526.33,387.54,519,"1",null,7e1d3f29-72a5-4177-b909-556bedcbff02,null,idle
+  71099e8b-0879-4306-a1c5-16c313d89519,creation,The shift,false,10589.15,9192.23,288,354,"1",null,null,null,null
+  722fc1be-9fe8-450b-a17e-3bafc12fc4ff,prompt-generator,Image Prompt Slide 2,false,14265.91,4002.27,420,392,"1",null,ef610a06-8006-4c11-ac0d-cfc5ca05d141,null,idle
+  72b061f2-aa80-4499-9b5e-0267267f3b49,prompt-generator,Image Prompt Slide 4,false,14265.91,5313.52,420,392,"1",null,ef610a06-8006-4c11-ac0d-cfc5ca05d141,null,idle
+  74b52a44-aa79-4f47-8a09-84116d6d51ea,image-generator,Seeddream #22,false,15654.86,6825.45,387.54,519,"1",null,e1b318b4-af6f-4643-a130-a0598588f847,null,completed
+  75280796-de9f-472b-b3dd-82bc49c1243a,creation,What is next,false,11809.15,9192.23,288,354,"1",null,null,null,null
+  757d8947-417a-47ce-a2a6-7b6fc258196c,list,List #3,false,1950,3324.63,1668,610,"1",null,null,null,null
+  7596ced9-80b6-4561-9816-61bb4d8843d6,image-generator,Image Generator #21,false,13378.2,125.78,420,560,"1",null,null,null,idle
+  7596f3c8-3b01-47b4-a441-a3ce1dd623db,list,List #9,false,2933.2,5926.48,1776,660,"1",null,null,null,null
+  785ca0c6-16f5-44d5-889d-13b47222b138,text,Storyboard — AI Just Got a Job,false,1087,120,598,707,"1",null,38eed68c-3d94-4129-9ebc-ad7b170f4bbb,null,null
+  788098c7-ab23-4506-9023-acdf13a6f1b7,image-generator,Seeddream #4,false,2264.59,1453.56,420,563,"1",null,null,null,idle
+  7ab7f0d5-9d55-4a34-a2c0-61df4c104cc5,list,List #10,false,-305.34,9686,420,392,"1",null,null,null,idle
+  7e1d3f29-72a5-4177-b909-556bedcbff02,panel,Slide 7,false,15117.39,7487.19,1555.74,624.59,"1",null,null,null,null
+  811a9b97-6c64-41f9-b615-d919bb19e7b8,list,List #15,false,5310,9500,400,600,"1",null,null,null,null
+  823e4a32-5f9e-46ad-bcf6-50c1ae25d063,prompt-generator,Assistant #1,false,-89.73,3350.29,420,392,"1",null,null,null,completed
+  828b9fb4-8d14-4f3a-ad14-3f6f6ce64eb9,creation,Wha is different,false,11369.15,9192.23,288,354,"1",null,null,null,null
+  82f92db1-6205-4c85-af5f-8d31b5306047,text,JSON Master #2,false,12921.18,3321.65,1037,1200,"1",null,ef610a06-8006-4c11-ac0d-cfc5ca05d141,null,idle
+  8502aed0-50a3-4c14-a631-cfff3604bc0e,text,Text #11,false,13081.44,-863.21,380,460,"1",null,null,null,idle
+  8678a779-970b-43a4-9595-217f0ddce90c,image-generator,Image Generator #8,false,120.95,7102.8,420,560,"1",null,null,null,idle
+  8764dc84-72ae-447a-8bde-297d4456193c,list,List #21,false,15001.47,2077.5,400,600,"1",null,null,null,null
+  87d5c329-5492-490d-ad21-3ad4ec661b0b,creation,Creation #1,false,1500,9300,288,355,"1",null,null,null,null
+  884da854-9774-4f55-b315-5a1dfd57b62f,prompt-generator,Image Prompt Slide 7,false,14213.64,7386.03,420,392,"1",null,null,null,idle
+  8a819ea5-c003-478a-ab30-d93b302b36c3,creation,CTA,false,10589.15,8772.23,288,354,"1",null,null,null,null
+  8ae996c9-a238-45cc-acf1-cda4f1adc795,text,Assistant Prompt Link #2,false,11627.85,3487.35,819,120,"1",null,e9b863d1-24db-4427-86c6-dc1627c95901,null,idle
+  8b5de7cc-3e5c-41a1-bb5e-97f55ce99e9f,image-generator,Seeddream #12,false,16269.47,3986.19,420,563,"1",null,f3f55bb9-50ba-4653-af2c-dda835b10e91,null,idle
+  8b7df507-04a6-45e8-8936-febbbb3c5731,creation,Creation #9,false,8679.11,12537.49,426.48,553,"1",null,null,null,null
+  8d135449-230a-4314-9ab7-627a37fe95b3,panel,Slide 4,false,15167.37,5333.7,1574.79,624.59,"1",null,null,null,null
+  8e75694d-5e9f-482b-a92b-3952cf2c6787,panel,Visual identity,false,-844.34,4485.78,592.85,1352.12,"1",null,null,null,null
+  8ec529af-606f-4928-a7b7-3c6a8fcb7ad1,creation,Creation #2,false,1500,10080,288,355,"1",null,null,null,null
+  8f72f049-f195-4e8e-b86d-72eb5c140458,prompt-generator,Image Prompt Slide 5,false,14263.62,5921.54,420,392,"1",null,ef610a06-8006-4c11-ac0d-cfc5ca05d141,null,idle
+  8f75ed2c-1b00-4e6f-89d9-9e0c204db934,image-generator,Seeddream #24,false,15157.39,7535,387.54,519,"1",null,7e1d3f29-72a5-4177-b909-556bedcbff02,null,idle
+  8f9ba302-5628-413e-950a-579acd730e1c,image-generator,Seeddream #19,false,15684.23,6077.31,387.54,519,"1",null,b119b4d2-1ad6-4016-9541-6805f1dfe092,null,idle
+  8fa5b41d-395c-4f8a-825f-78050407213e,prompt-generator,Assistant #7,false,4032.78,12537.49,420,392,"1",null,null,null,completed
+  93381d45-824e-4ae1-9e76-fc662842a0ee,image-generator,Image Generator #5,false,2274.59,6616.86,420,560,"1",null,null,null,idle
+  9597feae-e250-4386-bb89-27f7c48953f2,image-generator,instagram post,false,-565.35,6345.71,362.9,486,"1",null,null,null,idle
+  976e4401-582b-498c-a39a-70b5bba89d99,image-generator,Seeddream #13,false,16180.91,3321.65,420,563,"1",null,f9b6325e-9cbf-4c24-a6e8-9c4e883b8413,null,idle
+  9b3da880-494b-41d7-b886-e1ae4f721bef,list,List #23,false,16382.13,2313.06,400,600,"1",null,null,null,null
+  9f422a43-e45f-4397-aaa4-4be56b1a5b28,image-generator,Image Generator #15,false,5240,12540,420,560,"1",null,null,null,idle
+  a2377644-1025-43e6-9786-116a7ae3641c,image-generator,Seeddream #16,false,16247.7,5363.48,420,563,"1",null,8d135449-230a-4314-9ab7-627a37fe95b3,null,idle
+  a3f0c9d5-29bf-486f-b9c7-f2f33512629f,image-generator,Variation 1 — Auctioneer Action (Seedream 5),false,1485,2124.22,420,560,"1",null,null,null,completed
+  a3f8000a-54fa-40e3-9cfe-cdfcd4a0c327,image-generator,Image Generator #2,false,1280,4007.93,420,560,"1",null,null,null,idle
+  a43f458d-cb0d-4f11-96d3-9f2c2bc6588d,text,Text #1,false,-565.35,6999.36,380,230,"1",null,null,null,idle
+  a4665003-5dfb-4339-b526-cbd2ea095249,image-generator,Seeddream #20,false,16160.4,6082.33,387.54,519,"1",null,b119b4d2-1ad6-4016-9541-6805f1dfe092,null,idle
+  a48073ca-65d2-4fe6-99bd-9bdcd09b44ea,image-generator,Seeddream #15,false,15740.4,5374.5,420,563,"1",null,8d135449-230a-4314-9ab7-627a37fe95b3,null,idle
+  a4e074c4-e0c6-4d10-a3e0-6a1c37dbc27c,image-generator,Image Generator #17,false,15712.13,2313.06,420,560,"1",null,null,null,idle
+  a8bbc8ea-1135-4ee9-b9e0-a6b5c3d94c94,creation,image,false,6246.14,9391.26,288,354,"1",null,null,null,null
+  aa74e8bb-4073-4f02-a736-5015f540667b,text,Text #9,false,10635.76,530.81,486,519,"1",null,null,null,idle
+  af2e2a63-1698-48b4-8050-5ed79f34ba57,image-generator,Variation 2 — Art Focus Showcase (Seedream 5),false,2804.59,1500,420,560,"1",null,null,null,idle
+  b119b4d2-1ad6-4016-9541-6805f1dfe092,panel,Slide 5,false,15167.37,6024.01,1555.74,624.59,"1",null,null,null,null
+  b194a506-feb6-4974-9fee-4601825081b1,image-generator,Image Generator #12,false,377.47,10750.11,420,560,"1",null,null,null,idle
+  b1e1d98b-8847-412d-8ac4-bf8fe20ecdab,creation,Creation #5,false,1768.94,8757.06,288,355,"1",null,null,null,null
+  b22890bf-7789-4146-b289-4926e502e79f,image-generator,Image Generator #7,false,126.77,6505.55,420,560,"1",null,null,null,idle
+  b3ce540f-753e-4d4f-ace4-2b1d2225f814,list,Background image,false,5910,12540,400,600,"1",null,null,null,null
+  b57f0d46-79fa-4fd2-960a-f0e16703dd8f,creation,Safe areas,false,-1754.78,7344.45,288,455,"1",null,null,null,null
+  b5e03f07-f12e-4d10-8f13-9f3960867103,creation,image,false,-790.49,5519.9,499,278,"1",null,8e75694d-5e9f-482b-a92b-3952cf2c6787,null,null
+  b62f937b-0043-40ac-902d-e63138fbafd9,image-generator,Seeddream #18,false,16247.7,4687.29,420,563,"1",null,272404d4-15b3-4ff1-b62c-6fc350b24184,null,idle
+  b63795cd-5dce-49d9-8515-1975caa9e2c6,prompt-generator,Image Prompt List,false,14265.91,2621.81,420,392,"1",null,null,null,completed
+  b643fd78-a713-497e-9e8d-0ac6f92e1e66,prompt-generator,Hook slide,false,4620,8640,420,392,"1",null,null,null,idle
+  b7a2fd9d-723a-422d-ac7a-9398ad71f5be,creation,image,false,-804.34,4525.78,499,278,"1",null,8e75694d-5e9f-482b-a92b-3952cf2c6787,null,null
+  b84afe97-abef-444e-9eb3-be4e9cf9b0d9,creation,Creation #6,false,4100.25,9864.93,288,355,"1",null,null,null,null
+  b944ef11-919f-4426-9c75-1f4e40a4d95d,prompt-generator,Image Prompt Slide 3,false,14265.91,4675.07,420,392,"1",null,ef610a06-8006-4c11-ac0d-cfc5ca05d141,null,idle
+  bc1e96fe-c1a3-440a-a0a7-93a3b1b0b63a,list,List #12,false,1043.25,10078,400,600,"1",null,null,null,completed
+  bdceff04-c4a2-49bf-8b8e-fefd53694d48,creation,Creation #8,false,8240,12540,421.85,547,"1",null,null,null,null
+  c1af0260-9938-4731-9f29-d5e796cf9140,list,List #13,false,1047.47,10750.11,400,600,"1",null,null,null,completed
+  c23da264-0934-4555-bcb0-7a7a5ecdc0de,image-generator,Seeddream #8,false,15207.37,5369,420,563,"1",null,8d135449-230a-4314-9ab7-627a37fe95b3,null,idle
+  c26269fb-e313-4d11-895b-a5b2fcd16cf9,image-generator,Seeddream #25,false,15649.18,7535,387.54,519,"1",null,7e1d3f29-72a5-4177-b909-556bedcbff02,null,idle
+  c496041c-c05d-407d-a7bf-092df6aa64ab,image-generator,Seeddream #9,false,15207.37,4680.75,420,563,"1",null,272404d4-15b3-4ff1-b62c-6fc350b24184,null,idle
+  c75ccb63-bb78-4297-8818-7d0ed99fae49,image-generator,Seeddream #21,false,15173.73,6821.43,387.54,519,"1",null,e1b318b4-af6f-4643-a130-a0598588f847,null,idle
+  c823fa1e-c64e-44e2-a795-6381f86e816e,list,List #22,false,16382.13,1691.41,400,600,"1",null,null,null,null
+  ca9633b2-0d77-448b-b413-78d6a02e9d8f,image-generator,Variation 3 — Infographic Style (Seedream 5),false,3344.59,1500,420,560,"1",null,null,null,idle
+  cad6b44d-867a-447d-9f49-3919ca4829c1,text,Body,false,5336.93,9008.88,380,230,"1",null,null,null,idle
+  d090a99f-3554-4fe0-a491-d8ce2b6abf40,creation,image,false,3382.7,8465.19,288,354,"1",null,null,null,null
+  d1bdba32-136f-45e1-bc78-29c9963c6b19,list,List #8,false,2944.59,6616.86,1656,585,"1",null,null,null,null
+  d1ccbe66-cf31-40a3-a03b-79afdd360ab8,prompt-generator,Assistant #6,false,4066.78,11656.84,420,392,"1",null,null,null,completed
+  d3f8cde4-37c0-4ff1-8001-5060af38a0e7,panel,Visual Theme Alternatives — Carousel,false,1824,80,520,420,"1",null,null,null,null
+  d688ad7c-e685-4b9d-9dc3-08180322c593,text,Input,false,4067.48,9481.07,380,230,"1",null,null,null,idle
+  d84b1a33-2a74-45c4-8024-bf6d07c13238,prompt-generator,Image Prompt Slide 6,false,14229.98,6671.15,420,392,"1",null,null,null,idle
+  daa7a803-fae9-46d4-906d-86cc5ddacdf1,image-generator,Seeddream #23,false,16122.5,6831.71,387.54,519,"1",null,e1b318b4-af6f-4643-a130-a0598588f847,null,idle
+  dfb55c2d-9a0b-48c5-995a-446c276865c5,list,List #18,false,4702.78,12537.49,400,600,"1",null,null,null,null
+  e1b318b4-af6f-4643-a130-a0598588f847,panel,Slide 6,false,15133.73,6773.62,1555.74,624.59,"1",null,null,null,null
+  e2c6485d-af2c-43eb-bbd0-beb42c28d9f0,list,List #11,false,1047.47,9304.93,400,600,"1",null,null,null,completed
+  e87d2b14-1bc0-4499-b3d1-db0b0308ed56,creation,image #2,false,-634.35,7894.31,449,582.06,"1",null,null,null,idle
+  e8a32428-2c18-41df-abad-612762de43c7,text,Text #8,false,11627.47,185.8,380,460,"1",null,null,null,idle
+  e98260c3-94ad-439a-a930-a6f4b21503e5,composer,Designer #4,false,7246.81,12537.49,420,600,"1",null,null,null,idle
+  e9b863d1-24db-4427-86c6-dc1627c95901,panel,The Brain,false,10660.59,3266.52,2043,1879,"1",null,null,null,null
+  ed5536a0-41dd-4b13-a38b-dd260c42a78b,list,Baseline testing #2,false,12589.55,214.88,420,392,"1",null,null,null,idle
+  edb93767-2acb-49a1-9013-6531f60ed460,creation,Straw_motion_logo,false,12560.66,-75.28,478.75,100,"1",null,null,null,idle
+  ef371326-a81a-4596-bc54-df82c5cb1120,image-generator,Image Generator #3,false,1274,4708.76,420,560,"1",null,null,null,completed
+  ef610a06-8006-4c11-ac0d-cfc5ca05d141,panel,Viral News Pipeline V0.5,false,12875.35,3287.48,1894,4748,"1",null,null,null,null
+  ef7fe862-80f5-4d4b-9511-36d9be64c75d,creation,Background image,false,5765.22,11302.84,288,354,"1",null,null,null,null
+  efa92bec-a501-410a-9ee3-8539ef5d8e8d,image-generator,Seeddream #17,false,15729,4687.29,420,563,"1",null,272404d4-15b3-4ff1-b62c-6fc350b24184,null,completed
+  f0040e01-a287-4462-9d31-c81e386bd96a,creation,Logo #2,false,6627.7,12137.8,483,278,"1",null,null,null,idle
+  f3f55bb9-50ba-4653-af2c-dda835b10e91,panel,Slide 2,false,15172.37,3960.11,1577.78,622.38,"1",null,null,null,null
+  f6a68866-4c2a-4867-98d3-bc9d869978c7,image-generator,Seeddream #11,false,15740.4,3978.35,420,563,"1",null,f3f55bb9-50ba-4653-af2c-dda835b10e91,null,completed
+  f85fa1f6-f454-4114-9240-0976ad992028,list,Body,false,4736.78,11658.76,400,600,"1",null,null,null,null
+  f9b6325e-9cbf-4c24-a6e8-9c4e883b8413,panel,Slide 1,false,15174.12,3287.48,1584.97,617.5,"1",null,null,null,null
+  f9cc6424-ec8d-4bfc-a2b4-f63b876721d4,image-generator,Image Generator #16,false,15712.13,1691.41,420,560,"1",null,null,null,idle
+  fc006236-c419-46bf-9f1b-cdfb170b214a,creation,Creation #7,false,1867.43,9269.7,288,355,"1",null,null,null,null
+  ffd2b53b-2c02-49f3-a4d4-3537704de3af,image-generator,Image Generator #9,false,120.95,7969.54,420,560,"1",null,null,null,idle
+nodeData[325]{elementId,key,value}:
+  01b63eed-4762-4c63-a146-80558acc70be,mode,accumulate
+  01d27cd5-8fbf-43fe-baef-f785feec6cd7,model,GPT55
+  01d27cd5-8fbf-43fe-baef-f785feec6cd7,instructions,"Analyze the reference image for safe areas for text.  and provide a detailed visual prompt of it. Ignore the QR code. "
+  0c0ad834-4017-49f6-a313-5ca83619b8b2,text,"## A vertical viral Instagram news post. A full frame high quality photograph of the interior of a Tokyo Metro subway car completely themed as the Pokemon character Ditto. The ceiling panels are covered in a giant pink and purple Ditto face with dot eyes and a wide smile. The handrails and straps are purple. Passengers are visible in the background. A small circular inset photo in the upper right corner shows a 3D rendered Ditto character with the text \"Ditto was caught!\" above it. Overlaid on the bottom half of the photograph is huge bold white uppercase stacked text reading \"TOKYO METRO HAS CUSTOMIZED ONE OF ITS LINES AS DITTO FROM POKEMON\" in a thick Inter/Impact style font. The text has a dark gradient shadow behind it fading up from the bottom of the image. The text is centered and fills the width of the frame. Directly above the first line of bold text is a thin white horizontal divider line with small white text reading \"Unhypped News\" centered on the line. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay."
+  0c0ad834-4017-49f6-a313-5ca83619b8b2,color,#1C1C1C
+  10c6b65e-df7e-440b-b8bb-8e8c82941642,mode,replace
+  127c1b59-f304-48f6-b638-ba1fb98002d6,creationIdentifier,iAPYcet3uK
+  173b9658-bfc3-4cfd-a9aa-e9be4c14725d,mode,seedream-5-lite
+  173b9658-bfc3-4cfd-a9aa-e9be4c14725d,aspectRatio,"3:4"
+  173b9658-bfc3-4cfd-a9aa-e9be4c14725d,resolution,2k
+  173b9658-bfc3-4cfd-a9aa-e9be4c14725d,currentCreationIdentifier,1sHhDOar4r
+  1b034cd7-01de-410c-9976-461e2ebd8499,model,GPT41MINI
+  1b034cd7-01de-410c-9976-461e2ebd8499,instructions,"return the vale of  each \"image_prompt\" and put it on a list"
+  1c1fa223-6cde-45da-8e7d-1760a1691e7e,mode,accumulate
+  1c7665a6-4c0f-4f06-bdbf-5f3568d1003c,text,"# Visual Theme Alternatives — Carousel\n\n# Visual Identity Alternatives: \"AI Just Got a Job\"\n\nTo explore the visual direction of your carousel, here are 3 distinct visual themes mapped across your 6 slides.\n\n---\n\n## Option A: Corporate Neo-Minimalist (Clean Executive)\n* **Vibe:** Ultra-clean, premium, high-end editorial.\n* **Colors:** Pure white, subtle slate gray, crisp black typography, and thin, sharp accents of electric blue.\n* **Layout:** Generous negative space, minimalist wireframes, and sharp vector-like renders.\n\n### Slide Visual concepts (Option A)\n1. **Slide 1 (Hook):** A spotless, bright-white marble desk with three pristine, glowing blue glass cubes floating perfectly in the center.\n2. **Slide 2 (The Shift):** A crisp, high-contrast schematic diagram showing a simple chat input box dissolving into a series of clean, connected flowcharts.\n3. **Slide 3 (The Trio):** Three elegant, minimalist geometric monoliths standing in a sun-drenched architectural gallery.\n4. **Slide 4 (Use Case):** A sleek, modern tablet lying on a wooden desk, displaying a crisp, flawless automated timeline chart.\n5. **Slide 5 (The Catch):** A close-up of a hand using an sleek, matte-black stylus to tap a sharp \"Approved\" checkmark on a tablet.\n6. **Slide 6 (CTA):** A bright white canvas with a bold, razor-sharp black arrow pointing toward an elegant \"Follow\" button.\n\n---\n\n## Option B: Retro-Futuristic Synthwave (Analog Cyberpunk)\n* **Vibe:** Tactile, nostalgic, glowing, high-contrast, and highly engaging.\n* **Colors:** Neon magenta, vibrant cyan, dark indigo, and deep purple backdrops.\n* **Layout:** CRT monitor grids, scanlines, physical controls, and glowing vector wireframes.\n\n### Slide Visual concepts (Option B)\n1. **Slide 1 (Hook):** A dusty retro-tech terminal displaying three neon-pink floppy disks with glowing data-streams rising out of them.\n2. **Slide 2 (The Shift):** A glowing green command-line terminal window actively transforming into a sprawling, bright purple neon cir"
+  1c7665a6-4c0f-4f06-bdbf-5f3568d1003c,color,#1C1C1C
+  1cbf4d62-1a18-4645-9511-86557f18b1c4,currentCreationIdentifier,l7r746Igv9
+  1cf7f984-42fd-4dff-85f0-d9b81df673a5,creationIdentifier,ohpufZz829
+  1e1ec82e-8a98-4afd-bcaa-fefbea491411,mode,accumulate
+  207dac02-56e6-43ef-a889-b24dc8c0d016,mode,replace
+  222cde81-cb0e-439a-8851-2aa8a5246a9f,text,"# Use the system prompt in any LLM of your preference to generate a consistent output to fit the engine. <br><br>The way you define your visual style, your concept and the viral hook that you're going to use to explode a niche is the most important part of your entire generation."
+  222cde81-cb0e-439a-8851-2aa8a5246a9f,color,#635622
+  23eb1f23-4714-4996-bf76-688316ab4de0,mode,imagen-nano-banana-2-flash
+  23eb1f23-4714-4996-bf76-688316ab4de0,aspectRatio,"3:4"
+  23eb1f23-4714-4996-bf76-688316ab4de0,resolution,1k
+  23eb1f23-4714-4996-bf76-688316ab4de0,currentCreationIdentifier,SOjMHynUb8
+  272404d4-15b3-4ff1-b62c-6fc350b24184,color,#16222F
+  276583ef-fcaa-4f70-b8a2-750a9e586079,text,"A vertical viral Instagram news post. A full frame high quality photograph of a dramatically lit Christie's auction room in New York, packed with bidders in formal attire raising paddles under bright spotlights. The walls display large-scale masterworks including abstract expressionist canvases in ornate gold frames. A large electronic display on the wall shows a bid total reading $630,800,000 in green digits. A small circular inset photo in the upper right corner shows a black-and-white portrait of media mogul S.I. Newhouse with the text 'S.I. Newhouse Collection' above it. Overlaid on the bottom half of the photograph is huge bold white uppercase stacked text reading \"S.I. NEWHOUSE'S ART COLLECTION JUST SOLD FOR $630 MILLION AT CHRISTIE'S\" in a thick Impact style font. The text has a dark gradient shadow behind it fading up from the bottom of the image. The text is centered and fills the width of the frame. Directly above the first line of bold text is a thin white horizontal divider line with small white text reading \"@lifehack\" centered on the line. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay.\n"
+  276583ef-fcaa-4f70-b8a2-750a9e586079,color,#1C1C1C
+  282d5492-b189-4484-a8a2-ca41aae787f9,model,GPT41MINI
+  282d5492-b189-4484-a8a2-ca41aae787f9,instructions,"return the vale of  \"image_prompt\" from  \"slide_index\": 1"
+  28883c1c-284b-4cea-949d-d59ce6d770f9,mode,imagen-nano-banana-2-flash
+  28883c1c-284b-4cea-949d-d59ce6d770f9,aspectRatio,"3:4"
+  28883c1c-284b-4cea-949d-d59ce6d770f9,resolution,2k
+  28883c1c-284b-4cea-949d-d59ce6d770f9,currentCreationIdentifier,VdS1nXsMMU
+  2ba0e48d-f61b-45bb-8db2-f2df45e4bffe,creationIdentifier,mCXYFfDhJQ
+  2d2ab572-7119-475d-882f-a9609e6e7a23,creationIdentifier,xg5OwBWjfW
+  2e2f124a-5771-42fe-93b5-623821205565,mode,imagen-nano-banana-2-lite
+  2e2f124a-5771-42fe-93b5-623821205565,aspectRatio,"3:4"
+  2e2f124a-5771-42fe-93b5-623821205565,resolution,4k
+  2e2f124a-5771-42fe-93b5-623821205565,currentCreationIdentifier,IadhYeatvE
+  2e5ce2bf-ef65-4438-8a3a-966b6c35798f,model,GPT55
+  2e5ce2bf-ef65-4438-8a3a-966b6c35798f,instructions,"Analyze the provided images and define a clear visual concept, color palette, and brand guideline that will be used for social media.  Be as detailed as possible. "
+  2f2cfff5-dd62-465a-8147-84324acda944,creationIdentifier,TenBQ8GVNR
+  316f3e39-8718-43e2-856e-ca8e49981387,text,"## Your job is to create image prompts in this format for Nano Banana 2. The idea is for them to turn into instagram carrousel posts with 5 images featuring news with relevant visuals and headline text.\n##\n## A vertical viral Instagram news post. A full frame high quality photograph of the interior of a Tokyo Metro subway car completely themed as the Pokemon character Ditto. The ceiling panels are covered in a giant pink and purple Ditto face with dot eyes and a wide smile. The handrails and straps are purple. Passengers are visible in the background. A small circular inset photo in the upper right corner shows a 3D rendered Ditto character with the text \"Ditto was caught!\" above it. Overlaid on the bottom half of the photograph is huge bold white uppercase stacked text reading \"TOKYO METRO HAS CUSTOMIZED ONE OF ITS LINES AS DITTO FROM POKEMON\" in a thick Inter/Impact style font. The text has a dark gradient shadow behind it fading up from the bottom of the image. The text is centered and fills the width of the frame. Directly above the first line of bold text is a thin white horizontal divider line with small white text reading \"Unhypped News\" centered on the line. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay.\n##\n##\n## When asked for JSON output, return the prompts in the image prompt section. Make sure to always use the same variable names as here\n##\n##"
+  316f3e39-8718-43e2-856e-ca8e49981387,color,#1C1C1C
+  36fae530-9da8-4a80-819c-c96da46c4fc0,text," A week ago your AI answered questions. This week it clocked into a job.<br>"
+  36fae530-9da8-4a80-819c-c96da46c4fc0,color,#1C1C1C
+  38eed68c-3d94-4129-9ebc-ad7b170f4bbb,color,#16222F
+  392ba811-3956-45fe-82e3-de2f6cc2cae1,creationIdentifier,fFtSanNCDY
+  3e5a1dc1-72db-4f1a-82d6-0e0a37eb7cbc,creationIdentifier,UyLJHShwny
+  40bb3468-9621-4b93-b129-18e25d2c598e,model,GPT55
+  40bb3468-9621-4b93-b129-18e25d2c598e,instructions,"Take @[6a758ed2-e49d-46c9-8eee-55cd8bad809d:StrawMotion Logo:output] and the body as your references to generate your output."
+  40f3c408-df5b-4d10-8f12-d1fcd1ef49b8,mode,replace
+  42c1c167-5f71-4c5a-9693-461ffacdd753,text,"A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answere"
+  42c1c167-5f71-4c5a-9693-461ffacdd753,color,#1C1C1C
+  42f293cf-4f0c-4048-8bc3-72f49792fbdc,creationIdentifier,dIVfh47XSL
+  439afa35-73bc-4b15-8f28-891f811edf98,creationIdentifier,BmDIGD2oQR
+  47a42902-09ca-4270-93cf-18e9edc1a361,mode,imagen-nano-banana-2-flash
+  47a42902-09ca-4270-93cf-18e9edc1a361,aspectRatio,"3:4"
+  47a42902-09ca-4270-93cf-18e9edc1a361,resolution,2k
+  47a42902-09ca-4270-93cf-18e9edc1a361,currentCreationIdentifier,hE3OB1VvqL
+  4905645a-83c9-428d-b782-df807430014c,mode,accumulate
+  4fbdd10c-4b96-4e4e-a081-4e0b8bbbe986,mode,replace
+  503831cd-966e-4f06-8ae9-666e29143713,currentCreationIdentifier,xg5w0kAjfW
+  52e5e2b4-f376-4d4f-af86-59ab668beecd,text,"[\n  {\n    \"id\": \"idea-01\",\n    \"hook\": \"A week ago your AI answered questions. This week it clocked into a job.\",\n    \"image_prompt\": \"High-fidelity, full-bleed photograph: a desk filling the frame with two laptops side by side, left screen glowing dim blue showing a plain chat conversation, right screen glowing warm and bright showing a task-tracker mid-completion (a checkbox mid-tick). Same desk, same lighting, only the screen content and color temperature differ left to right. Keep the lower-middle band reasonably calm — the template overlays a scrim + headline there.\"\n  },\n  {\n    \"id\": \"idea-02\",\n    \"hook\": \"GPT-5.6 just went live for everyone. Here's the honest verdict, no hype.\",\n    \"image_prompt\": \"High-fidelity, full-bleed photograph: a person's hands holding a phone at an ordinary coffee-shop table, the screen glowing warm with a chat app open, blurred everyday background (not a tech office) — a visual cue that this model is now live for everyone, not just insiders. Realistic lighting and texture, shallow depth of field. Keep the lower-middle band reasonably calm for the overlaid scrim + headline.\"\n  },\n  {\n    \"id\": \"idea-03\",\n    \"hook\": \"The cheaper AI just out-coded the premium one — at half the price.\",\n    \"image_prompt\": \"High-fidelity, full-bleed photograph: two laptops side by side on a clean desk, each screen glowing with a distinct, believable code-editor interface (invented UI, not a real brand's actual product), one screen framed slightly sharper/more prominent as the 'underdog' winning, a small price tag or receipt resting on the desk nearby as a cost cue. Realistic desk textures and lighting, shallow depth of field. Keep the lower-middle band reasonably calm for the overlaid scrim + headline.\"\n  },\n  {\n    \"id\": \"idea-04\",\n    \"hook\": \"Anthropic's flagship AI is back, and it runs for a fraction of the price.\",\n    \"image_prompt\": \"High-fidelity, full-bleed photograph: a sleek laptop on a clean desk, screen glowing with a believable AI chat"
+  52e5e2b4-f376-4d4f-af86-59ab668beecd,color,#1C1C1C
+  55db13c2-e859-4872-90c1-5b032ff1820a,mode,imagen-nano-banana-2-flash
+  55db13c2-e859-4872-90c1-5b032ff1820a,aspectRatio,"3:4"
+  55db13c2-e859-4872-90c1-5b032ff1820a,resolution,1k
+  55db13c2-e859-4872-90c1-5b032ff1820a,currentCreationIdentifier,74sbhWvJAL
+  56b92ec2-474e-4da7-b73f-c1f287407e55,mode,imagen-nano-banana-2-flash
+  56b92ec2-474e-4da7-b73f-c1f287407e55,aspectRatio,"3:4"
+  56b92ec2-474e-4da7-b73f-c1f287407e55,resolution,1k
+  56b92ec2-474e-4da7-b73f-c1f287407e55,currentCreationIdentifier,LUKaA0mswO
+  5b60e5c2-ac7d-448f-b3d0-86621157e828,model,GPT55
+  5b60e5c2-ac7d-448f-b3d0-86621157e828,instructions,"create three variations of @[276583ef-fcaa-4f70-b8a2-750a9e586079:Base prompt:text] inspired on the visual guidelines from @[2e5ce2bf-ef65-4438-8a3a-966b6c35798f:Assistant #2:generated_prompt] and the reference images. The expected output has to be the canonical version of a template prompt for generating vertical Instagram images. "
+  5e5ab2d6-8381-4d81-b89e-fdc3bfc8c3ad,mode,imagen-nano-banana-2-flash
+  5e5ab2d6-8381-4d81-b89e-fdc3bfc8c3ad,aspectRatio,"3:4"
+  5e5ab2d6-8381-4d81-b89e-fdc3bfc8c3ad,resolution,1k
+  5e5ab2d6-8381-4d81-b89e-fdc3bfc8c3ad,currentCreationIdentifier,cDGV4c20eP
+  5ed2e6ac-46a7-47a8-bdf2-abdfce9190ed,mode,seedream-5-lite
+  5ed2e6ac-46a7-47a8-bdf2-abdfce9190ed,aspectRatio,"3:4"
+  5ed2e6ac-46a7-47a8-bdf2-abdfce9190ed,resolution,2k
+  5ed2e6ac-46a7-47a8-bdf2-abdfce9190ed,currentCreationIdentifier,rlbLaUixtc
+  5f4546f8-caf8-4143-8f5c-16a3ab453c14,mode,imagen-nano-banana-2-flash
+  5f4546f8-caf8-4143-8f5c-16a3ab453c14,aspectRatio,"3:4"
+  5f4546f8-caf8-4143-8f5c-16a3ab453c14,resolution,2k
+  5f4546f8-caf8-4143-8f5c-16a3ab453c14,currentCreationIdentifier,DBcrRkZpcl
+  5f64f03e-e34c-4fac-92d4-24f3e6c2efa1,text,"# idea-01 — \"AI just got a job: the three assistants that now do the work for you\"\n<p>\n## Angle\nThe big shift this week isn't a smarter chatbot — it's that OpenAI, Anthropic, and Meta all shipped\n\"AI that does the task, not just talks about it\" in the same stretch. Break it down as news for a\nbusiness owner: what each one actually does on your behalf, where it still needs you, and why three\nrivals landing this at once means the \"agent\" era just went mainstream. No hype — a plain-English\nstatus report on where hands-off AI really is today.\n## Hook concept\nOpen on the reframe that your AI stopped being a chat window and clocked into an actual job this week —\nset up the \"three rivals, same move\" surprise so the viewer wants the comparison. (Concept only —\nwriter lands the final line.)\n## Talking points\n- Name the three and what each is pitched to do hands-off: ChatGPT Work, Claude Cowork, Meta Muse Spark.\n- The real change: from \"answers your question\" to \"finishes a task while you're away.\"\n- One concrete, believable example per tool (a to-do it can take off your plate).\n- The honest catch: what still needs a human check — don't oversell autonomy.\n- Why three competitors shipping this at once matters for a small business right now.\n- Close on the plain takeaway: this is a starting line, not a finished race.\n## Suggested hashtags (optional)\n#AInews #AgenticAI #AIagents #SmallBusinessAI #ChatGPT\n## Source(s)\n- OpenAI official (ChatGPT Work): https://openai.com/chatgpt-work/\n- Anthropic official (Claude Cowork): https://claude.com/blog/cowork-web-mobile\n- Meta official (Muse Spark): https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/\n## Fit basis\nDead-center of the brand's \"agentic AI / building workflows\" lane and squarely aimed at the\nentrepreneur audience. momentum 0.95 (top trend, both newsletters). brand_fit 0.95 (voice + news\nformat + audience all line up). relevance 0.5 — neutral, no scored history yet, so this is a prediction\nresting on brand-fit, not"
+  5f64f03e-e34c-4fac-92d4-24f3e6c2efa1,color,#1C1C1C
+  5ff19b6d-2e04-47fe-ba04-3571a2de811e,creationIdentifier,9RJnAqzNYZ
+  65c6c7c6-67a3-4a41-ad7b-dc0dee647a9a,mode,accumulate
+  6776d559-541e-4095-b625-6417b2e4f041,mode,replace
+  6a71f3fa-83af-4f70-985a-52c20dc689b7,mode,imagen-nano-banana-2-flash
+  6a71f3fa-83af-4f70-985a-52c20dc689b7,aspectRatio,"3:4"
+  6a71f3fa-83af-4f70-985a-52c20dc689b7,resolution,2k
+  6a71f3fa-83af-4f70-985a-52c20dc689b7,currentCreationIdentifier,y6UB1GAPW9
+  6a758ed2-e49d-46c9-8eee-55cd8bad809d,creationIdentifier,0pzXeRqTfW
+  6d4dfb79-3bbe-42a8-bd48-a58ed7663236,creationIdentifier,rlqmUGbxtc
+  6da073be-eaf9-427b-b124-d87d3e2398fe,mode,imagen-nano-banana-2-flash
+  6da073be-eaf9-427b-b124-d87d3e2398fe,aspectRatio,"3:4"
+  6da073be-eaf9-427b-b124-d87d3e2398fe,resolution,1k
+  6da073be-eaf9-427b-b124-d87d3e2398fe,currentCreationIdentifier,dIVhxQYXSL
+  6e1c9b60-b158-4caa-b383-0cd8c06b76f0,mode,seedream-5-lite
+  6e1c9b60-b158-4caa-b383-0cd8c06b76f0,aspectRatio,"3:4"
+  6e1c9b60-b158-4caa-b383-0cd8c06b76f0,resolution,2k
+  6e1c9b60-b158-4caa-b383-0cd8c06b76f0,currentCreationIdentifier,sw10umMl8e
+  71099e8b-0879-4306-a1c5-16c313d89519,creationIdentifier,e8TamPSdqL
+  722fc1be-9fe8-450b-a17e-3bafc12fc4ff,model,GPT41MINI
+  722fc1be-9fe8-450b-a17e-3bafc12fc4ff,instructions,"return ONLY  \"image_prompt\" from  \"slide_index\": 2. "
+  72b061f2-aa80-4499-9b5e-0267267f3b49,model,GPT41MINI
+  72b061f2-aa80-4499-9b5e-0267267f3b49,instructions,"return ONLY  \"image_prompt\" from  \"slide_index\": 4. "
+  74b52a44-aa79-4f47-8a09-84116d6d51ea,mode,seedream-5-pro
+  74b52a44-aa79-4f47-8a09-84116d6d51ea,aspectRatio,"3:4"
+  74b52a44-aa79-4f47-8a09-84116d6d51ea,resolution,2k
+  74b52a44-aa79-4f47-8a09-84116d6d51ea,currentCreationIdentifier,1sqzvWTr4r
+  75280796-de9f-472b-b3dd-82bc49c1243a,creationIdentifier,kLHwgeY16B
+  757d8947-417a-47ce-a2a6-7b6fc258196c,mode,accumulate
+  7596ced9-80b6-4561-9816-61bb4d8843d6,mode,imagen-nano-banana-2-flash
+  7596ced9-80b6-4561-9816-61bb4d8843d6,aspectRatio,"3:4"
+  7596ced9-80b6-4561-9816-61bb4d8843d6,resolution,1k
+  7596ced9-80b6-4561-9816-61bb4d8843d6,currentCreationIdentifier,bruYYB65Y2
+  7596f3c8-3b01-47b4-a441-a3ce1dd623db,mode,replace
+  785ca0c6-16f5-44d5-889d-13b47222b138,text,"# Storyboard — AI Just Got a Job\n\n## Visual Style & Theme\n* **Vibe:** Sleek dark-mode tech editorial.\n* **Colors:** Neon teal and deep purple accents against dark slate/black backgrounds.\n* **Format:** Square (1:1) aspect ratio for Instagram/LinkedIn.\n\n---\n\n### Slide 1: The Hook\n* **Headline:** AI just got a job. The 3 new assistants clocking in to do your work.\n* **Visual:** A sleek, minimalist office desk with three glowing, holographic portal spheres floating above it. \n* **Purpose:** High-impact scroll stopper.\n\n### Slide 2: The Shift\n* **Headline:** The Big Shift: Task Execution. We've moved from \"asking questions\" to \"finishing tasks.\"\n* **Visual:** A split visual: a traditional chat window on the left (faded out) transitioning into a glowing, active node-network on the right.\n* **Purpose:** Reframes the user's perspective.\n\n### Slide 3: The Trio\n* **Headline:** Meet Your New Co-Workers: ChatGPT Work, Claude Cowork, Meta Muse Spark.\n* **Visual:** Three futuristic, stylized digital workspace avatars standing side-by-side inside a holographic control room.\n* **Purpose:** Introduces the core rivals.\n\n### Slide 4: Use Case\n* **Headline:** What they actually do. Taking concrete, hands-off business routines completely off your plate.\n* **Visual:** Abstract digital gears fitting together autonomously, casting a soft neon light over a sleek tablet.\n* **Purpose:** Makes the automation tangible.\n\n### Slide 5: The Catch\n* **Headline:** The honest catch... Autonomous doesn't mean unsupervised. They still need a human manager.\n* **Visual:** A close-up of a human hand holding a sleek, glowing device displaying an \"Approve task\" toggle.\n* **Purpose:** Builds trust and emphasizes human oversight.\n\n### Slide 6: Call to Action (CTA)\n* **Headline:** The Agent Era is mainstream. Follow for daily, plain-English updates on building with AI.\n* **Visual:** A high-contrast closing slide featuring a glowing arrow pointing toward a stylized \"Follow\" button.\n* **Purpose:** Drives user en"
+  785ca0c6-16f5-44d5-889d-13b47222b138,color,#1C1C1C
+  788098c7-ab23-4506-9023-acdf13a6f1b7,mode,imagen-nano-banana-2-flash
+  788098c7-ab23-4506-9023-acdf13a6f1b7,aspectRatio,"3:4"
+  788098c7-ab23-4506-9023-acdf13a6f1b7,resolution,2k
+  788098c7-ab23-4506-9023-acdf13a6f1b7,currentCreationIdentifier,jSdc5UxLD0
+  7ab7f0d5-9d55-4a34-a2c0-61df4c104cc5,mode,accumulate
+  7e1d3f29-72a5-4177-b909-556bedcbff02,color,#16222F
+  811a9b97-6c64-41f9-b615-d919bb19e7b8,mode,accumulate
+  823e4a32-5f9e-46ad-bcf6-50c1ae25d063,model,GPT55
+  823e4a32-5f9e-46ad-bcf6-50c1ae25d063,instructions,"Take @[276583ef-fcaa-4f70-b8a2-750a9e586079:Base prompt:text] and generate a variation of it adopting the visual guidelines of each @[4905645a-83c9-428d-b782-df807430014c:Visual Concepts:output-texts] "
+  828b9fb4-8d14-4f3a-ad14-3f6f6ce64eb9,creationIdentifier,EqhrKcKuuO
+  82f92db1-6205-4c85-af5f-8d31b5306047,text,"[\n  {\n    \"slide_index\": 1,\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph of a modern home-office desk with two laptops side by side. The left laptop's screen glows dim and blue, showing a plain, ordinary chat conversation. The right laptop's screen glows warm and bright, showing a task-tracker app with a checkbox mid-tick, as if a job just finished itself. A small circular inset photo in the upper right corner shows a close-up of the right laptop's glowing checkbox mid-tick with the text \\\"TASK: DONE\\\" above it. Overlaid on the bottom half of the photograph is huge bold white uppercase stacked text reading \\\"A WEEK AGO YOUR AI ANSWERED QUESTIONS. THIS WEEK IT CLOCKED INTO A JOB.\\\" in a thick Inter/Impact style font. The text has a dark gradient shadow behind it fading up from the bottom of the image. The text is centered and fills the width of the frame. Directly above the first line of bold text is a thin white horizontal divider line with small white text reading \\\"No-hype news\\\" centered on the line. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay.\"\n  },\n  {\n    \"slide_index\": 2,\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph of a person's hands typing on a laptop keyboard, a plain generic chat-bubble conversation visible on screen. A notepad full of handwritten to-do items sits just in frame beside the laptop, showing the person still doing the real work by hand. A small circular inset photo in the upper right corner shows a close-up of the handwritten notepad, several items still unchecked, with the text \\\"STILL ON YOU\\\" above it. Overlaid on the bottom half of the photograph is huge bold white uppercase stacked text reading \\\"\\\\\\\"AI ASSISTANT\\\\\\\" MEANT A CHAT WINDOW. YOU ASKED, IT ANSWERED, YOU STILL DID THE WORK.\\\" in a thick Inter/Impact style font. The text has a dark gradient shadow behind it fading up from the bo"
+  82f92db1-6205-4c85-af5f-8d31b5306047,color,#1C1C1C
+  8502aed0-50a3-4c14-a631-cfff3604bc0e,text,"A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answere"
+  8502aed0-50a3-4c14-a631-cfff3604bc0e,color,#1C1C1C
+  8678a779-970b-43a4-9595-217f0ddce90c,mode,seedream-5-pro
+  8678a779-970b-43a4-9595-217f0ddce90c,aspectRatio,"3:4"
+  8678a779-970b-43a4-9595-217f0ddce90c,resolution,1.5k
+  8678a779-970b-43a4-9595-217f0ddce90c,currentCreationIdentifier,43wUZsU9Aa
+  8764dc84-72ae-447a-8bde-297d4456193c,mode,replace
+  87d5c329-5492-490d-ad21-3ad4ec661b0b,creationIdentifier,sw1SEEQl8e
+  884da854-9774-4f55-b315-5a1dfd57b62f,model,GPT41MINI
+  884da854-9774-4f55-b315-5a1dfd57b62f,instructions,"return ONLY  \"image_prompt\" from  \"slide_index\": 5. "
+  8a819ea5-c003-478a-ab30-d93b302b36c3,creationIdentifier,rlbJUBextc
+  8ae996c9-a238-45cc-acf1-cda4f1adc795,text,"### https://docs.google.com/document/d/1u3veVR6Skz6W5zj-LIMpkgUY2atbWYcXIvO6tQYpb-s/edit?tab=t.0"
+  8ae996c9-a238-45cc-acf1-cda4f1adc795,color,#1C1C1C
+  8b5de7cc-3e5c-41a1-bb5e-97f55ce99e9f,mode,seedream-5-lite
+  8b5de7cc-3e5c-41a1-bb5e-97f55ce99e9f,aspectRatio,"3:4"
+  8b5de7cc-3e5c-41a1-bb5e-97f55ce99e9f,resolution,2k
+  8b5de7cc-3e5c-41a1-bb5e-97f55ce99e9f,currentCreationIdentifier,4378xYA9Aa
+  8b7df507-04a6-45e8-8936-febbbb3c5731,creationIdentifier,437AHaM9Aa
+  8d135449-230a-4314-9ab7-627a37fe95b3,color,#16222F
+  8e75694d-5e9f-482b-a92b-3952cf2c6787,color,#16222F
+  8ec529af-606f-4928-a7b7-3c6a8fcb7ad1,creationIdentifier,gJxwQK3SXO
+  8f72f049-f195-4e8e-b86d-72eb5c140458,model,GPT41MINI
+  8f72f049-f195-4e8e-b86d-72eb5c140458,instructions,"return ONLY  \"image_prompt\" from  \"slide_index\": 5. "
+  8f75ed2c-1b00-4e6f-89d9-9e0c204db934,mode,imagen-nano-banana-2-flash
+  8f75ed2c-1b00-4e6f-89d9-9e0c204db934,aspectRatio,"3:4"
+  8f75ed2c-1b00-4e6f-89d9-9e0c204db934,resolution,2k
+  8f75ed2c-1b00-4e6f-89d9-9e0c204db934,currentCreationIdentifier,xg5YfogjfW
+  8f9ba302-5628-413e-950a-579acd730e1c,mode,seedream-5-pro
+  8f9ba302-5628-413e-950a-579acd730e1c,aspectRatio,"3:4"
+  8f9ba302-5628-413e-950a-579acd730e1c,resolution,2k
+  8f9ba302-5628-413e-950a-579acd730e1c,currentCreationIdentifier,ohpgnUC829
+  8fa5b41d-395c-4f8a-825f-78050407213e,model,GPT55
+  8fa5b41d-395c-4f8a-825f-78050407213e,instructions,take each image_prompt and put it in a list
+  93381d45-824e-4ae1-9e76-fc662842a0ee,mode,seedream-5-pro
+  93381d45-824e-4ae1-9e76-fc662842a0ee,aspectRatio,"3:4"
+  93381d45-824e-4ae1-9e76-fc662842a0ee,resolution,1.5k
+  93381d45-824e-4ae1-9e76-fc662842a0ee,currentCreationIdentifier,MXYiUf5DCm
+  9597feae-e250-4386-bb89-27f7c48953f2,mode,imagen-nano-banana-2-flash
+  9597feae-e250-4386-bb89-27f7c48953f2,aspectRatio,"3:4"
+  9597feae-e250-4386-bb89-27f7c48953f2,resolution,1k
+  9597feae-e250-4386-bb89-27f7c48953f2,currentCreationIdentifier,LUKaA0mswO
+  976e4401-582b-498c-a39a-70b5bba89d99,mode,seedream-5-pro
+  976e4401-582b-498c-a39a-70b5bba89d99,aspectRatio,"3:4"
+  976e4401-582b-498c-a39a-70b5bba89d99,resolution,2k
+  976e4401-582b-498c-a39a-70b5bba89d99,currentCreationIdentifier,5xQ2t10Kxe
+  9b3da880-494b-41d7-b886-e1ae4f721bef,mode,replace
+  9f422a43-e45f-4397-aaa4-4be56b1a5b28,mode,imagen-nano-banana
+  9f422a43-e45f-4397-aaa4-4be56b1a5b28,aspectRatio,"3:4"
+  9f422a43-e45f-4397-aaa4-4be56b1a5b28,resolution,4k
+  9f422a43-e45f-4397-aaa4-4be56b1a5b28,currentCreationIdentifier,xg57ndSjfW
+  a2377644-1025-43e6-9786-116a7ae3641c,mode,seedream-5-lite
+  a2377644-1025-43e6-9786-116a7ae3641c,aspectRatio,"3:4"
+  a2377644-1025-43e6-9786-116a7ae3641c,resolution,2k
+  a2377644-1025-43e6-9786-116a7ae3641c,currentCreationIdentifier,dIVLA1TXSL
+  a3f0c9d5-29bf-486f-b9c7-f2f33512629f,prompt,"A vertical viral Instagram news post. A high-contrast close-up photograph of a professional auctioneer raising a sleek wooden gavel mid-air under dramatic spotlight beams. In the background, blurred bidders in formal suits are raising their paddles inside a crowded Christie's New York auction hall. Overlaid on the bottom half of the image is huge bold white uppercase stacked text reading \"S.I. NEWHOUSE'S ART COLLECTION JUST SOLD FOR $630 MILLION AT CHRISTIE'S\" in a clean, thick impact-style editorial sans-serif font with a dark shadow backing. Clean editorial news social media layout."
+  a3f0c9d5-29bf-486f-b9c7-f2f33512629f,mode,seedream-5-lite
+  a3f0c9d5-29bf-486f-b9c7-f2f33512629f,aspectRatio,"3:4"
+  a3f0c9d5-29bf-486f-b9c7-f2f33512629f,resolution,2k
+  a3f0c9d5-29bf-486f-b9c7-f2f33512629f,currentCreationIdentifier,e80iR3wdqL
+  a3f8000a-54fa-40e3-9cfe-cdfcd4a0c327,mode,imagen-nano-banana-2-lite
+  a3f8000a-54fa-40e3-9cfe-cdfcd4a0c327,aspectRatio,"3:4"
+  a3f8000a-54fa-40e3-9cfe-cdfcd4a0c327,resolution,4k
+  a3f8000a-54fa-40e3-9cfe-cdfcd4a0c327,currentCreationIdentifier,jS5v2TbLD0
+  a43f458d-cb0d-4f11-96d3-9f2c2bc6588d,text,"Reimagine the instagrm  Instagram news post using the visual identify from the reference images. Use a 1080 × 1920 vertical canvas. Keep all important text within x 120 px to x 960 px and y 250 px to y 1540 px. This gives a safe text zone of approximately 840 px wide by 1290 px tall. Avoid placing text in the top 250 px, the left and right 120 px margins, and the bottom 380 px. "
+  a43f458d-cb0d-4f11-96d3-9f2c2bc6588d,color,#1C1C1C
+  a4665003-5dfb-4339-b526-cbd2ea095249,mode,seedream-5-lite
+  a4665003-5dfb-4339-b526-cbd2ea095249,aspectRatio,"3:4"
+  a4665003-5dfb-4339-b526-cbd2ea095249,resolution,2k
+  a4665003-5dfb-4339-b526-cbd2ea095249,currentCreationIdentifier,ONSXkBsynm
+  a48073ca-65d2-4fe6-99bd-9bdcd09b44ea,mode,seedream-5-pro
+  a48073ca-65d2-4fe6-99bd-9bdcd09b44ea,aspectRatio,"3:4"
+  a48073ca-65d2-4fe6-99bd-9bdcd09b44ea,resolution,2k
+  a48073ca-65d2-4fe6-99bd-9bdcd09b44ea,currentCreationIdentifier,CHm4p9JEEy
+  a4e074c4-e0c6-4d10-a3e0-6a1c37dbc27c,mode,imagen-nano-banana-2-lite
+  a4e074c4-e0c6-4d10-a3e0-6a1c37dbc27c,aspectRatio,"3:4"
+  a4e074c4-e0c6-4d10-a3e0-6a1c37dbc27c,resolution,4k
+  a4e074c4-e0c6-4d10-a3e0-6a1c37dbc27c,currentCreationIdentifier,l7rTKlRgv9
+  a8bbc8ea-1135-4ee9-b9e0-a6b5c3d94c94,creationIdentifier,PiwZe6x42C
+  aa74e8bb-4073-4f02-a736-5015f540667b,text,"[\n  { \"variation_id\": \"3.1\", \"placement\": \"Bottom, full-width card (baseline for this alternative)\", \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a small monospace-font eyebrow tag reading \\\"Unhypped News\\\" next to three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\" },\n  { \"variation_id\": \"3.2\", \"placement\": \"Bottom, floating \\\"toast\\\" card with margin (not edge-to-edge)\", \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph filling the entire frame edge to edge, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Mus"
+  aa74e8bb-4073-4f02-a736-5015f540667b,color,#1C1C1C
+  af2e2a63-1698-48b4-8050-5ed79f34ba57,prompt,"A vertical viral Instagram news post. A majestic wide-angle photograph focusing on a vibrant, multi-million dollar abstract expressionist oil painting in an ornate gilded frame hanging on a dark gallery wall at Christie's New York. Subtle spotlight beams illuminate the canvas texture. In the foreground, silhouettes of sophisticated buyers look on in awe. Overlaid on the bottom half is huge bold white uppercase stacked text reading \"S.I. NEWHOUSE'S ART COLLECTION JUST SOLD FOR $630 MILLION AT CHRISTIE'S\" in a premium, thick editorial header font. Clean social media news template style."
+  af2e2a63-1698-48b4-8050-5ed79f34ba57,mode,seedream-5-lite
+  af2e2a63-1698-48b4-8050-5ed79f34ba57,aspectRatio,"3:4"
+  af2e2a63-1698-48b4-8050-5ed79f34ba57,resolution,2k
+  af2e2a63-1698-48b4-8050-5ed79f34ba57,currentCreationIdentifier,J9lHUmVOq4
+  b119b4d2-1ad6-4016-9541-6805f1dfe092,color,#16222F
+  b194a506-feb6-4974-9fee-4601825081b1,mode,seedream-5-pro
+  b194a506-feb6-4974-9fee-4601825081b1,aspectRatio,"3:4"
+  b194a506-feb6-4974-9fee-4601825081b1,resolution,1.5k
+  b194a506-feb6-4974-9fee-4601825081b1,currentCreationIdentifier,0pzMNXnTfW
+  b1e1d98b-8847-412d-8ac4-bf8fe20ecdab,creationIdentifier,po0XRGqehw
+  b22890bf-7789-4146-b289-4926e502e79f,mode,imagen-nano-banana-2-flash
+  b22890bf-7789-4146-b289-4926e502e79f,aspectRatio,"3:4"
+  b22890bf-7789-4146-b289-4926e502e79f,resolution,1k
+  b22890bf-7789-4146-b289-4926e502e79f,currentCreationIdentifier,9R7wYBENYZ
+  b3ce540f-753e-4d4f-ace4-2b1d2225f814,mode,replace
+  b57f0d46-79fa-4fd2-960a-f0e16703dd8f,creationIdentifier,tfdnrDAmZJ
+  b5e03f07-f12e-4d10-8f13-9f3960867103,creationIdentifier,wPLF2Bw7EI
+  b62f937b-0043-40ac-902d-e63138fbafd9,mode,seedream-5-lite
+  b62f937b-0043-40ac-902d-e63138fbafd9,aspectRatio,"3:4"
+  b62f937b-0043-40ac-902d-e63138fbafd9,resolution,2k
+  b62f937b-0043-40ac-902d-e63138fbafd9,currentCreationIdentifier,1sqzvN3r4r
+  b63795cd-5dce-49d9-8515-1975caa9e2c6,model,GPT41MINI
+  b63795cd-5dce-49d9-8515-1975caa9e2c6,instructions,"return the vale of  each \"image_prompt\" and put it on a list"
+  b643fd78-a713-497e-9e8d-0ac6f92e1e66,model,GPT55
+  b643fd78-a713-497e-9e8d-0ac6f92e1e66,instructions,"describe the image with technical especificity. "
+  b7a2fd9d-723a-422d-ac7a-9398ad71f5be,creationIdentifier,Tez4heLVNR
+  b84afe97-abef-444e-9eb3-be4e9cf9b0d9,creationIdentifier,SOj7FkEUb8
+  b944ef11-919f-4426-9c75-1f4e40a4d95d,model,GPT41MINI
+  b944ef11-919f-4426-9c75-1f4e40a4d95d,instructions,"return ONLY  \"image_prompt\" from  \"slide_index\": 3. "
+  bc1e96fe-c1a3-440a-a0a7-93a3b1b0b63a,mode,replace
+  bdceff04-c4a2-49bf-8b8e-fefd53694d48,creationIdentifier,437AhHC9Aa
+  c1af0260-9938-4731-9f29-d5e796cf9140,mode,replace
+  c23da264-0934-4555-bcb0-7a7a5ecdc0de,mode,imagen-nano-banana-2-flash
+  c23da264-0934-4555-bcb0-7a7a5ecdc0de,aspectRatio,"3:4"
+  c23da264-0934-4555-bcb0-7a7a5ecdc0de,resolution,2k
+  c23da264-0934-4555-bcb0-7a7a5ecdc0de,currentCreationIdentifier,xg5YfznjfW
+  c26269fb-e313-4d11-895b-a5b2fcd16cf9,mode,seedream-5-pro
+  c26269fb-e313-4d11-895b-a5b2fcd16cf9,aspectRatio,"3:4"
+  c26269fb-e313-4d11-895b-a5b2fcd16cf9,resolution,2k
+  c26269fb-e313-4d11-895b-a5b2fcd16cf9,currentCreationIdentifier,NZOtLbj6D9
+  c496041c-c05d-407d-a7bf-092df6aa64ab,mode,imagen-nano-banana-2-flash
+  c496041c-c05d-407d-a7bf-092df6aa64ab,aspectRatio,"3:4"
+  c496041c-c05d-407d-a7bf-092df6aa64ab,resolution,2k
+  c496041c-c05d-407d-a7bf-092df6aa64ab,currentCreationIdentifier,Eqh9egJuuO
+  c75ccb63-bb78-4297-8818-7d0ed99fae49,mode,imagen-nano-banana-2-flash
+  c75ccb63-bb78-4297-8818-7d0ed99fae49,aspectRatio,"3:4"
+  c75ccb63-bb78-4297-8818-7d0ed99fae49,resolution,2k
+  c75ccb63-bb78-4297-8818-7d0ed99fae49,currentCreationIdentifier,fFtPD9zCDY
+  c823fa1e-c64e-44e2-a795-6381f86e816e,mode,replace
+  ca9633b2-0d77-448b-b413-78d6a02e9d8f,prompt,"A vertical viral Instagram news post. A sleek, high-fidelity split composition. The top half features a vibrant close-up of auction paddles raised high under crisp neon studio lights; the bottom half has a clean dark overlay. Overlaid on the image is massive bold white uppercase stacked text reading \"S.I. NEWHOUSE'S ART COLLECTION JUST SOLD FOR $630 MILLION AT CHRISTIE'S\" in a modern, thick sans-serif font. A glowing green digital readout displaying '$630,800,000' is elegantly integrated. Editorial magazine look."
+  ca9633b2-0d77-448b-b413-78d6a02e9d8f,mode,seedream-5-lite
+  ca9633b2-0d77-448b-b413-78d6a02e9d8f,aspectRatio,"3:4"
+  ca9633b2-0d77-448b-b413-78d6a02e9d8f,resolution,2k
+  ca9633b2-0d77-448b-b413-78d6a02e9d8f,currentCreationIdentifier,kLF8KUf16B
+  cad6b44d-867a-447d-9f49-3919ca4829c1,text,Today AI is going to take your job today cause you are slow.
+  cad6b44d-867a-447d-9f49-3919ca4829c1,color,#1C1C1C
+  d090a99f-3554-4fe0-a491-d8ce2b6abf40,creationIdentifier,4372pn09Aa
+  d1bdba32-136f-45e1-bc78-29c9963c6b19,mode,replace
+  d1ccbe66-cf31-40a3-a03b-79afdd360ab8,model,GPT55
+  d1ccbe66-cf31-40a3-a03b-79afdd360ab8,instructions,take each hook and put it in a list
+  d3f8cde4-37c0-4ff1-8001-5060af38a0e7,color,#16222F
+  d688ad7c-e685-4b9d-9dc3-08180322c593,text,A week ago your AI answered questions. This week it clocked into a job.
+  d688ad7c-e685-4b9d-9dc3-08180322c593,color,#1C1C1C
+  d84b1a33-2a74-45c4-8024-bf6d07c13238,model,GPT41MINI
+  d84b1a33-2a74-45c4-8024-bf6d07c13238,instructions,"return ONLY  \"image_prompt\" from  \"slide_index\": 5. "
+  daa7a803-fae9-46d4-906d-86cc5ddacdf1,mode,seedream-5-lite
+  daa7a803-fae9-46d4-906d-86cc5ddacdf1,aspectRatio,"3:4"
+  daa7a803-fae9-46d4-906d-86cc5ddacdf1,resolution,2k
+  daa7a803-fae9-46d4-906d-86cc5ddacdf1,currentCreationIdentifier,0pz5NKwTfW
+  dfb55c2d-9a0b-48c5-995a-446c276865c5,mode,accumulate
+  e1b318b4-af6f-4643-a130-a0598588f847,color,#16222F
+  e2c6485d-af2c-43eb-bbd0-beb42c28d9f0,mode,replace
+  e87d2b14-1bc0-4499-b3d1-db0b0308ed56,creationIdentifier,43wOvbB9Aa
+  e8a32428-2c18-41df-abad-612762de43c7,text,"[\n  {\n    \"variation_id\": \"3.1-final\",\n    \"placement\": \"Bottom, full-width card — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is "
+  e8a32428-2c18-41df-abad-612762de43c7,color,#1C1C1C
+  e98260c3-94ad-439a-a930-a6f4b21503e5,currentCreationIdentifier,mCBF2AshJQ
+  e9b863d1-24db-4427-86c6-dc1627c95901,color,#2E2A19
+  ed5536a0-41dd-4b13-a38b-dd260c42a78b,mode,replace
+  edb93767-2acb-49a1-9013-6531f60ed460,creationIdentifier,fFtSanNCDY
+  ef371326-a81a-4596-bc54-df82c5cb1120,mode,seedream-5-pro
+  ef371326-a81a-4596-bc54-df82c5cb1120,aspectRatio,"3:4"
+  ef371326-a81a-4596-bc54-df82c5cb1120,resolution,1.5k
+  ef371326-a81a-4596-bc54-df82c5cb1120,currentCreationIdentifier,KjQ8igVkqp
+  ef610a06-8006-4c11-ac0d-cfc5ca05d141,color,#301A1B
+  ef7fe862-80f5-4d4b-9511-36d9be64c75d,creationIdentifier,e80ptrmdqL
+  efa92bec-a501-410a-9ee3-8539ef5d8e8d,mode,seedream-5-pro
+  efa92bec-a501-410a-9ee3-8539ef5d8e8d,aspectRatio,"3:4"
+  efa92bec-a501-410a-9ee3-8539ef5d8e8d,resolution,2k
+  efa92bec-a501-410a-9ee3-8539ef5d8e8d,currentCreationIdentifier,kLHGhPI16B
+  f0040e01-a287-4462-9d31-c81e386bd96a,creationIdentifier,iAPYcet3uK
+  f3f55bb9-50ba-4653-af2c-dda835b10e91,color,#16222F
+  f6a68866-4c2a-4867-98d3-bc9d869978c7,mode,seedream-5-pro
+  f6a68866-4c2a-4867-98d3-bc9d869978c7,aspectRatio,"3:4"
+  f6a68866-4c2a-4867-98d3-bc9d869978c7,resolution,2k
+  f6a68866-4c2a-4867-98d3-bc9d869978c7,currentCreationIdentifier,TenK68NVNR
+  f85fa1f6-f454-4114-9240-0976ad992028,mode,accumulate
+  f9b6325e-9cbf-4c24-a6e8-9c4e883b8413,color,#16222F
+  f9cc6424-ec8d-4bfc-a2b4-f63b876721d4,mode,imagen-nano-banana-2-flash
+  f9cc6424-ec8d-4bfc-a2b4-f63b876721d4,aspectRatio,"3:4"
+  f9cc6424-ec8d-4bfc-a2b4-f63b876721d4,resolution,1k
+  f9cc6424-ec8d-4bfc-a2b4-f63b876721d4,currentCreationIdentifier,3G4vOi7REY
+  fc006236-c419-46bf-9f1b-cdfb170b214a,creationIdentifier,IadhYeatvE
+  ffd2b53b-2c02-49f3-a4d4-3537704de3af,mode,seedream-5-pro
+  ffd2b53b-2c02-49f3-a4d4-3537704de3af,aspectRatio,"3:4"
+  ffd2b53b-2c02-49f3-a4d4-3537704de3af,resolution,1.5k
+  ffd2b53b-2c02-49f3-a4d4-3537704de3af,currentCreationIdentifier,tfdo9hVmZJ
+connections[103]{id,sourceElementId,sourcePort,targetElementId,targetPort,dataType,pageId,sourcePageId,targetPageId,selected}:
+  04ee3ce4-c1dc-4d47-ac77-a6b5870f6838,b5e03f07-f12e-4d10-8f13-9f3960867103,output,2e5ce2bf-ef65-4438-8a3a-966b6c35798f,attachments,image,"1","1","1",false
+  057e730b-f8e5-4ef5-bea1-41198bae77ba,2ba0e48d-f61b-45bb-8db2-f2df45e4bffe,output,2e5ce2bf-ef65-4438-8a3a-966b6c35798f,attachments,image,"1","1","1",false
+  09a9298e-8bf4-4178-9183-9bb4de2e77bb,52e5e2b4-f376-4d4f-af86-59ab668beecd,text,8fa5b41d-395c-4f8a-825f-78050407213e,prompt,text,"1","1","1",false
+  0abe3ac0-5d78-47ff-9b13-23cab0e997f9,72b061f2-aa80-4499-9b5e-0267267f3b49,generated_prompt,a2377644-1025-43e6-9786-116a7ae3641c,prompt,text,"1","1","1",false
+  10fe4276-0df2-4b1f-afcd-326a1d15e520,5ed2e6ac-46a7-47a8-bdf2-abdfce9190ed,output,207dac02-56e6-43ef-a889-b24dc8c0d016,images,image,"1","1","1",false
+  12e40104-d838-4a26-9128-31ef3200e0a3,a43f458d-cb0d-4f11-96d3-9f2c2bc6588d,text,8678a779-970b-43a4-9595-217f0ddce90c,prompt,text,"1","1","1",false
+  14303a95-8e1d-4799-ad82-9313a3db8d87,7596ced9-80b6-4561-9816-61bb4d8843d6,output,40f3c408-df5b-4d10-8f12-d1fcd1ef49b8,images,image,"1","1","1",false
+  14d1f9f5-32f3-42f8-8fbc-91fac64557f1,2e2f124a-5771-42fe-93b5-623821205565,output,e2c6485d-af2c-43eb-bbd0-beb42c28d9f0,images,image,"1","1","1",false
+  16b8b038-9f15-4733-a553-63897c88b76d,7ab7f0d5-9d55-4a34-a2c0-61df4c104cc5,output-texts,5e5ab2d6-8381-4d81-b89e-fdc3bfc8c3ad,prompt,text,"1","1","1",false
+  17420963-1d02-40d7-b8d0-8201e84d09ae,52e5e2b4-f376-4d4f-af86-59ab668beecd,text,d1ccbe66-cf31-40a3-a03b-79afdd360ab8,prompt,text,"1","1","1",false
+  1ca29843-8f28-40e0-ae38-e53c01cdf99b,e98260c3-94ad-439a-a930-a6f4b21503e5,output,10c6b65e-df7e-440b-b8bb-8e8c82941642,images,image,"1","1","1",false
+  1e5067ce-60dc-42d7-a4ca-010e31c9c755,01b63eed-4762-4c63-a146-80558acc70be,output-texts,93381d45-824e-4ae1-9e76-fc662842a0ee,prompt,text,"1","1","1",false
+  25d09517-5ad1-429c-8f90-72650f9a7bb2,1c1fa223-6cde-45da-8e7d-1760a1691e7e,output-texts,ef371326-a81a-4596-bc54-df82c5cb1120,prompt,text,"1","1","1",false
+  25de7d5e-0c81-44ed-85cb-ed0669ccb22a,282d5492-b189-4484-a8a2-ca41aae787f9,generated_prompt,976e4401-582b-498c-a39a-70b5bba89d99,prompt,text,"1","1","1",false
+  29b37660-d6bd-4a24-b258-d8a7deaafd85,282d5492-b189-4484-a8a2-ca41aae787f9,generated_prompt,23eb1f23-4714-4996-bf76-688316ab4de0,prompt,text,"1","1","1",false
+  2a86daa0-fcde-4621-9a29-9687ec34b34c,8f72f049-f195-4e8e-b86d-72eb5c140458,generated_prompt,5f4546f8-caf8-4143-8f5c-16a3ab453c14,prompt,text,"1","1","1",false
+  2b0441ab-07d3-4fe0-b7cf-88a2b18ba868,823e4a32-5f9e-46ad-bcf6-50c1ae25d063,generated_prompt,1c1fa223-6cde-45da-8e7d-1760a1691e7e,texts,text,"1","1","1",false
+  2b066b72-25c0-4eda-9972-ee1b4d10e43c,56b92ec2-474e-4da7-b73f-c1f287407e55,output,757d8947-417a-47ce-a2a6-7b6fc258196c,images,image,"1","1","1",false
+  2d3ae0bd-3c26-4b26-a3ef-8a7a779d0855,72b061f2-aa80-4499-9b5e-0267267f3b49,generated_prompt,a48073ca-65d2-4fe6-99bd-9bdcd09b44ea,prompt,text,"1","1","1",false
+  302464c3-74ab-4b0b-8ac9-4a3df3c1fa1b,f85fa1f6-f454-4114-9240-0976ad992028,output-texts,e98260c3-94ad-439a-a930-a6f4b21503e5,prompt,text,"1","1","1",false
+  32de3898-f32e-434a-980a-3e18bcf87e33,f0040e01-a287-4462-9d31-c81e386bd96a,output,e98260c3-94ad-439a-a930-a6f4b21503e5,attachments,image,"1","1","1",false
+  3375a741-6671-46cd-b740-59169cc61b7e,722fc1be-9fe8-450b-a17e-3bafc12fc4ff,generated_prompt,f6a68866-4c2a-4867-98d3-bc9d869978c7,prompt,text,"1","1","1",false
+  35c1ded8-8f3c-470c-b637-60bf2fa8a872,ef7fe862-80f5-4d4b-9511-36d9be64c75d,output,503831cd-966e-4f06-8ae9-666e29143713,attachments,image,"1","1","1",false
+  38c769ab-5e11-40bf-8263-5b49e5af9276,b57f0d46-79fa-4fd2-960a-f0e16703dd8f,output,01d27cd5-8fbf-43fe-baef-f785feec6cd7,attachments,image,"1","1","1",false
+  3cc66778-3fb3-4acb-bc38-77eff9017f1f,b84afe97-abef-444e-9eb3-be4e9cf9b0d9,output,1cbf4d62-1a18-4645-9511-86557f18b1c4,attachments,image,"1","1","1",false
+  3f92c5cb-2b21-4d57-b4af-7a52a4b03c8d,276583ef-fcaa-4f70-b8a2-750a9e586079,text,823e4a32-5f9e-46ad-bcf6-50c1ae25d063,prompt,text,"1","1","1",false
+  3f9c2d1d-1e1b-4f4d-938e-812c3b82f641,7ab7f0d5-9d55-4a34-a2c0-61df4c104cc5,output-texts,5ed2e6ac-46a7-47a8-bdf2-abdfce9190ed,prompt,text,"1","1","1",false
+  43287e7f-fc53-47a6-bc5b-b9fe7ba6528d,5b60e5c2-ac7d-448f-b3d0-86621157e828,generated_prompt,01b63eed-4762-4c63-a146-80558acc70be,texts,text,"1","1","1",false
+  495f6208-5865-486c-9255-744fac6e4ac4,72b061f2-aa80-4499-9b5e-0267267f3b49,generated_prompt,c23da264-0934-4555-bcb0-7a7a5ecdc0de,prompt,text,"1","1","1",false
+  4e56396a-055b-4d84-8375-0d1f553f39b8,b63795cd-5dce-49d9-8515-1975caa9e2c6,generated_prompt,8764dc84-72ae-447a-8bde-297d4456193c,texts,text,"1","1","1",false
+  4f0a42b1-2cd5-4aa0-9a54-35655d517158,8764dc84-72ae-447a-8bde-297d4456193c,output-texts,a4e074c4-e0c6-4d10-a3e0-6a1c37dbc27c,prompt,text,"1","1","1",false
+  4f15e59b-9b24-4878-aca5-91c5d0dd4494,8f72f049-f195-4e8e-b86d-72eb5c140458,generated_prompt,a4665003-5dfb-4339-b526-cbd2ea095249,prompt,text,"1","1","1",false
+  55c6e60e-99a4-4a23-aa4d-b510ca281bad,8e75694d-5e9f-482b-a92b-3952cf2c6787,output,8678a779-970b-43a4-9595-217f0ddce90c,reference,image,"1","1","1",false
+  55cc86a3-df77-455b-8c05-85b8d35acd5a,884da854-9774-4f55-b315-5a1dfd57b62f,generated_prompt,6e1c9b60-b158-4caa-b383-0cd8c06b76f0,prompt,text,"1","1","1",false
+  5d89fa88-bdf3-48be-8251-1f879cd1f384,36fae530-9da8-4a80-819c-c96da46c4fc0,text,503831cd-966e-4f06-8ae9-666e29143713,prompt,text,"1","1","1",false
+  5ee6cbb4-222b-4a04-905f-3f36aff71a49,8fa5b41d-395c-4f8a-825f-78050407213e,generated_prompt,dfb55c2d-9a0b-48c5-995a-446c276865c5,texts,text,"1","1","1",false
+  65bf58d3-7c68-4681-9e92-d0a5bae1c55c,8764dc84-72ae-447a-8bde-297d4456193c,output-texts,f9cc6424-ec8d-4bfc-a2b4-f63b876721d4,prompt,text,"1","1","1",false
+  661171a1-343c-4e3c-9d25-4c3ed30b6f5a,82f92db1-6205-4c85-af5f-8d31b5306047,text,282d5492-b189-4484-a8a2-ca41aae787f9,prompt,text,"1","1","1",false
+  68223a71-3552-43b8-922d-4d397bbddb5c,1cbf4d62-1a18-4645-9511-86557f18b1c4,output,811a9b97-6c64-41f9-b615-d919bb19e7b8,images,image,"1","1","1",false
+  68824537-7b0b-47b1-b65d-ab0a80f89cc4,884da854-9774-4f55-b315-5a1dfd57b62f,generated_prompt,8f75ed2c-1b00-4e6f-89d9-9e0c204db934,prompt,text,"1","1","1",false
+  6ae1cd5f-8ce6-4840-8e9a-527c131355f5,a43f458d-cb0d-4f11-96d3-9f2c2bc6588d,text,b22890bf-7789-4146-b289-4926e502e79f,prompt,text,"1","1","1",false
+  6c9879a4-a84d-446e-8869-a51fcbae59c0,82f92db1-6205-4c85-af5f-8d31b5306047,text,722fc1be-9fe8-450b-a17e-3bafc12fc4ff,prompt,text,"1","1","1",false
+  6daba0c5-1f00-40b7-874a-b8226539b44d,93381d45-824e-4ae1-9e76-fc662842a0ee,output,d1bdba32-136f-45e1-bc78-29c9963c6b19,images,image,"1","1","1",false
+  6e1101aa-7efc-49fd-b67a-d18dac42ebb5,884da854-9774-4f55-b315-5a1dfd57b62f,generated_prompt,c26269fb-e313-4d11-895b-a5b2fcd16cf9,prompt,text,"1","1","1",false
+  7090529a-7f8b-44b3-8a56-8fe0bee30161,b944ef11-919f-4426-9c75-1f4e40a4d95d,generated_prompt,efa92bec-a501-410a-9ee3-8539ef5d8e8d,prompt,text,"1","1","1",false
+  7526b5a5-e71e-4ffd-9dc0-aad2d92f5de6,d090a99f-3554-4fe0-a491-d8ce2b6abf40,output,b643fd78-a713-497e-9e8d-0ac6f92e1e66,attachments,image,"1","1","1",false
+  7754fbd9-779d-4a17-bbad-0eee3a3bea16,d84b1a33-2a74-45c4-8024-bf6d07c13238,generated_prompt,74b52a44-aa79-4f47-8a09-84116d6d51ea,prompt,text,"1","1","1",false
+  7e6c319b-dc8f-4ec4-8d03-7a53eba41e0f,7ab7f0d5-9d55-4a34-a2c0-61df4c104cc5,output-texts,b194a506-feb6-4974-9fee-4601825081b1,prompt,text,"1","1","1",false
+  809c2447-ca32-4bcb-90e7-d6c4c61f8a94,2ba0e48d-f61b-45bb-8db2-f2df45e4bffe,output,5b60e5c2-ac7d-448f-b3d0-86621157e828,attachments,image,"1","1","1",false
+  8147a2c5-a2c7-4107-b072-b70be778b0f2,a4e074c4-e0c6-4d10-a3e0-6a1c37dbc27c,output,9b3da880-494b-41d7-b886-e1ae4f721bef,images,image,"1","1","1",false
+  847058a6-115f-4d55-a3b8-52607bb6cbc9,d84b1a33-2a74-45c4-8024-bf6d07c13238,generated_prompt,daa7a803-fae9-46d4-906d-86cc5ddacdf1,prompt,text,"1","1","1",false
+  8488aa7f-f178-47c0-83b7-9487ebd86b55,b7a2fd9d-723a-422d-ac7a-9398ad71f5be,output,2e5ce2bf-ef65-4438-8a3a-966b6c35798f,attachments,image,"1","1","1",false
+  8a8847fc-8e57-4ca7-b8cf-914219dcb4ff,cad6b44d-867a-447d-9f49-3919ca4829c1,text,40bb3468-9621-4b93-b129-18e25d2c598e,prompt,text,"1","1","1",false
+  8b57a753-1ea7-4e64-9681-86c2b34e8e88,b7a2fd9d-723a-422d-ac7a-9398ad71f5be,output,5b60e5c2-ac7d-448f-b3d0-86621157e828,attachments,image,"1","1","1",false
+  8e0e03e5-d9f5-478a-8c4c-29713f0f7460,b5e03f07-f12e-4d10-8f13-9f3960867103,output,5b60e5c2-ac7d-448f-b3d0-86621157e828,attachments,image,"1","1","1",false
+  8e5894cb-b07e-4e49-8f2d-b8351951acba,edb93767-2acb-49a1-9013-6531f60ed460,output,7596ced9-80b6-4561-9816-61bb4d8843d6,reference,image,"1","1","1",false
+  8ee2d6bd-3711-4f50-9331-901cfcbfdcc4,b944ef11-919f-4426-9c75-1f4e40a4d95d,generated_prompt,b62f937b-0043-40ac-902d-e63138fbafd9,prompt,text,"1","1","1",false
+  8f4d9da1-f858-4402-aae4-7a43897d3b7b,8e75694d-5e9f-482b-a92b-3952cf2c6787,output,b22890bf-7789-4146-b289-4926e502e79f,reference,image,"1","1","1",false
+  90a1ed3f-7636-4039-b723-ce504975d11e,503831cd-966e-4f06-8ae9-666e29143713,output,1e1ec82e-8a98-4afd-bcaa-fefbea491411,images,image,"1","1","1",false
+  9985d16a-a1a2-466a-9231-caca94d4857b,1b034cd7-01de-410c-9976-461e2ebd8499,generated_prompt,ed5536a0-41dd-4b13-a38b-dd260c42a78b,texts,text,"1","1","1",false
+  9b28639d-77de-43d2-9e65-ea7492ce356f,9597feae-e250-4386-bb89-27f7c48953f2,output,b22890bf-7789-4146-b289-4926e502e79f,reference,image,"1","1","1",false
+  9c74f488-6993-4834-a46b-10dbf914315d,722fc1be-9fe8-450b-a17e-3bafc12fc4ff,generated_prompt,6a71f3fa-83af-4f70-985a-52c20dc689b7,prompt,text,"1","1","1",false
+  9f26154a-2014-4673-8664-450621173a39,b194a506-feb6-4974-9fee-4601825081b1,output,c1af0260-9938-4731-9f29-d5e796cf9140,images,image,"1","1","1",false
+  9f7f00f2-b5ca-4b1d-bf7a-1710c36bfc0d,55db13c2-e859-4872-90c1-5b032ff1820a,output,7596f3c8-3b01-47b4-a441-a3ce1dd623db,images,image,"1","1","1",false
+  a2e61d38-b161-4918-881c-ce8b39a935f4,9f422a43-e45f-4397-aaa4-4be56b1a5b28,output,b3ce540f-753e-4d4f-ace4-2b1d2225f814,images,image,"1","1","1",false
+  a60e7728-b8dd-4fa6-ba73-8826580b0426,82f92db1-6205-4c85-af5f-8d31b5306047,text,72b061f2-aa80-4499-9b5e-0267267f3b49,prompt,text,"1","1","1",false
+  a6c2410d-d516-43c0-af08-9f3c168a6021,01b63eed-4762-4c63-a146-80558acc70be,output-texts,173b9658-bfc3-4cfd-a9aa-e9be4c14725d,prompt,text,"1","1","1",false
+  a732fd28-1179-45c5-8d36-b2c3142d632f,a8bbc8ea-1135-4ee9-b9e0-a6b5c3d94c94,output,6da073be-eaf9-427b-b124-d87d3e2398fe,reference,image,"1","1","1",false
+  a99a4788-c47f-4d5e-8fa7-0e90b5c4e255,82f92db1-6205-4c85-af5f-8d31b5306047,text,884da854-9774-4f55-b315-5a1dfd57b62f,prompt,text,"1","1","1",false
+  aa01979e-1d02-4d82-93e8-d74c37689846,82f92db1-6205-4c85-af5f-8d31b5306047,text,d84b1a33-2a74-45c4-8024-bf6d07c13238,prompt,text,"1","1","1",false
+  aea6a4ee-3a45-4106-b71c-faaac2dbb57a,6d4dfb79-3bbe-42a8-bd48-a58ed7663236,output,2e5ce2bf-ef65-4438-8a3a-966b6c35798f,attachments,image,"1","1","1",false
+  b1c8aad0-9dda-4aba-9a92-abec7e851915,d688ad7c-e685-4b9d-9dc3-08180322c593,text,1cbf4d62-1a18-4645-9511-86557f18b1c4,prompt,text,"1","1","1",false
+  b1cc43a4-5fda-40f4-adc7-372465aaa931,dfb55c2d-9a0b-48c5-995a-446c276865c5,output-texts,9f422a43-e45f-4397-aaa4-4be56b1a5b28,prompt,text,"1","1","1",false
+  b26a3dea-8891-4f5a-b459-6e8810fded95,e8a32428-2c18-41df-abad-612762de43c7,text,1b034cd7-01de-410c-9976-461e2ebd8499,prompt,text,"1","1","1",false
+  b4b70758-113a-44ce-acee-59cf99d7cced,7ab7f0d5-9d55-4a34-a2c0-61df4c104cc5,output-texts,2e2f124a-5771-42fe-93b5-623821205565,prompt,text,"1","1","1",false
+  b52e0047-bf4c-4ef8-96ce-edbaa53d69eb,1c1fa223-6cde-45da-8e7d-1760a1691e7e,output-texts,a3f8000a-54fa-40e3-9cfe-cdfcd4a0c327,prompt,text,"1","1","1",false
+  b7098f7b-5888-476d-89a3-9555cc2f380b,ed5536a0-41dd-4b13-a38b-dd260c42a78b,output-texts,7596ced9-80b6-4561-9816-61bb4d8843d6,prompt,text,"1","1","1",false
+  b7d69a99-78c5-4e5b-be3a-842a97e45e76,b3ce540f-753e-4d4f-ace4-2b1d2225f814,output-images,e98260c3-94ad-439a-a930-a6f4b21503e5,attachments,image,"1","1","1",false
+  bab2313b-cda3-44e0-92c0-89a822ea7fd8,276583ef-fcaa-4f70-b8a2-750a9e586079,text,5b60e5c2-ac7d-448f-b3d0-86621157e828,prompt,text,"1","1","1",false
+  bd714ac0-791d-4612-a23e-27b233c42de6,f9cc6424-ec8d-4bfc-a2b4-f63b876721d4,output,c823fa1e-c64e-44e2-a795-6381f86e816e,images,image,"1","1","1",false
+  c2f7eecd-d999-4e32-81e0-96c3448c9ab9,127c1b59-f304-48f6-b638-ba1fb98002d6,output,503831cd-966e-4f06-8ae9-666e29143713,attachments,image,"1","1","1",false
+  c4902806-49b8-484f-b5b2-a1edcf6ae96c,8f72f049-f195-4e8e-b86d-72eb5c140458,generated_prompt,8f9ba302-5628-413e-950a-579acd730e1c,prompt,text,"1","1","1",false
+  c4f3b3c8-14b9-411d-bf29-eb1556186479,722fc1be-9fe8-450b-a17e-3bafc12fc4ff,generated_prompt,8b5de7cc-3e5c-41a1-bb5e-97f55ce99e9f,prompt,text,"1","1","1",false
+  c527a099-9cd1-4511-a499-02f3dcf53017,173b9658-bfc3-4cfd-a9aa-e9be4c14725d,output,4fbdd10c-4b96-4e4e-a081-4e0b8bbbe986,images,image,"1","1","1",false
+  c9cd0687-e99a-41eb-b83e-8cf0a2d835ed,01b63eed-4762-4c63-a146-80558acc70be,output-texts,55db13c2-e859-4872-90c1-5b032ff1820a,prompt,text,"1","1","1",false
+  cbe8af6c-da43-4071-92a9-18ab78186123,b84afe97-abef-444e-9eb3-be4e9cf9b0d9,output,6da073be-eaf9-427b-b124-d87d3e2398fe,reference,image,"1","1","1",false
+  d080835f-b631-441a-b85f-c6af6ba8c16b,a3f8000a-54fa-40e3-9cfe-cdfcd4a0c327,output,65c6c7c6-67a3-4a41-ad7b-dc0dee647a9a,images,image,"1","1","1",false
+  d0fb57c6-2b3f-4d75-8ee2-ef98c5168b1e,4905645a-83c9-428d-b782-df807430014c,output-texts,823e4a32-5f9e-46ad-bcf6-50c1ae25d063,prompt,text,"1","1","1",false
+  d92fb73f-6f64-4a0b-b920-8b63154683fa,d84b1a33-2a74-45c4-8024-bf6d07c13238,generated_prompt,c75ccb63-bb78-4297-8818-7d0ed99fae49,prompt,text,"1","1","1",false
+  dad1ae8f-666d-4c3c-b1ac-38de1af544f9,40bb3468-9621-4b93-b129-18e25d2c598e,generated_prompt,6da073be-eaf9-427b-b124-d87d3e2398fe,prompt,text,"1","1","1",false
+  de453ae7-4597-4093-8680-84c881b8e1f6,82f92db1-6205-4c85-af5f-8d31b5306047,text,8f72f049-f195-4e8e-b86d-72eb5c140458,prompt,text,"1","1","1",false
+  deb9718f-f06b-401f-a537-17e17e937c17,a43f458d-cb0d-4f11-96d3-9f2c2bc6588d,text,ffd2b53b-2c02-49f3-a4d4-3537704de3af,prompt,text,"1","1","1",false
+  e799fe17-5ea3-48dd-aeb5-9bb5bca41461,1c1fa223-6cde-45da-8e7d-1760a1691e7e,output-texts,56b92ec2-474e-4da7-b73f-c1f287407e55,prompt,text,"1","1","1",false
+  eb00f101-8c3d-47ff-aa80-c54d9ac1b795,82f92db1-6205-4c85-af5f-8d31b5306047,text,b63795cd-5dce-49d9-8515-1975caa9e2c6,prompt,text,"1","1","1",false
+  ee116d04-0433-4bc5-8596-690c12aeae51,6d4dfb79-3bbe-42a8-bd48-a58ed7663236,output,5b60e5c2-ac7d-448f-b3d0-86621157e828,attachments,image,"1","1","1",false
+  f02bbcd1-97f4-4152-ad98-2b38ff3603fe,d1ccbe66-cf31-40a3-a03b-79afdd360ab8,generated_prompt,f85fa1f6-f454-4114-9240-0976ad992028,texts,text,"1","1","1",false
+  f29d9d8c-fe5b-445a-bae7-b14800196d5d,2e5ce2bf-ef65-4438-8a3a-966b6c35798f,generated_prompt,5b60e5c2-ac7d-448f-b3d0-86621157e828,prompt,text,"1","1","1",false
+  f469b2b1-7cbb-4e77-8a0a-e08c3136fda7,e87d2b14-1bc0-4499-b3d1-db0b0308ed56,output,ffd2b53b-2c02-49f3-a4d4-3537704de3af,reference,image,"1","1","1",false
+  f5bd1852-5bf7-4d99-a030-05ee3f7ccabc,b944ef11-919f-4426-9c75-1f4e40a4d95d,generated_prompt,c496041c-c05d-407d-a7bf-092df6aa64ab,prompt,text,"1","1","1",false
+  f7e14323-9dc5-4582-85d7-57563c8a13ba,5e5ab2d6-8381-4d81-b89e-fdc3bfc8c3ad,output,bc1e96fe-c1a3-440a-a0a7-93a3b1b0b63a,images,image,"1","1","1",false
+  fd30ff6b-50be-463c-a19e-1c84f49947e0,6a758ed2-e49d-46c9-8eee-55cd8bad809d,output,6da073be-eaf9-427b-b124-d87d3e2398fe,reference,image,"1","1","1",false
+  fe69454a-f378-4b34-bd17-8c882bd614fc,82f92db1-6205-4c85-af5f-8d31b5306047,text,b944ef11-919f-4426-9c75-1f4e40a4d95d,prompt,text,"1","1","1",false
+  ff0499c1-acf1-4104-8972-3ffa0783edb9,ef371326-a81a-4596-bc54-df82c5cb1120,output,6776d559-541e-4095-b625-6417b2e4f041,images,image,"1","1","1",false

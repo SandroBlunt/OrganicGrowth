@@ -67,6 +67,43 @@ describe("queueCommand — load then format the queue file", () => {
   });
 });
 
+// === Two Recipes of ONE Idea show as independent jobs, at independent gate cursors (issue #60) ========
+
+describe("queueCommand — one Idea's TWO chosen Recipes show as independent jobs", () => {
+  const TWO_RECIPE_JOBS: QueueState = {
+    jobs: [
+      {
+        idea_id: "idea-2026-W29-01",
+        brand: "acme",
+        recipe: "character-explainer-with-cast",
+        gate: "cast",
+        status: "awaiting_pick",
+        enqueued_at: "2026-07-16T10:00:00.000Z",
+      },
+      {
+        idea_id: "idea-2026-W29-01",
+        brand: "acme",
+        recipe: "news-carousel",
+        gate: null,
+        status: "done",
+        enqueued_at: "2026-07-16T10:01:00.000Z",
+      },
+    ],
+    lock: { active_job: null },
+  };
+
+  it("shows BOTH Recipes' jobs for the same Idea, each with its OWN gate cursor and status", async () => {
+    await withQueueFile(TWO_RECIPE_JOBS, async (path) => {
+      const out = await queueCommand("acme", path);
+      assert.match(out, /idea-2026-W29-01.*character-explainer-with-cast.*gate=cast.*awaiting_pick/);
+      assert.match(out, /idea-2026-W29-01.*news-carousel.*gate=final.*done/);
+      // Both lines are present for the SAME idea id — never collapsed into one.
+      const ideaLines = out.split("\n").filter((l) => l.includes("idea-2026-W29-01"));
+      assert.equal(ideaLines.length, 2);
+    });
+  });
+});
+
 describe("resolveBrandFilter — CLI positional → brand filter (C49)", () => {
   it("no argument means show all Brands (undefined)", () => {
     assert.equal(resolveBrandFilter(undefined), undefined);

@@ -107,3 +107,45 @@ export function canonicalProtocol(): ProtocolDocument {
 export function serializeProtocol(doc: ProtocolDocument): string {
   return JSON.stringify(doc, null, 2) + "\n";
 }
+
+// ---------------------------------------------------------------------------
+// The second wired Recipe's Space — "AI News" (News Carousel Recipe, issue #60)
+// ---------------------------------------------------------------------------
+
+/** The number of parallel slide pipelines physically wired on the "AI News" Space's canvas. Kept as a
+ *  local literal (not imported from `production-spec/news-carousel-contract.ts`, a HIGHER layer) so
+ *  this lower-level module carries no dependency on it; `news-carousel-contract.test.ts` cross-checks
+ *  the two never drift. */
+const CAROUSEL_SLIDE_PIPELINES = 7;
+
+/** The canonical run-point NAME for one 1-based slide position on the "AI News" Space's canvas — the
+ *  per-slide `prompt-generator` extractor that reads `JSON Master` and hands its slide's prompt to that
+ *  slide's own `Slide N Generator` (verified against the real, captured board —
+ *  `space-driver/fixtures/live-captures-ai-news/00-spaces_state.pre-tidy.txt`). */
+export function carouselSlideRunPointName(slideIndex: number): string {
+  return `Image Prompt Slide ${slideIndex}`;
+}
+
+/**
+ * The canonical `Producer Protocol` artifact for the "AI News" Space (News Carousel Recipe, issue #60).
+ *
+ * SEVEN run-points, one per physical slide pipeline, ALL gate `null` — this Recipe has ZERO human
+ * gates (an Operator-confirmed decision): injecting the Spec and running each slide's run-point renders
+ * straight through to the finished (several-image) Asset, no pause. A given Idea's Spec may use only
+ * 5-7 of these seven — the Recipe/driver selects WHICH of these seven names to actually drive from the
+ * Spec's own `slides` (`production-spec/news-carousel-contract.ts`'s `slideRunPointNames`); this
+ * artifact describes what the CANVAS carries (always all seven), not what any one Idea drives.
+ *
+ * Node names come from the real, captured board inventory (issue #60's pre-tidy dump). Authoring this
+ * JSON onto the live canvas node is deferred to the attended post-tidy capture pass (mirrors
+ * `canonicalProtocol()`'s own deferred-authoring note above).
+ */
+export function canonicalCarouselProtocol(): ProtocolDocument {
+  return {
+    run_points: Array.from({ length: CAROUSEL_SLIDE_PIPELINES }, (_, i) => ({
+      start: carouselSlideRunPointName(i + 1),
+      mode: "downstream" as const,
+      gate: null,
+    })),
+  };
+}

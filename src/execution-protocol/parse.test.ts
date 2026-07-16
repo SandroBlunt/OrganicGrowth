@@ -8,6 +8,7 @@ import {
   fakeSpaceStateWithoutProtocolNode,
   type FakeSpaceState,
 } from "./fixtures/space-state.ts";
+import { fakeCarouselSpaceState } from "./fixtures/carousel-space-state.ts";
 import { serializeProtocol, PRODUCER_PROTOCOL_NODE_NAME } from "./protocol.ts";
 
 /** Whether a failed parse result carries an error with the given code. */
@@ -173,6 +174,24 @@ describe("parse — accepts arbitrary Recipe-declared gate names (ADR-0010, issu
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.deepEqual(result.runPoints.map((rp) => rp.gate), ["gateA", "gateB"]);
+  });
+});
+
+// === The second wired Recipe's Space — "AI News" (News Carousel Recipe, issue #60) ===================
+
+describe("parse — resolves all SEVEN gateless run-points against the fake carousel spaces_state", () => {
+  it("resolves 'Image Prompt Slide 1'..'Image Prompt Slide 7', each gate null", () => {
+    const result = parse(fakeCarouselSpaceState());
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+
+    assert.equal(result.runPoints.length, 7);
+    result.runPoints.forEach((entry, i) => {
+      assert.equal(entry.start_name, `Image Prompt Slide ${i + 1}`);
+      assert.equal(entry.mode, "downstream");
+      assert.equal(entry.gate, null);
+      assert.equal(entry.start_node_id, `node-image-prompt-slide-${i + 1}`);
+    });
   });
 });
 

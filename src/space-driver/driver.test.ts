@@ -6,6 +6,7 @@ import {
   runRunPoint,
   fetchCast,
   driveToNextGate,
+  driveSelectedRunPoints,
   isClipOrVideoNode,
   injectGoal,
   fallbackGoal,
@@ -31,7 +32,13 @@ import {
   ASSET_URL,
   isPinnedTo,
 } from "./fixtures/fake-space.ts";
+import {
+  FakeCarouselSpace,
+  slideCreationId,
+  slideCreationUrl,
+} from "./fixtures/fake-carousel-space.ts";
 import { fakeSpaceState } from "../execution-protocol/fixtures/space-state.ts";
+import { fakeCarouselSpaceState } from "../execution-protocol/fixtures/carousel-space-state.ts";
 import type { SpaceStateLike, SpaceStateNode } from "../execution-protocol/parse.ts";
 import { parse } from "../execution-protocol/parse.ts";
 import {
@@ -40,6 +47,8 @@ import {
   type ProtocolDocument,
 } from "../execution-protocol/protocol.ts";
 import { validSpec } from "../production-spec/fixtures/specs.ts";
+import { validNewsCarouselSpec } from "../production-spec/fixtures/news-carousel-specs.ts";
+import { slideRunPointNames } from "../production-spec/news-carousel-contract.ts";
 
 /**
  * A no-op poll policy: the fake reaches terminal on the second poll, so injecting an instant `sleep`
@@ -673,6 +682,174 @@ describe("driveToNextGate — a MULTI-gate recipe pauses at each declared gate a
     assert.equal(space.runs.length, 3);
     assert.ok(space.editGoals.some((g) => g.includes("Gate A Reference") && g.includes("a-1")));
     assert.ok(space.editGoals.some((g) => g.includes("Gate B Reference") && g.includes("b-2")));
+  });
+});
+
+// ====================================================================================================
+// === AssetResult.media — EVERY finished creation, not just the first (issue #60) ======================
+// ====================================================================================================
+
+describe("driveToNextGate — a finished leg's AssetResult.media resolves EVERY produced creation", () => {
+  it("a single-creation finish still yields a one-element media array (no behavior change for the wired shape)", async () => {
+    const space = new ConfigurableFakeSpace([{ name: "Zero Gate Render", gate: null, creationIds: ["asset-zero"] }]);
+    const input: DriveLegInput = { kind: "first", targetGate: null, spec: validSpec() };
+    const result = await driveToNextGate(space, await space.readState(), input, FAST);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    if (result.outcome.kind !== "finished") return;
+    assert.deepEqual([...result.outcome.asset.media], [
+      { identifier: "asset-zero", url: "https://fake.example/asset-zero" },
+    ]);
+  });
+
+  it("a MULTI-creation finish resolves every creation, in order, while assetId/assetUrl stay the FIRST", async () => {
+    const space = new ConfigurableFakeSpace([
+      { name: "Multi Render", gate: null, creationIds: ["m-1", "m-2", "m-3"] },
+    ]);
+    const input: DriveLegInput = { kind: "first", targetGate: null, spec: validSpec() };
+    const result = await driveToNextGate(space, await space.readState(), input, FAST);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    if (result.outcome.kind !== "finished") return;
+    assert.equal(result.outcome.asset.assetId, "m-1");
+    assert.equal(result.outcome.asset.assetUrl, "https://fake.example/m-1");
+    assert.deepEqual([...result.outcome.asset.media].map((m) => m.identifier), ["m-1", "m-2", "m-3"]);
+    assert.deepEqual(result.outcome.asset.media[0], { identifier: "m-1", url: "https://fake.example/m-1" });
+  });
+});
+
+// ====================================================================================================
+// === driveSelectedRunPoints — the News Carousel Recipe's zero-gate, multi-image leg (issue #60) =======
+// ====================================================================================================
+
+describe("driveSelectedRunPoints — a REAL carousel-shaped Space, zero gates, several images collected", () => {
+  it("drives ONLY the run-points for the slides present (5 of 7) — never touching slide 6/7's nodes", async () => {
+    const space = new FakeCarouselSpace();
+    const spec = validNewsCarouselSpec(5);
+    const names = slideRunPointNames(spec);
+    assert.equal(names.length, 5);
+
+    const result = await driveSelectedRunPoints(space, fakeCarouselSpaceState(), spec, names, FAST);
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.outcome.kind, "finished");
+    if (result.outcome.kind !== "finished") return;
+
+    // Exactly 5 runs, one per slide present, in order — slides 6 and 7 never ran.
+    assert.equal(space.runs.length, 5);
+    for (let n = 1; n <= 5; n += 1) {
+      assert.equal(space.runs[n - 1]!.startNodeId, `node-image-prompt-slide-${n}`);
+      assert.equal(space.runs[n - 1]!.mode, DOWNSTREAM_MODE);
+    }
+
+    // Exactly one inject (the Spec), no pin — zero gates, no pick.
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, /JSON Master/);
+
+    // The finished Asset carries ALL 5 slide images, in slide order.
+    assert.equal(result.outcome.asset.media.length, 5);
+    assert.deepEqual(
+      [...result.outcome.asset.media].map((m) => m.identifier),
+      [1, 2, 3, 4, 5].map(slideCreationId),
+    );
+    assert.deepEqual(
+      [...result.outcome.asset.media].map((m) => m.url),
+      [1, 2, 3, 4, 5].map(slideCreationUrl),
+    );
+    assert.equal(result.outcome.asset.assetId, slideCreationId(1));
+    assert.equal(result.outcome.asset.assetUrl, slideCreationUrl(1));
+    // A gateless Recipe's single leg has no preceding pick to carry.
+    assert.equal(result.outcome.asset.pick, undefined);
+    assert.equal(result.outcome.usedFallback, false);
+  });
+
+  it("drives all 7 run-points for a full 7-slide Spec", async () => {
+    const space = new FakeCarouselSpace();
+    const spec = validNewsCarouselSpec(7);
+    const result = await driveSelectedRunPoints(
+      space,
+      fakeCarouselSpaceState(),
+      spec,
+      slideRunPointNames(spec),
+      FAST,
+    );
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    if (result.outcome.kind !== "finished") return;
+    assert.equal(space.runs.length, 7);
+    assert.equal(result.outcome.asset.media.length, 7);
+  });
+
+  it("drives the MINIMUM 5 slides, proving the bound is exercised, not just the max", async () => {
+    const space = new FakeCarouselSpace();
+    const spec = validNewsCarouselSpec(5);
+    const result = await driveSelectedRunPoints(
+      space,
+      fakeCarouselSpaceState(),
+      spec,
+      slideRunPointNames(spec),
+      FAST,
+    );
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    if (result.outcome.kind !== "finished") return;
+    assert.equal(result.outcome.asset.media.length, 5);
+  });
+
+  it("fails run_point_unresolved for an unknown run-point name, WITHOUT running anything after it", async () => {
+    const space = new FakeCarouselSpace();
+    const spec = validNewsCarouselSpec(5); // the Spec's own shape is irrelevant here — only the given names are driven
+    const names = ["Image Prompt Slide 1", "Image Prompt Slide 99", "Image Prompt Slide 3"];
+    const result = await driveSelectedRunPoints(space, fakeCarouselSpaceState(), spec, names, FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "run_point_unresolved");
+    // Slide 1 ran (it came first); slide 3 (after the unresolved name) never did.
+    assert.equal(space.runs.length, 1);
+    assert.equal(space.runs[0]!.startNodeId, "node-image-prompt-slide-1");
+  });
+
+  it("a mid-list run failure stops the WHOLE leg immediately — later slides never run", async () => {
+    const space = new FakeCarouselSpace(fakeCarouselSpaceState(), { slideRunFails: 3 });
+    const spec = validNewsCarouselSpec(5);
+    const result = await driveSelectedRunPoints(
+      space,
+      fakeCarouselSpaceState(),
+      spec,
+      slideRunPointNames(spec),
+      FAST,
+    );
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "run_failed");
+    // Slides 1 and 2 ran; slide 3 failed; slides 4 and 5 never started.
+    assert.equal(space.runs.length, 3);
+  });
+
+  it("fails cleanly (no run started) when given zero run-point names", async () => {
+    const space = new FakeCarouselSpace();
+    const result = await driveSelectedRunPoints(space, fakeCarouselSpaceState(), validNewsCarouselSpec(5), [], FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(space.runs.length, 0);
+    assert.equal(space.editGoals.length, 0, "never even injects when there is nothing to drive");
+  });
+
+  it("hard-fails when the inject itself cannot be confirmed — never starts a slide run", async () => {
+    const space = new FakeCarouselSpace(fakeCarouselSpaceState(), { injectNoOp: true });
+    const spec = validNewsCarouselSpec(5);
+    const result = await driveSelectedRunPoints(
+      space,
+      fakeCarouselSpaceState(),
+      spec,
+      slideRunPointNames(spec),
+      FAST,
+    );
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "inject_unconfirmed");
+    assert.equal(space.runs.length, 0);
   });
 });
 

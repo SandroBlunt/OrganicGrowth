@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { composeSpec } from "./compose.ts";
 import { specPathFor } from "./store.ts";
 import { validate } from "./validate.ts";
+import { validateNewsCarouselSpec } from "./news-carousel-validate.ts";
+import { validNewsCarouselSpec } from "./fixtures/news-carousel-specs.ts";
 import type { Brief } from "./generate.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -128,6 +130,73 @@ describe("composeSpec — empty banned list (real profile shape)", () => {
         recipe: RECIPE,
       });
       assert.equal(result.written, true);
+    });
+  });
+});
+
+// === composeSpec is Recipe-generic: a DIFFERENT Recipe's own generator + validator (issue #60) ========
+
+describe("composeSpec — a second Recipe's own generator + validator (proves the gate is Recipe-generic)", () => {
+  const CAROUSEL_RECIPE = "news-carousel";
+
+  it("writes a News Carousel Spec (a totally different shape) when its OWN validator passes it", async () => {
+    await withTempDir(async (dir) => {
+      const result = await composeSpec(acceptedBrief(), {
+        ideasRoot: dir,
+        brandProfilePath: join(HERE, "fixtures", "does-not-exist.yaml"),
+        recipe: CAROUSEL_RECIPE,
+        generator: () => validNewsCarouselSpec(5),
+        validator: validateNewsCarouselSpec,
+      });
+
+      assert.equal(result.written, true);
+      const path = specPathFor("idea-2026-W22-01", "2026-W22", dir, CAROUSEL_RECIPE);
+      assert.equal(result.path, path);
+      assert.equal(await exists(path), true);
+
+      const parsed: unknown = JSON.parse(await readFile(path, "utf8"));
+      assert.equal(validateNewsCarouselSpec(parsed).ok, true);
+      // The WIRED validator would reject this shape — proving the injected validator, not the default,
+      // is what actually gated this write.
+      assert.equal(validate(parsed).ok, false);
+    });
+  });
+
+  it("REFUSES to write when the injected validator rejects the generated Spec (never falls back to the wired one)", async () => {
+    await withTempDir(async (dir) => {
+      const result = await composeSpec(acceptedBrief(), {
+        ideasRoot: dir,
+        brandProfilePath: join(HERE, "fixtures", "does-not-exist.yaml"),
+        recipe: CAROUSEL_RECIPE,
+        generator: () => ({ slides: [] }), // fails the carousel's OWN min-slides rule
+        validator: validateNewsCarouselSpec,
+      });
+      assert.equal(result.written, false);
+      assert.equal(result.reason, "validation");
+      assert.ok(result.errors && result.errors.some((e) => e.code === "slides_count"));
+
+      const path = specPathFor("idea-2026-W22-01", "2026-W22", dir, CAROUSEL_RECIPE);
+      assert.equal(await exists(path), false);
+    });
+  });
+
+  it("a second Recipe's Spec is saved BESIDE the first, never overwriting it (recipe-segmented path)", async () => {
+    await withTempDir(async (dir) => {
+      const brandProfilePath = join(HERE, "fixtures", "does-not-exist.yaml");
+      const wired = await composeSpec(acceptedBrief(), { ideasRoot: dir, brandProfilePath, recipe: RECIPE });
+      const carousel = await composeSpec(acceptedBrief(), {
+        ideasRoot: dir,
+        brandProfilePath,
+        recipe: CAROUSEL_RECIPE,
+        generator: () => validNewsCarouselSpec(6),
+        validator: validateNewsCarouselSpec,
+      });
+
+      assert.equal(wired.written, true);
+      assert.equal(carousel.written, true);
+      assert.notEqual(wired.path, carousel.path);
+      assert.equal(await exists(wired.path), true);
+      assert.equal(await exists(carousel.path), true);
     });
   });
 });

@@ -22,6 +22,20 @@
  *                                                final render when there is none). Recovers via the
  *                                                in-canvas agent (Fallback Protocol) when the FIRST leg's
  *                                                run-point is missing/stale.
+ *   • driveSelectedRunPoints(port, state,
+ *       spec, runPointNames)                    — a SECOND, simpler orchestrator (issue #60) for a
+ *                                                Recipe whose Production Spec ITSELF selects WHICH of a
+ *                                                Space's several parallel, always-gateless run-points to
+ *                                                drive (e.g. the News Carousel Recipe: only the slides
+ *                                                present in THIS Idea's Spec, never the Space's full
+ *                                                fixed set). Injects the Spec once, then runs each NAMED
+ *                                                run-point downstream in order, collecting every
+ *                                                produced creation into the finished Asset's `media`
+ *                                                list. `driveToNextGate` stays untouched by this: it
+ *                                                walks a Recipe's OWN declared gate structure by GATE
+ *                                                NAME, which cannot express "a caller-selected subset of
+ *                                                same-gate run-points" — that selection is this Recipe's
+ *                                                Spec's own concern, not the driver's generic gate walk.
  *
  * `driveToNextGate` REPLACES the old fixed `composeAndCast`/`pickAndRender` two-phase split: instead of
  * hard-coding "the cast run-point" and "the clip run-point", it resolves whichever run-point the parsed
@@ -111,10 +125,20 @@ export interface AssetResult {
    * nothing to pick. `exactOptionalPropertyTypes`: omitted, never `undefined`, when not applicable.
    */
   readonly pick?: string;
-  /** The finished Asset's creation identifier. */
+  /** The finished Asset's PRIMARY creation identifier — for a single-media Recipe (the wired Recipe's
+   *  Reel) this is its only creation; for a multi-media Recipe (e.g. a carousel) this is `media[0]`'s
+   *  identifier, kept populated so a caller that only cares about "the one file" never has to branch. */
   readonly assetId: string;
-  /** The finished Asset's media URL (the Operator publishes this; the Producer never does). */
+  /** The finished Asset's PRIMARY media URL — see `assetId`. The Operator publishes this; the Producer
+   *  never does. */
   readonly assetUrl: string;
+  /**
+   * EVERY creation the finished leg produced, resolved to `{identifier, url}` pairs, in the run-point
+   * order they were produced (issue #60). A single-media Recipe's render still yields exactly one entry
+   * (`media[0]` === `{assetId, assetUrl}`) — this is never a behavior change for the wired Recipe, only
+   * an ADDITIONAL, always-populated field a multi-media Recipe's caller reads instead of `assetUrl`.
+   */
+  readonly media: readonly Creation[];
 }
 
 function err(code: DriverErrorCode, message: string): DriverError {
@@ -200,13 +224,23 @@ async function pollRun(port: SpaceMcpPort, runId: string, poll: PollOptions): Pr
   }
 }
 
+/**
+ * A Recipe's Production Spec, as the driver sees it: an OPAQUE, JSON-serializable value it injects
+ * verbatim (`JSON.stringify`) — the driver never inspects its shape (that is each Recipe's own
+ * `specShape.validate`'s job, `recipe/registry.ts`). `ProductionSpec | Record<string, unknown>` covers
+ * the wired Recipe's own concrete type; `| object` widens this to ANY other Recipe's Spec shape (e.g.
+ * the News Carousel Recipe's `NewsCarouselSpec`, issue #60 — a plain interface with no index signature,
+ * so it does not structurally satisfy `Record<string, unknown>` on its own).
+ */
+export type DriverSpecInput = ProductionSpec | Record<string, unknown> | object;
+
 // --- injectSpec (Fallback Protocol: natural-language edit into JSON Master + readback confirm) ------
 
 /**
  * Build the natural-language goal the in-canvas agent receives to inject the Spec. It names the target
  * node (`JSON Master`) and embeds the exact JSON to set, so the agent replaces the node's text contract.
  */
-export function injectGoal(spec: ProductionSpec | Record<string, unknown>): string {
+export function injectGoal(spec: DriverSpecInput): string {
   const json = JSON.stringify(spec);
   return `Replace the entire text content of the "${JSON_MASTER_NODE_NAME}" node with exactly this JSON: ${json}`;
 }
@@ -219,7 +253,7 @@ export function injectGoal(spec: ProductionSpec | Record<string, unknown>): stri
  */
 export async function injectSpec(
   port: SpaceMcpPort,
-  spec: ProductionSpec | Record<string, unknown>,
+  spec: DriverSpecInput,
   poll: PollOptions = {},
 ): Promise<InjectResult> {
   const before = nodeText(await port.readState(), JSON_MASTER_NODE_NAME);
@@ -364,7 +398,7 @@ export type DriveLegInput =
       readonly kind: "first";
       /** The gate this leg's run-point pauses at, or `null` for a gateless Recipe (runs straight through). */
       readonly targetGate: string | null;
-      readonly spec: ProductionSpec | Record<string, unknown>;
+      readonly spec: DriverSpecInput;
     }
   | {
       readonly kind: "resumed";
@@ -417,8 +451,10 @@ export function fallbackGoal(targetGate: string | null): string {
 /**
  * Resolve ONE leg's terminal run outcome: a PAUSED leg (`targetGate` non-null) surfaces the produced
  * creations as candidates for the Operator — failing `candidates_empty` rather than returning ok with
- * nothing to show (C36); a FINISHED leg (`targetGate === null`) resolves the single produced Asset
- * creation to its media URL.
+ * nothing to show (C36); a FINISHED leg (`targetGate === null`) resolves EVERY produced creation into
+ * `AssetResult.media` (the primary `assetId`/`assetUrl` is `media`'s first entry) — a single-media
+ * Recipe's render still yields exactly one, a multi-media Recipe's (e.g. the News Carousel) yields
+ * several, shared by both `driveToNextGate` and `driveSelectedRunPoints`.
  */
 async function finishLeg(
   port: SpaceMcpPort,
@@ -445,11 +481,23 @@ async function finishLeg(
   if (assetId === undefined) {
     return { ok: false, error: err("run_failed", "the final run produced no Asset creation") };
   }
-  const assetUrl = await fetchAsset(port, assetId);
-  if (assetUrl === null) {
+  // Resolve EVERY produced creation in ONE port call, not just the first — a multi-media Recipe (e.g.
+  // the News Carousel, issue #60) finishes with SEVERAL creations in one leg; a single-media Recipe's
+  // render still yields exactly one, so `media` degrades to a one-element array there (never a
+  // behavior change for the wired Recipe — `media[0]` always equals `{identifier: assetId, url:
+  // assetUrl}`). `assetUrl` is derived from `media` rather than a separate `fetchAsset` call, so the
+  // primary creation is never resolved twice.
+  const media = await fetchCast(port, creationIds);
+  if (media.length === 0) {
+    return { ok: false, error: err("run_failed", "the finished run's creation ids resolved to no media") };
+  }
+  const assetUrl = media.find((m) => m.identifier === assetId)?.url;
+  if (assetUrl === undefined) {
     return { ok: false, error: err("run_failed", "the finished Asset creation has no media URL") };
   }
-  const asset: AssetResult = pick !== undefined ? { pick, assetId, assetUrl } : { assetId, assetUrl };
+  const asset: AssetResult = pick !== undefined
+    ? { pick, assetId, assetUrl, media }
+    : { assetId, assetUrl, media };
   return { ok: true, outcome: { kind: "finished", asset, usedFallback } };
 }
 
@@ -545,4 +593,73 @@ export async function driveToNextGate(
 
   const pick = input.kind === "resumed" ? input.pick : undefined;
   return finishLeg(port, input.targetGate, run.outcome.creationIds, pick, false);
+}
+
+// ====================================================================================================
+// === driveSelectedRunPoints — a caller-selected, always-gateless multi-run-point leg (issue #60) ======
+// ====================================================================================================
+
+/**
+ * Drive an ORDERED, CALLER-SELECTED list of run-point NAMES in one gateless leg, collecting every
+ * creation each one produces into the finished Asset's `media` list (ADR-0010).
+ *
+ * This exists for a Recipe whose Production Spec ITSELF determines which of a Space's SEVERAL parallel,
+ * always-gateless run-points to drive for a given Idea — the News Carousel Recipe (issue #60): a Space
+ * with SEVEN physical slide pipelines, of which one Idea's Spec uses only 5-7
+ * (`production-spec/news-carousel-contract.ts`'s `slideRunPointNames`). `driveToNextGate` cannot express
+ * this: it resolves run-points by GATE NAME from the Recipe's own declared gate structure, and every one
+ * of these run-points shares the SAME gate (`null`) — there is no gate-name distinction to walk by. This
+ * primitive is the Spec-driven alternative for exactly that shape, built from the SAME low-level
+ * primitives (`injectSpec`, `runRunPoint`, the shared `finishLeg`) so its behavior — polling, the
+ * `{assetId, assetUrl, media}` result shape, `candidates_empty`-style empty-media guarding — stays
+ * identical to `driveToNextGate`'s.
+ *
+ * It injects the Spec ONCE, then runs each NAMED run-point downstream in order — one at a time, never in
+ * parallel (the single attended Operator, ADR-0008) — accumulating every produced creation id. A name
+ * that cannot be resolved from the parsed Execution Protocol, or a run that fails, stops the WHOLE leg
+ * immediately (no partial/best-effort result) and returns that failure; run-points AFTER the failing one
+ * are never started. There is deliberately NO Fallback-Protocol in-canvas-agent recovery here (that
+ * recovery is scoped to a Recipe's single FIRST leg in `driveToNextGate`, ADR-0003) — a Recipe using this
+ * primitive is expected to declare stable, uniquely-named run-points instead.
+ *
+ * The driver never publishes: the finished leg surfaces the Asset (with its full `media` list) for a
+ * human to publish and stops (generate-never-publish).
+ */
+export async function driveSelectedRunPoints(
+  port: SpaceMcpPort,
+  spaceState: SpaceStateLike,
+  spec: DriverSpecInput,
+  runPointNames: readonly string[],
+  poll: PollOptions = {},
+): Promise<DriveToNextGateResult> {
+  if (runPointNames.length === 0) {
+    return { ok: false, error: err("run_failed", "no run-point names were given to drive") };
+  }
+
+  const injected = await injectSpec(port, spec, poll);
+  if (!injected.ok) {
+    return { ok: false, error: injected.error };
+  }
+
+  const parsed = parse(spaceState);
+  const creationIds: string[] = [];
+  for (const name of runPointNames) {
+    const runPoint = parsed.ok ? parsed.runPoints.find((rp) => rp.start_name === name) ?? null : null;
+    if (runPoint === null) {
+      return {
+        ok: false,
+        error: err(
+          "run_point_unresolved",
+          `Could not resolve the run-point named ${JSON.stringify(name)} from the Execution Protocol.`,
+        ),
+      };
+    }
+    const run = await runRunPoint(port, runPoint.start_node_id, DOWNSTREAM_MODE, poll);
+    if (!run.ok) {
+      return { ok: false, error: run.error };
+    }
+    creationIds.push(...run.outcome.creationIds);
+  }
+
+  return finishLeg(port, null, creationIds, undefined, false);
 }

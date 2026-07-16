@@ -12,6 +12,7 @@ import {
   parseCastCandidate,
   parseCastArray,
   parseCopy,
+  parseAssetUrls,
   parseAssetRecord,
   parseAssetsArray,
   findAsset,
@@ -21,6 +22,7 @@ import {
   ideaAtGate,
   ideaHasAssetStatus,
   pendingGateNames,
+  assetMediaUrls,
   type LedgerAssetRecord,
 } from "./asset.ts";
 
@@ -126,6 +128,27 @@ describe("parseCopy — structured Copy, defensive (ADR-0012, issue #58)", () =>
 // parseAssetRecord / parseAssetsArray
 // ---------------------------------------------------------------------------
 
+describe("parseAssetUrls — a multi-media Recipe's ordered image list (issue #60)", () => {
+  it("parses a non-empty array of non-empty strings, preserving order", () => {
+    const urls = ["https://x/slide-1.png", "https://x/slide-2.png", "https://x/slide-3.png"];
+    assert.deepEqual(parseAssetUrls(urls), urls);
+  });
+
+  it("returns null for an empty array (never presented as a valid multi-media Asset)", () => {
+    assert.equal(parseAssetUrls([]), null);
+  });
+
+  it("returns null when any entry is not a non-empty string", () => {
+    assert.equal(parseAssetUrls(["https://x/1.png", ""]), null);
+    assert.equal(parseAssetUrls(["https://x/1.png", 42]), null);
+  });
+
+  it("returns null for non-array/absent input", () => {
+    assert.equal(parseAssetUrls(undefined), null);
+    assert.equal(parseAssetUrls("https://x/1.png"), null);
+  });
+});
+
 describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
   it("requires a non-empty recipe and a valid AssetStatus", () => {
     assert.equal(parseAssetRecord({ recipe: "", status: "queued" }), null);
@@ -168,6 +191,29 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       character: 42,
     });
     assert.deepEqual(a, { recipe: "r", status: "produced" });
+  });
+
+  it("parses a multi-media Recipe's asset_urls (issue #60), never populating asset_url alongside it", () => {
+    const raw = {
+      recipe: "news-carousel",
+      status: "produced",
+      asset_urls: [
+        "https://x/slide-1.png",
+        "https://x/slide-2.png",
+        "https://x/slide-3.png",
+        "https://x/slide-4.png",
+        "https://x/slide-5.png",
+      ],
+      produced_at: "2026-07-16T12:00:00.000Z",
+    };
+    const a = parseAssetRecord(raw);
+    assert.deepEqual(a, raw);
+    assert.equal(a?.asset_url, undefined);
+  });
+
+  it("drops an empty asset_urls array rather than presenting a garbled multi-media Asset", () => {
+    const a = parseAssetRecord({ recipe: "news-carousel", status: "produced", asset_urls: [] });
+    assert.deepEqual(a, { recipe: "news-carousel", status: "produced" });
   });
 });
 
@@ -352,5 +398,22 @@ describe("pendingGateNames — the set of gate names currently paused across an 
   it("returns [] when nothing is paused", () => {
     assert.deepEqual(pendingGateNames([{ recipe: "r1", status: "queued" }]), []);
     assert.deepEqual(pendingGateNames([]), []);
+  });
+});
+
+describe("assetMediaUrls — every media URL an Asset has, regardless of shape (issue #60)", () => {
+  it("returns [asset_url] for a single-media Asset", () => {
+    const asset: LedgerAssetRecord = { recipe: "character-explainer-with-cast", status: "produced", asset_url: "https://x/asset.mp4" };
+    assert.deepEqual(assetMediaUrls(asset), ["https://x/asset.mp4"]);
+  });
+
+  it("returns asset_urls, in order, for a multi-media Asset", () => {
+    const urls = ["https://x/slide-1.png", "https://x/slide-2.png"];
+    const asset: LedgerAssetRecord = { recipe: "news-carousel", status: "produced", asset_urls: urls };
+    assert.deepEqual(assetMediaUrls(asset), urls);
+  });
+
+  it("returns [] for an Asset with neither (not yet produced)", () => {
+    assert.deepEqual(assetMediaUrls({ recipe: "news-carousel", status: "queued" }), []);
   });
 });

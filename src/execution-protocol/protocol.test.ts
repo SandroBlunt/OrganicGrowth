@@ -5,6 +5,8 @@ import {
   PROTOCOL_SIZE_BUDGET,
   PRODUCER_PROTOCOL_NODE_NAME,
   canonicalProtocol,
+  canonicalCarouselProtocol,
+  carouselSlideRunPointName,
   serializeProtocol,
 } from "./protocol.ts";
 
@@ -58,5 +60,48 @@ describe("canonical Producer Protocol — read-API round-trip (Spike 3)", () => 
 describe("Producer Protocol node name", () => {
   it("is the agreed canvas node name", () => {
     assert.equal(PRODUCER_PROTOCOL_NODE_NAME, "Producer Protocol");
+  });
+});
+
+// === canonicalCarouselProtocol — the News Carousel Recipe's Space (issue #60) =========================
+
+describe("canonical carousel Producer Protocol — content", () => {
+  it("has SEVEN run-points, one per slide pipeline, named 'Image Prompt Slide N' in order", () => {
+    const rp = canonicalCarouselProtocol().run_points;
+    assert.equal(rp.length, 7);
+    for (let i = 0; i < 7; i += 1) {
+      assert.equal(rp[i]!.start, `Image Prompt Slide ${i + 1}`);
+      assert.equal(rp[i]!.start, carouselSlideRunPointName(i + 1));
+    }
+  });
+
+  it("every run-point has NO gate — the News Carousel Recipe is zero-gate (Operator-confirmed)", () => {
+    for (const p of canonicalCarouselProtocol().run_points) {
+      assert.equal(p.gate, null);
+    }
+  });
+
+  it("drives every run-point downstream", () => {
+    for (const p of canonicalCarouselProtocol().run_points) {
+      assert.equal(p.mode, "downstream");
+    }
+  });
+
+  it("references nodes only by name — never by a hard-coded node ID", () => {
+    const json = serializeProtocol(canonicalCarouselProtocol());
+    assert.ok(!/node-[0-9a-f]/i.test(json), "protocol must not embed node IDs");
+    assert.match(json, /Image Prompt Slide 1/);
+    assert.match(json, /Image Prompt Slide 7/);
+  });
+});
+
+describe("canonical carousel Producer Protocol — read-API round-trip (Spike 3)", () => {
+  it("serializes comfortably under the ~1,900-char read cap (no truncation), even with 7 run-points", () => {
+    const size = serializeProtocol(canonicalCarouselProtocol()).length;
+    assert.ok(
+      size <= PROTOCOL_SIZE_BUDGET,
+      `serialized carousel protocol is ${size} chars; must be <= ${PROTOCOL_SIZE_BUDGET}`,
+    );
+    assert.ok(size < READ_API_TRUNCATION_CAP);
   });
 });

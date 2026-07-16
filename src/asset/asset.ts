@@ -31,6 +31,12 @@
  * `copy` is STRUCTURED (`src/copy/contract.ts`'s `Copy` — `{ caption, hashtags }`), not a bare string
  * (ADR-0012, issue #58): the composed Copy step stores its full result here, and the Publish gate
  * surfaces it verbatim.
+ *
+ * `asset_url` vs `asset_urls` (issue #60): a Recipe's Asset is EITHER one file OR several — the wired
+ * *Character Explainer with Cast* Recipe's Asset is a single Reel (`asset_url`); the *News Carousel*
+ * Recipe's Asset is SEVERAL images, one per slide, in order (`asset_urls`). An Asset carries ONE of the
+ * two, never both — `assetMediaUrls` below is the read-side accessor a caller uses when it just wants
+ * "every media URL this Asset has", regardless of which Recipe produced it.
  */
 
 import type { Copy } from "../copy/contract.ts";
@@ -82,7 +88,12 @@ export interface LedgerAssetRecord {
   readonly cast?: readonly LedgerCastCandidate[];
   /** Recipe-local: the *Character Explainer with Cast* Recipe's picked Character. */
   readonly character?: string;
+  /** A single-media Recipe's ONE finished file (e.g. the wired Recipe's Reel). Never set alongside
+   *  `asset_urls` on the same Asset. */
   readonly asset_url?: string;
+  /** A multi-media Recipe's ORDERED list of finished files (e.g. the News Carousel Recipe's slide
+   *  images, index 0 = slide 1). Never set alongside `asset_url` on the same Asset. */
+  readonly asset_urls?: readonly string[];
   readonly produced_at?: string;
   readonly post_url?: string;
   readonly posted_at?: string;
@@ -163,6 +174,19 @@ export function parseCopy(raw: unknown): Copy | null {
 }
 
 /**
+ * Parse a raw `asset_urls` array (a multi-media Recipe's ordered image list, issue #60). Returns `null`
+ * unless it is a non-empty array of non-empty strings — a malformed/empty list degrades to "absent"
+ * rather than a partially-garbled array, mirroring `parseCopy`'s "required-or-absent" discipline for a
+ * field that (unlike `cast`) has no sensible "some entries dropped" partial state: a carousel Asset
+ * missing even one slide's URL is not safely presentable as "the Asset". Never throws.
+ */
+export function parseAssetUrls(raw: unknown): string[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  if (!raw.every(nonEmptyString)) return null;
+  return [...raw];
+}
+
+/**
  * Parse one raw Asset record. Requires a non-empty `recipe` and a valid `status`; every other field
  * is included ONLY when present and well-typed (never assigned as `undefined` — keeps the result
  * clean under `exactOptionalPropertyTypes`). Returns `null` on a malformed required field — never
@@ -175,6 +199,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
 
   const cast = parseCastArray(raw.cast);
   const copy = parseCopy(raw.copy);
+  const assetUrls = parseAssetUrls(raw.asset_urls);
 
   return {
     recipe: raw.recipe,
@@ -185,6 +210,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
     ...(cast.length > 0 ? { cast } : {}),
     ...(nonEmptyString(raw.character) ? { character: raw.character } : {}),
     ...(nonEmptyString(raw.asset_url) ? { asset_url: raw.asset_url } : {}),
+    ...(assetUrls !== null ? { asset_urls: assetUrls } : {}),
     ...(nonEmptyString(raw.produced_at) ? { produced_at: raw.produced_at } : {}),
     ...(nonEmptyString(raw.post_url) ? { post_url: raw.post_url } : {}),
     ...(nonEmptyString(raw.posted_at) ? { posted_at: raw.posted_at } : {}),
@@ -286,4 +312,17 @@ export function pendingGateNames(assets: readonly LedgerAssetRecord[]): readonly
     }
   }
   return names;
+}
+
+/**
+ * Every media URL an Asset has, regardless of whether it is a single-media Recipe's `asset_url` or a
+ * multi-media Recipe's `asset_urls` (issue #60) — the read-side accessor a caller uses when it just
+ * wants "the finished file(s)" without knowing which Recipe produced them. Prefers `asset_urls` when
+ * both are somehow present (never expected — see `LedgerAssetRecord`'s own doc). Returns `[]` when the
+ * Asset has neither (not yet produced).
+ */
+export function assetMediaUrls(asset: LedgerAssetRecord): readonly string[] {
+  if (asset.asset_urls !== undefined) return asset.asset_urls;
+  if (asset.asset_url !== undefined) return [asset.asset_url];
+  return [];
 }

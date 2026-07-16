@@ -10,26 +10,32 @@
  * ever offered to the Operator (issue #54 AC4) — an unwired Recipe (a slug not in `REGISTRY`, e.g. a
  * stray value in a Format's `default_recipes`) is never surfaced at Review.
  *
- * --- Seeded with exactly ONE entry, reproducing today's wired path UNCHANGED ---
+ * --- Seeded entry #1: "Character Explainer with Cast", reproducing today's wired path UNCHANGED ---
  *
  * "Character Explainer with Cast" wraps today's existing Production-Spec contract
  * (`production-spec/contract.ts` + `validate.ts`), Execution Protocol (`canonicalProtocol()`), and
- * cast/clip gates BYTE-FOR-BYTE — this slice makes ZERO behaviour change to the wired production
+ * cast/clip gates BYTE-FOR-BYTE — issue #54 made ZERO behaviour change to the wired production
  * path. The registry entry below does not duplicate any of that logic: it REFERENCES the same
  * exported constants/functions those modules already use (`validateProductionSpec`,
  * `JSON_MASTER_NODE_NAME`, `CHARACTER_NODE_NAME`, `canonicalProtocol()`), so there is no risk of the
- * registry's description drifting from what the driver/validator actually do. `driver.ts`,
- * `contract.ts`, `validate.ts`, `protocol.ts`, and `parse.ts` are NOT modified by this slice — the
- * generic run-until-gate driver that would actually SOURCE its behavior from a Recipe (rather than
- * merely being describable by one) is issue #57.
+ * registry's description drifting from what the driver/validator actually do.
  *
  * The Space `id` this Recipe targets ("Organic Character Explainer") is verified in
  * `docs/producer-spikes-results.md` and the live capture at
  * `src/space-driver/fixtures/live-captures/README.md`; it is also (today) configured per-Brand at
  * `brand-profile.yaml`'s `production.space_id` (read by the attended `producer` agent) — ADR-0013
  * intends the Recipe to become the single source of truth for Space targeting, but re-pointing
- * `producer.md` at the registry is deferred (untestable without the live Space; not part of this
- * slice's zero-behaviour-change bar).
+ * `producer.md` at the registry is deferred (untestable without the live Space).
+ *
+ * --- Seeded entry #2: "News Carousel" — the SECOND Recipe, proving the machinery generic (issue #60) ---
+ *
+ * A zero-gate Instagram news carousel driven by the "AI News" Space's "Viral News Pipeline" cluster: it
+ * injects an ordered slide list, renders each present slide's image, and finishes straight through — no
+ * pause. It exercises a gate COUNT different from the wired Recipe (zero vs one) and a MEDIA shape
+ * different from the wired Recipe (several images vs one Reel) end-to-end against
+ * `driveSelectedRunPoints` (`space-driver/driver.ts`). Its Space/node names are the Operator's own
+ * canonical naming pass over the real, captured board (issue #60's pre-tidy dump,
+ * `space-driver/fixtures/live-captures-ai-news/`).
  */
 
 import {
@@ -41,8 +47,10 @@ import {
   REQUIRED_CLIPS,
   REQUIRED_THUMBNAILS,
 } from "../production-spec/contract.ts";
+import { validateNewsCarouselSpec } from "../production-spec/news-carousel-validate.ts";
+import { TOTAL_SLIDE_PIPELINES, MIN_SLIDES, MAX_SLIDES } from "../production-spec/news-carousel-contract.ts";
 import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME } from "../space-driver/driver.ts";
-import { canonicalProtocol } from "../execution-protocol/protocol.ts";
+import { canonicalProtocol, canonicalCarouselProtocol } from "../execution-protocol/protocol.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,16 +66,33 @@ export interface RecipeSpaceTarget {
   readonly nodes: RecipeSpaceNodes;
 }
 
-/** The on-canvas node names a Recipe's Space steps reference, by name (never a raw node id). */
+/**
+ * The on-canvas node names a Recipe's Space steps reference, by name (never a raw node id). Every field
+ * beyond `specInput` is OPTIONAL (issue #60): the wired *Character Explainer with Cast* Recipe (one
+ * gate, a single-run-point cast leg + a single-run-point render leg) sets `pinnedReference`/
+ * `castRunPoint`/`clipRunPoint`; the zero-gate *News Carousel* Recipe (several parallel, Spec-selected
+ * run-points, no pick to pin) sets `slideRunPoints` instead. A Recipe sets ONLY the fields its own
+ * shape needs — never all of them.
+ */
 export interface RecipeSpaceNodes {
   /** The Spec-input text node the Producer injects the Production Spec into (Fallback Protocol). */
   readonly specInput: string;
-  /** The pinned-reference creation node the Operator's gate pick is re-pinned to. */
-  readonly pinnedReference: string;
-  /** The Execution Protocol run-point that renders this Recipe's FIRST gate's candidates. */
-  readonly castRunPoint: string;
-  /** The Execution Protocol run-point that renders the final Asset (no gate follows it). */
-  readonly clipRunPoint: string;
+  /** The pinned-reference creation node the Operator's gate pick is re-pinned to. Present only for a
+   *  Recipe with at least one pick-gate. */
+  readonly pinnedReference?: string;
+  /** The Execution Protocol run-point that renders this Recipe's FIRST gate's candidates. Present only
+   *  for a Recipe whose first leg targets a declared gate. */
+  readonly castRunPoint?: string;
+  /** The Execution Protocol run-point that renders the final Asset (no gate follows it). Present only
+   *  for a Recipe with a SINGLE final-render run-point. */
+  readonly clipRunPoint?: string;
+  /**
+   * The ordered, FULL-BOARD run-point names for a Recipe whose media renders via SEVERAL parallel,
+   * Spec-selected run-points (e.g. one image generator per carousel slide — `driveSelectedRunPoints`,
+   * `space-driver/driver.ts`). The Recipe/driver drives only the SUBSET a given Idea's Spec needs
+   * (`production-spec/news-carousel-contract.ts`'s `slideRunPointNames`), never this full fixed list.
+   */
+  readonly slideRunPoints?: readonly string[];
 }
 
 /** A Recipe's declared Production-Spec shape: a human description plus the validator that enforces it. */
@@ -187,12 +212,95 @@ const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
 };
 
 // ---------------------------------------------------------------------------
+// The second seeded Recipe: "News Carousel" (issue #60)
+// ---------------------------------------------------------------------------
+
+/**
+ * The live Space this Recipe drives — "AI News" (its "Viral News Pipeline" cluster). Confirmed by the
+ * Operator (HITL pairing, issue #60) and captured pre-tidy at
+ * `space-driver/fixtures/live-captures-ai-news/00-spaces_state.pre-tidy.txt`. Brand-agnostic, like the
+ * wired Recipe's Space — kept as a local constant, not a fixture.
+ */
+const NEWS_CAROUSEL_SPACE_ID = "a2402c48-b688-436b-8cb6-23a4aad7822e";
+
+/**
+ * The News Carousel Recipe's OWN copy-shape params (ADR-0012), chosen for an Instagram NEWS carousel's
+ * editorial voice — deliberately DIFFERENT from the wired Recipe's 180/1-3 (a Reel caption): Instagram's
+ * hard caption cap is 2,200 characters, and a news-carousel caption reads as a short editorial summary +
+ * hashtags rather than a punchy Reel hook, so it is given far more room (`maxChars: 2200`). An
+ * editorial/news tone favours FEW or no emoji (`minEmojis: 0`) but still allows up to 2 — enough for a
+ * light editorial flourish without reading like marketing copy (`maxEmojis: 2`). These are proven, in
+ * `copy/validate.test.ts`/`copy/draft.test.ts` (issue #58), to be arbitrary caller-supplied bounds, not
+ * hard-coded constants — this Recipe simply supplies its OWN different values.
+ */
+const NEWS_CAROUSEL_COPY_MAX_CHARS = 2200;
+const NEWS_CAROUSEL_COPY_MIN_EMOJIS = 0;
+const NEWS_CAROUSEL_COPY_MAX_EMOJIS = 2;
+
+/**
+ * The News Carousel Recipe's run-point names, read from the SAME `canonicalCarouselProtocol()` this
+ * Recipe's Space actually runs (`execution-protocol/protocol.ts`) — never re-typed as independent string
+ * literals. This is the FULL seven-slide-pipeline list the canvas carries; `driveSelectedRunPoints`
+ * drives only the subset a given Idea's Spec needs (`slideRunPointNames`).
+ */
+const CAROUSEL_RUN_POINTS = canonicalCarouselProtocol().run_points.map((rp) => rp.start);
+if (CAROUSEL_RUN_POINTS.length !== TOTAL_SLIDE_PIPELINES) {
+  // Defensive: canonicalCarouselProtocol() is a static, committed, tested artifact — this can only fire
+  // if that artifact itself regresses (see the analogous guard above for the wired Recipe).
+  throw new Error(
+    "recipe/registry: canonicalCarouselProtocol() no longer has exactly TOTAL_SLIDE_PIPELINES " +
+      "run-points — the seeded News Carousel Recipe cannot describe its Space nodes.",
+  );
+}
+
+/**
+ * The second seeded Recipe (issue #60): a ZERO-gate Instagram news carousel. Proves the registry/driver
+ * machinery generic — a different gate count (zero vs the wired Recipe's one), a different Spec shape
+ * (an ordered slide list vs character concepts/clips/thumbnails), a different copy shape, and a
+ * different Space, all driven through the SAME generic engine (`driveSelectedRunPoints`, ADR-0010).
+ */
+const NEWS_CAROUSEL: Recipe = {
+  slug: "news-carousel",
+  name: "News Carousel",
+  description:
+    "A zero-gate Instagram news carousel: injects an ordered slide list (5-7 slides), renders each " +
+    "present slide's image via the 'AI News' Space's Viral News Pipeline, and finishes straight " +
+    "through — no human pick-gate (Operator-confirmed, issue #60).",
+  gates: [],
+  space: {
+    id: NEWS_CAROUSEL_SPACE_ID,
+    name: "AI News",
+    nodes: {
+      specInput: JSON_MASTER_NODE_NAME,
+      slideRunPoints: CAROUSEL_RUN_POINTS,
+    },
+  },
+  specShape: {
+    description:
+      `${MIN_SLIDES}-${MAX_SLIDES} slides, each { slide_index, image_prompt } (slide_index exactly ` +
+      "1..N, each once) — media instructions only, no post_copy (ADR-0012). " +
+      "See production-spec/news-carousel-contract.ts.",
+    validate: validateNewsCarouselSpec,
+  },
+  copyShape: {
+    description:
+      "Copy is composed OUT of the Space, separately, by the shared copy step (`src/copy/`) — an " +
+      "Instagram editorial caption of at most 2200 chars with 0-2 emojis, plus hashtags (ADR-0012). " +
+      "Deliberately DIFFERENT bounds from the wired Recipe's 180/1-3 — this Recipe's OWN params.",
+    maxChars: NEWS_CAROUSEL_COPY_MAX_CHARS,
+    minEmojis: NEWS_CAROUSEL_COPY_MIN_EMOJIS,
+    maxEmojis: NEWS_CAROUSEL_COPY_MAX_EMOJIS,
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Registry lookups
 // ---------------------------------------------------------------------------
 
-/** The full in-repo Recipe registry, keyed by slug. Seeded with exactly one entry (issue #54). */
+/** The full in-repo Recipe registry, keyed by slug. Seeded with TWO entries (issue #54, issue #60). */
 const REGISTRY: ReadonlyMap<string, Recipe> = new Map([
   [CHARACTER_EXPLAINER_WITH_CAST.slug, CHARACTER_EXPLAINER_WITH_CAST],
+  [NEWS_CAROUSEL.slug, NEWS_CAROUSEL],
 ]);
 
 /** Look up a Recipe by slug, or `null` if it is not (yet) wired/registered. Never throws. */

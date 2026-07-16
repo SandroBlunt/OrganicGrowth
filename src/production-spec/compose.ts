@@ -9,10 +9,18 @@
  * The gate upholds two always-rules in behavior:
  *   - brand-safety (rule 9 / PRD story 30): a banned word never survives into a saved Spec;
  *   - bad Specs never reach the Space (PRD story 4): a Spec that fails `validate()` is never written.
+ *
+ * --- Recipe-generic since issue #60 ---
+ *
+ * `options.validator` is injectable (defaults to the WIRED Recipe's `validate` — unchanged behavior for
+ * every existing caller). A different Recipe (e.g. the News Carousel, whose Spec shape is entirely
+ * different) supplies its OWN validator — typically `recipe.specShape.validate` (`recipe/registry.ts`)
+ * — alongside a matching `generator`; the gate above still enforces "no invalid/unsafe Spec ever
+ * reaches disk", now for ANY Recipe's own contract, not just the wired one's.
  */
 
 import { generate as defaultGenerate, type Brief } from "./generate.ts";
-import { validate, type ValidationError } from "./validate.ts";
+import { validate as defaultValidate, type ValidationError, type ValidationResult } from "./validate.ts";
 import { scanForBannedWords, type BannedWordHit } from "./brand-safety.ts";
 import { loadBannedWords } from "./brand-profile.ts";
 import { saveSpec, specPathFor } from "./store.ts";
@@ -46,8 +54,13 @@ export interface ComposeOptions {
    *  saved path so a second Recipe of the same Idea does not overwrite this one's Spec. Never
    *  defaulted: the caller (the Operator's Review-time Recipe selection) always knows it explicitly. */
   readonly recipe: string;
-  /** Injectable generator (defaults to the deterministic composer); enables fault-injection tests. */
-  readonly generator?: (brief: Brief) => ProductionSpec | Record<string, unknown>;
+  /** Injectable generator (defaults to the WIRED Recipe's deterministic composer); enables
+   *  fault-injection tests AND a different Recipe's own Spec shape (`| object` widens beyond
+   *  `Record<string, unknown>` for a plain interface like `NewsCarouselSpec` — issue #60). */
+  readonly generator?: (brief: Brief) => ProductionSpec | Record<string, unknown> | object;
+  /** Injectable validator (defaults to the WIRED Recipe's `validate`) — a different Recipe supplies its
+   *  OWN spec-shape validator (typically `recipe.specShape.validate`, `recipe/registry.ts`; issue #60). */
+  readonly validator?: (spec: unknown) => ValidationResult;
 }
 
 /**
@@ -64,6 +77,7 @@ export async function composeSpec(
   const ideasRoot = options.ideasRoot;
   const brandProfilePath = options.brandProfilePath;
   const generate = options.generator ?? defaultGenerate;
+  const validate = options.validator ?? defaultValidate;
   const path = specPathFor(brief.id, brief.run, ideasRoot, options.recipe);
 
   const spec = generate(brief);
