@@ -46,7 +46,9 @@ The `steps` use these `action` types:
   wait until its `wait_for` nodes have finished generating.
 - `gate` — PAUSE for the Operator (`gate: "cast"` → the Cast gate; return the cast images).
 - `replace_image` — set a node's image (e.g. the chosen Character into `Selected Character`).
-- `replace_text` — edit a node's text (e.g. swap only the `@handle` in `Watermark instructions`).
+- `replace_text` — edit a node's text (e.g. swap only the `@handle` in `Watermark instructions`). The
+  `@handle` watermark is a parameter **inside the Space**, its value inherited from the Brand
+  (`production.watermark_handle`) — it is **not** part of the Asset's Copy (ADR-0012).
 
 ## How you drive a step (run API + Fallback Protocol — ADR-0003)
 - **`run` steps** go through the run API: `spaces_run(startNodeId, mode)` → poll `spaces_run_status`

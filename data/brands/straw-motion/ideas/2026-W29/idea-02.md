@@ -3,7 +3,7 @@
 - **Brand:** straw-motion
 - **Run:** 2026-W29
 - **Rides trend:** trend-02 — GPT-5.6 goes fully live for everyone
-- **Format:** reel (No-Hype News)
+- **Format:** reel (Unhypped News)
 - **Fit Score:** 0.70
 
 ## Angle
@@ -24,7 +24,7 @@ hype or not?" — so the viewer stays for the honest verdict rather than the mar
 - Close on a grounded verdict: upgrade worth trying, or hype to ignore.
 
 ## Suggested hashtags (optional)
-#GPT5 #OpenAI #AInews #AItools #NoHypeAI
+#GPT5 #OpenAI #AInews #AItools #UnhyppedNews
 
 ## Source(s)
 - OpenAI's own X post (announcement): https://twitter.com/OpenAI/status/2074704958419792299

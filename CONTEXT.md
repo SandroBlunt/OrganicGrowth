@@ -1,8 +1,8 @@
 # OrganicGrowth
 
 OrganicGrowth is an organic-social **intelligence + production** system for **Facebook, Instagram, or
-LinkedIn** (Facebook-first today): it finds trending themes, turns the strongest into brand-fit **Ideas**, renders each accepted
-Idea into a publish-ready **Asset** via a Magnific flow, and tracks how the resulting posts perform —
+LinkedIn** (Facebook-first today): it finds trending themes, turns the strongest into brand-fit **Ideas**, produces each accepted
+Idea through one or more **Recipes** — each rendering a publish-ready **Asset** via a Magnific **Space** — and tracks how the resulting posts perform —
 feeding real performance back so the next round of ideas is sharper. It **generates the Asset but
 never publishes**: a human reviews, publishes the Reel/Post to the Channel, and logs the URL. The
 human gate moved from *creation* to *publication* — it was never removed (see ADR-0002).
@@ -29,6 +29,16 @@ The single account/Page a **Brand** publishes to and grows (e.g. "MundoTip"), on
 The "us" that a Brand's Profile and Relevance describe.
 _Avoid_: profile, handle.
 
+**Format** (a Brand's editorial line):
+The recurring editorial identity a **Brand** publishes under — its subject **and** treatment (e.g. Straw
+Motion's **"Unhypped News"**: AI/tech news explained in-depth, in plain terms). A Format sits **above
+Ideas** and holds many of them; a Brand may run one or several. It shapes what its Ideas are about and
+how their copy reads. It **owns** its voice/treatment, its trend sources, and its peer-vs-curated mode —
+so one Brand can run several Formats with different voices (ADR-0013). It carries the **default Recipes** its Ideas are produced through (the Operator
+confirms or trims them at Review). Distinct from a **Recipe** (how the media is made): the bare word "format" used to
+mean both — it now means **only** the editorial line.
+_Avoid_: series, show, content pillar; and — critically — the *production/media* sense (that is a **Recipe**).
+
 **Operator**:
 The single human-in-the-loop who runs OrganicGrowth — sets the weekly Trend Research parameters, reviews
 and rejects Ideas (with reasons), creates the content, and logs the Post URLs.
@@ -48,9 +58,10 @@ scrapes Trends and idea-strategist turns the strongest into suggested Ideas for 
 _Avoid_: batch, job.
 
 **Idea** (canonical; the keystone output):
-A brand-fit content concept derived from a Trend — angle, suggested format (Reel/photo), a hook
-*concept*, talking points, a hashtag set, and a predicted Fit Score — handed to a human to execute.
-Stops short of finished copy.
+A brand-fit content concept derived from a Trend and belonging to one of the Brand's **Formats** —
+angle, a hook *concept*, talking points, a hashtag set, and a predicted Fit Score — handed to a human to
+execute. The Operator produces it through **one or more Recipes** (each making an **Asset**). Stops short
+of finished copy.
 _Avoid_: draft, post, content piece (those imply finished/published work).
 
 **Brief**:
@@ -58,8 +69,10 @@ The rendered, human-readable form of an Idea (what the human actually receives).
 Idea, viewed as a deliverable.
 
 **Review**:
-The Operator's curation pass over a Run's suggested Ideas — accepting some, rejecting others with a
-Rejection Reason. Done conversationally; the gate between a `suggested` and an `accepted` Idea.
+The Operator's curation pass over a Run's suggested Ideas — accepting some (and choosing the **Recipes**
+each is produced through, pre-filled from the Format), rejecting others with a Rejection Reason. Done
+conversationally; the gate between a `suggested` and an `accepted` Idea. Accepting enqueues **one
+production job per chosen Recipe**.
 _Avoid_: approval (it's richer — rejection carries feedback).
 
 **Rejection Reason**:
@@ -69,52 +82,78 @@ suggestions is a deferred decision.
 _Avoid_: note, comment.
 
 **Production Spec**:
-The strict, schema'd JSON the **Producer** generates from an accepted Idea to drive the Space's
-**"JSON master"** input node: 3 `character_concepts`, exactly 3 narrative `clips` (each with
-`image_prompt` + `video_prompt`), and top-level `post_copy` (≤180 chars, 1–3 emojis) and 3
-`thumbnails` — all bound by the Space's style guide (Pixar 3D, anthropomorphic character, ~8s clips,
-9:16). The Space's flow — never the Spec — selects the actual image and video **models** (default =
-whatever the Space is set to; the Operator overrides in the Space, see `docs/adr/0007`). The
-machine-readable sibling of a **Brief**.
+The strict, schema'd JSON the **Producer** generates from an accepted Idea to feed a **Recipe**'s Space
+media input — **the media instructions only**. Its **shape is per-Recipe** (the *Character Explainer with
+Cast* Recipe's is 3 `character_concepts` + 3 narrative `clips` with `image_prompt` + `video_prompt` + 3
+`thumbnails`, bound by that Space's style guide). **Copy is no longer in the Spec** — it is composed
+separately (see **Copy**; ADR-0012). The Space's flow — never the Spec — selects the actual image/video
+**models** (`docs/adr/0007`). The machine-readable, media-only sibling of a **Brief**.
 _Avoid_: prompt, payload, config (it's the Space's input *contract*).
 
-**Cast**:
-The set of candidate character images the **Producer** renders from a **Production Spec**'s
-`character_concepts` and returns to the **Operator** to choose from — a second human gate, *inside*
-production (the first being **Review**).
+**Cast** (the *Character Explainer with Cast* Recipe's pick):
+The set of candidate character images **that Recipe** renders from its **Production Spec**'s
+`character_concepts` and returns to the **Operator** to choose from. It is **one Recipe's** pick-gate —
+an *example* of a Recipe gate, not a universal step: other Recipes declare their own gates, or none.
 _Avoid_: characters, variants, options.
 
-**Character** (the lead):
+**Character** (the *Character Explainer with Cast* Recipe's lead):
 The single **Cast** member the **Operator** selects; pinned in the Space as the visual reference every
-clip and thumbnail is rendered against. The Producer resumes only once it is set.
+clip and thumbnail is rendered against. **Local to that Recipe** — another Recipe has no Character. The
+Producer resumes only once it is set.
 _Avoid_: cast (the Cast is the set, the Character is the chosen one), actor.
 
 **Asset**:
-The publish-ready media (image/Reel) the **Producer** renders from an accepted Idea by feeding a
-**Production Spec** into a pre-defined **Magnific Space** and running it. It exists but is **not
-yet published** — the Operator reviews it and publishes it. One Idea yields at most one Asset.
+The publish-ready deliverable a **Recipe** produces from an accepted Idea: the **media** (the Space's
+Reel / image / carousel) **plus its tailored Copy** (caption, hashtags, mentions, CTA). It exists but is
+**not yet published** — the Operator reviews it and publishes it. An Idea yields **one Asset per Recipe**
+the Operator runs — several Assets if several Recipes are chosen.
 _Avoid_: draft, content, creative, Creation (Magnific's own word), post (a Post is *published*).
 
-**Space** (Magnific Space; a production format):
-A pre-defined Magnific pipeline that renders one **organic content format** — a UGC-style video, an
-image carousel, a Pixar-3D character Reel, etc. A Space is **brand-agnostic**: any **Brand** can render
-through it. Spaces are the shared, **format-keyed** half of OrganicGrowth; the per-Brand half is
-research and idea generation. Each Space carries its own input contract (the **Production Spec** shape)
-and its own **Execution Protocol**; today one Space (the 9:16 character Reel) is wired.
-_Avoid_: flow, template, pipeline (the Space *is* the pipeline).
+**Copy** (a.k.a. Post Copy):
+The tailored text that ships with one **Asset** — caption, hashtags, mentions, CTA. A **Recipe**'s
+**copy step** composes it from the **Format**'s voice, the **Brand**'s hard rules (required CTA / hashtags,
+banned words), and the **Idea**'s material, in the *shape* the Recipe's medium needs (a Reel caption vs a
+carousel's per-card lines). **One per Asset/Post**, and **not** the Space's job — the Space makes media
+only. (The watermark @handle is **not** copy — it is a Space parameter, its value inherited from the
+Brand; ADR-0012.) A single shared, parameterized step produces it; before this change it was a dropped,
+single-line template.
+_Avoid_: caption (that is only one part), post_copy (the old single throwaway field).
+
+**Space** (Magnific Space; the media engine):
+A pre-defined Magnific pipeline that generates the **media** a **Recipe** needs — a UGC-style video, an
+image carousel, a Pixar-3D character Reel. A Space is **brand-agnostic**: any **Brand** can render
+through it. A Space makes **media only** — it does **not** write the post's copy (that is the Recipe's
+copy step). A **Recipe** drives one (or more) Spaces; each Space carries its own input contract (the
+**Production Spec** shape) and its own **Execution Protocol**. Today one Space (the 9:16 character Reel)
+is wired.
+_Avoid_: flow, template, pipeline (the Space *is* the pipeline); format (a Space is the media engine
+inside a **Recipe**, not the editorial **Format**).
+
+**Recipe** (a production plan; the shared unit of *making*):
+The plan that turns one **Idea** into one **Asset** — which **Space** (or tools) generates the media, the
+ordered steps to drive it, any human **pick-gate**, and the **copy step** that tailors the post's
+caption / hashtags / mentions for this kind of content. A Recipe is **defined in OrganicGrowth's repo** — it names the
+Space(s) and reads each Space's on-canvas run-points for the media, but owns the gates, the copy, and the
+spec shape itself (ADR-0010). The **Operator picks one or many** Recipes per
+Idea (a Reel, a carousel, a meme…); each yields its own Asset → Post. A Recipe is **brand-agnostic** and
+shared — the per-Brand halves are the **Format** and idea generation. Today one Recipe is wired —
+**Character Explainer with Cast** (cast → pick the **Character** → render).
+_Avoid_: format (that is the editorial line), template, pipeline (a Space is a pipeline; a Recipe wraps
+one), media output (that is the Recipe's *result*, not the plan).
 
 **Producer**:
-The agent that renders an accepted **Idea/Brief** into an **Asset** by driving a pre-defined Magnific
-Space. It is a **thin, self-configuring runner**: it reads the Space's own generation contract (its
-system prompt) and its **Execution Protocol** from the canvas, then executes. It **generates, never
-publishes**.
+The agent that renders an accepted **Idea** into its **Assets** by running each chosen **Recipe** — for
+each: driving the Recipe's **Space(s)** for the media (following the Space's on-canvas **Execution
+Protocol**), pausing at the Recipe's **gates**, and running its **copy step**. A thin runner configured by
+the in-repo **Recipe**. It **generates, never publishes**.
 _Avoid_: generator, studio, creator.
 
 **Execution Protocol**:
-The ordered set of run-points (which node to run, in which mode, and where the human **gates** are)
-that tells the **Producer** how to drive a Space end-to-end. It lives **on the Space itself**, so it
-evolves with the canvas rather than drifting in a separate repo; the Producer reads it at run time.
-_Avoid_: script, pipeline (the Space is the pipeline; the Protocol is how to run it).
+The ordered **media** run-points on a Space (which node to run, in which mode) — how to drive **that
+Space's own nodes**. It lives **on the Space itself**, so it evolves with the canvas; the Producer reads
+it at run time. It **no longer holds the end-to-end plan**: a **Recipe** (in our repo) owns the gates,
+the copy step, and which Space(s) to drive (ADR-0010).
+_Avoid_: script, pipeline (the Space is the pipeline; the Protocol is how to run its media nodes).
 
 **Fallback Protocol**:
 The Producer's recovery path when a run-point is missing, stale, or fails (e.g. the Space changed) —
@@ -124,19 +163,18 @@ goal instead of a fixed node run.
 _Avoid_: error handling, retry.
 
 **Production Queue**:
-The serialized backlog of Space generations the **Producer** owns. The Space runs **one generation at
-a time**, so accepting an Idea **enqueues** it and the Producer works the queue in order — one Space
-run at once. An Idea paused at its **Cast** gate does **not** hold the Space: the Producer advances the
-next queued generation while the Operator decides, then queues the **render** once a Character is
-picked. There is **one global queue across all Brands** (the Space is the shared bottleneck, so it has a
-single lock); each job is **tagged with its Brand** so the Producer writes the Cast/Asset back to that
-Brand's ledger.
+The serialized backlog of Space generations the **Producer** owns. Because the single attended Operator
+drives **one generation at a time** (ADR-0008), accepting an Idea **enqueues one job per chosen Recipe**
+and the Producer works the queue in order. A job paused at one of its Recipe's **gates** does **not**
+hold the Space: the Producer advances the next queued generation while the Operator decides, then resumes
+that job once the pick is in. There is **one global queue across all Brands**; each job is keyed by
+`(brand, idea, recipe)` so the Producer writes that **Asset** back to the right Brand's ledger.
 _Avoid_: batch, backlog, jobs.
 
 **Post**:
 The published content on the **Channel** — the Operator publishes an **Asset** to create it; the unit
-OrganicGrowth measures. One Idea yields at most one Asset and at most one Post (zero if never
-published).
+OrganicGrowth measures. Each **Asset** becomes at most one Post (zero if never published), so an Idea
+yields **one Post per Recipe** the Operator ran. Attribution to a Post is keyed on `(Idea, Recipe)`.
 _Avoid_: draft, idea, content.
 
 **Performance**:
@@ -184,23 +222,23 @@ decision, designed fresh for OrganicGrowth.
 
 ## Relationships
 
-- The **Operator** launches a weekly **Run** with basic parameters (niche, seeds/competitors, language, format, how many ideas)
+- The **Operator** launches a weekly **Run** for one of a Brand's **Formats**, using that Format's own sources, voice, and idea count
 - A **Run** scrapes **Trends** (Apify) and turns the strongest into **suggested Ideas**
 - The **Operator Reviews** the suggested Ideas — **accepting** some, **rejecting** others with a **Rejection Reason**
-- Each accepted **Idea** carries a predicted **Fit Score**; the **Producer** compiles it into a **Production Spec** (strict JSON), runs the **Space** to render a **Cast**, the **Operator** picks the **Character**, and the Producer resumes to render at most one **Asset** — which the Operator reviews and **publishes** into at most one **Post**, whose **URL is logged** for tracking (attribution is stated, never inferred)
-- Production has **two human gates**: **Review** (accept the Idea) and **Cast** selection (pick the Character). The Producer pauses at each; nothing renders past a gate until the Operator acts
-- **Accepting an Idea enqueues it** for production; the Producer drains the **Production Queue** in the background, **one Space generation at a time** (the Space has no parallelism). Gated Ideas never hold the Space
+- At **Review** the Operator accepts an Idea **and chooses its Recipes** (pre-filled from the Format); each chosen **Recipe** becomes one production job. For each, the **Producer** drives that Recipe's **Space** for the media (pausing at the Recipe's own gates, e.g. the *Character Explainer with Cast* pick), then composes the **Copy** — yielding **one Asset per Recipe**. The Operator reviews each Asset and **publishes** it into a **Post**, logging the URL with its Recipe (attribution is stated, never inferred)
+- The human gates are **Review** (accept the Idea + choose its Recipes), then **each Recipe's own pick-gate(s)** (zero, one, or several — the Reel's is the **Cast** pick), then **Publish**. The Producer pauses at each; nothing renders past a gate until the Operator acts
+- **Accepting an Idea enqueues one job per chosen Recipe**; the Producer works the **Production Queue** in the Operator's session, **one generation at a time** (bounded by the single attended Operator, not by per-Space capacity). A job paused at a gate never holds the Space
 - A **Post** earns **Performance**, refreshed over time from the Meta export — a moving number, not a snapshot — which collapses to a **Performance Score**
 - **Feedback** sharpens the next Run's Ideas:
   - **Performance feedback** *(active loop)* — *post-publication*: measured Performance Scores flow into **Your Data**, re-weighting **Relevance**
   - **Rejection feedback** *(logged only, v1)* — *pre-publication*: the Operator's rejection reasons are captured for later use, not yet wired into suggestions
-- An Idea's **Fit Score** is a *prediction*; its **Performance Score** is the *truth* — the gap is the system's learning signal
+- An Idea's **Fit Score** is a *prediction* (one per Idea); a Post's **Performance Score** is the *truth* (one per Recipe/Post). The gap — Fit vs the Idea's best Post — is the learning signal, kept as a 1:N relationship so a per-Post result is never mistaken for a per-Idea judgement
 
 ## Example dialogue
 
 > **Dev:** "When the idea-strategist suggests an **Idea**, does it write the caption?"
-> **Marketing lead:** "No — it gives the human a **Brief**: the angle, the hook idea, the format,
-> the hashtags, and why we think it'll land. The human writes the caption and makes the **Post**."
+> **Marketing lead:** "No — it gives the human a **Brief**: the angle, the hook idea,
+> the talking points, the hashtags, and why we think it'll land. The human writes the caption and makes the **Post**."
 > **Dev:** "And the **Fit Score** on the Idea — is that how it performed?"
 > **Marketing lead:** "No. **Fit Score** is our *guess* before posting. **Performance** is what
 > actually happened after — Views, Shares, Saves, Net follows, watch-through. We keep both so we can
@@ -208,6 +246,13 @@ decision, designed fresh for OrganicGrowth.
 
 ## Flagged ambiguities
 
+- **Format vs Recipe** — "format" used to mean two different things: a Brand's **editorial line**
+  (e.g. Straw Motion's *Unhypped News* — subject + treatment, holding many Ideas) and a **production
+  recipe** (Reel / carousel / meme — how the media is made and its copy tailored). They are now split:
+  **Format** = the editorial line (per Brand, *above* Ideas); **Recipe** = the production plan (shared;
+  the Operator picks **one or many** per Idea, each yielding one **Asset** → one **Post**). The code's
+  `formats: [reel]` in `brand-profile.yaml` (today the *media* sense) is to be renamed so "format" only
+  ever means the editorial line.
 - **platform** — OrganicGrowth grows organic presence on **Facebook, Instagram, or LinkedIn**.
   Production is identical across them (a 9:16 short video); only **trend-scout** and
   **performance-tracker** bind to a platform — via that platform's **Apify actors** (`seeds.yaml`) plus
@@ -228,6 +273,6 @@ decision, designed fresh for OrganicGrowth.
   absolute Views are a misleading signal. Prefer measures relative to the Channel's own baseline.
 - **generate vs publish** — OrganicGrowth originally **never generated content** (an Idea stopped at a
   Brief; a human shot the Reel). As of June 2026 the **Producer** auto-renders an **Asset** from an
-  accepted Idea via a Magnific flow. The human gate **moved from creation to publication**: the system
+  accepted Idea via a Magnific **Space**. The human gate **moved from creation to publication**: the system
   now generates the Asset, but a human still reviews and **publishes** the Post. "Never generate
   finished content" is superseded by "never publish" (see ADR-0002).

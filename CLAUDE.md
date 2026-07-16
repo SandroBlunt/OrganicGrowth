@@ -10,11 +10,20 @@ briefs** → **render each accepted Idea into a publish-ready Asset** via a Magn
 publishes it) → track the posts' performance → feed it back so the next round of ideas is sharper.
 
 **OrganicGrowth generates the Asset but never publishes it.** The `producer` renders an Idea into an
-**Asset** (a Reel) by driving a pre-defined Magnific Space; a human reviews, picks the **Character**,
-publishes to Facebook, and logs the URL. The human gate moved from *creation* to *publication* — it
+**Asset** by driving a pre-defined Magnific Space; a human reviews, makes the Recipe's pick(s) — for the
+wired recipe, the **Character** — publishes to Facebook, and logs the URL. The human gate moved from *creation* to *publication* — it
 was never removed (see [`docs/adr/0002`](./docs/adr/0002-producer-generates-asset-human-publishes.md)).
 
 The domain language is defined in [`CONTEXT.md`](./CONTEXT.md) — read it before working here.
+
+> **Multi-format redesign (decided 2026-07, in build).** OrganicGrowth is moving from the single wired
+> format to **multi-format**. A **Format** is a Brand's editorial line (e.g. Straw Motion's *Unhypped
+> News*); a **Recipe** is an in-repo production plan (the one wired today is *Character Explainer with
+> Cast*). One Idea → the Operator's chosen **Recipes** (picked at Review, pre-filled from the Format) →
+> **one Asset per Recipe** → one Post per Asset. Gates, copy, and the media-spec shape are **per-Recipe**;
+> copy is composed by the producer outside the Space. The decisions are recorded in ADRs **0009–0014** and
+> the glossary; the sections below still describe the **current single-recipe build** being migrated onto
+> that model.
 
 ## Agents
 
@@ -26,14 +35,16 @@ and are intentionally kept out of this table.*
 |---|---|---|
 | `trend-scout` | Sonnet | Scrapes peer Pages via Apify (or, for a Brand with `curated_sources` in `seeds.yaml`, digests the Operator's own curated public newsletters instead); distills the result into **Trends** |
 | `idea-strategist` | Opus | Turns Trends into ranked, brand-fit **Idea briefs** with a predicted **Fit Score** |
-| `producer` | Opus | Drives a Magnific Space: generates a **Production Spec** from an accepted Idea, runs the Space to a **Cast**, then (after the Operator picks the **Character**) renders the **Asset** |
+| `producer` | Opus | Drives a Magnific Space for the wired **Character Explainer with Cast** Recipe: generates a **Production Spec** from an accepted Idea, runs the Space to a **Cast**, then (after the Operator picks the **Character**) renders the **Asset**. *Target (ADR-0009 / 0010):* runs **each chosen Recipe**, driving media in that Recipe's Space, pausing at that Recipe's gates, composing the **Copy** outside the Space — **one Asset per Recipe** |
 | `performance-tracker` | Sonnet | Pulls posts' **public** metrics via Apify; computes **Performance Score**; updates the feedback loop |
 
 ## The OrganicGrowth pipeline (weekly loop)
 
 Run once a week. Steps marked 👤 are the Operator. **The agent auto-advances through the mechanical
-steps and pauses only at the three human gates (Review, Cast pick, Publish) — it never asks the
-Operator to run a step it can run itself, and never renders past a gate before the Operator acts.**
+steps and pauses only at the three human gates (Review, the wired recipe's Cast pick, Publish) — it
+never asks the Operator to run a step it can run itself, and never renders past a gate before the
+Operator acts.** *Target (multi-format — ADR-0009):* gates are **per-Recipe** — each Recipe declares its
+own pick-gate(s), and the fixed Cast pick is just the wired Recipe's local gate.
 
 > **Production runtime (attended).** Production runs **in the Operator's session**, not in an unattended
 > background process. The `producer` is an interactive agent — given the Magnific MCP tools — that drives
@@ -75,7 +86,29 @@ Operator to run a step it can run itself, and never renders past a gate before t
 **Review**, **Cast pick**, and **Publish**; OrganicGrowth **generates the Asset but never publishes** —
 a human does. The `producer` drives the Space per its on-canvas **Execution Protocol** and falls back
 to the Space's agent for steps the run API can't do directly (see
-[`docs/adr/0003`](./docs/adr/0003-producer-execution-model-on-space-protocol.md)).
+[`docs/adr/0003`](./docs/adr/0003-producer-execution-model-on-space-protocol.md)). *Target (ADR-0010
+revises 0003):* the how-to-run plan — gates, Production-Spec shape, copy shape, and which Space to drive
+— moves in-repo onto the **Recipe**; the Space keeps only its on-canvas media run-points + model
+selection (ADR-0007); the driver becomes a generic **run-until-gate** engine.
+
+> **Target (multi-format — ADR-0009 / 0011 / 0013):** the numbered steps above still describe today's
+> single-recipe build; the multi-format model reshapes them as follows. A **Run is scoped to one
+> Format** — `/run-trends <brand> <format>` runs trend-scout + idea-strategist with **that** Format's own
+> trend sources, voice, and `ideas_per_run`; every Idea records its **Format**; "run the Brand" is a loop
+> over its Formats. **Review also picks Recipes:** each suggested Idea arrives with its Format's
+> `default_recipes` pre-filled, the Operator trims/extends them conversationally, and a declined Recipe is
+> logged verbatim (like a Rejection Reason). **Accepting enqueues one job per `(brand, idea, recipe)`** —
+> **one Asset per Recipe**. The driver becomes a **generic run-until-gate engine**: it walks a Recipe's
+> run-points, pauses at each declared gate, and resumes from where it left off on the Operator's pick.
+> **Production stages live on each Asset** — `queued → in production → produced → posted → tracking →
+> scored`; `casting` is retired, a human pick is a *pause* inside "in production" (not a stage), and a
+> gate-paused job **does not hold the Space** (still one generation at a time). The fixed **Cast pick is
+> only the wired *Character Explainer with Cast* Recipe's local gate** — "Cast"/"Character" are that
+> Recipe's vocabulary, not universal terms. The producer **composes the Copy outside the Space** — late
+> (after the media, and any picked Character, exists), voice-faithful, and checked by a pure per-Recipe
+> validator. **Attribution is keyed on `(Idea, Recipe)`** via `/log-post <brand> <idea> <recipe> <url>`.
+> So the three gates become **Review** (accept + pick Recipes) → **each Recipe's own pick-gate(s)** (the
+> wired Recipe's is the Cast pick) → **Publish**.
 
 ## Engineering agents (build pipeline)
 
@@ -162,6 +195,14 @@ but still climbing) and `scored` once it is 7+ days old (settled — final for t
 Each Idea also carries `fit_basis` — a short free-text note from the `idea-strategist` recording *why*
 the Fit Score is what it is (the brand-fit reasoning behind the prediction). The Producer adds ledger
 fields `cast`, `character`, `asset_url`, `produced_at`. Update the ledger on every status change.
+
+**Target (multi-format — ADR-0009 / 0011 / 0014):** the Idea keeps only `suggested / accepted / rejected` plus a derived roll-up computed from its Assets;
+the production stages move onto **each Asset** (one per chosen Recipe): `queued → in production → produced
+→ posted → tracking → scored`, with a human pick (e.g. the Reel's **Cast**) a *pause* inside "in
+production", not a status. The `cast / character / asset_url / produced_at` fields become per-Recipe
+**Asset** fields; the ledger sits behind a typed **store boundary** (still files for the MVP). The
+`format: reel` media tag is renamed so **Format** means only the editorial line. Migration is one-time and
+idempotent.
 
 ## Data sources
 

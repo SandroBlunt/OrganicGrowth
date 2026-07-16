@@ -3,7 +3,7 @@
 - **Brand:** straw-motion
 - **Run:** 2026-W29
 - **Rides trend:** trend-06 — X ships an all-in-one creator video editor (green screen + captions)
-- **Format:** reel (No-Hype News)
+- **Format:** reel (Unhypped News)
 - **Fit Score:** 0.56
 
 ## Angle

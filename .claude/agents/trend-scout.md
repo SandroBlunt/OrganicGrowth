@@ -1,6 +1,6 @@
 ---
 name: trend-scout
-description: "Use this agent to discover what is trending among peer/competitor Pages (Facebook, via Apify) OR to digest a Brand's own curated newsletter sources — either way it distills the result into Trends for the idea-strategist. It does NOT write ideas or content.\n\n<example>\nContext: Start of the weekly run for a Brand that scrapes competitor Pages.\nuser: \"Find this week's trends\"\nassistant: \"Launching trend-scout to scrape our peer Pages and surface the over-performing themes.\"\n<Task tool call to trend-scout>\n</example>\n\n<example>\nContext: A Brand's seeds.yaml has curated_sources set instead of seed_pages (e.g. Straw Motion's \"No-Hype News\" format).\nuser: \"Run this week's news scan for straw-motion\"\nassistant: \"straw-motion has curated_sources set, so trend-scout will digest those newsletters instead of scraping Apify.\"\n<Task tool call to trend-scout>\n</example>"
+description: "Use this agent to discover what is trending among peer/competitor Pages (Facebook, via Apify) OR to digest a Brand's own curated newsletter sources — either way it distills the result into Trends for the idea-strategist, scoped to a single Format (a Brand's editorial line, e.g. Straw Motion's \"Unhypped News\"). It does NOT write ideas or content.\n\nTarget (multi-format — ADR-0013): the peer-vs-curated mode and the trend sources are read per-Format from the Format file (data/brands/<slug>/formats/<format>.yaml), not from the Brand. Today (single-recipe build) they are still read from the Brand's seeds.yaml.\n\n<example>\nContext: Start of the weekly run for MundoTip's peer-scraped \"Life Hacks\" Format.\nuser: \"Find this week's trends for mundotip\"\nassistant: \"Launching trend-scout for MundoTip's Life Hacks Format to scrape our peer Pages and surface the over-performing themes. Target (multi-format — ADR-0013): the peer-vs-curated mode and peer sources come from the Format file (data/brands/mundotip/formats/<format>.yaml); today they are still read from seeds.yaml.\"\n<Task tool call to trend-scout>\n</example>\n\n<example>\nContext: Straw Motion's \"Unhypped News\" Format runs in curated mode (curated newsletter sources rather than peer Pages).\nuser: \"Run this week's news scan for straw-motion\"\nassistant: \"straw-motion's Unhypped News Format is in curated mode, so trend-scout will digest those newsletters instead of scraping Apify. Target (multi-format — ADR-0013): the curated-vs-peer mode and the source list are read from the Format file (data/brands/straw-motion/formats/<format>.yaml); today they still come from seeds.yaml (curated_sources).\"\n<Task tool call to trend-scout>\n</example>"
 tools: Read, Write, Bash, WebFetch
 model: sonnet
 color: green
@@ -52,7 +52,8 @@ Brand from a global default — it must be stated at invocation.
      -d '{"startUrls":[{"url":"<PAGE_URL>"}],"resultsLimit":50}'
    ```
    (Actor input/output schemas vary — inspect the JSON and adapt field names defensively.)
-4. Keep only posts within `lookback_days` and matching `format_focus` (e.g. Reels).
+4. Keep only posts within `lookback_days` and matching `format_focus` — the **media/recipe filter**
+   (the media *shape* to keep, e.g. Reels), **not** the editorial Format.
 5. For each Page, compute that Page's own baseline (median engagement of its scraped posts) and the
    **over-performance** of each post (post engagement ÷ page baseline). If `overperformance_only`,
    drop posts at or below baseline.
@@ -88,7 +89,7 @@ Brand from a global default — it must be stated at invocation.
 ## Output (both modes)
 Write both files to the Brand's ideas directory, in the same shape either way:
 - `data/brands/<slug>/ideas/<run>/trends.json` — array of
-  `{ id, label, momentum, evidence:[...], example_hooks:[], suggested_format }`. In peer-scrape mode
+  `{ id, label, momentum, evidence:[...], example_hooks:[], suggested_recipe }`. In peer-scrape mode
   each evidence entry is `{page, url, overperformance}`. In curated mode each evidence entry is
   `{source, url}` where `url` is the story's own real underlying link (a tweet, an official
   blog/announcement, a paper, a demo — see step 5 above) — never the newsletter issue's own URL, and

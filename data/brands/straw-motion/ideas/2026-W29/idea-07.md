@@ -3,7 +3,7 @@
 - **Brand:** straw-motion
 - **Run:** 2026-W29
 - **Rides trend:** trend-07 — Generative image/video models get dramatically cheaper (Nano Banana 2 Lite, Gemini Omni Flash)
-- **Format:** reel (No-Hype News)
+- **Format:** reel (Unhypped News)
 - **Fit Score:** 0.53
 
 ## Angle

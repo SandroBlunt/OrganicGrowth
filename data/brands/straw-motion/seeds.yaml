@@ -9,7 +9,7 @@ seed_pages:
   - https://www.instagram.com/theaifield/
   - https://www.youtube.com/@curiousrefuge
 
-# Curated newsletter sources for the "No-Hype News" format: fully public archives (no login/paywall)
+# Curated newsletter sources for the "Unhypped News" format: fully public archives (no login/paywall)
 # that the Operator already curates and prioritizes. When this list is non-empty, trend-scout digests
 # these instead of scraping peer Pages via Apify — see .claude/agents/trend-scout.md.
 curated_sources:

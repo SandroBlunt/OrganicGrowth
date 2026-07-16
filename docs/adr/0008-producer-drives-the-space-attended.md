@@ -1,6 +1,9 @@
 # The Producer drives the Space attended, in the Operator's session (supersedes ADR-0004)
 
-**Status:** accepted (2026-07-10) — supersedes ADR-0004; extends ADR-0003.
+**Status:** accepted (2026-07-10) — supersedes ADR-0004; extends ADR-0003. **Extended by
+[ADR-0010](./0010-recipes-in-repo-space-media-only.md)** (2026-07): the attended, one-generation-at-a-time
+model now spans a Brand's several Recipes/Spaces — serialization is bounded by the single Operator, not
+per-Space capacity; still no background worker.
 
 ADR-0004 had the `producer` own an **unattended, background** Production Queue: accepting an Idea spawns
 a background task that drives the Magnific Space with no human present, plus a periodic tick to reap
@@ -49,7 +52,9 @@ async renders. Building that runtime was scoped as epic #39 (slices #40–43). W
 - Serialization is natural — one attended run at a time — so ADR-0004's single-active-run lock and the
   C16 cross-process race are moot (no second writer).
 - `.claude/agents/producer.md` carries the Magnific MCP tools and the Phase A (cast → Cast gate) /
-  Phase B (pick → render) drive loop; the Brand's `brand-profile.yaml` carries a `production.space_id`.
+  Phase B (pick → render) drive loop. (Under ADR-0010/0013 the Space a Recipe drives is named on the
+  **Recipe** in-repo, so a per-Brand `production.space_id` in `brand-profile.yaml` is superseded; only
+  brand-specific bits — the watermark @handle, Spec content — are injected at run time.)
 - The Production Queue is a convenience list, not a scheduler. Removing it (and `/queue`) would be a
   separate change if we ever decide the ledger's status field is enough.
 - CLAUDE.md and `.claude/rules/always/organicgrowth-rules.md` describe the attended model; the

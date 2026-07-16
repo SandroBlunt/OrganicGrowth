@@ -3,7 +3,7 @@
 - **Brand:** straw-motion
 - **Run:** 2026-W29
 - **Rides trend:** trend-01 — Agentic AI moves into real day-to-day work (ChatGPT Work, Claude Cowork, Meta Muse Spark)
-- **Format:** reel (No-Hype News)
+- **Format:** reel (Unhypped News)
 - **Fit Score:** 0.73
 
 ## Angle

@@ -3,7 +3,7 @@
 - **Brand:** straw-motion
 - **Run:** 2026-W29
 - **Rides trend:** trend-04 — Grok 4.5 beats Claude Opus 4.8 on coding benchmarks for half the cost
-- **Format:** reel (No-Hype News)
+- **Format:** reel (Unhypped News)
 - **Fit Score:** 0.69
 
 ## Angle

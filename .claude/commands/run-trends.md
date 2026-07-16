@@ -1,6 +1,6 @@
 ---
 name: run-trends
-description: "Launch the weekly Trend Research Run for a named Brand: scrape peer Pages (or, for Brands with curated_sources, digest curated newsletters) via trend-scout, then suggest brand-fit Idea briefs with Fit Scores."
+description: "Launch the weekly Trend Research Run for a named Brand: scrape peer Pages (or, for Brands with curated_sources, digest curated newsletters) via trend-scout, then suggest brand-fit Idea briefs with Fit Scores. Target (multi-format — ADR-0013): a Run will be scoped to one Format, running with that Format's own sources and voice; not yet wired — today a Run covers the Brand's single editorial line."
 ---
 
 # /run-trends
