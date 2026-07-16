@@ -18,8 +18,19 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
 
 1. **Resolve the Brand.** Slugify `<brand>` and derive the Brand's paths via the resolver. State the
    active Brand: "Reviewing Ideas for Brand: `<brand>`."
-2. **Load** all `status: suggested` Ideas for the run from `data/brands/<slug>/ledger.json`
-   (+ their briefs from `data/brands/<slug>/ideas/<run>/`).
+2. **Load** all `status: suggested` Ideas for the run from `data/brands/<slug>/ledger.json`, and
+   resolve each Idea's Brief path via `resolveBriefPathCandidates`
+   (`src/format/brief-path.ts`) — do **not** hand-build the path from `format`/`run` yourself. The
+   ledger is canonical (always-rules #7), so a recorded `brief_path` (verbatim) is trusted
+   **exclusively**: try that path first and only if it does not exist should you fall back to any
+   other candidate. Only when a record has NO `brief_path` at all does the resolver reconstruct one
+   — preferring the Format-namespaced path `data/brands/<slug>/ideas/<Idea.format>/<run>/idea-NN.md`
+   (today's convention for Ideas suggested under this slice), then the legacy Brand-level path
+   `data/brands/<slug>/ideas/<run>/idea-NN.md` (pre-multi-format Ideas). This is required because a
+   record's `format` field is NOT a reliable indicator of where its Brief physically lives —
+   pre-existing records may carry either the retired media-sense value or a real Format slug while
+   their Brief still sits at the old, non-namespaced path. If every candidate is missing, STOP and
+   report it rather than guessing.
 3. **Present them** one at a time (or as a short list, Operator's preference): title, the trend it
    rides, Fit Score, hook concept, and the one-line rationale.
 4. **Take the Operator's verdict** in natural language — accept some, reject others. This is a

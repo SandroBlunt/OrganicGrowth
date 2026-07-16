@@ -91,7 +91,6 @@ channel:
   url: "https://www.facebook.com/testbrand"
 niche: "Test niche for testing"
 voice: "Test voice for testing"
-formats: [reel]
 language: en
 region: US
 banned_words: ["bad-word"]

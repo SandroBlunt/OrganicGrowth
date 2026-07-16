@@ -9,14 +9,17 @@ A `Brand` is a top-level tenant in OrganicGrowth (CONTEXT.md). All of a Brand's 
 live under a single Brand directory: `<brandsRoot>/<slug>/`. The set of Brands IS the set of
 directories under the brands root — there SHALL be no separate registry file that could drift. A single
 deep module (`src/brand/resolver.ts`) SHALL be the only place the path layout is defined. Adding a new
-Brand is scaffolded from `templates/brand-skeleton/`, which holds the canonical empty shape.
+Brand is scaffolded from `templates/brand-skeleton/`, which holds the canonical empty shape — including
+a `formats/` directory (ADR-0009/0013) for the Brand's per-Format YAML files.
 
 #### Scenario: slug→paths resolution returns all per-Brand paths for a given slug
 
 - **GIVEN** a valid Brand slug (e.g. `mundotip`) and a brands root (e.g. `data/brands`)
 - **WHEN** `resolveBrand(slug, brandsRoot)` is called
-- **THEN** it returns paths for `ledger`, `brandProfile`, `seeds`, `ideasRoot`, `yourData`, each
-  under `<brandsRoot>/<slug>/`
+- **THEN** it returns paths for `ledger`, `brandProfile`, `seeds`, `ideasRoot`, `yourData`, and
+  `formatsRoot`, each under `<brandsRoot>/<slug>/`
+- **AND** `formatsRoot` equals `<brandsRoot>/<slug>/formats` — the root the typed `FormatStore`
+  (`src/format/store.ts`) reads a Brand's Format files from
 - **AND** the `queuePath` it returns equals the global constant `data/queue.json`, NOT a path
   derived from the slug
 

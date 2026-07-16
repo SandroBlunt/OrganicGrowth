@@ -48,7 +48,6 @@ export interface BrandProfile {
   language?: string;
   region?: string;
   voice?: string;
-  formats?: string[];
   required_cta?: string;
   required_hashtags?: string[];
   banned_words?: string[];

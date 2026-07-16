@@ -146,9 +146,9 @@ describe("buildBrandProfile — maps interview answers to brand-profile shape", 
     assert.equal(profile.region, "US");
   });
 
-  it("sets formats to ['reel'] by default", () => {
-    const profile = buildBrandProfile(MINIMAL_ANSWERS);
-    assert.deepEqual(profile.formats, ["reel"]);
+  it("does NOT set a formats field (the media-sense of 'format' is retired — ADR-0009)", () => {
+    const profile = buildBrandProfile(MINIMAL_ANSWERS) as unknown as Record<string, unknown>;
+    assert.equal("formats" in profile, false);
   });
 
   it("sets banned_words to [] when bannedWords is not supplied", () => {
@@ -242,7 +242,6 @@ describe("buildBrandProfile — round-trip through YAML", () => {
     const parsed = yamlParse(yaml) as typeof profile;
     assert.deepEqual(parsed.banned_words, profile.banned_words);
     assert.deepEqual(parsed.required_hashtags, profile.required_hashtags);
-    assert.deepEqual(parsed.formats, profile.formats);
   });
 });
 

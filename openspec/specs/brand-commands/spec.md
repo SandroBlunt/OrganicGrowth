@@ -126,16 +126,25 @@ silently read from `data/brands/mundotip/ledger.json` or any other Brand's ledge
 The content agents (`trend-scout`, `idea-strategist`, `producer`, `performance-tracker`) SHALL
 receive the Brand at invocation, use only that Brand's paths for all file reads and writes, and
 restate the active Brand explicitly in their output at each human gate (Review, Cast pick, Publish).
-No agent shall ever infer the "current" Brand from a global default; it must be stated.
+No agent shall ever infer the "current" Brand from a global default; it must be stated. `trend-scout`
+and `idea-strategist` additionally SHALL receive the Format at invocation (a Trend Research Run is
+scoped to one Format — ADR-0013) and use that Format's own file for voice/sources/mode, restating
+both the Brand and the Format in their output.
 
-#### Scenario: trend-scout threads the Brand through all its file I/O
+#### Scenario: trend-scout threads the Brand AND the Format through all its file I/O
 
-- **GIVEN** an invocation with Brand `mundotip`
+- **GIVEN** an invocation with Brand `mundotip` and Format `life-hacks`
 - **WHEN** trend-scout runs
-- **THEN** it reads seeds from `data/brands/mundotip/seeds.yaml`
-- **AND** reads the brand profile from `data/brands/mundotip/brand-profile.yaml`
-- **AND** writes trends/ideas under `data/brands/mundotip/ideas/<run>/`
-- **AND** appends to `data/brands/mundotip/ledger.json`
+- **THEN** it reads its sources + peer-vs-curated mode from
+  `data/brands/mundotip/formats/life-hacks.yaml` (NOT from `seeds.yaml`)
+- **AND** it reads Apify actor slugs from `data/brands/mundotip/seeds.yaml` (the one thing still
+  read from there — data-handling rule 2)
+- **AND** reads the brand profile from `data/brands/mundotip/brand-profile.yaml` for Brand-wide hard
+  rules
+- **AND** writes trends/ideas under `data/brands/mundotip/ideas/life-hacks/<run>/`
+  (Format-namespaced)
+- **AND** appends to `data/brands/mundotip/ledger.json`, tagging the record with
+  `format: life-hacks`
 
 #### Scenario: producer restates the Brand at Gate 2 (Cast pick)
 

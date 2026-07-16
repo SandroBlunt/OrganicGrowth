@@ -1,0 +1,43 @@
+# Format: Life Hacks — MundoTip's one editorial line today.
+# A Format is a Brand's editorial line (subject + treatment), NOT a media type (ADR-0009).
+# trend-scout reads `sources` (mode + the actual sources) from here; idea-strategist reads `voice`
+# and tags every suggested Idea with this Format's slug ("life-hacks"). `/run-trends mundotip
+# life-hacks` namespaces its Run output under data/brands/mundotip/ideas/life-hacks/<run>/.
+
+name: "Life Hacks"
+niche: "Life hacks, household tips & tricks"
+
+voice: >
+  Punchy and curiosity-driven. Short sentences. Open with a surprising claim or a relatable
+  problem, deliver one clear payoff, end with a light nudge to engage. Friendly, never preachy.
+
+# The media SHAPE trend-scout favors when scanning peer posts — NOT the editorial Format above.
+media_focus: reel
+
+sources:
+  mode: peer   # peer | curated — Life Hacks scrapes peer Pages (no curated newsletters configured)
+
+  # Peer / competitor Pages to scrape. A seed entry may be a plain URL string, or a
+  # { url, off_niche } object (the object form survives YAML parsing so readiness can flag it).
+  seed_pages:
+    - "https://www.facebook.com/lifehackIG"
+    - url: "https://www.facebook.com/tudodereceitasES"   # PT recipes, off es/LATAM niche
+      off_niche: true
+    - "https://www.facebook.com/ahoralosabesoficial"      # suggested: ES life-hacks Page (verified handle)
+
+  curated_sources: []
+
+  # Optional topic augmentation (keyword search).
+  keywords:
+    - "trucos caseros"
+    - "life hacks"
+
+  lookback_days: 7            # only consider peer posts from the last N days
+  overperformance_only: true  # only mine peer posts beating their OWN page baseline
+
+ideas_per_run: 10   # how many Idea briefs to suggest per Run of THIS Format
+
+# Recipe slugs pre-filled at Review for this Format's Ideas (ADR-0009). The in-repo Recipe registry
+# (issue #54) is not wired yet, so this is not validated against it — today's single wired Recipe:
+default_recipes:
+  - character-explainer-with-cast

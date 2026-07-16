@@ -78,6 +78,7 @@ describe("resolveBrand — slug→paths mapping", () => {
     assert.equal(paths.seeds, "data/brands/mundotip/seeds.yaml");
     assert.equal(paths.ideasRoot, "data/brands/mundotip/ideas");
     assert.equal(paths.yourData, "data/brands/mundotip/your-data");
+    assert.equal(paths.formatsRoot, "data/brands/mundotip/formats");
   });
 
   it("uses DEFAULT_BRANDS_ROOT when no brandsRoot is provided", () => {
@@ -87,6 +88,7 @@ describe("resolveBrand — slug→paths mapping", () => {
     assert.equal(paths.seeds, `${DEFAULT_BRANDS_ROOT}/mundotip/seeds.yaml`);
     assert.equal(paths.ideasRoot, `${DEFAULT_BRANDS_ROOT}/mundotip/ideas`);
     assert.equal(paths.yourData, `${DEFAULT_BRANDS_ROOT}/mundotip/your-data`);
+    assert.equal(paths.formatsRoot, `${DEFAULT_BRANDS_ROOT}/mundotip/formats`);
   });
 
   it("the queuePath is always the global constant — never contains the slug", () => {
@@ -120,6 +122,7 @@ describe("resolveBrand — slug→paths mapping", () => {
     assert.equal(paths.seeds, "/custom/root/mundotip/seeds.yaml");
     assert.equal(paths.ideasRoot, "/custom/root/mundotip/ideas");
     assert.equal(paths.yourData, "/custom/root/mundotip/your-data");
+    assert.equal(paths.formatsRoot, "/custom/root/mundotip/formats");
     // queue path stays the same regardless
     assert.equal(paths.queuePath, "data/queue.json");
   });
