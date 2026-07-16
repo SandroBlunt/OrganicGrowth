@@ -61,20 +61,22 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
    5. **Write the selection** via `writeIdeaRecipeSelection(ideaId, chosen, declinedWithReasons,
       { ledgerPath: resolveBrand(brand).ledger })` (`src/ledger/ledger.ts`) — `declinedWithReasons` is
       `declined` paired with each captured reason: `{ recipe, reason }`.
-   6. **Then, exactly as before:** set `status: accepted` in `data/brands/<slug>/ledger.json`. If
-      `chosen` is non-empty, **auto-enqueue** the Idea for production by calling
-      `enqueueOnAccept(ideaId, brand, { ledgerPath: resolveBrand(brand).ledger })`
-      (`src/production-queue/enqueue-on-accept.ts`) — this call is **byte-for-byte unchanged** from
-      before this slice (it is Recipe-unaware; re-keying the queue per chosen Recipe is issue #56).
-      All three arguments are required: the `brand` and the explicit `ledgerPath` are what tie the job
-      to this Brand's ledger — omitting them enqueues a job with no Brand that is silently dropped on
-      the next load, or validates acceptance against the wrong Brand's ledger. This appends one
-      `cast`-phase, `status: queued` job to `data/queue.json` (the global Production Queue — ADR-0004,
-      brand-agnostic). Enqueue is idempotent per Idea: re-accepting the same Idea adds no second job,
-      and only `accepted` Ideas ever enter the queue (rejected Ideas cost nothing). If `chosen` is
-      **empty** (the Operator declined every offered Recipe and named none to add), do **not** enqueue
-      — there is nothing to produce yet; tell the Operator the Idea is accepted but not yet queued, and
-      that adding a Recipe later is not yet supported (v1). Run `/queue <brand>` to see the backlog.
+   6. **Then:** set `status: accepted` in `data/brands/<slug>/ledger.json`. If `chosen` is non-empty,
+      **auto-enqueue** the Idea's chosen Recipes for production by calling
+      `enqueueOnAccept(ideaId, brand, chosen, { ledgerPath: resolveBrand(brand).ledger })`
+      (`src/production-queue/enqueue-on-accept.ts`) — `chosen` is the SAME array `resolveRecipeSelection`
+      returned in step 5.3; passing it is what makes the queue Recipe-aware (issue #56). All FOUR
+      arguments are required: the `brand` and the explicit `ledgerPath` are what tie the job(s) to this
+      Brand's ledger — omitting them enqueues a job with no Brand that is silently dropped on the next
+      load, or validates acceptance against the wrong Brand's ledger. This appends ONE job PER chosen
+      Recipe to `data/queue.json` (the global Production Queue — ADR-0006/0008), each keyed on the
+      composite `(brand, idea, recipe)` — a second chosen Recipe is never dropped as a duplicate of the
+      first. Enqueue is idempotent per `(brand, idea, recipe)`: re-accepting the same Idea with the same
+      Recipe set adds no second job, and only `accepted` Ideas ever enter the queue (rejected Ideas cost
+      nothing). If `chosen` is **empty** (the Operator declined every offered Recipe and named none to
+      add), do **not** enqueue — there is nothing to produce yet; tell the Operator the Idea is accepted
+      but not yet queued, and that adding a Recipe later is not yet supported (v1). Run `/queue <brand>`
+      to see the backlog.
 6. **For each REJECT:** set `status: rejected` in `data/brands/<slug>/ledger.json` and store their
    reason **verbatim** in `rejection_reason`. Log it as-is — do **not** argue, re-pitch, or act on
    it (v1 logs only).

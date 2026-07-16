@@ -1,6 +1,6 @@
 ---
 name: queue
-description: "Show the Production Queue backlog for a named Brand: every queued job's Idea, phase, and status."
+description: "Show the Production Queue backlog for a named Brand: every queued job's Idea, Recipe, gate cursor, and status."
 ---
 
 # /queue
@@ -22,15 +22,14 @@ but this command doc always names a Brand.
 1. State the active Brand: "Production Queue for Brand: `<brand>`."
 2. **Run** `npm run queue <brand>` (or call `queueCommand(<brand>)` in `src/commands/queue.ts`).
 3. It loads `data/queue.json` (the global queue, shared across all Brands), filters to Brand
-   `<brand>`'s jobs, and renders each with its Brand label, `idea_id`, `phase` (`cast` | `render`),
-   and `status` (`queued` | `running` | `awaiting_cast` | `done` | `failed`). An empty queue (or one
-   with no jobs for this Brand) is reported as such.
+   `<brand>`'s jobs, and renders each with its Brand label, `idea_id`, `recipe` (the chosen Recipe this
+   job produces — ADR-0009/0011), its generic `gate` cursor (the gate name this leg's Space run works
+   toward, or `final` when this leg renders the Asset with no further gate — issue #56), and `status`
+   (`queued` | `running` | `awaiting_pick` | `done` | `failed`). An empty queue (or one with no jobs for
+   this Brand) is reported as such.
 
-   > **Target (multi-format — ADR-0010/0011):** the queue key becomes `(brand, idea, recipe)`, the
-   > per-job `phase` (`cast` | `render`) gives way to a generic gate cursor, and lifecycle moves onto
-   > per-Asset stages (`queued → in production → produced → …`, with a human pick named as a
-   > `pending_gate` pause rather than a phase). Not built yet — today's queue is single-recipe with the
-   > `phase`/`status` fields above.
+   The queue is keyed on the composite `(brand, idea, recipe)` — one Idea's several chosen Recipes each
+   get their own job(s), never collapsed or masked by one another (ADR-0011, issue #56).
 
 ## Guardrails
 - **Brand is explicit** — `<brand>` is required; never fall back to a default Brand.

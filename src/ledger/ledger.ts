@@ -26,11 +26,18 @@ export type IdeaStatus = "suggested" | "accepted" | "rejected";
 /** The subset of an Idea record most readers need: its own status plus its per-Recipe Assets
  *  (ADR-0011). `status` is ALWAYS already normalized to `suggested`/`accepted`/`rejected` by the
  *  time it reaches here — `loadIdeas` folds any legacy production status onto `assets` on the way
- *  in, transparently, so callers never see the retired vocabulary. */
+ *  in, transparently, so callers never see the retired vocabulary.
+ *
+ *  `recipes` is the Operator's Review-time Recipe selection (issue #54), read through UNCHANGED —
+ *  present so a re-enqueue path (e.g. `/run-pipeline`'s stranded-Idea recovery) can enqueue the SAME
+ *  Recipes the Idea was originally accepted with, rather than guessing (issue #56). Absent on an Idea
+ *  accepted before recipe selection existed (every real Idea today) — callers fall back to the one
+ *  wired Recipe (`asset/migrate.ts`'s `DEFAULT_ASSET_RECIPE`) in that case. */
 export interface LedgerIdea {
   readonly id: string;
   readonly status: string;
   readonly assets?: readonly LedgerAssetRecord[];
+  readonly recipes?: readonly string[];
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -63,6 +70,12 @@ async function readLedgerJson(path: string, brand?: string): Promise<unknown> {
   }
 }
 
+/** Coerce a raw `recipes` field into a clean list of non-empty Recipe slugs. Malformed input → `[]`. */
+function parseRecipesList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((r): r is string => typeof r === "string" && r.length > 0);
+}
+
 /**
  * Read the ledger's Idea records (defensive: a record missing a string `id` is skipped — we never
  * invent an identity). The path is required — there is no brand-scoped default. Pass `brand` so a
@@ -73,7 +86,8 @@ async function readLedgerJson(path: string, brand?: string): Promise<unknown> {
  * (`casting`/`produced`/`posted`/`tracking`/`scored`) resolves to `accepted` plus one folded Asset.
  * This normalization is IN-MEMORY ONLY — it is never written back here (that is
  * `ledger/migrate-assets.ts`'s job) — which is exactly what makes an un-migrated ledger still load
- * correctly.
+ * correctly. `recipes` (the Operator's Review-time Recipe selection, issue #54) is carried through
+ * read-only and OMITTED entirely when absent/empty — never fabricated (issue #56).
  */
 export async function loadIdeas(path: string, brand?: string): Promise<LedgerIdea[]> {
   const raw: unknown = await readLedgerJson(path, brand);
@@ -83,7 +97,10 @@ export async function loadIdeas(path: string, brand?: string): Promise<LedgerIde
     .filter((r) => typeof r.id === "string")
     .map((r) => {
       const { status, assets } = normalizeIdeaStatus(r);
-      return { id: r.id as string, status, assets };
+      const recipes = parseRecipesList(r.recipes);
+      return recipes.length > 0
+        ? { id: r.id as string, status, assets, recipes }
+        : { id: r.id as string, status, assets };
     });
 }
 
@@ -95,12 +112,26 @@ export function findIdea(ideas: readonly LedgerIdea[], ideaId: string): LedgerId
 // --- Report projection (issue #9: /report surfaces the whole pipeline at a glance) -----------------
 
 /**
+ * One per-Recipe Asset row `/report` shows for an Idea (ADR-0011, issue #56). Attribution stays
+ * explicit: a Post is shown linked to its Idea only via `post_url`, and only via THIS specific
+ * Recipe's Asset — never inferred, never collapsed onto a bare per-Idea scalar.
+ */
+export interface ReportAssetRow {
+  readonly recipe: string;
+  readonly status: string;
+  /** Measured Performance Score (0–1, relative to the Channel baseline), or null until tracked. */
+  readonly performance_score: number | null;
+  /** The logged Post URL (explicit attribution), or null if not yet published. */
+  readonly post_url: string | null;
+}
+
+/**
  * The Idea fields `/report` needs to show the whole pipeline at a glance (issue #9). Read-only:
- * `/report` never mutates the ledger. `fit_score` is the **predicted** Fit Score (pre-publication);
- * `performance_score` is the **measured** Performance Score (post-publication, relative to the Channel
- * baseline) — they are kept as SEPARATE fields here so the renderer can never conflate the two
- * (always-rules #3/#4). Either may be `null` (a Fit Score is absent on a malformed Idea; a Performance
- * Score is `null` until `/track-performance` measures it).
+ * `/report` never mutates the ledger. `fit_score` is the **predicted** Fit Score (pre-publication) —
+ * one per Idea. `assets` is the per-Recipe breakdown (ADR-0011): zero, one, or several rows, one per
+ * chosen Recipe. `best_performance_score` is the BEST measured Performance Score across `assets`, kept
+ * as an explicit 1:N summary against the one `fit_score` — it is NEVER presented as if the Fit Score
+ * predicted that one specific Post (always-rules #3/#4; ADR-0011 "Fit vs Performance").
  *
  * `status` is the Idea's DERIVED ROLL-UP (ADR-0011, `deriveIdeaRollup`) — for an `accepted` Idea with
  * Assets in flight, this is the rolled-up Asset stage (e.g. `in_production`), not the bare `accepted`
@@ -112,10 +143,11 @@ export interface ReportIdea {
   readonly status: string;
   /** Predicted Fit Score (0–1), or null if absent. NEVER the measured number. */
   readonly fit_score: number | null;
-  /** Measured Performance Score (0–1, relative to the Channel baseline), or null until tracked. */
-  readonly performance_score: number | null;
-  /** The logged Post URL (explicit attribution), or null if not yet published. */
-  readonly post_url: string | null;
+  /** One row per chosen Recipe's Asset (may be empty — an accepted Idea with no Assets yet). */
+  readonly assets: readonly ReportAssetRow[];
+  /** The BEST `performance_score` among `assets`, or null if none is measured yet. An explicit 1:N
+   *  summary against the single `fit_score` — never implies the Fit Score judged this one Post. */
+  readonly best_performance_score: number | null;
 }
 
 /** The Channel's own performance baseline — what a Performance Score is measured RELATIVE to. */
@@ -138,19 +170,27 @@ function asStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/** The BEST (highest) `performance_score` across a set of Asset rows, or `null` if none is measured. */
+function bestPerformanceScore(assets: readonly ReportAssetRow[]): number | null {
+  let best: number | null = null;
+  for (const asset of assets) {
+    if (asset.performance_score === null) continue;
+    if (best === null || asset.performance_score > best) best = asset.performance_score;
+  }
+  return best;
+}
+
 /**
  * Read the ledger into the read-only `/report` projection (defensive: missing/garbled fields degrade to
  * sensible defaults rather than crashing a Run — always-rules #8). Keeps the **predicted** `fit_score`
- * and the **measured** `performance_score` as distinct fields so `/report` never presents one as the
- * other. A record missing an `id` is skipped (we never invent a record); a missing `title` degrades to
- * the id so the row is still identifiable. `status` is the Idea's derived roll-up (ADR-0011) — see
- * `ReportIdea`.
+ * and the **measured** per-Asset `performance_score`s as distinct fields so `/report` never presents
+ * one as the other. A record missing an `id` is skipped (we never invent a record); a missing `title`
+ * degrades to the id so the row is still identifiable. `status` is the Idea's derived roll-up
+ * (ADR-0011) — see `ReportIdea`.
  *
- * `performance_score`/`post_url` still read the Idea's own top-level fields (pre-Recipe-keyed) — with
- * one Idea now able to yield several Assets/Posts (ADR-0009/0011), re-scoping Post/Performance
- * attribution to `(Idea, Recipe)` and re-keying `/log-post` is deferred to a follow-up slice (see this
- * slice's `handoff.md`, "Known limits"); this projection is unaffected either way for every real
- * ledger today (no Idea has left `accepted`).
+ * `assets`/`best_performance_score` are read from the Idea's per-Recipe Assets (`normalizeIdeaStatus`,
+ * ADR-0011) — attribution is keyed `(Idea, Recipe)`, exactly what `/log-post` writes (issue #56), never
+ * a flat top-level scalar that a second Recipe's Post would silently overwrite.
  */
 export async function loadReport(path: string, brand?: string): Promise<ReportData> {
   const raw: unknown = await readLedgerJson(path, brand);
@@ -162,14 +202,20 @@ export async function loadReport(path: string, brand?: string): Promise<ReportDa
     .filter((r) => typeof r.id === "string")
     .map((r) => {
       const id = r.id as string;
-      const { status, assets } = normalizeIdeaStatus(r);
+      const { status, assets: normalizedAssets } = normalizeIdeaStatus(r);
+      const assets: ReportAssetRow[] = normalizedAssets.map((a) => ({
+        recipe: a.recipe,
+        status: a.status,
+        performance_score: asNumberOrNull(a.performance_score),
+        post_url: asStringOrNull(a.post_url),
+      }));
       return {
         id,
         title: typeof r.title === "string" ? r.title : id,
-        status: deriveIdeaRollup(status, assets),
+        status: deriveIdeaRollup(status, normalizedAssets),
         fit_score: asNumberOrNull(r.fit_score),
-        performance_score: asNumberOrNull(r.performance_score),
-        post_url: asStringOrNull(r.post_url),
+        assets,
+        best_performance_score: bestPerformanceScore(assets),
       };
     });
 
@@ -229,7 +275,7 @@ export function applyIdeaRecipeSelection(
  * Review) and `declined_recipes` (offered Recipes the Operator declined, with the reason logged
  * verbatim), and save. Preserves the file's other fields by editing the raw record in place. The
  * ledger remains the source of truth; an unknown `ideaId` leaves the file untouched. Mirrors
- * `writeIdeaCast`'s shape.
+ * `AssetStore.writeAsset`'s thin edit-in-place shape.
  */
 export async function writeIdeaRecipeSelection(
   ideaId: string,
@@ -257,29 +303,4 @@ export async function writeIdeaRecipeSelection(
 
   const next = { ...raw, ideas };
   await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
-}
-
-// --- Legacy re-exports (production-queue/worker.ts, ADR-0004 — superseded by ADR-0008) --------------
-
-/**
- * Re-exported for `production-queue/worker.ts` (the ADR-0004 background-worker model; see its own
- * docstring — no live command wires it up, and ADR-0008 supersedes the runtime it belonged to). The
- * live per-Recipe Asset grain's Cast candidate shape is IDENTICAL (`LedgerAssetRecord.cast`,
- * `src/asset/asset.ts`); this alias just keeps `worker.ts`'s existing import (`from "../ledger/
- * ledger.ts"`) compiling unchanged rather than forcing an unrelated-to-this-slice edit there.
- */
-export type { LedgerCastCandidate } from "../asset/asset.ts";
-
-/**
- * LEGACY scalar shape `production-queue/worker.ts` writes on a render completion — retained ONLY for
- * that module's compatibility (see the re-export note above). NOT the live Asset grain: that is
- * `LedgerAssetRecord` (`src/asset/asset.ts`, ADR-0011). Do not extend this type or give it new
- * callers — it predates the per-Recipe Asset and is scoped to the one already-orphaned module that
- * still references it.
- */
-export interface LedgerAsset {
-  readonly character: string;
-  readonly asset_url: string;
-  /** ISO-8601 timestamp, INJECTED by the caller (never read from the clock here). */
-  readonly produced_at: string;
 }

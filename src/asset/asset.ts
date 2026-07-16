@@ -26,9 +26,7 @@
  * `LedgerCastCandidate` (the *Character Explainer with Cast* Recipe's own gate-pick data — the
  * candidate images the Operator chooses from) lives here too: it is now RECIPE-LOCAL data carried on
  * an Asset's optional `cast`/`character` fields, not a universal Asset field (CONTEXT.md: "Cast" /
- * "Character" are that Recipe's own vocabulary). `ledger/ledger.ts` re-exports it by name so
- * `production-queue/worker.ts` (the ADR-0004 background-worker model, superseded by ADR-0008 — see
- * that module's own docstring) keeps compiling unchanged.
+ * "Character" are that Recipe's own vocabulary).
  */
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,9 @@
  *
  * The build is hermetic: the Space driver is exercised entirely through this in-memory fake at the MCP
  * boundary — NO live `spaces_*`/`creations_*` calls, no credits, no board mutation, no network
- * (CLAUDE.md build pipeline; ADR-0003/0004). The live MCP adapter is deferred to the worker slice.
+ * (CLAUDE.md build pipeline; ADR-0003). The live Magnific adapter is a separate, deferred concern (the
+ * attended `producer` content agent drives the real Space directly with the Magnific MCP tools —
+ * ADR-0008; there is no background worker seam here to fake).
  *
  * It composes the EXISTING fake `spaces_state` from `execution-protocol/fixtures/space-state.ts` (so
  * there is one fake Space, not two) and adds the run-time behavior the driver needs:
@@ -33,27 +35,7 @@ import {
   fakeSpaceStateWithMissingRunPoint,
   type FakeSpaceState,
 } from "../../execution-protocol/fixtures/space-state.ts";
-import { composeAndCast, pickAndRender, type PollOptions } from "../driver.ts";
-import type { DriverError } from "../driver.ts";
-import type {
-  QueueJob,
-} from "../../production-queue/queue.ts";
-import type {
-  SpaceSession,
-  SpaceOpResult,
-  CastOpOutcome,
-  RenderOpOutcome,
-} from "../../production-queue/worker.ts";
-
-/**
- * The FakeSpaceSession's internal op result BEFORE the `(brand, idea_id)` correlation is stamped on. The
- * driver produces the outcome/error; `start()` stamps the job's correlation onto it (C17) so the worker
- * can bind the terminal result to the right job.
- */
-type CoreOpResult =
-  | { readonly ok: true; readonly outcome: CastOpOutcome | RenderOpOutcome }
-  | { readonly ok: false; readonly error: DriverError };
-import { validSpec } from "../../production-spec/fixtures/specs.ts";
+import type { PollOptions } from "../driver.ts";
 
 /** The exact name of the Spec-input text node (the Fallback Protocol inject target). */
 export const JSON_MASTER_NODE_NAME = "JSON Master";
@@ -337,106 +319,6 @@ export function fallbackCastIds(): readonly string[] {
 /** The expected Cast image URLs (for assertions). */
 export function expectedCastUrls(): readonly string[] {
   return castCreations().map((c) => c.url);
-}
-
-// ====================================================================================================
-// === FakeSpaceSession — the worker's start-then-poll Space seam over the fake (Slice 7 / issue #8) ===
-// ====================================================================================================
-
-/** Options selecting the fault a FakeSpaceSession models (default: every op succeeds). */
-export interface FakeSpaceSessionOptions {
-  /** When true, the next cast-gen's inject is a no-op so `composeAndCast` fails (`inject_unconfirmed`). */
-  readonly castFails?: boolean;
-  /** When true, the next render's pin is a no-op so `pickAndRender` fails (`pin_unconfirmed`). */
-  readonly renderFails?: boolean;
-}
-
-/**
- * A FAKE `SpaceSession` modelling ONE in-flight async Space op as **start-then-poll** — THIS IS THE
- * MAGNIFIC FAKE at the worker seam. The build is hermetic: each op runs entirely through `FakeSpace` and
- * the real driver (`composeAndCast` / `pickAndRender`) at the `SpaceMcpPort` boundary — NO live
- * `spaces_*`/`creations_*`, NO credits, NO board mutation, NO network.
- *
- * `start(job)` dispatches the op (a cast-gen or a render) and LATCHES its terminal result, but `poll()`
- * returns `null` (still running) until the test calls `advance()`. That models an async Space op that can
- * complete "while the Operator is idle": a `drain` starts it (leaving it in flight), the test `advance()`s
- * it, and a later `tick` reaps it — exactly the path ADR-0004's required periodic tick exists for.
- */
-export class FakeSpaceSession implements SpaceSession {
-  private busy = false;
-  private completed = false;
-  private latched: SpaceOpResult | null = null;
-  private readonly opts: FakeSpaceSessionOptions;
-
-  /** The phases of every op started, in order (for serialization assertions). */
-  public readonly started: Array<{ ideaId: string; phase: QueueJob["phase"] }> = [];
-
-  constructor(opts: FakeSpaceSessionOptions = {}) {
-    this.opts = opts;
-  }
-
-  inFlight(): boolean {
-    return this.busy;
-  }
-
-  async start(job: QueueJob): Promise<void> {
-    if (this.busy) {
-      throw new Error("FakeSpaceSession: a second Space op was started while one is in flight");
-    }
-    this.busy = true;
-    this.completed = false;
-    this.started.push({ ideaId: job.idea_id, phase: job.phase });
-    const core = job.phase === "cast" ? await this.runCast() : await this.runRender(job);
-    // C17: stamp the job's `(brand, idea_id)` onto the terminal result so the worker binds it to the
-    // right job — never to "whichever job is running".
-    this.latched = core.ok
-      ? { ok: true, idea_id: job.idea_id, brand: job.brand, outcome: core.outcome }
-      : { ok: false, idea_id: job.idea_id, brand: job.brand, error: core.error };
-  }
-
-  /** Test hook: advance the in-flight op to terminal so the next `poll()` returns its result. */
-  advance(): void {
-    if (this.busy) this.completed = true;
-  }
-
-  async poll(): Promise<SpaceOpResult | null> {
-    if (!this.busy || !this.completed) return null; // still running
-    const result = this.latched!;
-    this.busy = false;
-    this.completed = false;
-    this.latched = null;
-    return result;
-  }
-
-  /** Run a cast-gen through the real driver over a fresh FakeSpace (Phase A). */
-  private async runCast(): Promise<CoreOpResult> {
-    const port = new FakeSpace(fakeSpaceState(), { injectNoOp: this.opts.castFails === true });
-    const out = await composeAndCast(port, fakeSpaceState(), validSpec(), FAKE_POLL);
-    if (!out.ok) return { ok: false, error: out.error };
-    // The driver already returns aligned {identifier, url} pairs — no zipping of parallel arrays (C36).
-    return { ok: true, outcome: { phase: "cast", cast: out.cast.cast.map((c) => ({ ...c })) } };
-  }
-
-  /**
-   * Run a render through the real driver over a fresh FakeSpace (Phase B). The Character comes from the
-   * render job's own `character` field — the Operator's Gate-2 pick persisted at pick time (C1) — NOT a
-   * fake-side default. A render job that reaches the seam without one is a persistence bug the fixture
-   * refuses to paper over (it would silently render the wrong Character), so it throws loudly.
-   */
-  private async runRender(job: QueueJob): Promise<CoreOpResult> {
-    if (job.character === undefined) {
-      throw new Error(
-        `FakeSpaceSession: render job for "${job.idea_id}" carries no character — the Operator's pick never reached the render (C1)`,
-      );
-    }
-    const port = new FakeSpace(fakeSpaceState(), { pinNoOp: this.opts.renderFails === true });
-    const out = await pickAndRender(port, fakeSpaceState(), job.character, FAKE_POLL);
-    if (!out.ok) return { ok: false, error: out.error };
-    return {
-      ok: true,
-      outcome: { phase: "render", character: out.asset.character, asset_url: out.asset.assetUrl },
-    };
-  }
 }
 
 /**

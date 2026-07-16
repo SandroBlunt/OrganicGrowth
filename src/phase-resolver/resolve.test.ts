@@ -45,7 +45,8 @@ function job(ideaId: string, brand = "test-brand", status: QueueJob["status"] = 
   return {
     idea_id: ideaId,
     brand,
-    phase: "cast",
+    recipe: "character-explainer-with-cast",
+    gate: "cast",
     status,
     enqueued_at: "2026-06-06T00:00:00Z",
   };
@@ -432,7 +433,8 @@ describe("resolvePhase — pure and isolation-tested (AC7)", () => {
     const plainJob: QueueJob = {
       idea_id: "idea-1",
       brand: "mundotip",
-      phase: "cast",
+      recipe: "character-explainer-with-cast",
+      gate: "cast",
       status: "queued",
       enqueued_at: "2026-06-06T00:00:00Z",
     };

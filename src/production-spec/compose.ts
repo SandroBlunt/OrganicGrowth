@@ -42,6 +42,10 @@ export interface ComposeOptions {
   /** REQUIRED: path to the Brand's Brand Profile YAML. No ambient/brand-scoped default — the
    *  brand-safety filter is always sourced from the named Brand's own profile, never a fallback's. */
   readonly brandProfilePath: string;
+  /** REQUIRED: the chosen Recipe slug this Spec is composed for (issue #56, ADR-0011) — segments the
+   *  saved path so a second Recipe of the same Idea does not overwrite this one's Spec. Never
+   *  defaulted: the caller (the Operator's Review-time Recipe selection) always knows it explicitly. */
+  readonly recipe: string;
   /** Injectable generator (defaults to the deterministic composer); enables fault-injection tests. */
   readonly generator?: (brief: Brief) => ProductionSpec | Record<string, unknown>;
 }
@@ -60,7 +64,7 @@ export async function composeSpec(
   const ideasRoot = options.ideasRoot;
   const brandProfilePath = options.brandProfilePath;
   const generate = options.generator ?? defaultGenerate;
-  const path = specPathFor(brief.id, brief.run, ideasRoot);
+  const path = specPathFor(brief.id, brief.run, ideasRoot, options.recipe);
 
   const spec = generate(brief);
 

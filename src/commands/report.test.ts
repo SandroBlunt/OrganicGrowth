@@ -19,15 +19,31 @@ async function withLedger(seed: unknown, fn: (ledgerPath: string) => Promise<voi
   }
 }
 
+const RECIPE = "character-explainer-with-cast";
+
 /** A representative report projection spanning every lifecycle state the renderer must surface. */
 function sampleData(): ReportData {
   return {
     ideas: [
-      { id: "idea-01", title: "Suggested one", status: "suggested", fit_score: 0.7, performance_score: null, post_url: null },
-      { id: "idea-02", title: "Casting one", status: "casting", fit_score: 0.82, performance_score: null, post_url: null },
-      { id: "idea-03", title: "Produced one", status: "produced", fit_score: 0.61, performance_score: null, post_url: null },
-      { id: "idea-04", title: "Scored one", status: "scored", fit_score: 0.55, performance_score: 1.4, post_url: "https://facebook.com/post/4" },
-      { id: "idea-05", title: "Posted one", status: "posted", fit_score: 0.9, performance_score: null, post_url: "https://facebook.com/post/5" },
+      { id: "idea-01", title: "Suggested one", status: "suggested", fit_score: 0.7, assets: [], best_performance_score: null },
+      { id: "idea-02", title: "Casting one", status: "casting", fit_score: 0.82, assets: [], best_performance_score: null },
+      { id: "idea-03", title: "Produced one", status: "produced", fit_score: 0.61, assets: [], best_performance_score: null },
+      {
+        id: "idea-04",
+        title: "Scored one",
+        status: "scored",
+        fit_score: 0.55,
+        assets: [{ recipe: RECIPE, status: "scored", performance_score: 1.4, post_url: "https://facebook.com/post/4" }],
+        best_performance_score: 1.4,
+      },
+      {
+        id: "idea-05",
+        title: "Posted one",
+        status: "posted",
+        fit_score: 0.9,
+        assets: [{ recipe: RECIPE, status: "posted", performance_score: null, post_url: "https://facebook.com/post/5" }],
+        best_performance_score: null,
+      },
     ],
     baseline: { updated_at: "2026-06-04T09:00:00.000Z" },
   };
@@ -53,7 +69,7 @@ describe("renderReport — surfaces production (casting + produced) at a glance"
 });
 
 describe("renderReport — keeps Fit Score (predicted) and Performance Score (measured) distinct", () => {
-  it("renders Fit Score and Performance Score under separate, clearly-labelled columns/headers", () => {
+  it("renders Fit Score and (best) Performance Score under separate, clearly-labelled columns/headers", () => {
     const out = renderReport(sampleData());
     assert.match(out, /Fit Score/i);
     assert.match(out, /Performance Score/i);
@@ -65,8 +81,8 @@ describe("renderReport — keeps Fit Score (predicted) and Performance Score (me
   it("never shows a Fit Score in the Performance column: an untracked Idea's Performance cell is a placeholder, not 0 and not the Fit Score", () => {
     const data: ReportData = {
       ideas: [
-        // Fit Score present, Performance Score null (not yet measured).
-        { id: "idea-77", title: "Untracked", status: "produced", fit_score: 0.42, performance_score: null, post_url: null },
+        // Fit Score present, no Assets measured yet.
+        { id: "idea-77", title: "Untracked", status: "produced", fit_score: 0.42, assets: [], best_performance_score: null },
       ],
       baseline: { updated_at: null },
     };
@@ -88,6 +104,13 @@ describe("renderReport — keeps Fit Score (predicted) and Performance Score (me
     // The Performance cell must not read as a literal 0 score.
     assert.doesNotMatch(row, /\b0\.00\b/);
   });
+
+  it("labels the best-of-N Performance summary as an explicit 1:N relationship (ADR-0011)", () => {
+    const out = renderReport(sampleData());
+    // idea-04 has exactly one measured Post → "best of 1 Post".
+    const row = out.split("\n").find((l) => l.includes("idea-04"))!;
+    assert.match(row, /1\.40 \(best of 1 Post\)/);
+  });
 });
 
 describe("renderReport — a measured score is shown relative to the Channel baseline", () => {
@@ -103,19 +126,41 @@ describe("renderReport — a measured score is shown relative to the Channel bas
     assert.match(out, /baseline/i);
     assert.match(out, /not yet measured/i);
   });
+
+  it("shows exactly ONE baseline line regardless of how many Recipes/Assets exist (never per-Recipe)", () => {
+    const out = renderReport(sampleData());
+    const baselineLines = out.split("\n").filter((l) => /Channel baseline/.test(l));
+    assert.equal(baselineLines.length, 1, "there must be exactly one Channel baseline, shared across every Recipe");
+  });
 });
 
 // === renderReport — explicit attribution + empty handling + purity ===================================
 
-describe("renderReport — explicit attribution (Post linked only via the logged URL)", () => {
-  it("shows a posted Idea linked to its Post via the logged post_url, and shows no link when post_url is null", () => {
+describe("renderReport — explicit attribution (a Post linked only via the logged URL, per Recipe)", () => {
+  it("shows a posted Asset linked to its Idea × Recipe via the logged post_url in the Posts section", () => {
     const out = renderReport(sampleData());
-    // idea-04 has a logged URL → shown.
+    // idea-04's Asset has a logged URL → shown in the Posts section, alongside its Recipe.
     assert.match(out, /https:\/\/facebook\.com\/post\/4/);
-    // idea-01 has no post_url → its row must not invent a link.
-    const row = out.split("\n").find((l) => l.includes("idea-01"));
+    assert.match(out, /Posts \(explicit attribution/i);
+    const postsSection = out.slice(out.indexOf("Posts (explicit attribution"));
+    assert.match(postsSection, new RegExp(`idea-04.*${RECIPE}`));
+  });
+
+  it("an Idea with no Assets/Posts shows no link on its own summary row", () => {
+    const out = renderReport(sampleData());
+    // idea-01 has no post_url → its summary row must not invent a link.
+    const row = out.split("\n").find((l) => l.includes("idea-01") && !l.includes("Posts"));
     assert.ok(row);
     assert.doesNotMatch(row, /https?:\/\//);
+  });
+
+  it("reports 'no Posts logged yet' when nothing has a post_url", () => {
+    const data: ReportData = {
+      ideas: [{ id: "idea-01", title: "Nothing posted", status: "accepted", fit_score: 0.5, assets: [], best_performance_score: null }],
+      baseline: { updated_at: null },
+    };
+    const out = renderReport(data);
+    assert.match(out, /no Posts logged yet/i);
   });
 });
 
@@ -235,6 +280,41 @@ describe("reportCommand — a MIGRATED ledger's rolled-up Asset status appears i
         const row = out.split("\n").find((l) => l.includes("idea-07"));
         assert.ok(row);
         assert.match(row, /\baccepted\b/);
+      },
+    );
+  });
+});
+
+// === reportCommand — two Recipes of one Idea both surface, each with its own Post (issue #56) ========
+
+describe("reportCommand — a two-Recipe Idea surfaces both Assets, each with its own attribution", () => {
+  it("shows both Recipes' rows and both Posts, never collapsing to one", async () => {
+    await withLedger(
+      {
+        ideas: [
+          {
+            id: "idea-08",
+            title: "Two Recipes",
+            status: "accepted",
+            fit_score: 0.75,
+            assets: [
+              { recipe: "character-explainer-with-cast", status: "scored", performance_score: 0.3, post_url: "https://facebook.com/post/8a" },
+              { recipe: "carousel", status: "scored", performance_score: 0.9, post_url: "https://facebook.com/post/8b" },
+            ],
+          },
+        ],
+        baseline: { updated_at: null },
+      },
+      async (ledgerPath) => {
+        const out = await reportCommand("mundotip", ledgerPath);
+        // The best-of-2 summary picks the higher score.
+        const summaryRow = out.split("\n").find((l) => l.includes("idea-08") && l.includes("0.90"));
+        assert.ok(summaryRow, "the summary row must show the BEST of the two Performance Scores");
+        // Both Posts appear, each attributed to its own Recipe.
+        assert.match(out, /https:\/\/facebook\.com\/post\/8a/);
+        assert.match(out, /https:\/\/facebook\.com\/post\/8b/);
+        assert.match(out, /character-explainer-with-cast/);
+        assert.match(out, /carousel/);
       },
     );
   });
