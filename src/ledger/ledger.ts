@@ -324,6 +324,82 @@ export async function writeIdeaAsset(
   await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
 }
 
+// --- Recipe selection write (issue #54: the ledger Idea gains `recipes`/`declined_recipes`) ---------
+
+/**
+ * One Recipe the Operator declined at Review, with the free-text reason captured VERBATIM (mirrors
+ * `rejection_reason` — logged only, v1 does not auto-apply it to future suggestions).
+ */
+export interface LedgerDeclinedRecipe {
+  readonly recipe: string;
+  readonly reason: string;
+}
+
+/** The subset of an Idea record including the Operator's Recipe selection at Review (issue #54). */
+export interface LedgerIdeaWithRecipes extends LedgerIdea {
+  /** The wired Recipe slugs the Operator chose to produce this Idea through. */
+  readonly recipes?: readonly string[];
+  /** Offered Recipes the Operator declined, each with its verbatim reason. Logged only (v1). */
+  readonly declined_recipes?: readonly LedgerDeclinedRecipe[];
+}
+
+/**
+ * Return a NEW ideas array with `ideaId`'s `recipes` / `declined_recipes` set. Pure: never mutates the
+ * input array or its records. An unknown `ideaId` returns the array unchanged (the ledger stays
+ * canonical — we never invent a record).
+ */
+export function applyIdeaRecipeSelection(
+  ideas: readonly LedgerIdeaWithRecipes[],
+  ideaId: string,
+  recipes: readonly string[],
+  declinedRecipes: readonly LedgerDeclinedRecipe[],
+): LedgerIdeaWithRecipes[] {
+  return ideas.map((idea) =>
+    idea.id === ideaId
+      ? {
+          ...idea,
+          recipes: [...recipes],
+          declined_recipes: declinedRecipes.map((d) => ({ ...d })),
+        }
+      : idea,
+  );
+}
+
+/**
+ * Thin write shell: load the full ledger, set one Idea's `recipes` (the wired Recipes chosen at
+ * Review) and `declined_recipes` (offered Recipes the Operator declined, with the reason logged
+ * verbatim), and save. Preserves the file's other fields by editing the raw record in place. The
+ * ledger remains the source of truth; an unknown `ideaId` leaves the file untouched. Mirrors
+ * `writeIdeaCast`'s shape.
+ */
+export async function writeIdeaRecipeSelection(
+  ideaId: string,
+  recipes: readonly string[],
+  declinedRecipes: readonly LedgerDeclinedRecipe[],
+  options: WriteIdeaStatusOptions,
+): Promise<void> {
+  const path = options.ledgerPath;
+  const raw: unknown = await readJsonFile(path);
+  if (!isObject(raw) || !Array.isArray(raw.ideas)) return;
+
+  let changed = false;
+  const ideas = raw.ideas.map((record) => {
+    if (isObject(record) && record.id === ideaId) {
+      changed = true;
+      return {
+        ...record,
+        recipes: [...recipes],
+        declined_recipes: declinedRecipes.map((d) => ({ ...d })),
+      };
+    }
+    return record;
+  });
+  if (!changed) return;
+
+  const next = { ...raw, ideas };
+  await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
+}
+
 // --- Cast write (ADR-0003: the ledger Idea gains a `cast` field) ------------------------------------
 
 /**

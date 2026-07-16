@@ -79,8 +79,10 @@ export interface FormatFile {
   readonly sources: FormatSources;
   /** How many Idea briefs to suggest per Run of THIS Format (moved down from the Brand). */
   readonly ideasPerRun: number;
-  /** Recipe slugs pre-filled at Review for Ideas of this Format (ADR-0009). Free-text for now — the
-   * in-repo Recipe registry (issue #54) is not wired yet, so these are not validated against it. */
+  /** Recipe slugs pre-filled at Review for Ideas of this Format (ADR-0009). Stays free-text/unvalidated
+   * HERE at parse time — the in-repo Recipe registry (`src/recipe/registry.ts`, issue #54) is the
+   * thing that filters these to WIRED slugs only, at offer time (`src/recipe/offer.ts`,
+   * `offeredRecipes`), not here. */
   readonly defaultRecipes: readonly string[];
 }
 
