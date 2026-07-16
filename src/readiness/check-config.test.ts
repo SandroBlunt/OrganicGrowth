@@ -32,7 +32,6 @@ const HEALTHY_PROFILE: BrandProfile = {
   language: "es",
   region: "LATAM",
   voice: "Punchy and curiosity-driven. Short sentences.",
-  formats: ["reel"],
   required_cta: "",
   required_hashtags: [],
   banned_words: ["scam", "fake"],

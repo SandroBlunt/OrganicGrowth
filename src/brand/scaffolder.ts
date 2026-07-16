@@ -76,7 +76,6 @@ export interface BrandProfileContent {
   readonly language: string;
   readonly region: string;
   readonly voice: string;
-  readonly formats: string[];
   readonly required_cta: string;
   readonly required_hashtags: string[];
   readonly banned_words: string[];
@@ -158,8 +157,13 @@ const DEFAULT_BRAND_SAFETY: string[] = [
  *
  * Every field in the output that derives from the Operator's answers is taken verbatim from
  * `answers`. Deferred fields not supplied by the Operator default to appropriate empty values —
- * never fabricated content. Only `formats` (always `["reel"]`) and `brand_safety` (the standard
- * safety boilerplate) are set without Operator input.
+ * never fabricated content. Only `brand_safety` (the standard safety boilerplate) is set without
+ * Operator input.
+ *
+ * Deliberately does NOT set a `formats` field: `brand-profile.yaml`'s old `formats: [reel]` was the
+ * retired MEDIA sense of "format" (ADR-0009) — it no longer belongs on the Brand Profile at all. The
+ * Brand's actual editorial **Formats** live as their own files under `formats/` (`FormatStore`,
+ * `src/format/store.ts`); this builder does not create one (the Format interview is a future slice).
  *
  * @param answers  The Operator's interview answers.
  * @returns        A YAML-serialisable brand-profile shape.
@@ -175,7 +179,6 @@ export function buildBrandProfile(answers: BrandInterviewAnswers): BrandProfileC
     language: answers.language,
     region: answers.region,
     voice: answers.voice,
-    formats: ["reel"],
     required_cta: answers.requiredCta ?? "",
     required_hashtags: answers.requiredHashtags ?? [],
     banned_words: answers.bannedWords ?? [],

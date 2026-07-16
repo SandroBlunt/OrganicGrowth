@@ -1,0 +1,47 @@
+# Format: Unhypped News — Straw Motion's one editorial line today.
+# A Format is a Brand's editorial line (subject + treatment), NOT a media type (ADR-0009).
+# trend-scout reads `sources` (mode + the actual sources) from here; idea-strategist reads `voice`
+# and tags every suggested Idea with this Format's slug ("unhypped-news"). `/run-trends straw-motion
+# unhypped-news` namespaces its Run output under data/brands/straw-motion/ideas/unhypped-news/<run>/.
+
+name: "Unhypped News"
+niche: >-
+  Where agentic AI meets generative media: building agents/workflows, generative-media workflows,
+  comparing models, AI news, and how the technology is evolving — explained in-depth, in plain terms.
+
+voice: >-
+  Easy, no-BS, plain language — never jargon-heavy. Ambitious and confident, the
+  way a founder or business owner talks: direct, big-picture, no fluff. Speaks
+  to both seasoned builders and total AI beginners without talking down to
+  anyone.
+
+# The media SHAPE trend-scout favors when scanning sources — NOT the editorial Format above.
+media_focus: reel
+
+sources:
+  mode: curated   # peer | curated — Unhypped News digests curated newsletters, not peer Pages
+
+  # Peer Pages are NOT usable for this Format yet — only the Facebook actor is wired today, and
+  # these are Instagram/YouTube. See issue #48. Kept here for when more sources are added later.
+  seed_pages:
+    - https://www.instagram.com/evolving.ai/
+    - https://www.instagram.com/theaifield/
+    - https://www.youtube.com/@curiousrefuge
+
+  # Fully public archives (no login/paywall) the Operator already curates and prioritizes. Since
+  # this list is non-empty, trend-scout digests these instead of scraping peer Pages via Apify.
+  curated_sources:
+    - https://ai-weekly.ai/
+    - https://newsletter.evolvingai.io/
+
+  keywords: []
+
+  lookback_days: 7
+  overperformance_only: true   # not meaningful in curated mode (no peer baseline) — kept for parity
+
+ideas_per_run: 10   # how many Idea briefs to suggest per Run of THIS Format
+
+# Recipe slugs pre-filled at Review for this Format's Ideas (ADR-0009). The in-repo Recipe registry
+# (issue #54) is not wired yet, so this is not validated against it — today's single wired Recipe:
+default_recipes:
+  - character-explainer-with-cast

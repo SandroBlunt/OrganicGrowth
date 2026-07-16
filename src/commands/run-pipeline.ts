@@ -708,7 +708,7 @@ export async function* conductorTurns(
     yield {
       message: [
         `Gate 1 — Review. Brand: ${brand}`,
-        `Run /run-trends ${brand} to discover Trends and generate Ideas, then /review-ideas ${brand} to accept or reject them.`,
+        `Run /run-trends ${brand} <format> to discover Trends and generate Ideas for one of the Brand's Formats, then /review-ideas ${brand} to accept or reject them.`,
         `When you have accepted Ideas, run /run-pipeline ${brand} again to continue.`,
       ].join("\n"),
       prompt: "Press Enter when done with Review (or type 'done')",

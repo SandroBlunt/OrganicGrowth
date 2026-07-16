@@ -55,7 +55,7 @@ export const DEFAULT_QUEUE_PATH: string = STORE_QUEUE_PATH;
 /**
  * All the on-disk paths associated with one Brand.
  *
- * Five paths are per-Brand (under `<brandsRoot>/<slug>/`). `queuePath` is the global Production
+ * Six paths are per-Brand (under `<brandsRoot>/<slug>/`). `queuePath` is the global Production
  * Queue — always `data/queue.json`, never derived from the slug.
  */
 export interface BrandPaths {
@@ -69,6 +69,12 @@ export interface BrandPaths {
   readonly ideasRoot: string;
   /** `<brandsRoot>/<slug>/your-data` — the Brand's Meta export / Channel History. */
   readonly yourData: string;
+  /**
+   * `<brandsRoot>/<slug>/formats` — root directory for the Brand's per-Format YAML files
+   * (`<formatSlug>.yaml`, one per editorial line; ADR-0009, ADR-0013). Read through the typed
+   * `FormatStore` (`src/format/store.ts`) — never stray `readFile` calls elsewhere.
+   */
+  readonly formatsRoot: string;
   /**
    * The global Production Queue path — `data/queue.json`. Brand-agnostic; the same value for
    * every Brand. NOT derived from the slug (ADR-0004, ADR-0006).
@@ -156,6 +162,7 @@ export function resolveBrand(slug: string, brandsRoot: string = DEFAULT_BRANDS_R
     seeds: join(base, "seeds.yaml"),
     ideasRoot: join(base, "ideas"),
     yourData: join(base, "your-data"),
+    formatsRoot: join(base, "formats"),
     queuePath: DEFAULT_QUEUE_PATH,
   };
 }

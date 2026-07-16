@@ -18,8 +18,10 @@ voice: >-
   to both seasoned builders and total AI beginners without talking down to
   anyone.
 
-formats:
-  - reel
+# Straw Motion's editorial line ("Unhypped News") lives at formats/unhypped-news.yaml (FormatStore,
+# ADR-0009/0013) — its own niche/voice/sources/mode are canonical for trend-scout/idea-strategist/
+# `/run-trends`. The niche/voice above are kept as Brand-wide fallbacks for onboarding/readiness,
+# which are not yet Format-aware.
 
 # Brand-safety / hard rules an Idea must respect:
 required_cta: "" # Optional: set a verbatim CTA if you enforce one (leave blank otherwise)

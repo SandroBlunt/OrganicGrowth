@@ -18,8 +18,11 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
 
 1. **Resolve the Brand.** Slugify `<brand>` and derive the Brand's paths via the resolver. State the
    active Brand: "Reviewing Ideas for Brand: `<brand>`."
-2. **Load** all `status: suggested` Ideas for the run from `data/brands/<slug>/ledger.json`
-   (+ their briefs from `data/brands/<slug>/ideas/<run>/`).
+2. **Load** all `status: suggested` Ideas for the run from `data/brands/<slug>/ledger.json`. Each
+   Idea carries its own `format` (the Format slug it was researched under — ADR-0013); load its
+   brief from the Format-namespaced path `data/brands/<slug>/ideas/<Idea.format>/<run>/idea-NN.md`
+   (a Run is scoped to one Format, so every Idea in a given `<run>` normally shares the same
+   `format`).
 3. **Present them** one at a time (or as a short list, Operator's preference): title, the trend it
    rides, Fit Score, hook concept, and the one-line rationale.
 4. **Take the Operator's verdict** in natural language — accept some, reject others. This is a

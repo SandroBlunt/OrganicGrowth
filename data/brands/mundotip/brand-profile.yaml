@@ -14,7 +14,10 @@ voice: >
   Punchy and curiosity-driven. Short sentences. Open with a surprising claim or a relatable
   problem, deliver one clear payoff, end with a light nudge to engage. Friendly, never preachy.
 
-formats: [reel]       # primary format(s) we make
+# MundoTip's one editorial line ("Life Hacks") lives at formats/life-hacks.yaml (FormatStore,
+# ADR-0009/0013) — its own niche/voice/sources/mode are canonical for trend-scout/idea-strategist/
+# `/run-trends`. The niche/voice above are kept as Brand-wide fallbacks for onboarding/readiness,
+# which are not yet Format-aware.
 
 # Brand-safety / hard rules an Idea must respect:
 required_cta: ""             # set a verbatim CTA here if you enforce one

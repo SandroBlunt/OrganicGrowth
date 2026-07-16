@@ -14,7 +14,10 @@ voice: >
   TODO: Describe your brand voice in 2–4 sentences. This guides every Idea the idea-strategist
   suggests. Be specific: tone, sentence length, how to open a Reel, how to close.
 
-formats: [reel]      # Primary format(s): reel | image | carousel
+# Each of this Brand's editorial lines (its Formats — e.g. "Life Hacks", "Unhypped News") lives as
+# its own file under formats/<slug>.yaml (FormatStore, ADR-0009/0013): niche, voice, trend sources,
+# peer-vs-curated mode, ideas_per_run, default_recipes. trend-scout/idea-strategist/`/run-trends`
+# read those, not this file. Add at least one Format file before running `/run-trends <brand> <format>`.
 
 # Brand-safety / hard rules an Idea must respect:
 required_cta: ""           # Optional: set a verbatim CTA if you enforce one (leave blank otherwise)
