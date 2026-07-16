@@ -9,7 +9,11 @@
  * Pure and deterministic: no I/O, no clock, no Space, no network. It takes an already-read state object
  * (the live read happens in the Space-driver shell, against the fake in tests) and returns a result.
  * It HARD-CODES NO node IDs for run-points — every run-point ID comes from resolving its name against
- * THIS state, so the same parser generalizes across any conforming Space (PRD #1 story 31).
+ * THIS state, so the same parser generalizes across any conforming Space (PRD #1 story 31). Likewise it
+ * hard-codes no fixed SET of valid gate names: a run-point's `gate` is accepted as long as it is `null`
+ * or a non-empty string — ANY Recipe-declared gate name, not only `"cast"` (ADR-0010, issue #57). Which
+ * gate names a given production plan actually uses, and in what order, is the in-repo **Recipe**'s own
+ * concern (`src/recipe/registry.ts`); this parser only resolves what is written on the Space.
  *
  * Every failure is returned as a `{ code, message }` (never thrown for expected shapes), so callers and
  * tests can assert the SPECIFIC reason, not just pass/fail — mirroring `production-spec/validate.ts`.
@@ -72,7 +76,6 @@ export type ParseResult =
   | { readonly ok: false; readonly errors: readonly ParseError[] };
 
 const VALID_MODES: ReadonlySet<string> = new Set<RunMode>(["downstream", "singular"]);
-const VALID_GATES: ReadonlySet<string> = new Set(["cast"]); // plus `null`, handled explicitly
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -151,11 +154,14 @@ export function parse(spaceState: SpaceStateLike): ParseResult {
       });
       return;
     }
+    // A gate is `null` (no pause) or ANY non-empty string naming a Recipe-declared gate (ADR-0010) — the
+    // parser does not hard-code which names are valid; it only rejects a shape that could never name one
+    // (not a string, or an empty string).
     const gateRaw = rp.gate ?? null;
-    if (gateRaw !== null && (typeof gateRaw !== "string" || !VALID_GATES.has(gateRaw))) {
+    if (gateRaw !== null && (typeof gateRaw !== "string" || gateRaw.trim() === "")) {
       errors.push({
         code: "run_point_gate_invalid",
-        message: `run_points[${i}] (\`${name}\`) has an invalid \`gate\` (got ${JSON.stringify(rp.gate)}).`,
+        message: `run_points[${i}] (\`${name}\`) has an invalid \`gate\` (got ${JSON.stringify(rp.gate)}) — must be \`null\` or a non-empty gate-name string.`,
       });
       return;
     }

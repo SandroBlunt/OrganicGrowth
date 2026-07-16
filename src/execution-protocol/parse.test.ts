@@ -121,11 +121,18 @@ describe("parse — run-point field validation", () => {
     assert.equal(hasCode(result, "run_point_mode_invalid"), true);
   });
 
-  it("rejects a run-point with an invalid gate", () => {
+  it("rejects a run-point whose gate is not a string or null (e.g. a number)", () => {
+    const raw = JSON.stringify({
+      run_points: [{ start: "Character Variants Generator", mode: "downstream", gate: 123 }],
+    });
+    const result = parse(withProtocolText(raw));
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "run_point_gate_invalid"), true);
+  });
+
+  it("rejects a run-point whose gate is an empty string", () => {
     const raw = serializeProtocol({
-      run_points: [
-        { start: "Character Variants Generator", mode: "downstream", gate: "review" as never },
-      ],
+      run_points: [{ start: "Character Variants Generator", mode: "downstream", gate: "" }],
     });
     const result = parse(withProtocolText(raw));
     assert.equal(result.ok, false);
@@ -137,6 +144,35 @@ describe("parse — run-point field validation", () => {
     const result = parse(withProtocolText(raw));
     assert.equal(result.ok, false);
     assert.equal(hasCode(result, "run_point_shape_invalid"), true);
+  });
+});
+
+describe("parse — accepts arbitrary Recipe-declared gate names (ADR-0010, issue #57)", () => {
+  it("accepts a gate name other than \"cast\" — the valid-gate set is not hard-coded", () => {
+    const raw = serializeProtocol({
+      run_points: [
+        { start: "Character Variants Generator", mode: "downstream", gate: "review" },
+        { start: "Clip extractor", mode: "downstream", gate: null },
+      ],
+    });
+    const result = parse(withProtocolText(raw));
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.runPoints[0]!.gate, "review");
+    assert.equal(result.runPoints[1]!.gate, null);
+  });
+
+  it("accepts several distinct gate names on one protocol (a multi-gate Recipe)", () => {
+    const raw = serializeProtocol({
+      run_points: [
+        { start: "Character Variants Generator", mode: "downstream", gate: "gateA" },
+        { start: "Clip extractor", mode: "downstream", gate: "gateB" },
+      ],
+    });
+    const result = parse(withProtocolText(raw));
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(result.runPoints.map((rp) => rp.gate), ["gateA", "gateB"]);
   });
 });
 

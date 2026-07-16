@@ -1,22 +1,41 @@
 /**
- * Space driver — the Producer's Phase-A (Compose & Cast) deep module (ADR-0003).
+ * Space driver — the Producer's generic run-until-gate engine (ADR-0010, revising ADR-0003's fixed
+ * two-phase split; issue #57).
  *
  * It drives a Magnific Space through the narrow injected `SpaceMcpPort` (never the live MCP tools — the
  * build is hermetic; tests pass the Magnific fake). It hides the MCP/polling detail and the `spaces_edit`
- * Fallback Protocol behind three primitives plus one orchestrator:
+ * Fallback Protocol behind a handful of primitives plus ONE generic orchestrator:
  *
- *   • injectSpec(port, spec)             — Fallback-Protocol inject into `JSON Master` + readback confirm.
- *   • runRunPoint(port, startNodeId,mode)— start a run, poll to terminal, return fired-nodes + creations.
- *   • fetchCast(port, creationIds)       — resolve Cast creation ids to aligned {identifier, url} pairs.
- *   • composeAndCast(port, state, spec)  — Phase A: resolve the cast run-point (gate === "cast") from the
- *                                          parsed Execution Protocol, inject, run cast, fetch the Cast —
- *                                          recovering via the in-canvas agent when the run-point is
- *                                          missing/stale (Fallback Protocol), rather than hard-failing.
+ *   • injectSpec(port, spec)                  — Fallback-Protocol inject into `JSON Master` + readback.
+ *   • runRunPoint(port, startNodeId, mode)     — start a run, poll to terminal, return fired-nodes + creations.
+ *   • pinPick(port, pick, nodeName)            — Fallback-Protocol pin of a resolved pick into a named
+ *                                                on-canvas node (the node name is Recipe-declared, never
+ *                                                hard-coded here) + readback confirm via `port.verifyPinned`.
+ *   • fetchCast(port, creationIds)             — resolve creation ids to aligned {identifier, url} pairs
+ *                                                (used for a paused gate's candidates AND, via
+ *                                                `fetchAsset`, the finished Asset).
+ *   • driveToNextGate(port, state, input)      — walk ONE leg of a Recipe's Execution Protocol: either
+ *                                                the FIRST leg (inject the Spec, run to the Recipe's
+ *                                                first declared gate — or straight through for a
+ *                                                gateless Recipe) or a RESUMED leg (pin the Operator's
+ *                                                resolved pick, run to the NEXT declared gate, or to the
+ *                                                final render when there is none). Recovers via the
+ *                                                in-canvas agent (Fallback Protocol) when the FIRST leg's
+ *                                                run-point is missing/stale.
+ *
+ * `driveToNextGate` REPLACES the old fixed `composeAndCast`/`pickAndRender` two-phase split: instead of
+ * hard-coding "the cast run-point" and "the clip run-point", it resolves whichever run-point the parsed
+ * Execution Protocol marks with the CALLER-supplied `targetGate` (`null` for a gateless/final leg) — a
+ * Recipe with zero, one, or several gates all drive through the SAME loop, one leg per queue job
+ * (`src/production-queue/queue.ts`'s generic `gate` cursor). The seeded *Character Explainer with Cast*
+ * Recipe still behaves identically: its first leg targets gate `"cast"`, its second (resumed) leg
+ * targets `null` (the final render) — this is proven byte-for-byte against the SAME fake this module's
+ * predecessor used (`driver.test.ts`).
  *
  * Every expected failure is returned as a `{ ok: false, code, message }`, never thrown — mirroring
  * `execution-protocol/parse.ts` and `production-spec/validate.ts`, so callers/tests assert the SPECIFIC
- * reason. The driver NEVER publishes: Phase A renders candidate Cast images and pauses for a human
- * (generate-never-publish).
+ * reason. The driver NEVER publishes: a paused leg surfaces candidates for a human, and the finished
+ * Asset is returned for a human to publish (generate-never-publish).
  */
 
 import type { Creation, EditStatus, RunStatus, SpaceMcpPort } from "./port.ts";
@@ -27,13 +46,13 @@ import type { SpaceStateLike } from "../execution-protocol/parse.ts";
 /** The exact name of the Spec-input text node the Spec is injected into (Spike 1). */
 export const JSON_MASTER_NODE_NAME = "JSON Master";
 
-/** The run mode the cast run-point is driven in (ADR-0003 / Spike 2). */
+/** The run mode every leg's run-point is driven in (ADR-0003 / Spike 2). */
 export const DOWNSTREAM_MODE = "downstream";
 
 /** Node-name fragments that identify a clip/video node (used to assert the cast run stops at the Cast). */
 const CLIP_VIDEO_NODE_MARKERS: readonly string[] = ["Clip", "Video", "Veo"];
 
-/** The exact name of the chosen-Character creation node the Fallback Protocol re-pins (Phase B). */
+/** The exact name of the *Character Explainer with Cast* Recipe's pinned-reference creation node. */
 export const CHARACTER_NODE_NAME = "Character #2";
 
 /** Stable, machine-checkable failure codes for the driver's operations. */
@@ -44,20 +63,19 @@ export type DriverErrorCode =
   | "inject_unconfirmed"
   /** The `JSON Master` node was not found on the Space for readback. */
   | "json_master_missing"
-  /** The cast run-point could not be resolved from the parsed Execution Protocol. */
-  | "cast_run_point_unresolved"
   /** A run failed for a reason other than a missing/stale start node. */
   | "run_failed"
-  /** The cast (named-run or agent-fallback) surfaced no Cast creations to show the Operator. */
-  | "cast_empty"
-  /** A run failed because its start node is gone/stale (the recovery trigger). */
+  /** A run failed because its start node is gone/stale (the recovery trigger, first-leg only). */
   | "run_point_stale"
+  /** A RESUMED leg's target-gate run-point could not be resolved from the Execution Protocol (no
+   *  Fallback-Protocol recovery applies past the first leg — ADR-0003's recovery scope). */
+  | "run_point_unresolved"
+  /** A paused leg's run (named or agent-fallback) surfaced no candidates to show the Operator. */
+  | "candidates_empty"
   /** The natural-language pin edit failed at the agent (terminal `failed`). */
   | "pin_edit_failed"
-  /** The readback after the pin did not confirm the chosen Character is pinned. */
-  | "pin_unconfirmed"
-  /** The clip run-point could not be resolved from the parsed Execution Protocol. */
-  | "clip_run_point_unresolved";
+  /** The readback after the pin did not confirm the resolved pick is pinned. */
+  | "pin_unconfirmed";
 
 /** A driver failure: a stable `code` plus a human-readable `message`. */
 export interface DriverError {
@@ -80,39 +98,24 @@ export type RunResult =
   | { readonly ok: true; readonly outcome: RunOutcome }
   | { readonly ok: false; readonly error: DriverError };
 
-/**
- * The Phase-A result: the candidate Cast as aligned `{ identifier, url }` pairs (plus whether the agent
- * fallback was used). Pairs — not two parallel arrays — so a creation's id and url can never diverge
- * (C36); an empty Cast is never returned as success (the op fails `cast_empty` instead).
- */
-export interface CastResult {
-  readonly cast: readonly Creation[];
-  /** True when recovery via the in-canvas agent (Fallback Protocol) was used to produce the Cast. */
-  readonly usedAgentFallback: boolean;
-}
-
-export type ComposeAndCastResult =
-  | { readonly ok: true; readonly cast: CastResult }
-  | { readonly ok: false; readonly error: DriverError };
-
-/** A successful pin carries the confirmed pinned Character identifier. */
+/** A successful pin carries the confirmed pinned pick's identifier. */
 export type PinResult =
-  | { readonly ok: true; readonly character: string }
+  | { readonly ok: true; readonly pick: string }
   | { readonly ok: false; readonly error: DriverError };
 
-/** The Phase-B result: the finished Asset's creation identifier and its media URL. */
+/** The finished Asset's creation identifier and its media URL. */
 export interface AssetResult {
-  /** The chosen Character (a Cast candidate identifier) the Asset was rendered against. */
-  readonly character: string;
+  /**
+   * The Operator's resolved pick that produced this render — present on every RESUMED leg (there was a
+   * preceding gate); absent only for a gateless Recipe's single first-and-final leg, where there was
+   * nothing to pick. `exactOptionalPropertyTypes`: omitted, never `undefined`, when not applicable.
+   */
+  readonly pick?: string;
   /** The finished Asset's creation identifier. */
   readonly assetId: string;
   /** The finished Asset's media URL (the Operator publishes this; the Producer never does). */
   readonly assetUrl: string;
 }
-
-export type PickAndRenderResult =
-  | { readonly ok: true; readonly asset: AssetResult }
-  | { readonly ok: false; readonly error: DriverError };
 
 function err(code: DriverErrorCode, message: string): DriverError {
   return { code, message };
@@ -280,12 +283,14 @@ export async function runRunPoint(
   };
 }
 
-// --- fetchCast (creation ids -> aligned {identifier, url} Cast pairs) --------------------------------
+// --- fetchCast (creation ids -> aligned {identifier, url} pairs) -------------------------------------
 
 /**
- * Resolve Cast creation identifiers to their `{ identifier, url }` pairs (for the Operator to judge the
- * look). Returns pairs, not a parallel id/url array, so a creation's id and url can never drift apart —
- * and unknown ids the port drops simply do not appear (the caller fails the op on an empty Cast, C36).
+ * Resolve creation identifiers to their `{ identifier, url }` pairs — used to surface a paused gate's
+ * candidates for the Operator to judge (`fetchAsset` below resolves the single finished-Asset creation
+ * separately, via the same underlying port call). Returns pairs, not a parallel id/url array, so a
+ * creation's id and url can never drift apart (C36); an empty result is never returned as an overall
+ * success (the caller fails the op instead — see `candidates_empty`).
  */
 export async function fetchCast(
   port: SpaceMcpPort,
@@ -294,143 +299,46 @@ export async function fetchCast(
   return port.fetchCreations(creationIds);
 }
 
-// --- composeAndCast (Phase A orchestration + Fallback-Protocol recovery) ----------------------------
+// --- pinPick (Fallback Protocol: natural-language pin of a resolved pick + readback confirm) ---------
 
 /**
- * Build the natural-language goal that delegates the cast to the in-canvas agent when the named cast
- * run-point is missing/stale (the Fallback Protocol's run-by-goal recovery). It does NOT name a node to
- * run — it states the GOAL, so the agent figures out how to produce the Cast on the changed canvas.
+ * Build the natural-language goal the in-canvas agent receives to pin the Operator's resolved pick into
+ * a named on-canvas creation node. The node name is supplied by the CALLER — a Recipe-declared reference
+ * (`Recipe.space.nodes.pinnedReference`, `src/recipe/registry.ts`), never hard-coded here (ADR-0010).
  */
-export function castFallbackGoal(): string {
-  return "Generate the character variants (the Cast) from the current Spec and stop at the Cast — do not generate any clips or video.";
+export function pinGoal(pick: string, nodeName: string): string {
+  return `Pin the "${pick}" creation as the "${nodeName}" creation node, so the following steps render against it.`;
 }
 
 /**
- * Phase A — Compose & Cast (ADR-0003). Resolve the cast run-point from the parsed Execution Protocol (the
- * run-point whose `gate === "cast"`), inject the Spec, run that run-point `downstream`, and fetch the
- * candidate Cast image URLs.
- *
- * RECOVERY (Fallback Protocol, PRD #1 story 27): if the cast run-point cannot be resolved from the
- * Execution Protocol (parse fails / no cast-gated run-point) OR the run reports the start node
- * missing/stale, the driver falls back to the in-canvas agent with a natural-language run-by-goal `edit`
- * instead of hard-failing — and still surfaces a Cast.
- *
- * The driver returns the Cast for the Operator to judge and PAUSES — it never pins a Character, never
- * renders a clip, and never publishes. The `accepted → casting` ledger write + `ledger.cast` is the
- * shell's job (see `ledger.writeIdeaStatus` / `ledger.writeIdeaCast`).
+ * Pin the Operator's resolved pick into `nodeName` via the **Fallback Protocol** (a natural-language
+ * `edit`), poll the edit to terminal, then **confirm the pin through the port** (`port.verifyPinned`) —
+ * the port owns "is this pick pinned?", so the confirmation is implementable against real Space state,
+ * not a fake-only marker (ADR-0003 Phase B; Spike 1). Returns the confirmed pick on success; an
+ * identifiable failure if the pin edit failed or the pin cannot be confirmed.
  */
-export async function composeAndCast(
+export async function pinPick(
   port: SpaceMcpPort,
-  spaceState: SpaceStateLike,
-  spec: ProductionSpec | Record<string, unknown>,
-  poll: PollOptions = {},
-): Promise<ComposeAndCastResult> {
-  // Always inject the Spec first (the Space needs the contract before any cast, by-name or by-agent).
-  const injected = await injectSpec(port, spec, poll);
-  if (!injected.ok) {
-    return { ok: false, error: injected.error };
-  }
-
-  // Resolve the cast run-point (gate === "cast") by name from the Execution Protocol.
-  const parsed = parse(spaceState);
-  const castRunPoint = parsed.ok
-    ? parsed.runPoints.find((rp) => rp.gate === "cast") ?? null
-    : null;
-
-  if (castRunPoint === null) {
-    // Cannot resolve the named cast run-point from the protocol — recover via the in-canvas agent.
-    return recoverViaAgent(port, poll);
-  }
-
-  // Run the named cast run-point downstream.
-  const run = await runRunPoint(port, castRunPoint.start_node_id, DOWNSTREAM_MODE, poll);
-  if (!run.ok) {
-    if (run.error.code === "run_point_stale") {
-      // The run-point is gone/stale on the canvas — recover via the in-canvas agent.
-      return recoverViaAgent(port, poll);
-    }
-    return { ok: false, error: run.error };
-  }
-
-  const cast = await fetchCast(port, run.outcome.creationIds);
-  if (cast.length === 0) {
-    // A run that "succeeds" but surfaces no Cast is a failure, not an empty success (C36).
-    return { ok: false, error: err("cast_empty", "the cast run produced no Cast creations to surface.") };
-  }
-  return { ok: true, cast: { cast, usedAgentFallback: false } };
-}
-
-/**
- * Fallback Protocol recovery: delegate the cast to the in-canvas agent via a natural-language
- * run-by-goal edit, then fetch the resulting Cast. Used when the named cast run-point is missing/stale.
- */
-async function recoverViaAgent(port: SpaceMcpPort, poll: PollOptions): Promise<ComposeAndCastResult> {
-  const { editId } = await port.edit(castFallbackGoal());
-  const status = await pollEdit(port, editId, poll);
-  if (status.phase === "failed") {
-    return {
-      ok: false,
-      error: err("run_failed", status.error ?? "the agent-fallback cast failed"),
-    };
-  }
-  // The recovered Cast is whatever the agent-run-by-goal edit reports it produced — never a hard-coded
-  // id list (C9). An adapter that reports no ids (or ids that resolve to nothing) fails cast_empty (C36).
-  const cast = await fetchCast(port, status.creationIds ?? []);
-  if (cast.length === 0) {
-    return {
-      ok: false,
-      error: err("cast_empty", "the agent-fallback cast produced no Cast creations to surface."),
-    };
-  }
-  return { ok: true, cast: { cast, usedAgentFallback: true } };
-}
-
-// ====================================================================================================
-// === PHASE B — pin the Character, render the clip chain, surface the Asset (ADR-0003) ================
-// ====================================================================================================
-
-// --- pinCharacter (Fallback Protocol: natural-language pin of the chosen Character + readback) -------
-
-/**
- * Build the natural-language goal the in-canvas agent receives to pin the Operator's chosen Character.
- * It names the target `Character` creation node and quotes the chosen Cast candidate identifier, so the
- * agent re-pins that creation node (Spike 1 confirmed `spaces_edit` re-pins a creation node). Phase B's
- * clip generators take their reference from the pinned `Character` node, so every clip/thumbnail then
- * renders against the pick.
- */
-export function pinGoal(character: string): string {
-  return `Pin the "${character}" creation as the "${CHARACTER_NODE_NAME}" Character creation node, so every clip and thumbnail renders against it.`;
-}
-
-/**
- * Pin the Operator's chosen **Character** into the Space via the **Fallback Protocol** (a natural-
- * language `edit`), poll the edit to terminal, then **confirm the pin through the port**
- * (`port.verifyPinned`) — the port owns "is this Character pinned?", so the confirmation is implementable
- * against real Space state, not a fake-only marker (ADR-0003 Phase B; Spike 1). Returns the confirmed
- * Character on success; an identifiable failure if the pin edit failed or the pin cannot be confirmed.
- * Mirrors `injectSpec`'s edit → poll → confirm shape.
- */
-export async function pinCharacter(
-  port: SpaceMcpPort,
-  character: string,
+  pick: string,
+  nodeName: string,
   poll: PollOptions = {},
 ): Promise<PinResult> {
-  const { editId } = await port.edit(pinGoal(character));
+  const { editId } = await port.edit(pinGoal(pick, nodeName));
   const status = await pollEdit(port, editId, poll);
   if (status.phase === "failed") {
     return { ok: false, error: err("pin_edit_failed", status.error ?? "the pin edit failed") };
   }
 
-  if (!(await port.verifyPinned(character))) {
+  if (!(await port.verifyPinned(pick))) {
     return {
       ok: false,
       error: err(
         "pin_unconfirmed",
-        `The chosen Character "${character}" is not pinned after the edit — not confirmed.`,
+        `The resolved pick "${pick}" is not pinned after the edit — not confirmed.`,
       ),
     };
   }
-  return { ok: true, character };
+  return { ok: true, pick };
 }
 
 // --- fetchAsset (the finished Asset creation -> its media URL) ---------------------------------------
@@ -441,61 +349,200 @@ export async function fetchAsset(port: SpaceMcpPort, creationId: string): Promis
   return creations[0]?.url ?? null;
 }
 
-// --- pickAndRender (Phase B orchestration: pin -> run clip run-point -> fetch Asset) -----------------
+// ====================================================================================================
+// === driveToNextGate — the generic run-until-gate engine (ADR-0010, issue #57) ========================
+// ====================================================================================================
 
 /**
- * Phase B — Render (ADR-0003). On the Operator's Character pick: pin the chosen Character into the Space
- * (Fallback Protocol, readback-confirmed), resolve the **clip** run-point by name from the parsed
- * Execution Protocol (the run-point that is NOT the Cast gate — `gate === null`), run it `downstream` so
- * the clip → Video Combiner → Final Output chain renders unattended to one combined **Asset**, and fetch
- * the finished Asset's media URL.
- *
- * The driver renders the Asset and **stops** — it never publishes, never posts to Facebook. The Asset
- * waits for the Operator (generate-never-publish; ADR-0002). The `casting → produced` ledger write +
- * `character`/`asset_url`/`produced_at` is the shell's job (see `ledger.writeIdeaStatus` /
- * `ledger.writeIdeaAsset`).
+ * One leg's input: either the Recipe's FIRST leg (no gate has resolved yet — inject the Spec) or a
+ * RESUMED leg (a preceding gate's pick has resolved — pin it into the Recipe-declared node before
+ * continuing). Mirrors the Production Queue's job shape (`src/production-queue/queue.ts`, issue #56): a
+ * job with no `pick` is a first leg; a job carrying `pick` is a resumed leg.
  */
-export async function pickAndRender(
-  port: SpaceMcpPort,
-  spaceState: SpaceStateLike,
-  character: string,
-  poll: PollOptions = {},
-): Promise<PickAndRenderResult> {
-  // Pin the chosen Character first — every clip/thumbnail renders against it.
-  const pinned = await pinCharacter(port, character, poll);
-  if (!pinned.ok) {
-    return { ok: false, error: pinned.error };
-  }
-
-  // Resolve the clip run-point (the non-cast-gate run-point) by name from the Execution Protocol.
-  const parsed = parse(spaceState);
-  const clipRunPoint = parsed.ok
-    ? parsed.runPoints.find((rp) => rp.gate === null) ?? null
-    : null;
-  if (clipRunPoint === null) {
-    return {
-      ok: false,
-      error: err(
-        "clip_run_point_unresolved",
-        "Could not resolve the clip run-point (the non-cast-gate run-point) from the Execution Protocol.",
-      ),
+export type DriveLegInput =
+  | {
+      readonly kind: "first";
+      /** The gate this leg's run-point pauses at, or `null` for a gateless Recipe (runs straight through). */
+      readonly targetGate: string | null;
+      readonly spec: ProductionSpec | Record<string, unknown>;
+    }
+  | {
+      readonly kind: "resumed";
+      /** The gate this leg's run-point pauses at, or `null` when this is the FINAL leg (renders the Asset). */
+      readonly targetGate: string | null;
+      /** The Operator's resolved pick from the PRECEDING gate. */
+      readonly pick: string;
+      /** The on-canvas creation node the pick is pinned into before this leg's run-point runs
+       *  (Recipe-declared — `Recipe.space.nodes.pinnedReference`; never hard-coded here). */
+      readonly pinnedReferenceNodeName: string;
     };
+
+/**
+ * One leg's outcome: PAUSED at a declared gate with candidates for the Operator to choose from, or
+ * FINISHED (the terminal, gateless leg rendered the Asset).
+ */
+export type DriveOutcome =
+  | {
+      readonly kind: "paused";
+      readonly gate: string;
+      readonly candidates: readonly Creation[];
+      /** True when recovery via the in-canvas agent (Fallback Protocol) produced these candidates. */
+      readonly usedFallback: boolean;
+    }
+  | {
+      readonly kind: "finished";
+      readonly asset: AssetResult;
+      /** True when recovery via the in-canvas agent (Fallback Protocol) produced this render. */
+      readonly usedFallback: boolean;
+    };
+
+export type DriveToNextGateResult =
+  | { readonly ok: true; readonly outcome: DriveOutcome }
+  | { readonly ok: false; readonly error: DriverError };
+
+/**
+ * Build the natural-language goal that delegates a leg to the in-canvas agent when its target run-point
+ * is missing/stale — the Fallback Protocol's run-by-goal recovery (ADR-0003; recovery applies only to a
+ * Recipe's FIRST leg, mirroring today's Cast-gate recovery — a resumed leg's run-point failing to
+ * resolve is reported directly, since the Space has already been driven partway by an EARLIER leg and
+ * there is no general "resume from here" goal for the agent to work from). It does NOT name a node to
+ * run — it states the GOAL, so the agent figures out how to produce the result on the changed canvas.
+ */
+export function fallbackGoal(targetGate: string | null): string {
+  return targetGate === null
+    ? "Generate the final render (the Asset) from the current Spec, running it all the way to completion."
+    : `Generate the candidates for the "${targetGate}" gate from the current Spec and stop there — do not proceed any further.`;
+}
+
+/**
+ * Resolve ONE leg's terminal run outcome: a PAUSED leg (`targetGate` non-null) surfaces the produced
+ * creations as candidates for the Operator — failing `candidates_empty` rather than returning ok with
+ * nothing to show (C36); a FINISHED leg (`targetGate === null`) resolves the single produced Asset
+ * creation to its media URL.
+ */
+async function finishLeg(
+  port: SpaceMcpPort,
+  targetGate: string | null,
+  creationIds: readonly string[],
+  pick: string | undefined,
+  usedFallback: boolean,
+): Promise<DriveToNextGateResult> {
+  if (targetGate !== null) {
+    const candidates = await fetchCast(port, creationIds);
+    if (candidates.length === 0) {
+      return {
+        ok: false,
+        error: err(
+          "candidates_empty",
+          `the run for gate "${targetGate}" produced no candidates to surface.`,
+        ),
+      };
+    }
+    return { ok: true, outcome: { kind: "paused", gate: targetGate, candidates, usedFallback } };
   }
 
-  // Run the clip run-point downstream — clip → Video Combiner → Final Output → one Asset.
-  const run = await runRunPoint(port, clipRunPoint.start_node_id, DOWNSTREAM_MODE, poll);
-  if (!run.ok) {
-    return { ok: false, error: run.error };
-  }
-
-  const assetId = run.outcome.creationIds[0];
+  const assetId = creationIds[0];
   if (assetId === undefined) {
-    return { ok: false, error: err("run_failed", "the clip run produced no Asset creation") };
+    return { ok: false, error: err("run_failed", "the final run produced no Asset creation") };
   }
   const assetUrl = await fetchAsset(port, assetId);
   if (assetUrl === null) {
     return { ok: false, error: err("run_failed", "the finished Asset creation has no media URL") };
   }
+  const asset: AssetResult = pick !== undefined ? { pick, assetId, assetUrl } : { assetId, assetUrl };
+  return { ok: true, outcome: { kind: "finished", asset, usedFallback } };
+}
 
-  return { ok: true, asset: { character, assetId, assetUrl } };
+/**
+ * Fallback Protocol recovery: delegate the leg to the in-canvas agent via a natural-language run-by-goal
+ * edit, then resolve its result exactly like a named run (paused candidates, or the finished Asset).
+ */
+async function recoverViaAgent(
+  port: SpaceMcpPort,
+  poll: PollOptions,
+  targetGate: string | null,
+): Promise<DriveToNextGateResult> {
+  const { editId } = await port.edit(fallbackGoal(targetGate));
+  const status = await pollEdit(port, editId, poll);
+  if (status.phase === "failed") {
+    return { ok: false, error: err("run_failed", status.error ?? "the agent-fallback run failed") };
+  }
+  // The recovered result is whatever the agent-run-by-goal edit reports it produced — never a
+  // hard-coded id list (C9). An adapter that reports no ids resolves to an empty candidate/asset set,
+  // which `finishLeg` fails identifiably rather than inventing a result.
+  return finishLeg(port, targetGate, status.creationIds ?? [], undefined, true);
+}
+
+/**
+ * Drive ONE leg of a Recipe's Execution Protocol (ADR-0010): the generic replacement for the old fixed
+ * `composeAndCast`/`pickAndRender` two-phase split. Resolves the run-point whose `gate` matches
+ * `input.targetGate` from the parsed Execution Protocol — by NAME, never hard-coded — runs it, and
+ * either PAUSES with that gate's candidates or, for a `null` target, FINISHES with the rendered Asset.
+ *
+ * - A **first** leg (`input.kind === "first"`) injects the Spec before resolving/running its run-point,
+ *   and recovers via the in-canvas agent (Fallback Protocol) when the run-point cannot be resolved or
+ *   reports its start node missing/stale — mirroring the seeded Recipe's Cast-gate recovery exactly.
+ * - A **resumed** leg (`input.kind === "resumed"`) pins the Operator's resolved pick into
+ *   `input.pinnedReferenceNodeName` before resolving/running its run-point. There is no Fallback-Protocol
+ *   recovery for a resumed leg's run-point (mirrors today's Phase-B behavior: a missing/stale clip
+ *   run-point fails directly rather than attempting agent recovery mid-flight).
+ *
+ * A Recipe with ZERO gates drives its single run-point as a first leg with `targetGate: null` — it
+ * injects the Spec, runs straight through, and FINISHES with the Asset, no pause at all. A Recipe with
+ * SEVERAL gates drives one leg per gate (plus one final leg): each resumed leg targets the NEXT gate in
+ * the Recipe's own declared order (or `null` for the last leg), resolved by the caller/orchestration
+ * shell from `Recipe.gates` — this module carries no dependency on the Recipe registry itself, staying a
+ * pure, Recipe-agnostic deep module driven entirely by its explicit `DriveLegInput`.
+ *
+ * The driver never publishes: a paused leg surfaces candidates for a human and stops; a finished leg
+ * surfaces the Asset for a human to publish and stops (generate-never-publish).
+ */
+export async function driveToNextGate(
+  port: SpaceMcpPort,
+  spaceState: SpaceStateLike,
+  input: DriveLegInput,
+  poll: PollOptions = {},
+): Promise<DriveToNextGateResult> {
+  if (input.kind === "first") {
+    const injected = await injectSpec(port, input.spec, poll);
+    if (!injected.ok) {
+      return { ok: false, error: injected.error };
+    }
+  } else {
+    const pinned = await pinPick(port, input.pick, input.pinnedReferenceNodeName, poll);
+    if (!pinned.ok) {
+      return { ok: false, error: pinned.error };
+    }
+  }
+
+  // Resolve THIS leg's run-point — the one whose gate matches the target — by NAME from the parsed
+  // Execution Protocol, never hard-coded.
+  const parsed = parse(spaceState);
+  const runPoint = parsed.ok ? parsed.runPoints.find((rp) => rp.gate === input.targetGate) ?? null : null;
+
+  if (runPoint === null) {
+    if (input.kind === "first") {
+      // Cannot resolve the target run-point at all — recover via the in-canvas agent.
+      return recoverViaAgent(port, poll, input.targetGate);
+    }
+    return {
+      ok: false,
+      error: err(
+        "run_point_unresolved",
+        `Could not resolve the run-point for gate ${JSON.stringify(input.targetGate)} from the Execution Protocol.`,
+      ),
+    };
+  }
+
+  const run = await runRunPoint(port, runPoint.start_node_id, DOWNSTREAM_MODE, poll);
+  if (!run.ok) {
+    if (run.error.code === "run_point_stale" && input.kind === "first") {
+      // The run-point is gone/stale on the canvas — recover via the in-canvas agent.
+      return recoverViaAgent(port, poll, input.targetGate);
+    }
+    return { ok: false, error: run.error };
+  }
+
+  const pick = input.kind === "resumed" ? input.pick : undefined;
+  return finishLeg(port, input.targetGate, run.outcome.creationIds, pick, false);
 }
