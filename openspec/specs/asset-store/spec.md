@@ -11,7 +11,11 @@ copy?, cast?, character?, asset_url?, produced_at?, post_url?, posted_at?, perfo
 (`src/asset/asset.ts`). Only `recipe` and `status` are required. `casting` SHALL NOT be a valid
 `AssetStatus` — it is retired; the *Character Explainer with Cast* Recipe's Cast pick is represented
 as `status: "in_production"` with `pending_gate: "cast"` — a PAUSE inside `in_production`, never a
-stage of its own. An Idea SHALL carry `assets: LedgerAssetRecord[]`, one entry per chosen Recipe.
+stage of its own. An Idea SHALL carry `assets: LedgerAssetRecord[]`, one entry per chosen Recipe. `copy`
+SHALL be a STRUCTURED value — `{ caption: string, hashtags: string[] }` (`src/copy/contract.ts`'s
+`Copy`, ADR-0012, issue #58) — never a bare string; a raw record whose `copy` is missing a non-empty
+`caption`, or is otherwise not an object, SHALL parse with NO `copy` field (never a garbled placeholder),
+while a present-but-non-array `hashtags` degrades to `[]` rather than failing the whole Asset.
 
 #### Scenario: isAssetStatus rejects the retired "casting" value
 
@@ -24,6 +28,21 @@ stage of its own. An Idea SHALL carry `assets: LedgerAssetRecord[]`, one entry p
 - **GIVEN** an Asset for the *Character Explainer with Cast* Recipe paused at its Cast pick
 - **WHEN** the Asset record is inspected
 - **THEN** its `status` is `"in_production"` and its `pending_gate` is `"cast"`
+
+#### Scenario: A structured Copy parses onto the Asset
+
+- **GIVEN** a raw Asset record with `copy: { caption: "Great tip! ☀️", hashtags: ["#lifehacks"] }`
+- **WHEN** the record is parsed (`parseAssetRecord`)
+- **THEN** the resulting Asset's `copy` is the SAME structured `{ caption, hashtags }` object — not a
+  string, not flattened
+
+#### Scenario: A malformed copy value never crashes the parse
+
+- **GIVEN** a raw Asset record whose `copy` is a bare string, or an object missing `caption`, or whose
+  `hashtags` is not an array
+- **WHEN** the record is parsed
+- **THEN** the malformed `copy` is EITHER omitted entirely (missing/blank `caption`) or degraded safely
+  (`hashtags` defaults to `[]`) — the parse never throws
 
 ### Requirement: The Idea's derived roll-up folds the earliest stage across its Assets
 
