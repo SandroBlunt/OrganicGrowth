@@ -215,12 +215,22 @@ identifiable, non-crashing message rather than throwing or inventing a Character
 `ledger.ts`'s reader transparently normalizes a not-yet-migrated Idea on every read, this holds
 whether or not the Brand's ledger has been run through the one-time migration.
 
+The chosen Character SHALL be enqueued onto the queue's generic NEXT LEG (issue #56) — keyed on the
+composite `(brand, idea_id, recipe)`, where `recipe` is the RESOLVED Asset's OWN Recipe (never a
+different Recipe's job) and the next leg's `gate` cursor is resolved from that Recipe's OWN gate list
+via the Recipe registry (`null` when the Cast gate was the Recipe's last gate — today's only wired
+case). When MORE THAN ONE of the Idea's Assets is simultaneously paused at the Cast gate (a future
+multi-Recipe scenario), the command SHALL REFUSE — naming every gated Recipe — rather than guessing
+which one the pick resolves (explicit attribution, always-rules #5); this command stays scoped to the
+Cast gate specifically (generalizing to any Recipe's own pick-gate is issue #57).
+
 #### Scenario: pick-cast selects the nth Cast member from the Recipe's Asset as the Character
 
 - **GIVEN** an Idea that is `accepted` with one Asset `in_production`/`pending_gate: "cast"`, holding
   the candidate Cast members
 - **WHEN** the Operator runs `/pick-cast <brand> <idea-id> <n>` with a valid 1-based `<n>`
 - **THEN** the nth Cast member is selected as the chosen Character to pin
+- **AND** the enqueued next-leg job is stamped with that Asset's OWN Recipe
 
 #### Scenario: pick-cast reports an out-of-range or unknown selection without crashing
 
@@ -234,7 +244,15 @@ whether or not the Brand's ledger has been run through the one-time migration.
 - **GIVEN** an Idea whose Recipe's Asset has already moved past `in_production` (e.g. `produced`)
 - **WHEN** the Operator runs `/pick-cast <brand> <idea-id> <n>`
 - **THEN** it refuses the pick, names the Idea's derived roll-up status (e.g. `"produced"`) in the
-  refusal message, and enqueues no render
+  refusal message, and enqueues no next-leg job
+
+#### Scenario: pick-cast refuses — never guesses — when TWO Assets are gated at once
+
+- **GIVEN** an Idea with TWO Assets simultaneously `in_production`/`pending_gate: "cast"` (a future
+  multi-Recipe scenario)
+- **WHEN** the Operator runs `/pick-cast <brand> <idea-id> <n>`
+- **THEN** the command refuses, naming BOTH gated Recipes in its message
+- **AND** no pick is recorded and no job is enqueued for either Recipe
 
 #### Scenario: pick-cast works against a legacy, not-yet-migrated ledger record
 
