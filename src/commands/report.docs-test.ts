@@ -138,4 +138,38 @@ describe("command surface — final and matches the shipped Producer feature", (
       "pick-cast.md must state it still records the Character correctly today",
     );
   });
+
+  it("pick-cast.md describes the Asset-grain Cast-gate lifecycle, not the retired flat Idea status (QA-1 regression)", async () => {
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "pick-cast.md"), "utf8");
+    // ADR-0011 retired the flat Idea `casting` status: the Idea itself stays `accepted` throughout: it
+    // is the ASSET that pauses `in_production` (with `pending_gate: "cast"`) and then moves `produced`.
+    // A QA Round-1 defect (QA-1) found pick-cast.md still claiming the Idea's OWN status moved
+    // `casting → produced` — these two guards target the EXACT phrasing of that regressed claim
+    // (verified against the pre-fix doc text), not a broad ban on the word "casting" (which the doc is
+    // still allowed to use historically, e.g. "the retired flat `casting` Idea-status is gone").
+    assert.doesNotMatch(
+      doc,
+      /casting\s*→\s*produced/i,
+      "pick-cast.md must not claim the Idea's status chain runs casting → produced — that flat Idea " +
+        "status is retired (ADR-0011); it is the Asset that moves in_production → produced",
+    );
+    assert.doesNotMatch(
+      doc,
+      /`casting`\s+Idea\s+is\s+paused/i,
+      "pick-cast.md must not claim a `casting` Idea is paused at the Cast gate — the Idea stays " +
+        "`accepted`; it is the Asset that pauses in_production at pending_gate: \"cast\" (ADR-0011)",
+    );
+    // Positive, checkable claims: the doc must actually name the real Asset-grain vocabulary, not just
+    // omit the retired one.
+    assert.match(
+      doc,
+      /in_production/,
+      "pick-cast.md must describe the Asset's `in_production` status (ADR-0011)",
+    );
+    assert.match(
+      doc,
+      /pending_gate/,
+      "pick-cast.md must describe the Cast pause as the Asset's `pending_gate`, not an Idea status",
+    );
+  });
 });

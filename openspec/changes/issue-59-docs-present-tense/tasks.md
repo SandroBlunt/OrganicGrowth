@@ -114,3 +114,41 @@
   acceptance-criteria self-assessment mapping each AC to its test/evidence (explicitly reconciling the
   worker.ts/scheduler.ts AC), fakes/fixtures used (none — hermetic docs-only slice), self-review notes,
   known limits.
+
+## 9. Round-2 fix (QA-1 defect: `pick-cast.md` was missed in Round 1)
+
+- [x] 9.1 QA Round-1 verdict: FAIL — defect QA-1 (high). `.claude/commands/pick-cast.md`, certified
+  "already accurate" in the Round-1 Build Report on the strength of a `Target (`/`not yet`/`not built`
+  grep (zero hits), in fact still stated the retired flat Idea-status model as present-tense fact in
+  THREE places (frontmatter description, the opening paragraph, and the "Gate 2 — Brand" paragraph) plus
+  one looser instance in the "How the render runs" callout — none of which used any of the four
+  scaffolding phrases the Round-1 grep searched for, so the narrow grep missed a present-tense FALSE
+  claim rather than a future-tense scaffolding note.
+- [x] 9.2 Fix all four instances in `pick-cast.md`: the Idea's own status is untouched by a pick (stays
+  `accepted`); it is the Asset that pauses `in_production` (`pending_gate: "cast"`) at the Cast gate and
+  moves `in_production → produced` once rendered — matching the language already used in the sibling
+  docs this slice fixed in Round 1 (`CLAUDE.md`, `producer.md`, `run-pipeline.md`).
+- [x] 9.3 Re-swept EVERY command/agent doc (`queue.md`, `log-post.md`, `report.md`, `review-ideas.md`,
+  `track-performance.md`, `run-trends.md`, `pick.md`, and the four content-agent `.md` files) for the
+  same class of miss (`casting`, "Idea to `produced`", "Idea's status (`...`)", "move the Idea"). Found
+  and tightened one more loose (not literally false, but imprecise) instance in `pick.md`'s "How the
+  render runs" callout ("does not move the Idea forward" → "does not move that Asset forward… the Idea
+  itself is untouched"). Confirmed `report.md`'s `casting` mention is NOT a second instance of this
+  defect — `report.ts`'s `PRODUCTION_STATES` constant genuinely tolerates the literal `"casting"` value
+  defensively for an un-migrated ledger (QA's own Round-1 verdict independently reached and recorded this
+  same conclusion) — left unchanged, consistent with QA's explicit Round-1 clearance of that file.
+- [x] 9.4 Added a regression test to `src/commands/report.docs-test.ts` (in the same describe block as
+  the existing pick-cast.md test) pinning pick-cast.md's Asset-grain vocabulary: two `doesNotMatch` guards
+  targeting the EXACT defect phrasing (`casting\s*→\s*produced`, `` `casting`\s+Idea\s+is\s+paused ``,
+  verified to actually fail against the pre-fix doc text via a scratch round-trip, not just written and
+  assumed) plus two positive `match` assertions (`in_production`, `pending_gate` both present) — a real
+  regression guard, not a rubber stamp, per QA's suggested fix.
+- [x] 9.5 Updated `specs/docs-conformance/spec.md`: one new Scenario under the present-tense Requirement
+  (pick-cast.md's Asset-grain lifecycle) and one new Scenario under the docs-tests-pin-reality Requirement
+  (the new regression guard, including the verified-against-pre-fix-text property). Both spec deltas stay
+  `ADDED` (the `docs-conformance` capability is not yet archived under `openspec/specs/`, confirmed by QA
+  in Round 1), so no `MODIFIED`/`RENAMED` header-matching concern applies.
+- [x] 9.6 Re-ran all four gates: `npm test` (994/994), `npm run test:docs` (25/25 — one net-new test),
+  `npm run build` (clean), `npx openspec validate issue-59-docs-present-tense --strict` (valid).
+- [x] 9.7 Appended `## Build Report — Round 2` to `handoff.md` (never overwriting the Round-1 Build
+  Report or the QA Round-1 Verdict) and committed the fix as a single Round-2 commit on this branch.

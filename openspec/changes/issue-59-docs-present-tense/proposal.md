@@ -77,6 +77,16 @@ mostly already is — but the issue text (written before #56/#57 landed) names B
   `SpaceSession`, a headless-permission-classifier module, an unattended-tick loop) found none — the
   incidental hits for the word "worker" elsewhere in the codebase (a doc comment, a test describe-block
   name, the generic `SpaceMcpPort` docstring) are unrelated English usage, not the deleted module.
+- **`.claude/commands/pick-cast.md` is corrected (Round 2, QA defect QA-1).** Round 1 left this file
+  unedited on the strength of a narrow grep for future-tense scaffolding phrases; it in fact still stated
+  the RETIRED flat Idea-status model as present-tense fact in three places ("A `casting` Idea is paused
+  at the Cast gate", "Status moves `casting → produced`", "the Idea's status (`casting → produced`)") plus
+  one looser instance ("move the Idea to `produced`"). All four are corrected to the real per-Asset
+  lifecycle (the Idea stays `accepted`; the Asset pauses `in_production` with `pending_gate: "cast"`, then
+  moves `→ produced`), matching the language `CLAUDE.md`/`producer.md`/`run-pipeline.md` already used. A
+  parallel loose (not false, but imprecise) instance in `.claude/commands/pick.md` is tightened the same
+  way. A new regression test in `report.docs-test.ts` pins the corrected vocabulary and is verified to
+  fail against the pre-fix text.
 
 ## Non-Goals (explicitly deferred)
 
@@ -115,8 +125,10 @@ green suite).
 
 ## Impact
 
-- **Docs touched:** `CLAUDE.md`, `.claude/agents/producer.md`, `.claude/commands/run-pipeline.md`.
-- **Tests touched:** `src/commands/report.docs-test.ts`, `src/commands/run-pipeline.docs-test.ts`,
+- **Docs touched:** `CLAUDE.md`, `.claude/agents/producer.md`, `.claude/commands/run-pipeline.md`
+  (Round 1); `.claude/commands/pick-cast.md`, `.claude/commands/pick.md` (Round 2, QA-1 fix).
+- **Tests touched:** `src/commands/report.docs-test.ts` (Round 1: 2 subtests updated + Round 2: 1
+  regression subtest added), `src/commands/run-pipeline.docs-test.ts`,
   `src/production-spec/producer-agent.docs-test.ts` (docs-conformance suite — `npm run test:docs`, kept
   out of `npm test`'s glob by design).
 - **Code touched:** `src/production-queue/scheduler.ts` (docstring only — zero behavior change; no

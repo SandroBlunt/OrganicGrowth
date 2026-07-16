@@ -39,6 +39,17 @@ behind a `Target`/`not built yet` marker.
   optional `pick`)
 - **AND** it does NOT name the retired `phase: cast|render` field or the retired `awaiting_cast` status
 
+#### Scenario: pick-cast.md documents the Asset-grain Cast-gate lifecycle, not the retired flat Idea status
+
+- **GIVEN** `.claude/commands/pick-cast.md` as shipped
+- **WHEN** it is read
+- **THEN** it states the Idea's own status is untouched by a pick (stays `accepted` throughout)
+- **AND** it states it is the Asset that pauses `in_production` (with `pending_gate: "cast"`) at the Cast
+  gate and, after the pick, moves `in_production → produced`
+- **AND** it does NOT claim the Idea's own status chain runs `casting → produced`, and does NOT claim "a
+  `casting` Idea is paused at the Cast gate" (both are the retired flat Idea-status model ADR-0011
+  replaced — QA Round-1 defect QA-1 found this exact regression)
+
 #### Scenario: A doc never claims a second Recipe is wired
 
 - **GIVEN** any of `CLAUDE.md`, `.claude/agents/producer.md`, `.claude/commands/run-pipeline.md`
@@ -85,6 +96,17 @@ available.
 - **AND** the suite asserts the doc's queue-job schema description names the CURRENT `recipe` field and
   `awaiting_pick` status, and does NOT name the retired `awaiting_cast` status — a real, checkable pin
   against production code that replaces the retired assertion, not a rubber stamp
+
+#### Scenario: report.docs-test.ts pins pick-cast.md's Asset-grain status vocabulary (QA-1 regression guard)
+
+- **GIVEN** `.claude/commands/pick-cast.md` as shipped
+- **WHEN** `src/commands/report.docs-test.ts` reads it
+- **THEN** the suite asserts the doc names the Asset's `in_production` status and `pending_gate` field
+- **AND** the suite asserts the doc does NOT claim the Idea's own status chain runs `casting → produced`
+- **AND** the suite asserts the doc does NOT claim "a `casting` Idea is paused" at the Cast gate
+- **AND** these two negative guards are verified (not merely asserted) to fail against the exact
+  pre-fix doc text that caused QA Round-1's defect QA-1, so the guard is a genuine regression test, not
+  a rubber stamp
 
 ### Requirement: The repository retains no dead ADR-0004 unattended-background-worker code
 
