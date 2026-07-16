@@ -174,6 +174,72 @@ describe("reportCommand — reads the ledger via loadReport and renders it", () 
   });
 });
 
+// === reportCommand — the Asset grain (issue #55, ADR-0011): status is the derived roll-up ============
+
+describe("reportCommand — a MIGRATED ledger's rolled-up Asset status appears in the Production section", () => {
+  it("an accepted Idea with an in_production Asset shows status in_production and appears under Production", async () => {
+    await withLedger(
+      {
+        ideas: [
+          {
+            id: "idea-05",
+            title: "Character Reel",
+            status: "accepted",
+            fit_score: 0.7,
+            assets: [{ recipe: "character-explainer-with-cast", status: "in_production", pending_gate: "cast" }],
+          },
+        ],
+        baseline: { updated_at: null },
+      },
+      async (ledgerPath) => {
+        const out = await reportCommand("mundotip", ledgerPath);
+        assert.match(out, /Character Reel/);
+        assert.match(out, /in_production/);
+        assert.match(out, /Production/i);
+      },
+    );
+  });
+
+  it("an accepted Idea with a produced Asset shows status produced and appears under Production", async () => {
+    await withLedger(
+      {
+        ideas: [
+          {
+            id: "idea-06",
+            title: "Carousel Ready",
+            status: "accepted",
+            fit_score: 0.65,
+            assets: [{ recipe: "character-explainer-with-cast", status: "produced", asset_url: "https://x/asset.mp4" }],
+          },
+        ],
+        baseline: { updated_at: null },
+      },
+      async (ledgerPath) => {
+        const out = await reportCommand("mundotip", ledgerPath);
+        assert.match(out, /Carousel Ready/);
+        const row = out.split("\n").find((l) => l.includes("idea-06"));
+        assert.ok(row);
+        assert.match(row, /\bproduced\b/);
+      },
+    );
+  });
+
+  it("an accepted Idea with NO Assets yet still shows status accepted (today's real-ledger shape)", async () => {
+    await withLedger(
+      {
+        ideas: [{ id: "idea-07", title: "Just Accepted", status: "accepted", fit_score: 0.6, assets: [] }],
+        baseline: { updated_at: null },
+      },
+      async (ledgerPath) => {
+        const out = await reportCommand("mundotip", ledgerPath);
+        const row = out.split("\n").find((l) => l.includes("idea-07"));
+        assert.ok(row);
+        assert.match(row, /\baccepted\b/);
+      },
+    );
+  });
+});
+
 // === Brand-routing tests — reportCommand resolves the correct Brand's ledger ==========================
 
 /**

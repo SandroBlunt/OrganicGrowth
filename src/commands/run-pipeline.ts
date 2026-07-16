@@ -58,6 +58,7 @@ import { deriveSlug, validateSlug, buildBrandProfile, buildSeeds, buildEmptyLedg
 import { scaffoldBrand } from "../brand/scaffold-brand.ts";
 import { resolvePhase } from "../phase-resolver/resolve.ts";
 import { loadIdeas } from "../ledger/ledger.ts";
+import { ideaAtGate, ideaHasAssetStatus } from "../asset/asset.ts";
 import { loadQueue } from "../production-queue/store.ts";
 import { enqueueOnAccept } from "../production-queue/enqueue-on-accept.ts";
 import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
@@ -617,7 +618,7 @@ export async function* conductorTurns(
   const brandJobs = allJobs.jobs.filter((j) => j.brand === brand);
   const phaseResult = resolvePhase(ideas, brandJobs);
 
-  // In-flight means production is underway (accepted/casting/produced/posted Ideas exist).
+  // In-flight means production is underway (an accepted Idea, or one with an Asset in flight — ADR-0011).
   // A "review" phase (only suggested Ideas) is NOT in-flight: the Operator just hasn't started yet.
   // We only ask resume-vs-fresh when actual production work is in progress — not for un-reviewed Ideas.
   const isInFlight =
@@ -685,8 +686,8 @@ export async function* conductorTurns(
       }
       startFresh = false;
     } else {
-      // NOTE: "fresh" does NOT reset anything on disk — existing queue jobs and casting/accepted
-      // Ideas are left untouched. It only re-enters the loop at Gate 1 instead of resuming the
+      // NOTE: "fresh" does NOT reset anything on disk — existing queue jobs and accepted Ideas (and
+      // any Assets in flight) are left untouched. It only re-enters the loop at Gate 1 instead of resuming the
       // in-flight phase. Message says exactly that, so it does not imply a wipe it doesn't perform.
       yield {
         message: "Starting fresh from Gate 1 (Review). Existing production work is left in place — nothing on disk is reset.",
@@ -740,9 +741,13 @@ export async function* conductorTurns(
       return;
     }
 
-    // Check if any Ideas are at the cast-pick gate (casting status)
-    const castingIdeas = ideas.filter((i) => i.status === "casting");
-    const acceptedIdeas = ideas.filter((i) => i.status === "accepted");
+    // Check if any Ideas have an Asset paused at the Cast gate (ADR-0011: no more flat "casting"
+    // status). "Waiting to be queued" now means accepted with NO Assets recorded yet (today's
+    // real-ledger shape) — an Idea already at the Cast gate is still base-status "accepted" too, so
+    // this must EXCLUDE it to keep the two buckets mutually exclusive (mirrors the old flat
+    // accepted-vs-casting split).
+    const castingIdeas = ideas.filter((i) => ideaAtGate(i, "cast"));
+    const acceptedIdeas = ideas.filter((i) => i.status === "accepted" && (i.assets ?? []).length === 0);
 
     if (acceptedIdeas.length > 0) {
       yield {
@@ -750,7 +755,7 @@ export async function* conductorTurns(
           `Auto-draining production queue for Brand: ${brand}`,
           `${acceptedIdeas.length} Idea(s) queued for cast generation.`,
           `The producer will drain the queue to the Cast gate. Run /queue ${brand} to see progress.`,
-          `When Ideas reach 'casting' status, run /run-pipeline ${brand} again.`,
+          `When an Idea reaches the Cast gate, run /run-pipeline ${brand} again.`,
         ].join("\n"),
         done: false,
       };
@@ -793,7 +798,8 @@ export async function* conductorTurns(
       return;
     }
 
-    const producedIdeas = ideas.filter((i) => i.status === "produced");
+    // ADR-0011: "produced" is now an Asset stage, not a flat Idea status.
+    const producedIdeas = ideas.filter((i) => ideaHasAssetStatus(i, "produced"));
 
     if (producedIdeas.length > 0) {
       yield {

@@ -3,20 +3,42 @@
  *
  * AC7: ALL tests are pure — they pass literal in-memory objects directly. No disk, no Magnific
  * Space, no Apify, no network. No fake is needed because the module has no I/O boundary.
+ *
+ * As of issue #55 (ADR-0011), an Idea's OWN status is only ever `suggested`/`accepted`/`rejected`;
+ * production state (what used to be `casting`/`produced`/`posted`/`tracking`/`scored`) now lives on
+ * the Idea's per-Recipe `assets`. These tests build `LedgerIdea` fixtures at the NEW Asset grain —
+ * `resolvePhase` must fold Assets, not a flat Idea status (issue #55 AC).
  */
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolvePhase, type PhaseResult, type Phase, type PendingGate } from "./resolve.ts";
 import type { LedgerIdea } from "../ledger/ledger.ts";
+import type { LedgerAssetRecord, AssetStatus } from "../asset/asset.ts";
 import type { QueueJob } from "../production-queue/queue.ts";
 
 // ---------------------------------------------------------------------------
 // Helper builders — literal objects, no disk
 // ---------------------------------------------------------------------------
 
-function idea(id: string, status: string): LedgerIdea {
-  return { id, status };
+/** Build a suggested/accepted/rejected Idea, optionally carrying Assets (the new grain, ADR-0011). */
+function idea(id: string, status: string, assets: readonly LedgerAssetRecord[] = []): LedgerIdea {
+  return { id, status, assets };
+}
+
+/** Build one Asset at a given stage, defaulting its Recipe slug so callers only name what matters. */
+function asset(status: AssetStatus, extra: Partial<LedgerAssetRecord> = {}, recipe = "r1"): LedgerAssetRecord {
+  return { recipe, status, ...extra };
+}
+
+/** An `accepted` Idea whose ONE Asset is `in_production`, paused at the Cast gate — the old "casting". */
+function castingIdea(id: string): LedgerIdea {
+  return idea(id, "accepted", [asset("in_production", { pending_gate: "cast" })]);
+}
+
+/** An `accepted` Idea whose ONE Asset has reached `status` (no pending_gate) — old flat "produced" etc. */
+function ideaAtAssetStatus(id: string, status: AssetStatus): LedgerIdea {
+  return idea(id, "accepted", [asset(status)]);
 }
 
 function job(ideaId: string, brand = "test-brand", status: QueueJob["status"] = "queued"): QueueJob {
@@ -49,7 +71,7 @@ describe("resolvePhase — return shape (AC1)", () => {
 
   it("pendingGates contains only valid PendingGate strings", () => {
     const validGates: PendingGate[] = ["review", "cast-pick", "publish", "track"];
-    const result = resolvePhase([idea("i1", "casting")], []);
+    const result = resolvePhase([castingIdea("i1")], []);
     for (const g of result.pendingGates) {
       assert.ok(validGates.includes(g as PendingGate), `unexpected gate: ${g}`);
     }
@@ -97,19 +119,23 @@ describe("resolvePhase — empty ledger resolves to research (AC2)", () => {
 
 describe("resolvePhase — fully-scored run resolves to done (AC3)", () => {
   it("all scored → phase: done", () => {
-    const ideas = [idea("i1", "scored"), idea("i2", "scored"), idea("i3", "scored")];
+    const ideas = [
+      ideaAtAssetStatus("i1", "scored"),
+      ideaAtAssetStatus("i2", "scored"),
+      ideaAtAssetStatus("i3", "scored"),
+    ];
     const result = resolvePhase(ideas, []);
     assert.equal(result.phase, "done");
   });
 
   it("all scored → empty pendingGates", () => {
-    const ideas = [idea("i1", "scored"), idea("i2", "scored")];
+    const ideas = [ideaAtAssetStatus("i1", "scored"), ideaAtAssetStatus("i2", "scored")];
     const result = resolvePhase(ideas, []);
     assert.deepEqual(result.pendingGates, []);
   });
 
   it("all scored → empty strandedIdeas", () => {
-    const ideas = [idea("i1", "scored"), idea("i2", "scored")];
+    const ideas = [ideaAtAssetStatus("i1", "scored"), ideaAtAssetStatus("i2", "scored")];
     const result = resolvePhase(ideas, []);
     assert.deepEqual(result.strandedIdeas, []);
   });
@@ -123,7 +149,7 @@ describe("resolvePhase — fully-scored run resolves to done (AC3)", () => {
   });
 
   it("mix of scored and rejected → phase: done", () => {
-    const ideas = [idea("i1", "scored"), idea("i2", "rejected"), idea("i3", "scored")];
+    const ideas = [ideaAtAssetStatus("i1", "scored"), idea("i2", "rejected"), ideaAtAssetStatus("i3", "scored")];
     const result = resolvePhase(ideas, []);
     assert.equal(result.phase, "done");
     assert.deepEqual(result.pendingGates, []);
@@ -136,7 +162,7 @@ describe("resolvePhase — fully-scored run resolves to done (AC3)", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolvePhase — stranded accepted Ideas (AC4)", () => {
-  it("accepted idea with no queue job → appears in strandedIdeas", () => {
+  it("accepted idea with no Assets and no queue job → appears in strandedIdeas", () => {
     const result = resolvePhase([idea("i1", "accepted")], []);
     assert.ok(result.strandedIdeas.includes("i1"), "i1 must be stranded");
   });
@@ -202,74 +228,84 @@ describe("resolvePhase — stranded accepted Ideas (AC4)", () => {
     assert.ok(!result.pendingGates.includes("publish" as PendingGate));
     assert.ok(!result.pendingGates.includes("track" as PendingGate));
   });
+
+  it("an accepted idea WITH an Asset (even just queued) is never stranded — Assets bypass the queue-liveness check", () => {
+    const result = resolvePhase([idea("i1", "accepted", [asset("queued")])], []);
+    assert.deepEqual(result.strandedIdeas, []);
+    assert.equal(result.phase, "production");
+  });
 });
 
 // ---------------------------------------------------------------------------
-// AC5: casting / produced / posted → correct gates
+// AC5: Asset stages → correct gates (the retired "casting"/"produced"/"posted" Idea statuses)
 // ---------------------------------------------------------------------------
 
-describe("resolvePhase — casting Ideas add cast-pick gate (AC5a)", () => {
-  it("one casting idea → pendingGates contains cast-pick", () => {
-    const result = resolvePhase([idea("i1", "casting")], []);
+describe("resolvePhase — an Asset paused at the Cast gate adds cast-pick (AC5a; replaces flat 'casting')", () => {
+  it("one Idea with an Asset in_production/pending_gate:cast → pendingGates contains cast-pick", () => {
+    const result = resolvePhase([castingIdea("i1")], []);
     assert.ok(result.pendingGates.includes("cast-pick"));
   });
 
-  it("one casting idea → phase is production", () => {
-    const result = resolvePhase([idea("i1", "casting")], []);
+  it("→ phase is production", () => {
+    const result = resolvePhase([castingIdea("i1")], []);
     assert.equal(result.phase, "production");
   });
 
-  it("casting idea is not stranded (not accepted)", () => {
-    const result = resolvePhase([idea("i1", "casting")], []);
+  it("→ not stranded (it has an Asset — the accepted-with-no-Assets stranded check does not apply)", () => {
+    const result = resolvePhase([castingIdea("i1")], []);
     assert.deepEqual(result.strandedIdeas, []);
+  });
+
+  it("an in_production Asset with NO pending_gate adds no gate (paused vs. simply running are different)", () => {
+    const result = resolvePhase([idea("i1", "accepted", [asset("in_production")])], []);
+    assert.deepEqual(result.pendingGates, []);
+    assert.equal(result.phase, "production");
   });
 });
 
-describe("resolvePhase — produced Ideas add publish gate (AC5b)", () => {
-  it("one produced idea → pendingGates contains publish", () => {
-    const result = resolvePhase([idea("i1", "produced")], []);
+describe("resolvePhase — a produced Asset adds publish gate (AC5b; replaces flat 'produced')", () => {
+  it("one produced Asset → pendingGates contains publish", () => {
+    const result = resolvePhase([ideaAtAssetStatus("i1", "produced")], []);
     assert.ok(result.pendingGates.includes("publish"));
   });
 
-  it("one produced idea → phase is publish", () => {
-    const result = resolvePhase([idea("i1", "produced")], []);
+  it("one produced Asset → phase is publish", () => {
+    const result = resolvePhase([ideaAtAssetStatus("i1", "produced")], []);
     assert.equal(result.phase, "publish");
   });
 
-  it("produced idea is not stranded", () => {
-    const result = resolvePhase([idea("i1", "produced")], []);
+  it("produced Idea is not stranded", () => {
+    const result = resolvePhase([ideaAtAssetStatus("i1", "produced")], []);
     assert.deepEqual(result.strandedIdeas, []);
   });
 });
 
-describe("resolvePhase — posted Ideas add track gate (AC5c)", () => {
-  it("one posted idea → pendingGates contains track", () => {
-    const result = resolvePhase([idea("i1", "posted")], []);
+describe("resolvePhase — a posted Asset adds track gate (AC5c; replaces flat 'posted')", () => {
+  it("one posted Asset → pendingGates contains track", () => {
+    const result = resolvePhase([ideaAtAssetStatus("i1", "posted")], []);
     assert.ok(result.pendingGates.includes("track"));
   });
 
-  it("one posted idea → phase is tracking", () => {
-    const result = resolvePhase([idea("i1", "posted")], []);
+  it("one posted Asset → phase is tracking", () => {
+    const result = resolvePhase([ideaAtAssetStatus("i1", "posted")], []);
     assert.equal(result.phase, "tracking");
   });
 
-  it("posted idea is not stranded", () => {
-    const result = resolvePhase([idea("i1", "posted")], []);
+  it("posted Idea is not stranded", () => {
+    const result = resolvePhase([ideaAtAssetStatus("i1", "posted")], []);
     assert.deepEqual(result.strandedIdeas, []);
   });
 });
 
-describe("resolvePhase — tracking Ideas resolve without a pending gate", () => {
-  it("tracking idea → phase is tracking", () => {
-    const result = resolvePhase([idea("i1", "tracking")], []);
+describe("resolvePhase — a tracking Asset resolves without a pending gate", () => {
+  it("tracking Asset → phase is tracking", () => {
+    const result = resolvePhase([ideaAtAssetStatus("i1", "tracking")], []);
     assert.equal(result.phase, "tracking");
   });
 
-  it("tracking idea alone → no pending gates", () => {
+  it("tracking Asset alone → no pending gates", () => {
     // 'tracking' is in-flight but not a human gate — the tracker runs automatically
-    const result = resolvePhase([idea("i1", "tracking")], []);
-    // No human gate required for tracking-in-progress; the Operator ran /track-performance.
-    // posted → track gate; tracking → no additional gate (it's being tracked).
+    const result = resolvePhase([ideaAtAssetStatus("i1", "tracking")], []);
     assert.ok(!result.pendingGates.includes("track" as PendingGate));
   });
 });
@@ -292,47 +328,47 @@ describe("resolvePhase — suggested Ideas add review gate", () => {
 
 describe("resolvePhase — mixed-state ledger (AC6)", () => {
   it("suggested + casting → phase is review (earliest lifecycle position)", () => {
-    const ideas = [idea("i1", "suggested"), idea("i2", "casting")];
+    const ideas = [idea("i1", "suggested"), castingIdea("i2")];
     const result = resolvePhase(ideas, []);
     assert.equal(result.phase, "review");
   });
 
   it("suggested + casting → pendingGates contains both review and cast-pick", () => {
-    const ideas = [idea("i1", "suggested"), idea("i2", "casting")];
+    const ideas = [idea("i1", "suggested"), castingIdea("i2")];
     const result = resolvePhase(ideas, []);
     assert.ok(result.pendingGates.includes("review"));
     assert.ok(result.pendingGates.includes("cast-pick"));
   });
 
   it("casting + produced → phase is production (earlier than publish)", () => {
-    const ideas = [idea("i1", "casting"), idea("i2", "produced")];
+    const ideas = [castingIdea("i1"), ideaAtAssetStatus("i2", "produced")];
     const result = resolvePhase(ideas, []);
     assert.equal(result.phase, "production");
   });
 
   it("casting + produced → pendingGates contains both cast-pick and publish", () => {
-    const ideas = [idea("i1", "casting"), idea("i2", "produced")];
+    const ideas = [castingIdea("i1"), ideaAtAssetStatus("i2", "produced")];
     const result = resolvePhase(ideas, []);
     assert.ok(result.pendingGates.includes("cast-pick"));
     assert.ok(result.pendingGates.includes("publish"));
   });
 
   it("produced + posted → phase is publish (earlier than tracking)", () => {
-    const ideas = [idea("i1", "produced"), idea("i2", "posted")];
+    const ideas = [ideaAtAssetStatus("i1", "produced"), ideaAtAssetStatus("i2", "posted")];
     const result = resolvePhase(ideas, []);
     assert.equal(result.phase, "publish");
   });
 
   it("produced + posted → pendingGates contains both publish and track", () => {
-    const ideas = [idea("i1", "produced"), idea("i2", "posted")];
+    const ideas = [ideaAtAssetStatus("i1", "produced"), ideaAtAssetStatus("i2", "posted")];
     const result = resolvePhase(ideas, []);
     assert.ok(result.pendingGates.includes("publish"));
     assert.ok(result.pendingGates.includes("track"));
   });
 
-  it("accepted (stranded) + casting → strandedIdeas surfaced, phase production", () => {
-    const ideas = [idea("i1", "accepted"), idea("i2", "casting")];
-    // i1 has no queue job → stranded
+  it("accepted (stranded, no Assets) + casting → strandedIdeas surfaced, phase production", () => {
+    const ideas = [idea("i1", "accepted"), castingIdea("i2")];
+    // i1 has no Assets and no queue job → stranded
     const result = resolvePhase(ideas, []);
     assert.ok(result.strandedIdeas.includes("i1"));
     assert.equal(result.phase, "production");
@@ -340,25 +376,38 @@ describe("resolvePhase — mixed-state ledger (AC6)", () => {
   });
 
   it("mixed with scored terminal Ideas — scored does not affect phase if earlier-lifecycle ideas exist", () => {
-    const ideas = [idea("i1", "scored"), idea("i2", "posted"), idea("i3", "scored")];
+    const ideas = [ideaAtAssetStatus("i1", "scored"), ideaAtAssetStatus("i2", "posted"), ideaAtAssetStatus("i3", "scored")];
     const result = resolvePhase(ideas, []);
     assert.equal(result.phase, "tracking");
     assert.ok(result.pendingGates.includes("track"));
   });
 
-  it("pendingGates has no duplicates even when multiple ideas of same status exist", () => {
-    const ideas = [idea("i1", "casting"), idea("i2", "casting"), idea("i3", "casting")];
+  it("pendingGates has no duplicates even when multiple ideas are all at the Cast gate", () => {
+    const ideas = [castingIdea("i1"), castingIdea("i2"), castingIdea("i3")];
     const result = resolvePhase(ideas, []);
     const castPickCount = result.pendingGates.filter((g) => g === "cast-pick").length;
     assert.equal(castPickCount, 1, "cast-pick must appear at most once in pendingGates");
   });
 
+  it("ONE Idea with TWO Assets at different stages surfaces BOTH gates and the EARLIER phase", () => {
+    // The Character Explainer Recipe's Asset is still paused at Cast, while a second (hypothetical)
+    // Recipe's Asset for the SAME Idea has already been produced — both need Operator attention.
+    const twoRecipeIdea = idea("i1", "accepted", [
+      asset("in_production", { pending_gate: "cast" }, "character-explainer-with-cast"),
+      asset("produced", {}, "carousel"),
+    ]);
+    const result = resolvePhase([twoRecipeIdea], []);
+    assert.equal(result.phase, "production", "production (in_production) is earlier than publish");
+    assert.ok(result.pendingGates.includes("cast-pick"));
+    assert.ok(result.pendingGates.includes("publish"));
+  });
+
   it("same inputs always produce the same result (deterministic)", () => {
     const ideas = [
       idea("i1", "suggested"),
-      idea("i2", "casting"),
-      idea("i3", "produced"),
-      idea("i4", "scored"),
+      castingIdea("i2"),
+      ideaAtAssetStatus("i3", "produced"),
+      ideaAtAssetStatus("i4", "scored"),
     ];
     const queue = [job("i2")];
     const r1 = resolvePhase(ideas, queue);
@@ -373,7 +422,7 @@ describe("resolvePhase — mixed-state ledger (AC6)", () => {
 
 describe("resolvePhase — pure and isolation-tested (AC7)", () => {
   it("accepts plain literal LedgerIdea objects — no I/O needed", () => {
-    const plainIdea: LedgerIdea = { id: "idea-1", status: "casting" };
+    const plainIdea: LedgerIdea = castingIdea("idea-1");
     // If this compiles and runs, no I/O system was involved
     const result = resolvePhase([plainIdea], []);
     assert.ok(typeof result.phase === "string");
@@ -392,7 +441,7 @@ describe("resolvePhase — pure and isolation-tested (AC7)", () => {
   });
 
   it("does not mutate the input ideas array", () => {
-    const ideas: LedgerIdea[] = [idea("i1", "casting"), idea("i2", "produced")];
+    const ideas: LedgerIdea[] = [castingIdea("i1"), ideaAtAssetStatus("i2", "produced")];
     const snapshot = JSON.stringify(ideas);
     resolvePhase(ideas, []);
     assert.equal(JSON.stringify(ideas), snapshot, "ideas array must not be mutated");

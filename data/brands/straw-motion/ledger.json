@@ -19,7 +19,8 @@
       "fit_basis": "Dead-center agentic-AI lane, aimed straight at entrepreneurs. momentum 0.95 (both newsletters), brand_fit 0.95, relevance 0.5 (no scored history). No penalties.",
       "status": "suggested",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-01.md",
-      "created_at": "2026-07-13T16:15:56Z"
+      "created_at": "2026-07-13T16:15:56Z",
+      "assets": []
     },
     {
       "id": "idea-02",
@@ -28,11 +29,12 @@
       "trend_id": "trend-02",
       "trend_label": "GPT-5.6 goes fully live for everyone",
       "format": "unhypped-news",
-      "fit_score": 0.70,
+      "fit_score": 0.7,
       "fit_basis": "Clean model-release news, a core AI-news beat. momentum 0.90 (both newsletters), brand_fit 0.90, relevance 0.5 (no history). No penalties.",
       "status": "suggested",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-02.md",
-      "created_at": "2026-07-13T16:15:56Z"
+      "created_at": "2026-07-13T16:15:56Z",
+      "assets": []
     },
     {
       "id": "idea-03",
@@ -45,7 +47,8 @@
       "fit_basis": "Model-vs-model comparison is explicitly in-niche; cost angle speaks to business owners. momentum 0.85 (single source), brand_fit 0.90, relevance 0.5 (no history). No penalties.",
       "status": "suggested",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-03.md",
-      "created_at": "2026-07-13T16:15:56Z"
+      "created_at": "2026-07-13T16:15:56Z",
+      "assets": []
     },
     {
       "id": "idea-04",
@@ -58,7 +61,8 @@
       "fit_basis": "Model news plus a cost angle for the business audience. momentum 0.88 (both newsletters), brand_fit 0.85 (cost trick leans slightly technical), relevance 0.5 (no history). No penalties.",
       "status": "suggested",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-04.md",
-      "created_at": "2026-07-13T16:15:56Z"
+      "created_at": "2026-07-13T16:15:56Z",
+      "assets": []
     },
     {
       "id": "idea-05",
@@ -71,7 +75,8 @@
       "fit_basis": "Tech-evolution curiosity piece, strong for AI-curious beginners. momentum 0.75 (research, not a launch), brand_fit 0.80 (less directly useful to business owners), relevance 0.5 (no history). No penalties.",
       "status": "suggested",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-05.md",
-      "created_at": "2026-07-13T16:15:56Z"
+      "created_at": "2026-07-13T16:15:56Z",
+      "assets": []
     },
     {
       "id": "idea-06",
@@ -84,7 +89,8 @@
       "fit_basis": "Generative-media / creator-tools lane, steered from tutorial back to a news breakdown. momentum 0.55 (single source), brand_fit 0.70 (tool release risks slipping into how-to), relevance 0.5 (no history). No penalties.",
       "status": "suggested",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-06.md",
-      "created_at": "2026-07-13T16:15:56Z"
+      "created_at": "2026-07-13T16:15:56Z",
+      "assets": []
     },
     {
       "id": "idea-07",
@@ -97,7 +103,8 @@
       "fit_basis": "Squarely in the generative-media lane with a cost angle the business audience feels. momentum 0.40 (single source, lowest prominence), brand_fit 0.80, relevance 0.5 (no history). Ranks last on momentum, not fit. No penalties.",
       "status": "suggested",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-07.md",
-      "created_at": "2026-07-13T16:15:56Z"
+      "created_at": "2026-07-13T16:15:56Z",
+      "assets": []
     }
   ]
 }

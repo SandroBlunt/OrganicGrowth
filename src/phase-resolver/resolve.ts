@@ -14,21 +14,33 @@
  * is the source of truth (always-rules #7); the queue slice is a secondary index used only to
  * detect stranded `accepted` Ideas.
  *
- * Lifecycle order (CLAUDE.md):
- *   suggested → accepted → casting → produced → posted → tracking → scored  (or rejected)
+ * As of issue #55 (ADR-0011), an Idea's OWN status is only ever `suggested` / `accepted` /
+ * `rejected` — production state (what used to be `casting` / `produced` / `posted` / `tracking` /
+ * `scored`) now lives on the Idea's per-Recipe `assets` (`src/asset/asset.ts`). This resolver FOLDS
+ * an `accepted` Idea's Assets exactly the way it already folds many Ideas into one Brand phase: the
+ * EARLIEST Asset stage sets the phase contribution, and EVERY Asset's gate (not just the earliest
+ * one's) surfaces in `pendingGates` — one Idea's Recipe can be `produced`, ready to publish, while
+ * another is still `in_production` paused at a different gate; the Operator needs to see both.
+ *
+ * Lifecycle order (ADR-0011):
+ *   Idea:  suggested → accepted → rejected
+ *   Asset: queued → in_production → produced → posted → tracking → scored
+ *          (a human pick, e.g. the Cast pick, is a PAUSE inside in_production, named by
+ *           pending_gate — never a stage of its own; `casting` is retired)
  *
  * Phase priority (earliest active phase wins for `phase`):
  *   research < review < production < publish < tracking < done
  *
- * Gate mapping:
- *   suggested → "review"    (Gate 1: Review)
- *   casting   → "cast-pick" (Gate 2: Cast pick)
- *   produced  → "publish"   (Gate 3: Publish)
- *   posted    → "track"     (automatic; /track-performance must still be run)
+ * Gate mapping (per Asset, folded across all of an Idea's Assets):
+ *   suggested                                 → "review"    (Gate 1: Review)
+ *   in_production, pending_gate: "cast"        → "cast-pick" (Gate 2: Cast pick)
+ *   produced                                  → "publish"   (Gate 3: Publish)
+ *   posted                                    → "track"     (automatic; /track-performance must still be run)
  */
 
 import type { LedgerIdea } from "../ledger/ledger.ts";
 import { isLiveJob, type QueueJob } from "../production-queue/queue.ts";
+import type { LedgerAssetRecord } from "../asset/asset.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,20 +53,20 @@ import { isLiveJob, type QueueJob } from "../production-queue/queue.ts";
 export type Phase =
   | "research"   // no Ideas yet; loop hasn't started
   | "review"     // suggested Ideas are waiting for the Operator to accept/reject
-  | "production" // accepted/casting Ideas: queue draining or Cast gate pending
-  | "publish"    // produced Ideas: Assets ready for the Operator to publish
-  | "tracking"   // posted Ideas: posts need /track-performance
-  | "done";      // all Ideas are scored or rejected — the loop is idle for this week
+  | "production" // accepted Ideas: queue draining, an Asset still queued, or a gate pending
+  | "publish"    // an Asset is produced: ready for the Operator to publish
+  | "tracking"   // an Asset is posted: posts need /track-performance
+  | "done";      // all Ideas are rejected or every Asset is scored — the loop is idle for this week
 
 /**
  * A human gate currently pending Operator action. A gate is present in `pendingGates` when at
- * least one Idea of the corresponding status exists in the ledger.
+ * least one Idea (or one of its Assets) of the corresponding status exists in the ledger.
  *
  * - `"review"`    — suggested Ideas await accept/reject (Gate 1, /review-ideas)
- * - `"cast-pick"` — casting Ideas await Character selection (Gate 2, /pick-cast)
- * - `"publish"`   — produced Ideas await publication (Gate 3, /log-post)
- * - `"track"`     — posted Ideas need /track-performance (automatic; no human decision required
- *                   but the Operator triggers it)
+ * - `"cast-pick"` — an Asset is `in_production` paused at its Cast gate (Gate 2, /pick-cast)
+ * - `"publish"`   — an Asset is `produced`, awaiting publication (Gate 3, /log-post)
+ * - `"track"`     — an Asset is `posted`, needing /track-performance (automatic; no human decision
+ *                   required but the Operator triggers it)
  */
 export type PendingGate = "review" | "cast-pick" | "publish" | "track";
 
@@ -88,6 +100,35 @@ const PHASE_PRIORITY: Record<Phase, number> = {
 /** Return the earlier of two phases (lowest priority number wins). */
 function earlierPhase(a: Phase, b: Phase): Phase {
   return PHASE_PRIORITY[a] <= PHASE_PRIORITY[b] ? a : b;
+}
+
+// ---------------------------------------------------------------------------
+// Per-Asset folding (mirrors the per-Idea folding one grain up)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fold ONE Asset into the running phase, adding any gate it contributes to `gateSet`. Returns the
+ * new phase (the earlier of `phase` and this Asset's own phase contribution). `scored` is terminal
+ * and contributes nothing (mirrors the old `scored`/`rejected` Idea-level case).
+ */
+function foldAssetIntoPhase(phase: Phase, gateSet: Set<PendingGate>, asset: LedgerAssetRecord): Phase {
+  switch (asset.status) {
+    case "queued":
+      return earlierPhase(phase, "production");
+    case "in_production":
+      if (asset.pending_gate === "cast") gateSet.add("cast-pick");
+      return earlierPhase(phase, "production");
+    case "produced":
+      gateSet.add("publish");
+      return earlierPhase(phase, "publish");
+    case "posted":
+      gateSet.add("track");
+      return earlierPhase(phase, "tracking");
+    case "tracking":
+      return earlierPhase(phase, "tracking");
+    case "scored":
+      return phase;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -131,43 +172,29 @@ export function resolvePhase(
         gateSet.add("review");
         break;
 
-      case "accepted":
-        // Production phase regardless of queue presence.
-        phase = earlierPhase(phase, "production");
-        // Stranded if no LIVE queue job exists for this Idea (a `failed`-only Idea is stranded — C4).
-        if (!liveJobIdeaIds.has(idea.id)) {
-          stranded.push(idea.id);
+      case "accepted": {
+        const assets = idea.assets ?? [];
+        if (assets.length === 0) {
+          // No Assets recorded yet (today's real-ledger shape — accepting an Idea does not by
+          // itself create an Asset). Production phase regardless of queue presence; stranded if no
+          // LIVE queue job exists for this Idea (a `failed`-only Idea is stranded — C4).
+          phase = earlierPhase(phase, "production");
+          if (!liveJobIdeaIds.has(idea.id)) {
+            stranded.push(idea.id);
+          }
+          break;
         }
-        // No human gate for accepted: it's either queued or stranded (needs re-enqueue).
+        // Fold EVERY Asset (not just the earliest): a Recipe already `produced` and another still
+        // `in_production` paused at a gate must BOTH surface — mirrors the old cross-Idea folding,
+        // one grain down.
+        for (const asset of assets) {
+          phase = foldAssetIntoPhase(phase, gateSet, asset);
+        }
         break;
+      }
 
-      case "casting":
-        // Production phase; the Cast gate is pending for the Operator.
-        phase = earlierPhase(phase, "production");
-        gateSet.add("cast-pick");
-        break;
-
-      case "produced":
-        // Publish phase; the Operator must publish the Asset.
-        phase = earlierPhase(phase, "publish");
-        gateSet.add("publish");
-        break;
-
-      case "posted":
-        // Tracking phase; /track-performance must be run.
-        phase = earlierPhase(phase, "tracking");
-        gateSet.add("track");
-        break;
-
-      case "tracking":
-        // In-flight tracking: the phase is tracking but no additional human gate needed.
-        phase = earlierPhase(phase, "tracking");
-        break;
-
-      case "scored":
       case "rejected":
-        // Terminal states: contribute "done" only, which is the pessimistic default.
-        // They do not pull the phase forward from "done".
+        // Terminal state: contributes "done" only, which is the pessimistic default.
         break;
 
       default:

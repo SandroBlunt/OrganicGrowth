@@ -1,45 +1,4 @@
-# phase-resolver Specification
-
-## Purpose
-TBD - created by archiving change issue-22-phase-resolver. Update Purpose after archive.
-## Requirements
-### Requirement: resolvePhase returns the Brand's current phase, pending human gates, and stranded Ideas
-
-The system SHALL expose a pure function `resolvePhase(ideas, queueJobs)` that accepts an array of
-`LedgerIdea` objects (a Brand's ledger snapshot) and an array of `QueueJob` objects already filtered
-to that Brand, and returns a `PhaseResult` with three fields:
-
-- `phase` — the Brand's current loop position, one of `"research" | "review" | "production" |
-  "publish" | "tracking" | "done"`.
-- `pendingGates` — a readonly array of human gates currently waiting for Operator action, each one
-  of `"review" | "cast-pick" | "publish" | "track"`, with no duplicates.
-- `strandedIdeas` — a readonly array of Idea ids (strings) that are `accepted` in the ledger but
-  have no live queue job — the 2026-W22 case, flagged for re-enqueue.
-
-The function SHALL be pure and deterministic: given the same inputs it always returns the same
-output, with no side effects, no disk reads, no network calls, no Magnific Space calls, and no
-Apify calls. It reuses the existing `LedgerIdea` type from `src/ledger/ledger.ts` and the existing
-`QueueJob` type from `src/production-queue/queue.ts` — no parallel type shapes are invented.
-
-#### Scenario: resolvePhase returns a PhaseResult with the three required fields
-
-- **GIVEN** a ledger with at least one Idea and a queue slice (possibly empty)
-- **WHEN** `resolvePhase(ideas, queueJobs)` is called
-- **THEN** the returned value has fields `phase` (a string), `pendingGates` (an array), and
-  `strandedIdeas` (an array)
-- **AND** no disk, Magnific, or Apify call is made
-
-### Requirement: An empty ledger resolves to the research phase with no stranded work
-
-When the Brand has no Ideas in its ledger (a fresh Brand), `resolvePhase` SHALL return
-`phase: "research"`, an empty `pendingGates` array, and an empty `strandedIdeas` array. This
-represents the start of the weekly loop — no trends have been run yet.
-
-#### Scenario: Fresh Brand with empty ledger resolves to research phase
-
-- **GIVEN** an empty Ideas array and an empty queue slice
-- **WHEN** `resolvePhase([], [])` is called
-- **THEN** the result is `{ phase: "research", pendingGates: [], strandedIdeas: [] }`
+## MODIFIED Requirements
 
 ### Requirement: A fully-scored Run SHALL resolve to a done/idle phase
 
@@ -155,20 +114,6 @@ stages contributes gates from BOTH — the phase is the earlier of the two Asset
 - **WHEN** `resolvePhase` is called twice with those inputs
 - **THEN** both results are deeply equal
 
-### Requirement: resolvePhase is pure and isolation-tested with no external dependencies
-
-`resolvePhase` SHALL be testable by passing literal JavaScript arrays — no filesystem reads, no
-Magnific Space calls, no Apify calls, no clock access. The module SHALL have no imports that
-perform I/O (no `readFile`, no `fetch`, no MCP tool calls). Every test assertion SHALL operate
-entirely on the function's return value.
-
-#### Scenario: Tests exercise resolvePhase by passing arrays directly
-
-- **GIVEN** a test that constructs `LedgerIdea` and `QueueJob` objects as plain literals
-- **WHEN** `resolvePhase(ideas, queueJobs)` is called in the test
-- **THEN** the test can assert the result without mocking any I/O system
-- **AND** no filesystem, network, or Magnific path is exercised
-
 ### Requirement: An Asset paused at a gate, produced, or posted resolves to its correct pending gate
 
 `resolvePhase` SHALL include each human gate in `pendingGates` when at least one of an `accepted`
@@ -221,3 +166,7 @@ earlier-lifecycle active work) SHALL be `"tracking"`.
 - **WHEN** `resolvePhase` is called
 - **THEN** `"cast-pick"` appears at most once in `pendingGates`
 
+## RENAMED Requirements
+
+- FROM: `### Requirement: casting, produced, and posted Ideas SHALL each resolve to their correct pending gate`
+- TO: `### Requirement: An Asset paused at a gate, produced, or posted resolves to its correct pending gate`
