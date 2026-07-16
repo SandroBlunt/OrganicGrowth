@@ -445,3 +445,139 @@ deferred to issue #59) — none of them are affected by the D1/D2 fixes. One add
   a `brief_path`), but is still real, tested behavior for whatever future record might lack one
   (e.g. a hand-authored brief, or a future writer that forgets to set it) — kept as a defensive
   fallback, not dead code.
+
+---
+
+## QA Verdict — Round 2: PASS
+
+### Suite result
+
+Re-ran everything myself from a clean shell, not trusting the Round-2 Build Report's numbers:
+
+- `npm test` (`tsc -p tsconfig.json --noEmit && node --import tsx --test "src/**/*.test.ts"`) →
+  **755 tests / 226 suites / 0 fail / 0 skipped / 0 todo.** Matches the Build Report's claim exactly
+  (+12 over Round 1's 743/223: 7 in `brief-path.test.ts`, 4 in `format-docs.test.ts`, 1 in
+  `store.test.ts` — confirmed by counting).
+- `npm run build` (`tsc -p tsconfig.build.json`) → exit 0.
+- `npx openspec validate issue-53-format-files-formatstore --strict` → `Change
+  'issue-53-format-files-formatstore' is valid`.
+- Re-ran the Magnific-fake-backed suites directly to re-confirm the single-recipe path:
+  `node --import tsx --test "src/space-driver/**/*.test.ts" "src/production-spec/**/*.test.ts"
+  "src/production-queue/**/*.test.ts" "src/ledger/**/*.test.ts"` → **263 tests / 98 suites / 0 fail**
+  — unchanged from Round 1. `git diff 34fc7fd 67a69c0 -- src/space-driver/ src/production-queue/
+  src/ledger/` → 0 lines. `src/production-spec/` has a 5-line diff, but it is exactly one `export`
+  keyword added to the pre-existing, otherwise-untouched `briefShortName` helper (verified by
+  reading the diff directly) — zero behavior change, and the 263-test rerun proves it.
+
+### D1 verification (was HIGH, Round 1)
+
+**Confirmed genuinely fixed**, verified independently of the Build Report's own tests:
+
+- Re-ran my exact Round-1 repro against the current branch: `data/brands/straw-motion/ledger.json`'s
+  7 `status: suggested` Ideas now carry `"format": "unhypped-news"` (not `"reel"`), and every other
+  field — `id`, `run`, `title`, `trend_id`, `trend_label`, `fit_score`, `fit_basis`, `status`,
+  `brief_path`, `created_at` — is byte-for-byte unchanged (`git diff 34fc7fd 67a69c0 -- data/` shows
+  exactly 7 one-line `format` changes, nothing else touched anywhere under `data/`, and `mundotip`'s
+  ledger has a 0-line diff).
+- Confirmed the real Briefs exist on disk at the path recorded in `brief_path`
+  (`data/brands/straw-motion/ideas/2026-W29/idea-0{1..7}.md`, all present).
+- **Confirmed the fix is load-bearing, not just the data migration.** I wrote a standalone script
+  (not committed to the repo) that reimplements the Round-1 `review-ideas.md` logic — hand-building
+  `data/brands/<slug>/ideas/<Idea.format>/<run>/<id>.md` — and ran it against the CURRENT (migrated)
+  ledger data: **all 7 still resolve to a non-existent path**
+  (`data/brands/straw-motion/ideas/unhypped-news/2026-W29/idea-0N.md`), because the Briefs physically
+  live at the pre-namespacing path regardless of what `format` says. This proves the data migration
+  alone (D1 fix #2) would NOT have been sufficient — the `brief_path`-trusting resolver (D1 fix #1,
+  `resolveBriefPathCandidates`) is what actually fixes `/review-ideas`, exactly as the Build Report
+  claims.
+- Read `src/format/brief-path.ts` directly: `resolveBriefPathCandidates` returns `[idea.briefPath]`
+  as the ONLY candidate whenever `briefPath` is non-empty — never falls through to reconstruction —
+  and only reconstructs `[Format-namespaced, legacy]` when `briefPath` is absent, guarding the
+  Format-namespaced branch against a garbled/invalid `format` slug (`try`/`catch` around
+  `formatIdeasRoot`, degrading to the legacy candidate rather than throwing).
+- Read `.claude/commands/review-ideas.md`'s new step 2: it now explicitly delegates to
+  `resolveBriefPathCandidates` ("do **not** hand-build the path from `format`/`run` yourself"),
+  states `brief_path` is trusted **exclusively**, and instructs stopping and reporting if no
+  candidate exists — never guessing (matches always-rule 8, never-fabricate).
+- Read `.claude/agents/idea-strategist.md`'s step 8: now instructs always writing `brief_path`
+  verbatim on every new record, closing the gap going forward.
+- **Confirmed the new regression test (`src/format/brief-path.test.ts`) is a real guard, not a
+  tautology.** Its "real, pending straw-motion Ideas" test (a) loads the actual
+  `data/brands/straw-motion/ledger.json` from disk (not a synthetic fixture), (b) asserts the
+  resolved candidate is `[record.brief_path]` exactly — so if the resolver ever reverted to
+  reconstructing from `format` again, this assertion would fail — and (c) independently checks
+  (via `fs.access`) that the resolved path exists on disk AND that the naive
+  Format-namespaced-from-`format` path does NOT exist — so even a change that kept the assertion
+  shape but broke the underlying resolution would be caught by the disk-existence check. Ran it
+  standalone: `node --import tsx --test "src/format/brief-path.test.ts"` → 7/7 pass.
+- **D1 verdict: FIXED**, with durable regression coverage.
+
+### D2 verification (was LOW, Round 1)
+
+- `grep -rn "formats: \[reel\]" src/` → no hits (was 2, both now removed:
+  `src/commands/run-pipeline.test.ts`, `src/commands/run-pipeline-onboarding.test.ts`).
+- `grep -rn "formats:" src/ templates/ data/` → only remaining hit is a doc-comment in
+  `src/brand/scaffolder.ts` describing the RETIRED field in past tense ("was the old MEDIA sense") —
+  not a functional leftover.
+- **D2 verdict: FIXED.**
+
+### Per-criterion results (re-verified from scratch, not carried over from Round 1)
+
+| # | Acceptance criterion | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Per-Format YAML schema + typed `FormatStore`; voice/sources/mode read from the Format, not the Brand | **PASS** | Unchanged from Round 1 (`src/format/store.ts`, `store.test.ts`); re-confirmed green in the Round-2 full run |
+| 2 | mundotip + straw-motion migrated; media-sense `formats:[reel]` / per-Idea `format` no longer means the media type | **PASS** (was FAIL in Round 1) | Format-file migration unchanged from Round 1 (still correct); the per-Idea gap is now closed: straw-motion's 7 real pending Ideas carry `format: "unhypped-news"`, verified above; `store.test.ts`'s new test pins `format !== "reel"` for all of them |
+| 3 | `/run-trends <brand> <format>` requires the format arg; run path namespaced by Format; `ideas_per_run` per-Format | **PASS** | Unchanged from Round 1; re-confirmed |
+| 4 | trend-scout reads mode+sources from the Format file; idea-strategist tags every Idea with its Format | **PASS** | Unchanged from Round 1, plus `idea-strategist.md` now also always writes `brief_path` (new, tested) |
+| 5 | Built test-first against the fake Magnific Space; the current single-recipe path stays green; `openspec validate --strict` + full test suite green | **PASS, without caveat this time** | Zero Space code touched (confirmed above); 755/755 `npm test`; `openspec validate --strict` green; AND the operator-facing prompt path (`/review-ideas`) that broke on real data in Round 1 is now fixed and has real regression coverage — the "single-recipe path stays green" claim holds for both the compiled/tested path and the real operator workflow this time |
+
+### Per-scenario results — the 5 new/changed scenarios in `format-store/spec.md`
+
+- "A recorded brief_path is trusted exclusively, even when the Idea's format is stale or wrong" → `brief-path.test.ts` "trusts a recorded brief_path exclusively, even when format is stale/wrong" — PASS
+- "The real, currently-pending straw-motion Ideas resolve to their actual Brief files" → `brief-path.test.ts`'s real-ledger describe block — PASS
+- "A record with no brief_path falls back to the Format-namespaced path, then the legacy path" → `brief-path.test.ts` "falls back to [Format-namespaced, legacy]..." — PASS
+- "A garbled format value never crashes the resolver" → `brief-path.test.ts` "never throws on a garbled/invalid format value..." — PASS
+- "straw-motion's real pending Ideas carry the real Format slug, not the media-sense value" → `store.test.ts`'s new test — PASS
+
+All other Round-1 per-scenario results are unaffected and re-confirmed green (`format-store`'s
+original 12 scenarios, `format-scoped-trend-research`'s 7, `brand-commands`'s 3, `brand-resolver`'s
+4) — re-ran the full suite rather than assuming.
+
+### Always-rules + Magnific-fake checks (re-verified for Round 2)
+
+| Rule | Verdict | Evidence |
+|---|---|---|
+| Generate-never-publish | PASS | No publish logic touched; `producer.md`/`src/space-driver/**` still untouched (0-line diff `34fc7fd..67a69c0`) |
+| Public-metrics-only | PASS | No change to Apify/metrics logic in this round |
+| Relative-not-absolute | PASS | No change to over-performance logic in this round |
+| Explicit-attribution | PASS | No change to Post↔Idea linking in this round |
+| **Ledger-as-source-of-truth** (specifically checked given a real ledger was hand-edited) | **PASS** | This is the rule Round 2 touches directly, and it holds up on inspection: (1) the ledger is still the only place `format`/`brief_path` live — no new parallel state was introduced; (2) the edit itself is a minimal, verified 7-line data fix (`format` only, nothing else touched, confirmed via `git diff`); (3) the *behavioral* fix (`resolveBriefPathCandidates`) makes the ledger's own `brief_path` field the single source of truth for brief location — MORE faithful to "ledger is canonical" than Round 1's approach, which ignored a canonical ledger field (`brief_path`) in favor of reconstructing a path from a different field (`format`); (4) `src/ledger/ledger.ts` (the typed reader/writer module) remains untouched — the migration was a direct, reviewable JSON edit, not a code-path change, and QA independently confirmed its diff is exactly the intended 7 fields |
+| Magnific fake (no live-Space calls) | PASS | `grep -rn "spaces_\|creations_\|FakeSpace\|MagnificSpace" src/format/` → no matches in `brief-path.ts`/`brief-path.test.ts` either; `git diff 34fc7fd 67a69c0 -- src/space-driver/` → 0 lines; Magnific-fake-backed suite (263 tests) re-run and still green |
+
+### Regression check
+
+Diffed `34fc7fd..67a69c0` in full (`git diff 34fc7fd 67a69c0 --stat`, 14 files, 753+/32-) and read
+every changed file. No unrelated files touched; no scope creep. The one file outside `src/format/**`
+and the two doc/data fixes is `src/production-spec/store.ts`, and that diff is exactly one `export`
+keyword plus a doc comment — confirmed zero behavioral change by re-running
+`production-spec/**`'s full test suite (unchanged pass count) and by reading the diff directly.
+No new defects found in this round.
+
+### Defect list
+
+None open. Both Round-1 defects (D1 high, D2 low) are fixed and durably tested.
+
+### Overall
+
+**QA Verdict — Round 2: PASS.** `npm test` is genuinely green (755/755), `npm run build` exits 0,
+`openspec validate --strict` is valid, and — independently re-verified, not taken on the Build
+Report's word — the Round-1 D1 repro no longer reproduces: the ledger's `brief_path` field is now
+trusted exclusively by a new pure resolver (`resolveBriefPathCandidates`), `/review-ideas` and
+`idea-strategist` are rewired to it, the 7 real straw-motion records are correctly migrated (and
+*only* the intended field changed), and the new test would catch a reintroduction of the bug (proven
+by independently simulating the old logic against the current data and watching it still fail).
+D2 is cleanly fixed. All 5 acceptance criteria pass with real test coverage, all 5 always-rules hold
+(ledger-as-source-of-truth specifically re-examined given the hand-edit, and found to be *more*
+faithful to "ledger is canonical" than Round 1, not less), no live-Space/Magnific calls exist
+anywhere in the diff, and the single-recipe path (both the compiled Magnific-fake suite and the
+real operator-facing `/review-ideas` workflow) is green. Recommend proceeding to branch + PR.
