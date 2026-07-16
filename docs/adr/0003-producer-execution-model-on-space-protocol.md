@@ -1,6 +1,9 @@
 # Producer execution model: a thin runner driving an on-Space protocol, with agent fallback
 
-**Status:** accepted — extends ADR-0002 (the Producer added there).
+**Status:** accepted — extends ADR-0002 (the Producer added there). **Revised by [ADR-0009](./0009-format-vs-recipe-multi-format-model.md) (single-format assumptions) and
+[ADR-0010](./0010-recipes-in-repo-space-media-only.md)** (2026-07): the how-to-run plan moves off the
+Space into an in-repo **Recipe**; the Space keeps only its media run-points, and the fixed two-phase
+Cast gate becomes one Recipe's local gate.
 
 The Producer renders an accepted Brief into an Asset by driving a pre-defined Magnific **Space** (the
 "JSON master" cast→clips Space). The Space is expected to keep evolving, and it already carries its own

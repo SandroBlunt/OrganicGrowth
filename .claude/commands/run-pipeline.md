@@ -48,24 +48,34 @@ how you invoke it selects the Brand:
 5. **Drives the loop, pausing at three human gates:**
 
    - **Gate 1 — Review.** Invokes trend research + idea review for Brand `<brand>`. After you accept
-     Ideas, the conductor auto-drains the Production Queue to the Cast gate (generating character
-     images unattended). Run `/run-pipeline <brand>` again once Ideas reach `casting` status.
+     Ideas, the `producer` works the Production Queue **in your session** — one Space generation at a
+     time, with you approving the Space calls as they happen — generating each Idea's Cast and pausing
+     it at the Cast gate (`casting` status).
 
    - **Gate 2 — Cast pick.** Presents the Ideas waiting at the Cast gate and tells you which
-     `/pick-cast <brand> <idea-id> <n>` command to run. After you pick a Character, the producer
-     renders the Asset unattended. Run `/run-pipeline <brand>` again once production finishes
-     (`produced` status).
+     `/pick-cast <brand> <idea-id> <n>` command to run. After you pick a Character, the `producer`
+     renders the Asset in the same session — pinning the Character and running the clip step while you
+     approve the Space calls — moving the Idea to `produced` status.
 
    - **Gate 3 — Publish.** Presents the produced Assets and waits for you to publish and log the Post
      URL with `/log-post <brand> <idea-id> <facebook-url>`. After logging, the conductor offers
      `/track-performance <brand>` and `/report <brand>`.
 
-> **Not yet wired — production runtime.** Where this doc says the conductor "auto-drains the
-> Production Queue … unattended" and "renders the Asset unattended", that flow is not yet operational.
-> There is no live Magnific Space adapter and no running worker host, so accepted Ideas do not move to
-> `casting` or `produced` on their own today. The gates, queue, and ledger wiring are in place; the
-> unattended production runtime that would drain them is still pending (see the audit's C2). Treat the
-> production phases as manual/blocked until that runtime ships.
+> **Production runtime — attended (ADR-0008).** Production runs **in your session**, not in a background
+> process. The `producer` is an interactive agent, given the Magnific MCP tools, that drives the **live**
+> Space while you are present and approve the Space calls as they happen. It works the Production Queue
+> **serially — one Space generation at a time** (the Space has no parallelism), pausing each Idea at the
+> Cast gate for your pick; a gate-paused job does **not** hold the Space, so the next queued Idea can
+> run. There is deliberately **no headless worker host and no unattended-permission wiring** — that
+> background, self-draining runtime (epic #39) was designed and then dropped as unnecessary, because you
+> are already present at the Cast gate.
+>
+> **Target (multi-format — ADR-0009 / 0011).** Above, the single **Cast pick** is one Recipe's local
+> gate. Under multi-format, an accepted Idea fans out to the Operator's chosen **Recipes** — one
+> production job and **one Asset** each — and gates become **per-Recipe** (zero, one, or several picks);
+> "Cast"/"Character" are the *Character Explainer with Cast* Recipe's own vocabulary, not universal
+> terms. Not built yet — the flow above is the current single-recipe build being migrated onto that
+> model.
 
 ## Guardrails
 

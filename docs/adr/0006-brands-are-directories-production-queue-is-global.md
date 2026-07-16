@@ -4,6 +4,11 @@
 background model); aligns with the Brand definition in CONTEXT.md. The "queue is global and
 brand-agnostic" reasoning below is unaffected by attended-vs-background.
 
+**Amended by** [ADR-0011](./0011-ledger-grain-per-recipe-assets-attribution.md) (job/lock re-keyed to
+`(brand, idea_id, recipe)`; per-Recipe Assets), [ADR-0013](./0013-formats-per-brand-files-run-scoped-to-format.md)
+(Formats live per-Brand in their own files), and
+[ADR-0014](./0014-canonical-state-in-files-behind-store-boundary.md) (files sit behind a store boundary).
+
 OrganicGrowth manages many Brands. Each Brand owns its own Brand Profile, seeds, Your Data, ledger,
 and ideas. We need a way to enumerate all Brands and to map a Brand slug to its on-disk paths — without
 introducing a separate registry file that can drift out of sync with the actual on-disk state.

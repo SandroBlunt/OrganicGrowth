@@ -1,7 +1,11 @@
 # Producer generates the Asset; the human gate moves to publication
 
 **Status:** accepted — supersedes the "never generate finished content" principle in ADR-0001's spirit
-and `.claude/rules/always/organicgrowth-rules.md` rule 1.
+and `.claude/rules/always/organicgrowth-rules.md` rule 1. **Superseded in part by
+[ADR-0009](./0009-format-vs-recipe-multi-format-model.md) and
+[ADR-0011](./0011-ledger-grain-per-recipe-assets-attribution.md)** (2026-07): the single-Asset lifecycle
+and singular `asset_url` below are retired — an Idea now yields **one Asset per Recipe**, and the
+production stage belongs to each Asset.
 
 OrganicGrowth originally drew its hard line at *content generation*: an Idea stopped at a Brief and a
 human shot the Reel. As of June 2026 we add a **Producer** agent that renders an accepted Idea into a

@@ -1,6 +1,9 @@
 # Model selection lives in the Space, not in OrganicGrowth
 
-**Status:** accepted — extends ADR-0003 (the Space is the source of truth for *how to run*).
+**Status:** accepted — extends ADR-0003 (the Space is the source of truth for *how to run*). Still holds
+after [ADR-0010](./0010-recipes-in-repo-space-media-only.md): the **Recipe** now owns Space-targeting and
+which run-points to drive, but the **Space** still owns model selection (the Recipe and Spec carry no
+model field).
 
 Two top-level docs disagreed on the video model: the README said Magnific's **"Happy Horse"**, while
 CONTEXT.md's Production Spec section said **"Veo 3.1"** (audit finding C34). The one piece of live

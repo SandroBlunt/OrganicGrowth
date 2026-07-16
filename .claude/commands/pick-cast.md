@@ -1,15 +1,19 @@
 ---
 name: pick-cast
-description: "Gate 2 — Cast pick: the Operator picks the Character (the nth Cast member) for a casting Idea of the named Brand; the Producer then queues the render and renders the Asset unattended when the Space is free."
+description: "Gate 2 — Cast pick: the Operator picks the Character (the nth Cast member) for a casting Idea of the named Brand; the Producer then resumes the job in the Operator's session and renders the Asset one generation at a time."
 ---
 
 # /pick-cast
 
 **Gate 2 — Cast pick.** A `casting` Idea is paused at the Cast gate with its rendered **Cast** on the
-Brand's ledger. The Operator picks the **Character** to render; the Producer **queues the render**, then
-renders to completion *unattended* when the Space is free (pins the Character, runs the clip run-point,
-saves the **Asset**). Status moves `casting → produced`. OrganicGrowth **renders the Asset but never
-publishes it.**
+Brand's ledger. The Operator picks the **Character** to render; the Producer then **resumes the job in
+the Operator's session** and renders it to completion, one generation at a time (pins the Character, runs
+the clip run-point, saves the **Asset**). A gate-paused job does not hold the Space. Status moves
+`casting → produced`. OrganicGrowth **renders the Asset but never publishes it.**
+
+> **Target (multi-format — ADR-0009/0010):** the Cast pick is the *Character Explainer with Cast*
+> Recipe's local pick-gate; it generalizes to any Recipe's pick-gate, and `/pick-cast` becomes a
+> friendly alias for a generic "submit a pick" command. Not built yet — today the pick is Cast-only.
 
 Usage: `/pick-cast <brand> <idea-id> <n>`
   - `<brand>` is required — the Brand the Idea belongs to (e.g. `mundotip`).
@@ -17,9 +21,9 @@ Usage: `/pick-cast <brand> <idea-id> <n>`
 
 **Gate 2 — Brand: `<brand>`.** The Operator is picking a Character for Brand `<brand>`. The chosen
 Character is written onto the Idea's enqueued **render job** in the global Production Queue
-(`data/queue.json`) as a `character` field — **not** onto the ledger. The worker pins that Character
-during the unattended render. The ledger still owns the Idea's status (`casting → produced`); the
-pick itself lives on the queue job.
+(`data/queue.json`) as a `character` field — **not** onto the ledger. The Producer pins that Character
+when it resumes the job in the Operator's session. The ledger still owns the Idea's status
+(`casting → produced`); the pick itself lives on the queue job.
 
 ## Steps
 
@@ -35,14 +39,16 @@ pick itself lives on the queue job.
 3. The output restates the active Brand: "Brand: `<brand>`" so the Operator can confirm the pick is
    for the correct Brand.
 
-> **Not yet wired:** the unattended render runtime is not built yet — there is no live Magnific Space
-> adapter and no running worker host, so recording the pick does not currently move the Idea to
-> `produced` on its own. This command records the Character correctly; the production runtime that
-> consumes it is still pending (see the audit's C2).
+> **How the render runs:** once the pick is in, the Producer resumes the job **in the Operator's
+> session** and renders it one generation at a time — there is no unattended background worker
+> (ADR-0008). This command only records the Character on the queue job; recording the pick does not
+> move the Idea to `produced` on its own — the Producer does that when it resumes the job. A
+> gate-paused job does not hold the Space.
 
 ## Guardrails
 - **Brand is explicit** — `<brand>` is required; never fall back to a default Brand.
 - The Operator picks the Character — the Producer never picks for them (this is a human gate).
-- Nothing renders past this gate until the Operator picks; the render then runs unattended.
+- Nothing renders past this gate until the Operator picks; the Producer then resumes the render in the
+  Operator's session, one generation at a time.
 - The Brand's ledger (`data/brands/<slug>/ledger.json`) is the source of truth; every status change
   is written to it. The global Production Queue (`data/queue.json`) is brand-agnostic.
