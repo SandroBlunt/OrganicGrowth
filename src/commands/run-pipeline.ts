@@ -299,10 +299,10 @@ async function* runNewBrandInterview(
   const region = (regionResponse ?? "").trim();
 
   // --- Platform ---
-  // Re-ask until the Operator supplies one of: facebook | instagram | linkedin (case-insensitive).
-  // Never fabricate a default — only Operator-supplied values enter the Brand Profile.
-  // Cap at 3 (mirrors name loop). An unrecognised non-empty value triggers a re-ask that names
-  // the accepted values.
+  // Re-ask until the Operator supplies one of: facebook | instagram | linkedin | youtube
+  // (case-insensitive). Never fabricate a default — only Operator-supplied values enter the Brand
+  // Profile. Cap at 3 (mirrors name loop). An unrecognised non-empty value triggers a re-ask that
+  // names the accepted values.
   const MAX_PLATFORM_ATTEMPTS = 3;
   let platform: BrandInterviewAnswers["platform"] | "" = "";
   let platformAttempts = 0;
@@ -317,12 +317,17 @@ async function* runNewBrandInterview(
     }
     const platformResponse: string | undefined = yield {
       message: platformAttempts === 1
-        ? "Which platform does this Brand publish to? (facebook | instagram | linkedin) Facebook is the only fully wired platform today."
-        : "Please enter one of: facebook, instagram, or linkedin. (Facebook is the only fully wired platform today.)",
+        ? "Which platform does this Brand publish to? (facebook | instagram | linkedin | youtube) Facebook, Instagram, and YouTube have verified Apify actors for Trend Research and Performance tracking today; LinkedIn is roadmap."
+        : "Please enter one of: facebook, instagram, linkedin, or youtube. (Facebook, Instagram, and YouTube have verified Apify actors today; LinkedIn is roadmap.)",
       prompt: "Platform:",
     } as ConductorTurn;
     const rawPlatform = (platformResponse ?? "").trim().toLowerCase();
-    if (rawPlatform === "facebook" || rawPlatform === "instagram" || rawPlatform === "linkedin") {
+    if (
+      rawPlatform === "facebook" ||
+      rawPlatform === "instagram" ||
+      rawPlatform === "linkedin" ||
+      rawPlatform === "youtube"
+    ) {
       platform = rawPlatform;
     }
     // On empty or unrecognised: loop continues; the next iteration shows the re-ask message.

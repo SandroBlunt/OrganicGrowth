@@ -298,7 +298,7 @@ describe("buildSeeds — maps interview answers to seeds shape", () => {
     assert.equal(fb["post_actor"], "apify/facebook-post-scraper");
   });
 
-  for (const platform of ["instagram", "linkedin"] as const) {
+  for (const platform of ["linkedin"] as const) {
     it(`does NOT invent an actor slug for the not-yet-wired ${platform} — uses the "..." placeholder`, () => {
       const seeds = buildSeeds({ ...MINIMAL_ANSWERS, platform });
       const block = (seeds.apify as Record<string, unknown>)[platform] as Record<string, string> | undefined;
@@ -310,6 +310,41 @@ describe("buildSeeds — maps interview answers to seeds shape", () => {
       assert.doesNotMatch(block["post_actor"] ?? "", /apify\//);
     });
   }
+});
+
+describe("buildSeeds — verified Instagram and YouTube actor slugs (issue #48)", () => {
+  it("includes the verified Instagram actor pair (no longer a placeholder)", () => {
+    const seeds = buildSeeds({ ...MINIMAL_ANSWERS, platform: "instagram" });
+    const ig = (seeds.apify as Record<string, unknown>)["instagram"] as Record<string, string> | undefined;
+    assert.ok(ig !== undefined, "apify.instagram must be present");
+    assert.equal(ig["trends_actor"], "apify/instagram-scraper");
+    assert.equal(ig["post_actor"], "apify/instagram-post-scraper");
+  });
+
+  it("includes the verified YouTube actor pair", () => {
+    const seeds = buildSeeds({ ...MINIMAL_ANSWERS, platform: "youtube" });
+    const yt = (seeds.apify as Record<string, unknown>)["youtube"] as Record<string, string> | undefined;
+    assert.ok(yt !== undefined, "apify.youtube must be present");
+    assert.equal(yt["trends_actor"], "streamers/youtube-scraper");
+    assert.equal(yt["post_actor"], "streamers/youtube-scraper");
+  });
+
+  it("sets seed_pages/language/region from answers when platform is youtube", () => {
+    const answers: BrandInterviewAnswers = {
+      ...MINIMAL_ANSWERS,
+      platform: "youtube",
+      seedPages: ["https://www.youtube.com/@somepeer"],
+    };
+    const seeds = buildSeeds(answers);
+    assert.deepEqual(seeds.seed_pages, ["https://www.youtube.com/@somepeer"]);
+  });
+});
+
+describe("buildBrandProfile — accepts youtube as a platform value (issue #48)", () => {
+  it("sets channel.platform to youtube when answered", () => {
+    const profile = buildBrandProfile({ ...MINIMAL_ANSWERS, platform: "youtube" });
+    assert.equal(profile.channel.platform, "youtube");
+  });
 });
 
 describe("buildSeeds — multiple seed pages", () => {

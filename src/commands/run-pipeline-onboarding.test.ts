@@ -873,6 +873,35 @@ describe("onboarding — AC7: Platform re-ask on empty/unrecognised answer", () 
     });
   });
 
+  it("accepts 'youtube' as a valid platform (issue #48)", async () => {
+    await withEmptyBrandsRoot(async (paths) => {
+      let promptCount = 0;
+      await runPipelineCommand("ytbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          promptCount++;
+          if (promptCount === 1) return "yes";
+          if (/niche/i.test(prompt)) return "AI news explainers";
+          if (/voice/i.test(prompt)) return "Plain and confident";
+          if (/language/i.test(prompt)) return "en";
+          if (/region/i.test(prompt)) return "US";
+          if (/platform/i.test(prompt)) return "youtube";
+          if (/additional|enter to skip/i.test(prompt)) return "";
+          if (/seed|page/i.test(prompt)) return "https://www.youtube.com/@somepeer";
+          return "";
+        },
+      });
+      const profileText = await readFile(join(paths.brandsRoot, "ytbrand", "brand-profile.yaml"), "utf8");
+      const parsed = yamlParse(profileText) as { channel?: { platform?: string } };
+      assert.equal(parsed.channel?.platform, "youtube", "Platform must be stored as 'youtube'");
+
+      const seedsText = await readFile(join(paths.brandsRoot, "ytbrand", "seeds.yaml"), "utf8");
+      const seeds = yamlParse(seedsText) as { apify?: { youtube?: { trends_actor?: string; post_actor?: string } } };
+      assert.equal(seeds.apify?.youtube?.trends_actor, "streamers/youtube-scraper");
+      assert.equal(seeds.apify?.youtube?.post_actor, "streamers/youtube-scraper");
+    });
+  });
+
   it("stops cleanly after platform cap is exceeded with no Brand directory created", async () => {
     await withEmptyBrandsRoot(async (paths) => {
       let promptCount = 0;

@@ -44,8 +44,11 @@ export interface BrandInterviewAnswers {
   readonly language: string;
   /** Target region (e.g. "US", "LATAM"). */
   readonly region: string;
-  /** The Channel's platform. Facebook is the only wired platform today. */
-  readonly platform: "facebook" | "instagram" | "linkedin";
+  /**
+   * The Channel's platform. Facebook, Instagram, and YouTube have verified Apify actors for Trend
+   * Research + Performance tracking (issue #48); LinkedIn remains roadmap (no verified actor yet).
+   */
+  readonly platform: "facebook" | "instagram" | "linkedin" | "youtube";
   /** At least one seed Page URL for trend research. */
   readonly seedPages: string[];
 
@@ -193,12 +196,13 @@ export function buildBrandProfile(answers: BrandInterviewAnswers): BrandProfileC
 /**
  * Apify actor slugs for each platform — technical defaults, not brand facts.
  *
- * Only Facebook is wired today, and its actor pair is the only one we have actually verified. For
- * Instagram and LinkedIn we do NOT invent an actor slug: `templates/brand-skeleton/seeds.yaml`
- * deliberately leaves them unknown, and shipping a plausible-but-unverified slug (e.g.
- * `apify/instagram-scraper`) would silently carry a possibly-nonexistent actor into Trend Research.
- * Instead we emit the `"..."` placeholder the template uses — an obvious "fill this in" marker that
- * fails loudly rather than pretending to work (never-fabricate).
+ * Facebook, Instagram, and YouTube are wired: each actor pair below has been verified against a
+ * live Apify run (issue #48 — see the change's handoff for the runs; sample outputs are captured,
+ * sanitized, in `src/apify/fixtures/`). For LinkedIn we do NOT invent an actor slug:
+ * `templates/brand-skeleton/seeds.yaml` deliberately leaves it unknown, and shipping a
+ * plausible-but-unverified slug would silently carry a possibly-nonexistent actor into Trend
+ * Research. Instead we emit the `"..."` placeholder the template uses — an obvious "fill this in"
+ * marker that fails loudly rather than pretending to work (never-fabricate).
  */
 const APIFY_ACTOR_PLACEHOLDER = "...";
 const APIFY_ACTORS: Record<string, { trends_actor: string; post_actor: string }> = {
@@ -207,8 +211,14 @@ const APIFY_ACTORS: Record<string, { trends_actor: string; post_actor: string }>
     post_actor: "apify/facebook-post-scraper",
   },
   instagram: {
-    trends_actor: APIFY_ACTOR_PLACEHOLDER,
-    post_actor: APIFY_ACTOR_PLACEHOLDER,
+    trends_actor: "apify/instagram-scraper",
+    post_actor: "apify/instagram-post-scraper",
+  },
+  youtube: {
+    // The same actor handles both a channel's recent videos and a single video URL — its `startUrls`
+    // input accepts either shape (verified live).
+    trends_actor: "streamers/youtube-scraper",
+    post_actor: "streamers/youtube-scraper",
   },
   linkedin: {
     trends_actor: APIFY_ACTOR_PLACEHOLDER,
@@ -222,8 +232,9 @@ const APIFY_ACTORS: Record<string, { trends_actor: string; post_actor: string }>
  * Seed pages and language/region are taken verbatim from `answers`. Operational defaults
  * (lookback_days, format_focus, ideas_per_run, overperformance_only) are set to sensible values
  * that match the existing `templates/brand-skeleton/seeds.yaml`. The Apify actor block carries the
- * verified Facebook actor pair; for the not-yet-wired Instagram/LinkedIn it carries only the `"..."`
- * placeholder — we never invent an unverified actor slug (see `APIFY_ACTORS`).
+ * verified actor pair for the answered platform (Facebook, Instagram, and YouTube are all verified —
+ * issue #48); for the not-yet-wired LinkedIn it carries only the `"..."` placeholder — we never
+ * invent an unverified actor slug (see `APIFY_ACTORS`).
  *
  * @param answers  The Operator's interview answers.
  * @returns        A YAML-serialisable seeds shape.
