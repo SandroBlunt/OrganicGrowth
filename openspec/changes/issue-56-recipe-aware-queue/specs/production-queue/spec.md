@@ -298,6 +298,22 @@ parse time.
 
 ## REMOVED Requirements
 
+### Requirement: Accepting an Idea enqueues a cast-phase job
+
+**Reason**: Described the PRE-issue-#56 single-job-per-Idea enqueue: one job with a hard-coded
+`phase: cast`, idempotent per bare `idea_id`. This is factually superseded by the composite
+`(brand, idea, recipe)` re-key (ADR-0009/0011) — a job no longer has a `phase` field, and
+`enqueueOnAccept` now enqueues ONE job PER CHOSEN RECIPE (not one job per Idea), idempotent per the
+composite triple. Keeping this requirement's old wording would leave the archived spec
+self-contradictory alongside the new "Job identity is keyed on the composite (brand, idea, recipe)"
+and "enqueueOnAccept enqueues one job per chosen Recipe, resolving each Recipe's first gate"
+requirements added by this slice.
+
+**Migration**: See "Job identity is keyed on the composite (brand, idea, recipe) — a second Recipe is
+never dropped" and "enqueueOnAccept enqueues one job per chosen Recipe, resolving each Recipe's first
+gate" (both ADDED by this slice) — together they cover the same ground (brand stamping,
+no-duplicate-on-re-accept) at the correct, current grain.
+
 ### Requirement: Queue transitions reflect Idea status into the ledger
 
 **Reason**: This requirement described the ADR-0004 background worker's ledger-write mapping
@@ -369,8 +385,12 @@ the composite triple".
 
 ## RENAMED Requirements
 
+- FROM: `### Requirement: Queue listing shows each job`
+- TO: `### Requirement: Queue listing shows each job's Brand, Recipe, gate cursor, and status`
 - FROM: `### Requirement: A job paused at the Cast gate does not hold the Space`
 - TO: `### Requirement: A job paused at its gate does not hold the Space`
+- FROM: `### Requirement: mark transitions move a job through its lifecycle and maintain the lock`
+- TO: `### Requirement: mark transitions move a job through its lifecycle and maintain the lock, keyed on the composite triple`
 - FROM: `### Requirement: Picking a Cast enqueues the render and the worker renders it when the Space is free`
 - TO: `### Requirement: Picking a Cast enqueues the next leg`
 - FROM: `### Requirement: A failed job is isolated and surfaced to the Operator with when and why`
