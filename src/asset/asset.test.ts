@@ -12,6 +12,9 @@ import {
   parseCastCandidate,
   parseCastArray,
   parseCopy,
+  parseAssetMetrics,
+  parseAssetMetricsSnapshot,
+  parseAssetMetricsHistory,
   parseAssetRecord,
   parseAssetsArray,
   findAsset,
@@ -123,6 +126,69 @@ describe("parseCopy — structured Copy, defensive (ADR-0012, issue #58)", () =>
 });
 
 // ---------------------------------------------------------------------------
+// parseAssetMetrics / parseAssetMetricsSnapshot / parseAssetMetricsHistory (issue #84)
+// ---------------------------------------------------------------------------
+
+describe("parseAssetMetrics — the four public metrics behind a performance_score", () => {
+  it("parses a well-formed reading", () => {
+    const raw = { shares: 10, comments: 5, reactions: 40, views: 900 };
+    assert.deepEqual(parseAssetMetrics(raw), raw);
+  });
+
+  it("accepts zero for every field (a genuinely quiet post, not fabricated)", () => {
+    const raw = { shares: 0, comments: 0, reactions: 0, views: 0 };
+    assert.deepEqual(parseAssetMetrics(raw), raw);
+  });
+
+  it("returns null when ANY field is missing, negative, or non-numeric — never half-fabricates", () => {
+    assert.equal(parseAssetMetrics({ shares: 1, comments: 1, reactions: 1 }), null);
+    assert.equal(parseAssetMetrics({ shares: -1, comments: 1, reactions: 1, views: 1 }), null);
+    assert.equal(parseAssetMetrics({ shares: "1", comments: 1, reactions: 1, views: 1 }), null);
+    assert.equal(parseAssetMetrics(null), null);
+    assert.equal(parseAssetMetrics("nope"), null);
+  });
+});
+
+describe("parseAssetMetricsSnapshot — one history entry", () => {
+  it("parses a well-formed snapshot", () => {
+    const raw = {
+      tracked_at: "2026-06-10T00:00:00.000Z",
+      performance_score: 0.4,
+      metrics: { shares: 1, comments: 2, reactions: 3, views: 4 },
+    };
+    assert.deepEqual(parseAssetMetricsSnapshot(raw), raw);
+  });
+
+  it("returns null when tracked_at, performance_score, or metrics is missing/malformed", () => {
+    const metrics = { shares: 1, comments: 2, reactions: 3, views: 4 };
+    assert.equal(parseAssetMetricsSnapshot({ performance_score: 0.4, metrics }), null);
+    assert.equal(parseAssetMetricsSnapshot({ tracked_at: "2026-06-10T00:00:00.000Z", metrics }), null);
+    assert.equal(
+      parseAssetMetricsSnapshot({ tracked_at: "2026-06-10T00:00:00.000Z", performance_score: 0.4 }),
+      null,
+    );
+    assert.equal(parseAssetMetricsSnapshot(null), null);
+  });
+});
+
+describe("parseAssetMetricsHistory — drops malformed entries, never throws", () => {
+  it("keeps only well-formed snapshots, in order", () => {
+    const good = {
+      tracked_at: "2026-06-10T00:00:00.000Z",
+      performance_score: 0.4,
+      metrics: { shares: 1, comments: 2, reactions: 3, views: 4 },
+    };
+    const raw = [good, { tracked_at: "bad-entry" }, good];
+    assert.deepEqual(parseAssetMetricsHistory(raw), [good, good]);
+  });
+
+  it("returns [] for non-array/absent input", () => {
+    assert.deepEqual(parseAssetMetricsHistory(undefined), []);
+    assert.deepEqual(parseAssetMetricsHistory("nope"), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // parseAssetRecord / parseAssetsArray
 // ---------------------------------------------------------------------------
 
@@ -154,6 +220,15 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       post_url: "https://facebook.com/post/1",
       posted_at: "2026-06-06T12:00:00.000Z",
       performance_score: 0.72,
+      metrics: { shares: 4, comments: 10, reactions: 55, views: 1200 },
+      tracked_at: "2026-06-13T12:00:00.000Z",
+      history: [
+        {
+          tracked_at: "2026-06-07T12:00:00.000Z",
+          performance_score: 0.5,
+          metrics: { shares: 1, comments: 2, reactions: 3, views: 4 },
+        },
+      ],
     };
     const a = parseAssetRecord(raw);
     assert.deepEqual(a, raw);
@@ -166,8 +241,25 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       performance_score: "not-a-number",
       cast: "not-an-array",
       character: 42,
+      metrics: { shares: -1, comments: 1, reactions: 1, views: 1 },
+      history: "not-an-array",
     });
     assert.deepEqual(a, { recipe: "r", status: "produced" });
+  });
+
+  it("parses metrics/tracked_at/history independently of each other (issue #84)", () => {
+    const a = parseAssetRecord({
+      recipe: "r",
+      status: "tracking",
+      metrics: { shares: 1, comments: 2, reactions: 3, views: 4 },
+      tracked_at: "2026-06-13T12:00:00.000Z",
+    });
+    assert.deepEqual(a, {
+      recipe: "r",
+      status: "tracking",
+      metrics: { shares: 1, comments: 2, reactions: 3, views: 4 },
+      tracked_at: "2026-06-13T12:00:00.000Z",
+    });
   });
 });
 

@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mapInstagramItem, mapYoutubeItem } from "./normalize-metrics.ts";
+import { mapInstagramItem, mapYoutubeItem, mapFacebookItem } from "./normalize-metrics.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -157,5 +157,58 @@ describe("mapYoutubeItem — maps real captured YouTube items defensively", () =
     assert.doesNotThrow(() => mapYoutubeItem(undefined));
     assert.doesNotThrow(() => mapYoutubeItem("not an object"));
     assert.doesNotThrow(() => mapYoutubeItem(42));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mapFacebookItem — against a SYNTHETIC fixture (documented schema, not a live capture; issue #84)
+// ---------------------------------------------------------------------------
+
+describe("mapFacebookItem — maps the documented apify/facebook-post-scraper shape defensively", () => {
+  it("maps likes/comments/shares/viewsCount and the url/time (issue #84 — NOT yet live-verified)", async () => {
+    const items = await loadFixture("facebook-post.synthetic-sample.json");
+    const mapped = mapFacebookItem(items[0]);
+    assert.equal(mapped.url, "https://www.facebook.com/mundotip/posts/1234567890");
+    assert.equal(mapped.postedAt, "2026-06-10T14:30:00.000Z");
+    assert.equal(mapped.reactions, 412);
+    assert.equal(mapped.comments, 37);
+    assert.equal(mapped.shares, 58);
+    assert.equal(mapped.views, 9820);
+  });
+
+  it("Facebook DOES publicly expose a share count — unlike Instagram/YouTube, shares is never forced to 0", () => {
+    const mapped = mapFacebookItem({ likes: 1, comments: 1, shares: 42, viewsCount: 1 });
+    assert.equal(mapped.shares, 42);
+  });
+
+  it("falls back to a Unix-seconds timestamp when time is absent", () => {
+    const mapped = mapFacebookItem({ likes: 1, comments: 1, shares: 1, viewsCount: 1, timestamp: 1781101800 });
+    assert.equal(mapped.postedAt, "2026-06-10T14:30:00.000Z");
+  });
+
+  it("defaults every numeric field to 0 and notes it for a garbled/empty item (never throws)", () => {
+    const mapped = mapFacebookItem({});
+    assert.equal(mapped.reactions, 0);
+    assert.equal(mapped.comments, 0);
+    assert.equal(mapped.shares, 0);
+    assert.equal(mapped.views, 0);
+    assert.equal(mapped.url, null);
+    assert.equal(mapped.postedAt, null);
+    assert.ok(mapped.notes.length >= 4);
+  });
+
+  it("never throws on null/undefined/non-object input", () => {
+    assert.doesNotThrow(() => mapFacebookItem(null));
+    assert.doesNotThrow(() => mapFacebookItem(undefined));
+    assert.doesNotThrow(() => mapFacebookItem("not an object"));
+    assert.doesNotThrow(() => mapFacebookItem(42));
+  });
+
+  it("ignores negative/NaN/non-numeric values and defaults them to 0", () => {
+    const mapped = mapFacebookItem({ likes: -5, comments: "no", shares: NaN, viewsCount: "many" });
+    assert.equal(mapped.reactions, 0);
+    assert.equal(mapped.comments, 0);
+    assert.equal(mapped.shares, 0);
+    assert.equal(mapped.views, 0);
   });
 });

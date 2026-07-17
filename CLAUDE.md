@@ -207,8 +207,10 @@ climbing) and `scored` once it is 7+ days old (settled — final for the feedbac
 carries `fit_basis` — a short free-text note from the `idea-strategist` recording *why* the Fit Score is
 what it is (the brand-fit reasoning behind the prediction). Each Asset carries `recipe`, `pending_gate`,
 `spec_path`, the composed `copy` (structured `{ caption, hashtags }`), the wired Recipe's own `cast`/
-`character` fields, `asset_url`, `produced_at`, `post_url`, `posted_at`, `performance_score`. Update the
-ledger on every status change.
+`character` fields, `asset_url`, `produced_at`, `post_url`, `posted_at`, `performance_score`, the public
+`metrics` (`{ shares, comments, reactions, views }`) behind that score, `tracked_at`, and a small
+`history` of earlier reads (issue #84 — `src/commands/track-performance.ts`,
+`src/performance/{selection,score,maturity,metrics}.ts`). Update the ledger on every status change.
 
 ## Data sources
 
