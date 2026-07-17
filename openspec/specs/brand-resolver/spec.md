@@ -12,18 +12,23 @@ deep module (`src/brand/resolver.ts`) SHALL be the only place the path layout is
 Brand is scaffolded from `templates/brand-skeleton/`, which holds the canonical empty shape — including
 a `formats/` directory (ADR-0009/0013) for the Brand's per-Format YAML files and an `assets/` directory
 (ADR-0016) for the Brand's reusable media, read through the typed `BrandAssetStore`
-(`src/brand-asset/store.ts`).
+(`src/brand-asset/store.ts`). `resolveBrand` also exposes a `baselinePromptsRoot` path
+(`<brandsRoot>/<slug>/baseline-prompts`, ADR-0015) — the root under which a Format's per-Recipe
+Baseline Prompt documents live, one level down per Format, read through the typed loader
+`loadBaselinePrompt` (`src/format/baseline-prompt.ts`).
 
 #### Scenario: slug→paths resolution returns all per-Brand paths for a given slug
 
 - **GIVEN** a valid Brand slug (e.g. `mundotip`) and a brands root (e.g. `data/brands`)
 - **WHEN** `resolveBrand(slug, brandsRoot)` is called
 - **THEN** it returns paths for `ledger`, `brandProfile`, `seeds`, `ideasRoot`, `yourData`,
-  `formatsRoot`, and `assetsRoot`, each under `<brandsRoot>/<slug>/`
+  `formatsRoot`, `assetsRoot`, and `baselinePromptsRoot`, each under `<brandsRoot>/<slug>/`
 - **AND** `formatsRoot` equals `<brandsRoot>/<slug>/formats` — the root the typed `FormatStore`
   (`src/format/store.ts`) reads a Brand's Format files from
 - **AND** `assetsRoot` equals `<brandsRoot>/<slug>/assets` — the root the typed `BrandAssetStore`
   (`src/brand-asset/store.ts`) reads a Brand's reusable media from
+- **AND** `baselinePromptsRoot` equals `<brandsRoot>/<slug>/baseline-prompts` — the root a Format's
+  per-Recipe Baseline Prompt documents live under (`src/format/baseline-prompt.ts`)
 - **AND** the `queuePath` it returns equals the global constant `data/queue.json`, NOT a path
   derived from the slug
 

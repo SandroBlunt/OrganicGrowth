@@ -84,6 +84,18 @@ export interface FormatFile {
    * thing that filters these to WIRED slugs only, at offer time (`src/recipe/offer.ts`,
    * `offeredRecipes`), not here. */
   readonly defaultRecipes: readonly string[];
+  /**
+   * Per-Recipe **Baseline Prompt** POINTERS (ADR-0015, CONTEXT.md "Baseline Prompt") — recipe slug
+   * -> a relative filename for that Recipe's look document, e.g.
+   * `{ "news-carousel": "news-carousel.md" }`. NEVER the document's content inline: the actual
+   * document is a separate file, resolved (relative to this Format's own baseline-prompts
+   * directory) and read via `loadBaselinePrompt` (`src/format/baseline-prompt.ts`), which degrades a
+   * missing/garbled/dangling pointer to a typed not-found result rather than throwing (issue #83).
+   * Stays free-text/unvalidated against the Recipe registry HERE at parse time, same as
+   * `defaultRecipes` above — a Format with no Baseline Prompt declared for a given (or any) Recipe
+   * simply has no entry for it; that is a normal, expected shape, not an error.
+   */
+  readonly baselinePrompts: Readonly<Record<string, string>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,6 +155,27 @@ function positiveInt(value: unknown, fallback: number): number {
 }
 
 /**
+ * A string->string map with every key and value trimmed, keeping only entries where BOTH the key
+ * and the value are non-empty strings. Non-object/garbled input (and every non-string/empty-after-
+ * trim entry within it) is dropped rather than crashing — the same defensive-degrade convention
+ * `strArray` uses for lists (data-handling rule 4). Used for `baseline_prompts` (recipe slug -> a
+ * relative pointer filename, ADR-0015): a garbled entry there is simply absent from the result, which
+ * `loadBaselinePrompt` then reports as "no Baseline Prompt declared for this Recipe" — never a crash.
+ */
+function strRecord(value: unknown): Record<string, string> {
+  if (!isObject(value)) return {};
+  const out: Record<string, string> = {};
+  for (const [rawKey, rawValue] of Object.entries(value)) {
+    if (typeof rawValue !== "string") continue;
+    const key = rawKey.trim();
+    const val = rawValue.trim();
+    if (key.length === 0 || val.length === 0) continue;
+    out[key] = val;
+  }
+  return out;
+}
+
+/**
  * Decide a Format's peer-vs-curated mode from its already-parsed `sources` object. Pure, mirrors
  * `trend-scout.md`'s own tie-break rule: an explicit `mode: peer|curated` wins; otherwise infer
  * `curated` when `curated_sources` has at least one usable entry (the Operator has already done the
@@ -193,6 +226,7 @@ export function parseFormatFile(raw: unknown, slug: string): FormatFile {
     sources,
     ideasPerRun: positiveInt(obj.ideas_per_run, 10),
     defaultRecipes: strArray(obj.default_recipes),
+    baselinePrompts: strRecord(obj.baseline_prompts),
   };
 }
 
@@ -215,6 +249,18 @@ export function formatIdeasRoot(brand: string, formatSlug: string, brandsRoot?: 
   assertValidFormatSlug(formatSlug);
   const paths = resolveBrand(brand, brandsRoot);
   return join(paths.ideasRoot, formatSlug);
+}
+
+/**
+ * The Format-namespaced Baseline Prompt root: `<brandsRoot>/<brand>/baseline-prompts/<formatSlug>`
+ * (ADR-0015). A Format's per-Recipe `baseline_prompts` pointers are relative filenames resolved
+ * under THIS directory — never an absolute path, never elsewhere — read via the typed loader
+ * `loadBaselinePrompt` (`src/format/baseline-prompt.ts`).
+ */
+export function formatBaselinePromptsRoot(brand: string, formatSlug: string, brandsRoot?: string): string {
+  assertValidFormatSlug(formatSlug);
+  const paths = resolveBrand(brand, brandsRoot);
+  return join(paths.baselinePromptsRoot, formatSlug);
 }
 
 // ---------------------------------------------------------------------------

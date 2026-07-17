@@ -80,6 +80,7 @@ describe("resolveBrand — slug→paths mapping", () => {
     assert.equal(paths.yourData, "data/brands/mundotip/your-data");
     assert.equal(paths.formatsRoot, "data/brands/mundotip/formats");
     assert.equal(paths.assetsRoot, "data/brands/mundotip/assets");
+    assert.equal(paths.baselinePromptsRoot, "data/brands/mundotip/baseline-prompts");
   });
 
   it("uses DEFAULT_BRANDS_ROOT when no brandsRoot is provided", () => {
@@ -91,6 +92,7 @@ describe("resolveBrand — slug→paths mapping", () => {
     assert.equal(paths.yourData, `${DEFAULT_BRANDS_ROOT}/mundotip/your-data`);
     assert.equal(paths.formatsRoot, `${DEFAULT_BRANDS_ROOT}/mundotip/formats`);
     assert.equal(paths.assetsRoot, `${DEFAULT_BRANDS_ROOT}/mundotip/assets`);
+    assert.equal(paths.baselinePromptsRoot, `${DEFAULT_BRANDS_ROOT}/mundotip/baseline-prompts`);
   });
 
   it("the queuePath is always the global constant — never contains the slug", () => {
@@ -126,6 +128,7 @@ describe("resolveBrand — slug→paths mapping", () => {
     assert.equal(paths.yourData, "/custom/root/mundotip/your-data");
     assert.equal(paths.formatsRoot, "/custom/root/mundotip/formats");
     assert.equal(paths.assetsRoot, "/custom/root/mundotip/assets");
+    assert.equal(paths.baselinePromptsRoot, "/custom/root/mundotip/baseline-prompts");
     // queue path stays the same regardless
     assert.equal(paths.queuePath, "data/queue.json");
   });

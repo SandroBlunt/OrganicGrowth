@@ -55,7 +55,7 @@ export const DEFAULT_QUEUE_PATH: string = STORE_QUEUE_PATH;
 /**
  * All the on-disk paths associated with one Brand.
  *
- * Seven paths are per-Brand (under `<brandsRoot>/<slug>/`). `queuePath` is the global Production
+ * Eight paths are per-Brand (under `<brandsRoot>/<slug>/`). `queuePath` is the global Production
  * Queue — always `data/queue.json`, never derived from the slug.
  */
 export interface BrandPaths {
@@ -82,6 +82,15 @@ export interface BrandPaths {
    * (`src/brand-asset/store.ts`) — never stray `readdir`/`readFile` calls elsewhere.
    */
   readonly assetsRoot: string;
+  /**
+   * `<brandsRoot>/<slug>/baseline-prompts` — root directory for the Brand's per-Format,
+   * per-Recipe **Baseline Prompt** documents (ADR-0015): the "look" a Format holds for each Recipe
+   * it produces through, referenced from that Format's YAML file by a pointer (never inlined). Each
+   * Format's own documents live one level down, at `<this>/<formatSlug>/<pointer>` — read through
+   * the typed loader `loadBaselinePrompt` (`src/format/baseline-prompt.ts`) — never stray
+   * `readFile` calls elsewhere.
+   */
+  readonly baselinePromptsRoot: string;
   /**
    * The global Production Queue path — `data/queue.json`. Brand-agnostic; the same value for
    * every Brand. NOT derived from the slug (ADR-0004, ADR-0006).
@@ -171,6 +180,7 @@ export function resolveBrand(slug: string, brandsRoot: string = DEFAULT_BRANDS_R
     yourData: join(base, "your-data"),
     formatsRoot: join(base, "formats"),
     assetsRoot: join(base, "assets"),
+    baselinePromptsRoot: join(base, "baseline-prompts"),
     queuePath: DEFAULT_QUEUE_PATH,
   };
 }
