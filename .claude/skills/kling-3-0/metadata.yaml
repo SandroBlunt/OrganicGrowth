@@ -1,0 +1,112 @@
+name: gen-prompting-kling-3-0
+version: 0.2.1
+disclosure_tier: 2
+created: 2026-04-27
+updated: 2026-07-06
+domain_path: gen-prompting/code/video/kling-3-0
+variant: code
+target_model:
+  vendor: kuaishou
+  model_id: kling-3.0
+  modalities: [text-to-video, image-to-video, multi-reference-element-binding, first-and-last-frame, multi-shot, native-audio]
+modes:
+  - id: T2V
+    name: text-to-video
+  - id: I2V
+    name: image-to-video
+    element_binding_supported: true
+  - id: MR
+    name: multi-reference-element-binding
+    elements_range: [2, 4]
+    images_per_element_range: [1, 3]
+  - id: F/L
+    name: first-and-last-frame
+  - id: Multi-Shot
+    name: multi-shot
+    auto: true
+    custom: true
+    max_shots: 6
+    duration_range_seconds: [3, 15]
+  - id: Audio
+    name: native-audio
+    dialogue: true
+    multi_character_coreference: true
+    languages: [chinese, english, japanese, korean, spanish]
+    dialects: true
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: true
+  - name: setting
+    type: string
+    required: true
+  - name: style
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: true
+  - name: motion
+    type: string
+    required: true
+  - name: elements
+    type: json
+    required: false
+  - name: i2v_reference
+    type: string
+    required: false
+  - name: first_frame
+    type: string
+    required: false
+  - name: last_frame
+    type: string
+    required: false
+  - name: multi_shot_mode
+    type: string
+    required: false
+  - name: shots
+    type: json
+    required: false
+  - name: audio
+    type: string
+    required: false
+  - name: motion_intensity
+    type: number
+    required: false
+  - name: negative_prompt
+    type: string
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Kling 3.0 prompt across all modes including Multi-Shot and audio attribution.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (multi-shot, element binding 1–3, native audio, motion intensity, negative-prompt boundary).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the Kling 3.0 vendor docs and Pro Prompting Manual.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://klingaio.com/blogs/kling-3-release
+  additional_sources:
+    - "vendor-doc: Kling 3 prompting guide.md (vendor reference doc bundle)"
+    - "vendor-doc: kling-3-pro-prompting-manual.md (Pro Prompting Manual; eleven primary sources)"
+    - "vendor-doc: kling-30-prompt-optimizer.skill (vendor skill bundle)"
+  fetched_at: 2026-04-28
+shared_references:
+  mode: relative-link
+  path: ../../../references/

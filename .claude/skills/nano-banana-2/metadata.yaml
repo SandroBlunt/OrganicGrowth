@@ -1,0 +1,143 @@
+name: gen-prompting-nano-banana-2
+version: 0.2.1
+disclosure_tier: 2
+created: 2026-04-27
+updated: 2026-07-06
+domain_path: gen-prompting/code/image/nano-banana-2
+variant: code
+target_model:
+  vendor: google
+  model_id: nano-banana-2
+  api_id: gemini-3.1-flash-image-preview
+  modalities: [text-to-image, image-to-image, multi-reference-edit, frame-sequence]
+sibling_model:
+  friendly_name: nano-banana-pro
+  api_id: gemini-3-pro-image-preview
+modes:
+  - id: T2I
+    name: text-to-image
+  - id: I2I
+    name: image-to-image
+  - id: MR
+    name: multi-reference-edit
+    variant_caps:
+      flash:
+        max_objects: 10
+        max_characters: 4
+        max_total: 14
+      pro:
+        max_objects: 6
+        max_characters: 5
+        max_total: 14
+  - id: frame-sequence
+    name: ordered-keyframe-sequence
+    frame_count_range: [3, 8]
+configuration_parameters:
+  thinking_mode:
+    field: thinkingLevel
+    values: [minimal, High]
+    default: minimal
+    notes: "Configuration parameter, NOT part of the visible prompt budget."
+  include_thoughts:
+    field: includeThoughts
+    type: boolean
+    default: false
+  grounding:
+    web_search: [flash, pro]
+    image_search: [flash]
+  aspect_ratios:
+    - "1:1"
+    - "1:4"
+    - "1:8"
+    - "2:3"
+    - "3:2"
+    - "3:4"
+    - "4:1"
+    - "4:3"
+    - "4:5"
+    - "5:4"
+    - "8:1"
+    - "9:16"
+    - "16:9"
+    - "21:9"
+  resolutions:
+    - "512"
+    - "1K"
+    - "2K"
+    - "4K"
+  resolution_variant_constraints:
+    - resolution: "512"
+      variants_supported: [flash]
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: variant
+    type: string
+    required: false
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: false
+  - name: setting
+    type: string
+    required: false
+  - name: style
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: true
+  - name: references
+    type: json
+    required: false
+  - name: frames
+    type: json
+    required: false
+  - name: handoff
+    type: string
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+  - name: resolution
+    type: string
+    required: false
+  - name: thinking_level
+    type: string
+    required: false
+  - name: include_thoughts
+    type: boolean
+    required: false
+  - name: grounding_web
+    type: boolean
+    required: false
+  - name: grounding_image
+    type: boolean
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Nano Banana 2 prompt across all four modes including variant-aware MR caps.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (variant-aware caps, Thinking Mode, grounding, expanded aspect ratios, 512 resolution, SynthID, palette default).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the Google Cloud blog, Gemini API Image Generation Guide, and DeepMind Prompt Construction Guide.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-nano-banana
+  additional_sources:
+    - "vendor-doc: Nano_Banana_2_and_Pro_Gemini_API_Image_Generation_Guide.md (Google AI Developer Documentation, ai.google.dev)"
+    - "vendor-doc: Nano_Banana_DeepMind_Prompt_Construction_Guide.md (Google DeepMind)"
+  fetched_at: 2026-04-28
+shared_references:
+  mode: relative-link
+  path: ../../../references/
