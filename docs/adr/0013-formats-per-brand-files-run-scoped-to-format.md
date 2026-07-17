@@ -3,6 +3,9 @@
 **Status:** accepted — extends ADR-0009 (the Format concept) and ADR-0006 (per-Brand directories).
 Captured in the 2026-07 grilling.
 
+> **Extended by ADR-0015 (map #70):** the Format also owns a per-Recipe **baseline prompt** (its visual
+> "look") — a referenced document a Recipe's Skill interprets.
+
 A Format is now first-class (ADR-0009) but has no home on disk — it exists only implicitly as a
 Brand-level voice string + `curated_sources`. Today a Brand has one voice and one trend-source mode
 (peer-scrape vs curated), so it cannot run two editorial lines with different voices/sources.

@@ -3,6 +3,10 @@
 **Status:** accepted — **revises ADR-0003** (which put the whole how-to-run protocol on the Space);
 **extends ADR-0008** (attended runtime). Captured in the 2026-07 grilling.
 
+> **Extended by the 2026-07 recipe-architecture wayfinding (map #70):** ADR-0016 types the Recipe's canvas
+> inputs (media slots + a prompt node) and moves `space_id` onto the Recipe; ADR-0017 adds per-phase
+> contracts the Producer self-audits; ADR-0018 makes the per-Recipe procedure an interpreting **Skill**.
+
 ADR-0003 made the Space self-describing — an on-canvas `Producer Protocol` node held the run-points.
 That worked for one format. A **Recipe** (ADR-0009) now bundles media steps **plus** per-Recipe gates
 **plus** a copy step (copy is not the Space's job — ADR-0012), and targets a specific Space; that plan
