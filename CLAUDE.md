@@ -1,4 +1,5 @@
 # CLAUDE.md
+Be brief, use plain simple English whenever possible.
 
 Guidance for Claude Code when operating in this repository.
 
