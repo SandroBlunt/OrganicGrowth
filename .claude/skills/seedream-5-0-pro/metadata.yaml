@@ -1,0 +1,158 @@
+name: gen-prompting-seedream-5-0-pro
+version: 0.1.0
+disclosure_tier: 2
+created: 2026-07-11
+updated: 2026-07-11
+domain_path: gen-prompting/code/image/seedream-5-0-pro
+variant: code
+target_model:
+  vendor: bytedance
+  model_id: seedream-5-0-pro
+  vendor_model_id: doubao-seedream-5.0-pro
+  modalities: [text-to-image, design-layout, image-edit, multi-reference, sequential-set, layer-separation]
+  front_ends: [dreamina, jimeng, doubao, fal, wavespeed, comfyui]
+modes:
+  - id: T2I
+    name: text-to-image
+  - id: Design
+    name: high-density-information-design
+    distinctive: true
+  - id: Edit
+    name: grounded-precision-edit
+    reference_count: 1
+    targeting: [point, box, lasso, sketch]
+    recolour: [hex, swatch]
+  - id: MR
+    name: multi-reference-composition
+    reference_count_range: [1, 10]
+    addressing: ordinal
+    identity_anchor: image-1
+    group_photo: true
+  - id: sequential-set
+    name: sequential-consistent-set
+    set_count_range: [2, 8]
+    distinctive: true
+front_end_controls:
+  aspect_ratios:
+    - "1:1"
+    - "16:9"
+    - "9:16"
+    - "4:5"
+    - "5:4"
+    - "3:4"
+    - "4:3"
+    - "3:2"
+    - "2:3"
+    - "21:9"
+    - "auto"
+  aspect_ratio_range: ["1:16", "16:1"]
+  resolutions: ["1K", "2K", "auto"]
+  default_resolution: "2K"
+  max_pixels: 2048
+  output_formats: ["png", "jpeg"]
+prompt_rules:
+  ordering: subject-first
+  framework: SPACE
+  early_token_weighting: true
+  word_budget: [30, 100]
+  word_hard_ceiling: 120
+  in_image_text: quote-literal-double-quotes
+  in_image_text_languages: 14
+  negative_prompt_field: false
+capabilities:
+  layer_separation: true
+  grounded_editing: true
+  hex_and_swatch_recolour: true
+  multilingual_text: true
+  group_photo_fusion: true
+signature_strengths:
+  - high-density-information-design
+  - grounded-precision-editing
+  - in-image-text-rendering-14-languages
+  - layer-separation
+  - sequential-consistent-set
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: false
+  - name: setting
+    type: string
+    required: false
+  - name: style
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: false
+  - name: references
+    type: json
+    required: false
+  - name: frames
+    type: json
+    required: false
+  - name: set_count
+    type: integer
+    required: false
+  - name: target
+    type: string
+    required: false
+  - name: color
+    type: string
+    required: false
+  - name: layers
+    type: boolean
+    required: false
+  - name: in_image_text
+    type: string
+    required: false
+  - name: text_language
+    type: string
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+  - name: resolution
+    type: string
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Seedream 5.0 Pro front-end prompt across all five modes (T2I, Design, Edit, MR, sequential-set), with the 2K ceiling, layer flag, target/recolour validation, and quoted multilingual text.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (SPACE order, word budget, quoted-text rule across 14 languages, grounded edits, hex/swatch recolour, layer separation, reference cap, 2K ceiling, no negative field).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the ByteDance Seed announcement plus fal / wavespeed / morphic guidance, with source URLs, fetch date, and known uncertainties.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://seed.bytedance.com/en/seedream5_0_pro
+  additional_sources:
+    - https://seed.bytedance.com/en/blog/beyond-generation-it-understands-design-introducing-seedream-5-0-pro
+    - https://fal.ai/seedream-5.0
+    - https://wavespeed.ai/models/bytedance/seedream-v5.0-pro
+    - https://morphic.com/resources/how-to/seedream-5-pro-guide
+  fetched_at: 2026-07-11
+  notes: >
+    Skill is front-end / prompting focused. API-only parameters (seed,
+    watermark, num_images, safety checker, base64/sync) are intentionally
+    out of scope. Some third-party guides publish Stable-Diffusion-style
+    parameters (guidance_scale, steps, scheduler, negative_prompt) that
+    Seedream does NOT have; those are deliberately excluded. Seedream 5.0
+    Pro is a 2K model (max 2048 px) — there is no 4K tier, unlike 4.5.
+    Resolution ceiling and reference cap vary across sources; see the
+    official-guidelines audit notes. No dedicated official 5.0 prompt
+    guide existed at fetch time.
+shared_references:
+  mode: relative-link
+  path: ../../../references/
