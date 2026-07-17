@@ -5,6 +5,7 @@ import {
   PROTOCOL_SIZE_BUDGET,
   PRODUCER_PROTOCOL_NODE_NAME,
   canonicalProtocol,
+  canonicalCarouselProtocol,
   serializeProtocol,
 } from "./protocol.ts";
 
@@ -58,5 +59,33 @@ describe("canonical Producer Protocol — read-API round-trip (Spike 3)", () => 
 describe("Producer Protocol node name", () => {
   it("is the agreed canvas node name", () => {
     assert.equal(PRODUCER_PROTOCOL_NODE_NAME, "Producer Protocol");
+  });
+});
+
+describe("canonical carousel Producer Protocol — the single-lane 'Carrousel' Space (issue #81)", () => {
+  it("has exactly ONE run-point, starting at 'Slides Prompts'", () => {
+    const rp = canonicalCarouselProtocol().run_points;
+    assert.equal(rp.length, 1);
+    assert.equal(rp[0]!.start, "Slides Prompts");
+  });
+
+  it("has no gate — a zero-gate Recipe renders straight through", () => {
+    assert.equal(canonicalCarouselProtocol().run_points[0]!.gate, null);
+  });
+
+  it("runs downstream", () => {
+    assert.equal(canonicalCarouselProtocol().run_points[0]!.mode, "downstream");
+  });
+
+  it("references the node only by name — never a hard-coded node ID", () => {
+    const json = serializeProtocol(canonicalCarouselProtocol());
+    assert.ok(!/node-[0-9a-f]/i.test(json), "protocol must not embed node IDs");
+    assert.match(json, /Slides Prompts/);
+  });
+
+  it("serializes comfortably under the read-API truncation cap", () => {
+    const size = serializeProtocol(canonicalCarouselProtocol()).length;
+    assert.ok(size <= PROTOCOL_SIZE_BUDGET);
+    assert.ok(size < READ_API_TRUNCATION_CAP);
   });
 });
