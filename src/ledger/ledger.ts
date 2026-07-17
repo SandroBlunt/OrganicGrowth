@@ -223,6 +223,72 @@ export async function loadReport(path: string, brand?: string): Promise<ReportDa
   return { ideas, baseline: { updated_at: asStringOrNull(baselineRaw.updated_at) } };
 }
 
+// --- Channel baseline reads + writes (issue #84) ------------------------------------------------------
+
+/**
+ * The Brand's ONE Channel baseline: per-metric rolling medians of our OWN recent posts' PUBLIC
+ * metrics (`/track-performance` recomputes this), plus when it was last recomputed. There is exactly
+ * ONE Channel baseline per Brand — never one per Recipe (always-rules #4). All four medians are
+ * `null` until the first successful `/track-performance` run.
+ */
+export interface LedgerBaseline {
+  readonly shares: number | null;
+  readonly comments: number | null;
+  readonly reactions: number | null;
+  readonly views: number | null;
+  readonly updated_at: string | null;
+}
+
+const EMPTY_LEDGER_BASELINE: LedgerBaseline = {
+  shares: null,
+  comments: null,
+  reactions: null,
+  views: null,
+  updated_at: null,
+};
+
+/**
+ * Read the Brand's ONE Channel baseline (per-metric medians) from its ledger. Defensive: a missing
+ * ledger (ENOENT) or a garbled/absent `baseline` block returns the all-null `EMPTY_LEDGER_BASELINE` —
+ * never throws, never fabricates a number (data-handling rule 4). A genuine JSON *parse* failure still
+ * propagates (that is real file corruption, not "no baseline yet").
+ */
+export async function loadBaseline(path: string): Promise<LedgerBaseline> {
+  let raw: unknown;
+  try {
+    raw = await readJsonFile(path);
+  } catch (err: unknown) {
+    if (isEnoent(err)) return EMPTY_LEDGER_BASELINE;
+    throw err;
+  }
+  if (!isObject(raw) || !isObject(raw.baseline)) return EMPTY_LEDGER_BASELINE;
+  const b = raw.baseline;
+  return {
+    shares: asNumberOrNull(b.shares),
+    comments: asNumberOrNull(b.comments),
+    reactions: asNumberOrNull(b.reactions),
+    views: asNumberOrNull(b.views),
+    updated_at: asStringOrNull(b.updated_at),
+  };
+}
+
+/**
+ * Overwrite the Brand's ONE Channel baseline in its ledger, preserving every other field (`ideas`,
+ * etc.) untouched. Thin write shell, mirrors `writeIdeaRecipeSelection`'s shape. An unknown/missing
+ * ledger is a caller error here (the ledger must already exist — `/track-performance` always reads
+ * Ideas from it first, which fails loudly on a missing Brand).
+ */
+export async function writeBaseline(
+  baseline: LedgerBaseline,
+  options: WriteIdeaStatusOptions,
+): Promise<void> {
+  const path = options.ledgerPath;
+  const raw: unknown = await readJsonFile(path);
+  if (!isObject(raw)) return;
+  const next = { ...raw, baseline: { ...baseline } };
+  await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
+}
+
 // --- Recipe selection write (issue #54: the ledger Idea gains `recipes`/`declined_recipes`) ---------
 
 /** Options for the ledger's thin write shells (this one and the AssetStore's — same shape). */

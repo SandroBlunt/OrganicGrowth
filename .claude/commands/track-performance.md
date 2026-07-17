@@ -25,27 +25,50 @@ effectively settled, so the pull sets that Asset to `scored` — final for the f
 Asset is not re-selected by default (pass its Idea's `<idea-id>` explicitly to force a re-pull of every
 one of that Idea's Assets).
 
+**Code-backed (issue #84).** Unlike earlier, this command now has a tested, deterministic
+implementation behind it — `src/commands/track-performance.ts` (the orchestration shell) plus
+`src/performance/selection.ts` / `score.ts` / `maturity.ts` / `metrics.ts` (pure deep modules). Its full
+test suite (`src/commands/track-performance.test.ts` and the `src/performance/*.test.ts` files) drives
+every scrape through a FAKE `PerformanceScrapePort` — never live Apify, no credits, hermetic build. The
+live Apify HTTP call is deferred (the default port always reports "no data"; mirrors
+`run-pipeline-ports.ts`'s `DEFAULT_APIFY_PORT` placeholder) — until it is wired, the performance-tracker
+agent's own Bash-tool-driven Apify calls (`.claude/agents/performance-tracker.md`) remain the sanctioned
+way to pull real metrics, and MUST match this module's selection/scoring/status/write behavior exactly.
+
 ## Steps
 
 1. **Resolve the Brand.** Slugify `<brand>` and derive the Brand's paths via the resolver. State the
    active Brand: "Tracking performance for Brand: `<brand>`."
-2. **Select** Brand `<brand>`'s ledger Ideas (from `data/brands/<slug>/ledger.json`) and, for each,
-   every Asset with a `post_url` and status `posted` or `tracking` — one selection PER (Idea, Recipe),
-   never per Idea.
-3. **Invoke performance-tracker with Brand `<brand>`.** It scrapes each selected Asset's post metrics
-   via Apify (`apify.facebook.post_actor` — actor slugs are nested per platform in `seeds.yaml`, never
-   flat `apify.post_actor`), computes the **Performance Score** (shares 0.35 · comments 0.25 ·
-   reactions 0.20 · views 0.20, normalised to the ONE Channel `ledger.baseline` — never a per-Recipe
-   baseline, always-rules #4), and updates that ONE Asset (metrics, `performance_score`, `status` per
-   the maturity rule above — `tracking` while the Post is < 7 days old, `scored` once it is 7+ days
-   old — `tracked_at`, `history`) via `AssetStore.writeAsset` in `data/brands/<slug>/ledger.json`. A
-   sibling Asset for a DIFFERENT Recipe of the same Idea is left untouched by this write.
-4. **Refresh the baseline:** recompute the ONE `ledger.baseline` for Brand `<brand>` (rolling median of
-   recent scored posts, across every Recipe's Assets) and stamp `updated_at`. There is exactly one
-   Channel baseline per Brand — never one per Recipe.
-5. **Optional enrichment:** if a Meta Content export is present in `data/brands/<slug>/your-data/`,
+2. **Run** `npm run track-performance <brand> [idea-id]` (or call `trackPerformanceCommand()` in
+   `src/commands/track-performance.ts`). It:
+   - **Selects** Brand `<brand>`'s ledger Ideas (from `data/brands/<slug>/ledger.json`) and, for each,
+     every Asset with a `post_url` and status `posted` or `tracking` — one selection PER (Idea, Recipe),
+     never per Idea (`src/performance/selection.ts`). Passing `<idea-id>` FORCES a re-pull of every one
+     of that Idea's Assets, including an already-`scored` one.
+   - For each selected Asset, detects its platform from its OWN `post_url` (never the Brand's Channel
+     platform — `src/apify/platform.ts`), resolves that platform's `post_actor` from `seeds.yaml` (actor
+     slugs are nested per platform, never flat `apify.post_actor`), and scrapes it via Apify. Maps the
+     raw item defensively (`src/apify/normalize-metrics.ts`) — Facebook: `likes`→reactions,
+     `comments`→comments, `shares`→shares, `viewsCount`→views; Instagram/YouTube as documented in
+     `.claude/agents/performance-tracker.md`.
+   - Computes the **Performance Score** (shares 0.35 · comments 0.25 · reactions 0.20 · views 0.20,
+     normalised to the ONE Channel `ledger.baseline` — never a per-Recipe baseline, always-rules #4;
+     `src/performance/score.ts`).
+   - Updates that ONE Asset (`metrics`, `performance_score`, `status` per the maturity rule above —
+     `tracking` while the Post is < 7 days old, `scored` once it is 7+ days old, decided from THAT
+     Asset's OWN `posted_at` — `src/performance/maturity.ts` — `tracked_at`, `history`) via
+     `AssetStore.writeAsset` in `data/brands/<slug>/ledger.json`. A sibling Asset for a DIFFERENT Recipe
+     of the same Idea is left untouched by this write.
+   - **Never fabricates:** an Asset whose platform/actor isn't configured, whose scrape returns nothing
+     or errors, or whose `posted_at` is missing/unparseable is SKIPPED and reported — nothing is written
+     for it.
+3. **Refresh the baseline:** recompute the ONE `ledger.baseline` for Brand `<brand>` (rolling median of
+   recent scored posts' `metrics`, across every Recipe's Assets — falling back to whatever has been
+   measured at all before anything has matured) and stamp `updated_at`. There is exactly one Channel
+   baseline per Brand — never one per Recipe.
+4. **Optional enrichment:** if a Meta Content export is present in `data/brands/<slug>/your-data/`,
    fold in Saves / Net-follows / watch-through by matching on Permalink.
-6. **Report:** a table (Brand: `<brand>`) of Idea · Recipe · Post · Performance Score · headline
+5. **Report:** a table (Brand: `<brand>`) of Idea · Recipe · Post · Performance Score · headline
    metrics · vs baseline; call out winners and misses; note how the baseline shifted (this is what
    sharpens next week's ideas for Brand `<brand>`). Also note the Idea's Fit Score as a SEPARATE,
    explicit 1:N comparison against its Assets' best Performance Score — never a 1:1 judgement of one

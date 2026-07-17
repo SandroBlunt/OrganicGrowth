@@ -6,6 +6,8 @@ import { join } from "node:path";
 import {
   loadIdeas,
   loadReport,
+  loadBaseline,
+  writeBaseline,
   applyIdeaRecipeSelection,
   writeIdeaRecipeSelection,
   type LedgerIdeaWithRecipes,
@@ -507,6 +509,99 @@ describe("loadReport — per-Recipe assets and the best-of-N Performance summary
     await withLedger(seed, async (path) => {
       const report = await loadReport(path);
       assert.deepEqual(report.baseline, { updated_at: "2026-06-04T09:00:00.000Z" });
+    });
+  });
+});
+
+// === loadBaseline / writeBaseline — the ONE Channel baseline (per-metric medians, issue #84) ==========
+
+describe("loadBaseline — reads the Brand's ONE Channel baseline, defensively", () => {
+  async function withLedger(seed: unknown, fn: (path: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-baseline-"));
+    const path = join(dir, "ledger.json");
+    try {
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+      await fn(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("reads a fully-populated baseline", async () => {
+    const seed = {
+      ideas: [],
+      baseline: { shares: 5, comments: 12, reactions: 80, views: 900, updated_at: "2026-06-10T00:00:00.000Z" },
+    };
+    await withLedger(seed, async (path) => {
+      const baseline = await loadBaseline(path);
+      assert.deepEqual(baseline, seed.baseline);
+    });
+  });
+
+  it("returns an all-null baseline when the ledger has none yet", async () => {
+    await withLedger({ ideas: [] }, async (path) => {
+      const baseline = await loadBaseline(path);
+      assert.deepEqual(baseline, { shares: null, comments: null, reactions: null, views: null, updated_at: null });
+    });
+  });
+
+  it("returns an all-null baseline for a missing ledger — never throws (defensive)", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-baseline-missing-"));
+    try {
+      const baseline = await loadBaseline(join(dir, "does-not-exist", "ledger.json"));
+      assert.deepEqual(baseline, { shares: null, comments: null, reactions: null, views: null, updated_at: null });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("degrades a garbled baseline field to null rather than crashing", async () => {
+    const seed = { ideas: [], baseline: { shares: "not-a-number", updated_at: 42 } };
+    await withLedger(seed, async (path) => {
+      const baseline = await loadBaseline(path);
+      assert.deepEqual(baseline, { shares: null, comments: null, reactions: null, views: null, updated_at: null });
+    });
+  });
+});
+
+describe("writeBaseline — overwrites the ONE Channel baseline, preserving every other field", () => {
+  async function withLedger(seed: unknown, fn: (path: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-write-baseline-"));
+    const path = join(dir, "ledger.json");
+    try {
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+      await fn(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("writes a fresh baseline and it round-trips via loadBaseline", async () => {
+    await withLedger({ ideas: [{ id: "idea-A", status: "accepted" }] }, async (path) => {
+      const fresh = { shares: 2, comments: 6, reactions: 40, views: 500, updated_at: "2026-06-13T00:00:00.000Z" };
+      await writeBaseline(fresh, { ledgerPath: path });
+      assert.deepEqual(await loadBaseline(path), fresh);
+    });
+  });
+
+  it("never touches the ideas array", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted" }] };
+    await withLedger(seed, async (path) => {
+      await writeBaseline(
+        { shares: 1, comments: 1, reactions: 1, views: 1, updated_at: "2026-06-13T00:00:00.000Z" },
+        { ledgerPath: path },
+      );
+      const raw = JSON.parse(await readFile(path, "utf8"));
+      assert.deepEqual(raw.ideas, seed.ideas);
+    });
+  });
+
+  it("overwrites a PRIOR baseline entirely (not a merge)", async () => {
+    const seed = { ideas: [], baseline: { shares: 99, comments: 99, reactions: 99, views: 99, updated_at: "old" } };
+    await withLedger(seed, async (path) => {
+      const fresh = { shares: 1, comments: 2, reactions: 3, views: 4, updated_at: "2026-06-13T00:00:00.000Z" };
+      await writeBaseline(fresh, { ledgerPath: path });
+      assert.deepEqual(await loadBaseline(path), fresh);
     });
   });
 });

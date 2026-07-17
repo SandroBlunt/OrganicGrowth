@@ -36,3 +36,13 @@ they're public metrics, not private data) as of the capture date (2026-07-16).
   that genuinely does not exist publicly, not a bug.
 - Instagram's non-video ("Sidecar") posts carry neither `videoViewCount` nor `videoPlayCount` — the
   `views` default-to-0 path is exercised by real data, not just a synthetic case.
+
+## `facebook-post.synthetic-sample.json` (issue #84) — NOT a live capture
+
+Unlike the fixtures above, this one is **synthetic**: built from the Apify Store's documented output
+schema for `apify/facebook-post-scraper` / `apify/facebook-posts-scraper` (`likes`, `comments`,
+`shares`, `viewsCount`, `url`, `time`/`timestamp`), not a sanctioned live run against the Operator's
+own token (the hermetic build for issue #84 never calls live Apify — see its handoff). `mapFacebookItem`
+(`normalize-metrics.ts`) is tested against it so the mapping is at least exercised end-to-end, but the
+field names themselves are a documented-schema best-effort, flagged as a follow-up for live
+verification the way issue #48 did for Instagram/YouTube.

@@ -15,6 +15,7 @@
     "pick-cast": "tsx src/commands/pick-cast.ts",
     "pick": "tsx src/commands/pick.ts",
     "log-post": "tsx src/commands/log-post.ts",
+    "track-performance": "tsx src/commands/track-performance.ts",
     "report": "tsx src/commands/report.ts",
     "run-pipeline": "tsx src/commands/run-pipeline.ts"
   },

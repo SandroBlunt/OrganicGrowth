@@ -31,6 +31,13 @@
  * `copy` is STRUCTURED (`src/copy/contract.ts`'s `Copy` — `{ caption, hashtags }`), not a bare string
  * (ADR-0012, issue #58): the composed Copy step stores its full result here, and the Publish gate
  * surfaces it verbatim.
+ *
+ * `metrics` / `tracked_at` / `history` are the per-Asset Performance fields `/track-performance`
+ * writes (issue #84, ADR-0011): the four public Apify metrics behind the stored `performance_score`,
+ * when they were last measured, and a small trail of earlier reads (a Post's numbers keep climbing
+ * until it matures — `.claude/commands/track-performance.md`). Attribution stays keyed on THIS Asset
+ * alone — a sibling Recipe's Asset on the same Idea has its own independent `metrics`/
+ * `performance_score`/`history` (always-rules #5).
  */
 
 import type { Copy } from "../copy/contract.ts";
@@ -56,6 +63,32 @@ export type AssetStatus =
 export interface LedgerCastCandidate {
   readonly identifier: string;
   readonly url: string;
+}
+
+/**
+ * The four public Apify metrics (always-rules #2/#4 — public-metrics-only, relative-not-absolute) a
+ * tracking pull measured for one Asset's Post. This is the INPUT the stored `performance_score` was
+ * computed from — kept alongside the score so a Brand's Channel baseline can later be recomputed from
+ * real, attributable readings instead of an untraceable scalar (issue #84).
+ */
+export interface AssetMetrics {
+  readonly shares: number;
+  readonly comments: number;
+  readonly reactions: number;
+  readonly views: number;
+}
+
+/**
+ * One earlier tracking pull's result for an Asset, kept in `LedgerAssetRecord.history` so a Post's
+ * still-climbing numbers have a visible trail until it matures (`.claude/agents/performance-tracker.md`:
+ * "Performance is a moving number until a Post matures"). A fresh pull pushes the Asset's PRE-write
+ * `metrics`/`performance_score`/`tracked_at` here before overwriting them — `history` therefore never
+ * includes the CURRENT reading, only past ones.
+ */
+export interface AssetMetricsSnapshot {
+  readonly tracked_at: string;
+  readonly performance_score: number;
+  readonly metrics: AssetMetrics;
 }
 
 /**
@@ -87,6 +120,12 @@ export interface LedgerAssetRecord {
   readonly post_url?: string;
   readonly posted_at?: string;
   readonly performance_score?: number;
+  /** The public metrics behind the CURRENT `performance_score` (most recent tracking pull). */
+  readonly metrics?: AssetMetrics;
+  /** ISO-8601 timestamp of the most recent tracking pull that set `metrics`/`performance_score`. */
+  readonly tracked_at?: string;
+  /** Earlier tracking pulls, oldest first — never includes the current reading (see the type doc). */
+  readonly history?: readonly AssetMetricsSnapshot[];
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +187,46 @@ export function parseCastArray(raw: unknown): LedgerCastCandidate[] {
   return raw.map(parseCastCandidate).filter((c): c is LedgerCastCandidate => c !== null);
 }
 
+function isFiniteNonNegativeNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+/** Parse one raw `AssetMetrics` object. Requires all four fields to be finite, non-negative numbers —
+ *  any missing/garbled field invalidates the WHOLE reading (never half-fabricate a metrics snapshot).
+ *  Returns `null` on any malformed shape — never throws. */
+export function parseAssetMetrics(raw: unknown): AssetMetrics | null {
+  if (!isObject(raw)) return null;
+  const { shares, comments, reactions, views } = raw;
+  if (
+    !isFiniteNonNegativeNumber(shares) ||
+    !isFiniteNonNegativeNumber(comments) ||
+    !isFiniteNonNegativeNumber(reactions) ||
+    !isFiniteNonNegativeNumber(views)
+  ) {
+    return null;
+  }
+  return { shares, comments, reactions, views };
+}
+
+/** Parse one raw `AssetMetricsSnapshot` (a `history` entry). Returns `null` on any malformed shape —
+ *  never throws. */
+export function parseAssetMetricsSnapshot(raw: unknown): AssetMetricsSnapshot | null {
+  if (!isObject(raw)) return null;
+  if (!nonEmptyString(raw.tracked_at)) return null;
+  if (!isFiniteNumber(raw.performance_score)) return null;
+  const metrics = parseAssetMetrics(raw.metrics);
+  if (metrics === null) return null;
+  return { tracked_at: raw.tracked_at, performance_score: raw.performance_score, metrics };
+}
+
+/** Parse a raw `history` array, dropping malformed entries. Non-array/absent input yields `[]`. */
+export function parseAssetMetricsHistory(raw: unknown): AssetMetricsSnapshot[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map(parseAssetMetricsSnapshot)
+    .filter((s): s is AssetMetricsSnapshot => s !== null);
+}
+
 /**
  * Parse one raw structured Copy (`{ caption, hashtags }` — ADR-0012, issue #58). Returns `null` on any
  * malformed shape (a missing/blank `caption` is required; a missing/non-array `hashtags` degrades to
@@ -175,6 +254,8 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
 
   const cast = parseCastArray(raw.cast);
   const copy = parseCopy(raw.copy);
+  const metrics = parseAssetMetrics(raw.metrics);
+  const history = parseAssetMetricsHistory(raw.history);
 
   return {
     recipe: raw.recipe,
@@ -189,6 +270,9 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
     ...(nonEmptyString(raw.post_url) ? { post_url: raw.post_url } : {}),
     ...(nonEmptyString(raw.posted_at) ? { posted_at: raw.posted_at } : {}),
     ...(isFiniteNumber(raw.performance_score) ? { performance_score: raw.performance_score } : {}),
+    ...(metrics !== null ? { metrics } : {}),
+    ...(nonEmptyString(raw.tracked_at) ? { tracked_at: raw.tracked_at } : {}),
+    ...(history.length > 0 ? { history } : {}),
   };
 }
 
