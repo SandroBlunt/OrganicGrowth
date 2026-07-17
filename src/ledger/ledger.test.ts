@@ -401,6 +401,50 @@ describe("loadIdeas — recipes (issue #54) is carried through read-only", () =>
   });
 });
 
+// === loadIdeas carries `format` through read-only (issue #88 — the thin Producer resolves it) ========
+
+describe("loadIdeas — format is carried through read-only, defensive on old/stale records (issue #88)", () => {
+  async function withLedger(seed: unknown, fn: (path: string) => Promise<void>): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), "og-ledger-format-read-"));
+    const path = join(dir, "ledger.json");
+    try {
+      await writeFile(path, JSON.stringify(seed, null, 2) + "\n", "utf8");
+      await fn(path);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("an Idea with a recorded format carries it through", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted", format: "unhypped-news" }] };
+    await withLedger(seed, async (path) => {
+      const ideas = await loadIdeas(path);
+      assert.equal(ideas[0]!.format, "unhypped-news");
+    });
+  });
+
+  it("an old (pre-multi-format) Idea with no format field omits it entirely — never fabricated, never crashes", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted" }] };
+    await withLedger(seed, async (path) => {
+      const ideas = await loadIdeas(path);
+      assert.equal(ideas[0]!.format, undefined);
+    });
+  });
+
+  it("a garbled format field (not a string, or blank) degrades to omitted, never crashes", async () => {
+    const seed1 = { ideas: [{ id: "idea-A", status: "accepted", format: 123 }] };
+    await withLedger(seed1, async (path) => {
+      const ideas = await loadIdeas(path);
+      assert.equal(ideas[0]!.format, undefined);
+    });
+    const seed2 = { ideas: [{ id: "idea-B", status: "accepted", format: "   " }] };
+    await withLedger(seed2, async (path) => {
+      const ideas = await loadIdeas(path);
+      assert.equal(ideas[0]!.format, undefined);
+    });
+  });
+});
+
 // === loadReport — per-Recipe Asset breakdown + best-of-N Performance (issue #56, ADR-0011) ============
 
 describe("loadReport — per-Recipe assets and the best-of-N Performance summary", () => {

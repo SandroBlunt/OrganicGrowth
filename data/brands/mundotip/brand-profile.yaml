@@ -28,8 +28,11 @@ brand_safety:
   - "No dangerous stunts presented as safe."
   - "No misleading 'miracle' framing."
 
-# Production: which Magnific Space the producer drives to turn an accepted Idea into an Asset.
+# Production: per-Brand production parameters only. Which Magnific Space a Recipe drives is no
+# longer configured here — it lives on the Recipe itself (`src/recipe/registry.ts`'s `space.id`, e.g.
+# the wired *Character Explainer with Cast* Recipe's "Organic Character Explainer" cast->clips studio),
+# one shared canvas per Recipe for every Brand (ADR-0013/0016). The `production.space_id` /
+# `production.space_url` fields that used to live here are RETIRED (issue #88 migration) — the thin
+# Producer never reads a Space id from a Brand Profile any more.
 production:
-  space_id: "a1f05d67-1b98-4d10-9251-6603bea3b578"   # "Organic Character Explainer" cast→clips studio
-  # space_url: ""                                     # optional — space_id is enough on its own
   watermark_handle: ""                                # TODO: the @handle stamped on MundoTip's videos (set before rendering)

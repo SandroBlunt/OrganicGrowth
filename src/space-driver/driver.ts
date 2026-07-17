@@ -6,22 +6,36 @@
  * build is hermetic; tests pass the Magnific fake). It hides the MCP/polling detail and the `spaces_edit`
  * Fallback Protocol behind a handful of primitives plus ONE generic orchestrator:
  *
- *   • injectSpec(port, spec)                  — Fallback-Protocol inject into `JSON Master` + readback.
+ *   • injectSpec(port, spec, promptNode)       — Fallback-Protocol inject into the Recipe's OWN prompt
+ *                                                node (`Recipe.canvasInputs.promptNode`, e.g. `JSON
+ *                                                Master` for the character Recipe, `Slides Prompts` for
+ *                                                the News Carousel Recipe — issue #88, ADR-0016) +
+ *                                                readback. Never hard-coded to one Recipe's node name.
  *   • runRunPoint(port, startNodeId, mode)     — start a run, poll to terminal, return fired-nodes + creations.
  *   • pinPick(port, pick, nodeName)            — Fallback-Protocol pin of a resolved pick into a named
  *                                                on-canvas node (the node name is Recipe-declared, never
  *                                                hard-coded here) + readback confirm via `port.verifyPinned`.
+ *   • bindMediaAsset(port, path, media, node)  — Fallback-Protocol bind of a Brand Asset's LOCAL media
+ *                                                file (image/video/audio) into a named on-canvas
+ *                                                reference node — the bind phase's brand-asset media
+ *                                                slots (issue #88, ADR-0016). Reuses the SAME
+ *                                                `edit`/`verifyPinned` primitives `pinPick` already
+ *                                                uses (no new port method): the in-canvas agent is what
+ *                                                actually calls whichever media-type-matching Magnific
+ *                                                tool the asset's kind needs, under the hood of the one
+ *                                                `edit` call.
  *   • fetchCast(port, creationIds)             — resolve creation ids to aligned {identifier, url} pairs
  *                                                (used for a paused gate's candidates AND, via
  *                                                `fetchAsset`, the finished Asset).
  *   • driveToNextGate(port, state, input)      — walk ONE leg of a Recipe's Execution Protocol: either
- *                                                the FIRST leg (inject the Spec, run to the Recipe's
- *                                                first declared gate — or straight through for a
- *                                                gateless Recipe) or a RESUMED leg (pin the Operator's
- *                                                resolved pick, run to the NEXT declared gate, or to the
- *                                                final render when there is none). Recovers via the
- *                                                in-canvas agent (Fallback Protocol) when the FIRST leg's
- *                                                run-point is missing/stale.
+ *                                                the FIRST leg (inject the Spec into the Recipe's OWN
+ *                                                prompt node, run to the Recipe's first declared gate —
+ *                                                or straight through for a gateless Recipe) or a RESUMED
+ *                                                leg (pin the Operator's resolved pick, run to the NEXT
+ *                                                declared gate, or to the final render when there is
+ *                                                none). Recovers via the in-canvas agent (Fallback
+ *                                                Protocol) when the FIRST leg's run-point is
+ *                                                missing/stale.
  *
  * `driveToNextGate` REPLACES the old fixed `composeAndCast`/`pickAndRender` two-phase split: instead of
  * hard-coding "the cast run-point" and "the clip run-point", it resolves whichever run-point the parsed
@@ -55,14 +69,24 @@ const CLIP_VIDEO_NODE_MARKERS: readonly string[] = ["Clip", "Video", "Veo"];
 /** The exact name of the *Character Explainer with Cast* Recipe's pinned-reference creation node. */
 export const CHARACTER_NODE_NAME = "Character #2";
 
+/**
+ * The exact name of the *Character Explainer with Cast* Recipe's watermark-instructions text node —
+ * verified in the live capture (`src/space-driver/fixtures/live-captures/02-spaces_get_nodes.keynodes.txt`'s
+ * `Producer Protocol`'s `replace_text` step). QA-1 (issue #88 Round 1): this step was dropped from the
+ * rewritten `producer.md` by mistake and is restored here as a generic, Recipe-declared primitive
+ * (`Recipe.space.nodes.watermarkNode`) rather than hard-coded procedure.
+ */
+export const WATERMARK_NODE_NAME = "Watermark instructions";
+
 /** Stable, machine-checkable failure codes for the driver's operations. */
 export type DriverErrorCode =
   /** The natural-language inject edit failed at the agent (terminal `failed`). */
   | "inject_edit_failed"
-  /** The readback after the inject did not show the `JSON Master` text changed. */
+  /** The readback after the inject did not show the prompt node's text changed. */
   | "inject_unconfirmed"
-  /** The `JSON Master` node was not found on the Space for readback. */
-  | "json_master_missing"
+  /** The Recipe's prompt node (e.g. `JSON Master`, `Slides Prompts`) was not found on the Space for
+   *  readback (issue #88 — generalized beyond the one wired Recipe's `JSON Master`). */
+  | "prompt_node_missing"
   /** A run failed for a reason other than a missing/stale start node. */
   | "run_failed"
   /** A run failed because its start node is gone/stale (the recovery trigger, first-leg only). */
@@ -75,7 +99,19 @@ export type DriverErrorCode =
   /** The natural-language pin edit failed at the agent (terminal `failed`). */
   | "pin_edit_failed"
   /** The readback after the pin did not confirm the resolved pick is pinned. */
-  | "pin_unconfirmed";
+  | "pin_unconfirmed"
+  /** The natural-language media-bind edit failed at the agent (terminal `failed`) — binding a Brand
+   *  Asset's local media into a named canvas reference node (issue #88, ADR-0016). */
+  | "media_bind_edit_failed"
+  /** The readback after the media-bind edit did not confirm the Brand Asset is bound to the node. */
+  | "media_bind_unconfirmed"
+  /** The natural-language watermark-handle edit failed at the agent (terminal `failed`) — setting the
+   *  Brand's `@handle` onto a Recipe-declared watermark node before the final render (QA-1, issue #88). */
+  | "watermark_edit_failed"
+  /** The Recipe's watermark node was not found on the Space for readback. */
+  | "watermark_node_missing"
+  /** The readback after the watermark edit did not confirm the Brand's handle was applied. */
+  | "watermark_unconfirmed";
 
 /** A driver failure: a stable `code` plus a human-readable `message`. */
 export interface DriverError {
@@ -203,38 +239,43 @@ async function pollRun(port: SpaceMcpPort, runId: string, poll: PollOptions): Pr
 // --- injectSpec (Fallback Protocol: natural-language edit into JSON Master + readback confirm) ------
 
 /**
- * Build the natural-language goal the in-canvas agent receives to inject the Spec. It names the target
- * node (`JSON Master`) and embeds the exact JSON to set, so the agent replaces the node's text contract.
+ * Build the natural-language goal the in-canvas agent receives to inject the Spec. It names the TARGET
+ * node — the Recipe's own prompt node (`promptNode`, e.g. `JSON Master` for the character Recipe,
+ * `Slides Prompts` for the News Carousel Recipe — `Recipe.canvasInputs.promptNode`, issue #88) — and
+ * embeds the exact JSON to set, so the agent replaces that node's text contract. Never hard-coded to one
+ * Recipe's node name.
  */
-export function injectGoal(spec: ProductionSpec | Record<string, unknown>): string {
+export function injectGoal(spec: ProductionSpec | Record<string, unknown>, promptNode: string): string {
   const json = JSON.stringify(spec);
-  return `Replace the entire text content of the "${JSON_MASTER_NODE_NAME}" node with exactly this JSON: ${json}`;
+  return `Replace the entire text content of the "${promptNode}" node with exactly this JSON: ${json}`;
 }
 
 /**
- * Inject a validated Production Spec into the `JSON Master` text node via the Fallback Protocol, then
- * read back the node and confirm the text CHANGED (Spike 1). Polls the edit to terminal before reading
- * back. Returns the confirmed new text on success; an identifiable failure if the edit failed, the node
- * is missing, or the readback shows no change.
+ * Inject a validated Production Spec into the Recipe's OWN prompt node (`promptNode`) via the Fallback
+ * Protocol, then read back the node and confirm the text CHANGED (Spike 1; generalized beyond the one
+ * wired Recipe's `JSON Master` in issue #88). Polls the edit to terminal before reading back. Returns
+ * the confirmed new text on success; an identifiable failure if the edit failed, the node is missing, or
+ * the readback shows no change.
  */
 export async function injectSpec(
   port: SpaceMcpPort,
   spec: ProductionSpec | Record<string, unknown>,
+  promptNode: string,
   poll: PollOptions = {},
 ): Promise<InjectResult> {
-  const before = nodeText(await port.readState(), JSON_MASTER_NODE_NAME);
+  const before = nodeText(await port.readState(), promptNode);
 
-  const { editId } = await port.edit(injectGoal(spec));
+  const { editId } = await port.edit(injectGoal(spec, promptNode));
   const status = await pollEdit(port, editId, poll);
   if (status.phase === "failed") {
     return { ok: false, error: err("inject_edit_failed", status.error ?? "the inject edit failed") };
   }
 
-  const after = nodeText(await port.readState(), JSON_MASTER_NODE_NAME);
+  const after = nodeText(await port.readState(), promptNode);
   if (after === undefined) {
     return {
       ok: false,
-      error: err("json_master_missing", `No "${JSON_MASTER_NODE_NAME}" node to read back.`),
+      error: err("prompt_node_missing", `No "${promptNode}" node to read back.`),
     };
   }
   if (after === before) {
@@ -242,7 +283,7 @@ export async function injectSpec(
       ok: false,
       error: err(
         "inject_unconfirmed",
-        `The "${JSON_MASTER_NODE_NAME}" text did not change after the inject — not confirmed.`,
+        `The "${promptNode}" text did not change after the inject — not confirmed.`,
       ),
     };
   }
@@ -341,6 +382,114 @@ export async function pinPick(
   return { ok: true, pick };
 }
 
+// --- bindMediaAsset (Fallback Protocol: bind a Brand Asset's local media into a named node) -----------
+
+/**
+ * Build the natural-language goal the in-canvas agent receives to bind a Brand Asset's LOCAL media file
+ * into a named on-canvas reference node (issue #88, ADR-0016's bind phase). It names the local path, the
+ * media kind (so the agent picks the matching Magnific tool — `images_*`/`video_*`/`audio_*`), and the
+ * TARGET node (a Recipe-declared media slot's physical canvas target — never hard-coded here).
+ */
+export function bindMediaGoal(path: string, media: "image" | "video" | "audio", nodeName: string): string {
+  return (
+    `Upload the ${media} file at "${path}" using the matching Magnific tool, and set the result as the ` +
+    `"${nodeName}" node's reference asset, replacing whatever it currently holds.`
+  );
+}
+
+/**
+ * Bind a Brand Asset's local media file (`src/brand-asset/store.ts`'s `BrandAssetStore`) into a named
+ * canvas node via the Fallback Protocol, then confirm via `port.verifyPinned` — the SAME port primitive
+ * `pinPick` already uses to confirm a Character pin, reused here for a bound Brand Asset (no new port
+ * method: the port already models "is THIS value confirmed as bound to the canvas?" generically).
+ * Mirrors `pinPick`'s shape/failure modes exactly, with its own distinct error codes.
+ */
+export async function bindMediaAsset(
+  port: SpaceMcpPort,
+  path: string,
+  media: "image" | "video" | "audio",
+  nodeName: string,
+  poll: PollOptions = {},
+): Promise<PinResult> {
+  const { editId } = await port.edit(bindMediaGoal(path, media, nodeName));
+  const status = await pollEdit(port, editId, poll);
+  if (status.phase === "failed") {
+    return {
+      ok: false,
+      error: err("media_bind_edit_failed", status.error ?? "the media-bind edit failed"),
+    };
+  }
+
+  if (!(await port.verifyPinned(path))) {
+    return {
+      ok: false,
+      error: err(
+        "media_bind_unconfirmed",
+        `The Brand Asset at "${path}" is not bound to "${nodeName}" after the edit — not confirmed.`,
+      ),
+    };
+  }
+  return { ok: true, pick: path };
+}
+
+// --- setWatermarkHandle (Fallback Protocol: swap ONLY the @handle on a Recipe-declared node) ----------
+
+/**
+ * Build the natural-language goal the in-canvas agent receives to set the Brand's watermark `@handle`
+ * onto a Recipe-declared node — a SURGICAL swap: only the `@handle` placeholder changes; every other
+ * word of the node's existing text is left untouched (QA-1, issue #88; restores the pre-#88 behaviour
+ * byte-for-byte — the real, captured `Producer Protocol`'s `replace_text`/`"replace_only": "@handle"`
+ * step, `src/space-driver/fixtures/live-captures/02-spaces_get_nodes.keynodes.txt`).
+ */
+export function watermarkGoal(handle: string, nodeName: string): string {
+  return (
+    `Replace ONLY the "@handle" placeholder in the "${nodeName}" node's text with "${handle}" — leave ` +
+    "every other word of the existing text unchanged."
+  );
+}
+
+/**
+ * Set the Brand's watermark `@handle` onto a Recipe-declared node (`Recipe.space.nodes.watermarkNode`)
+ * via the Fallback Protocol, then read back that node and confirm its text now carries `handle` — a
+ * generic, Recipe-declared pre-render step (this is NOT the Asset's Copy, ADR-0012): only a Recipe that
+ * declares a `watermarkNode` runs this at all; the wired *Character Explainer with Cast* Recipe does
+ * (`WATERMARK_NODE_NAME`), the *News Carousel* Recipe does not. Mirrors `injectSpec`'s readback-confirm
+ * shape, with its own distinct error codes.
+ */
+export async function setWatermarkHandle(
+  port: SpaceMcpPort,
+  handle: string,
+  nodeName: string,
+  poll: PollOptions = {},
+): Promise<InjectResult> {
+  const { editId } = await port.edit(watermarkGoal(handle, nodeName));
+  const status = await pollEdit(port, editId, poll);
+  if (status.phase === "failed") {
+    return {
+      ok: false,
+      error: err("watermark_edit_failed", status.error ?? "the watermark-handle edit failed"),
+    };
+  }
+
+  const after = nodeText(await port.readState(), nodeName);
+  if (after === undefined) {
+    return {
+      ok: false,
+      error: err("watermark_node_missing", `No "${nodeName}" node to read back.`),
+    };
+  }
+  if (!after.includes(handle)) {
+    return {
+      ok: false,
+      error: err(
+        "watermark_unconfirmed",
+        `The "${nodeName}" text does not include the handle "${handle}" after the edit — not confirmed.`,
+      ),
+    };
+  }
+  return { ok: true, text: after };
+}
+
 // --- fetchAsset (the finished Asset creation -> its media URL) ---------------------------------------
 
 /** Resolve the finished Asset's creation identifier to its media URL (the Operator publishes this). */
@@ -365,6 +514,9 @@ export type DriveLegInput =
       /** The gate this leg's run-point pauses at, or `null` for a gateless Recipe (runs straight through). */
       readonly targetGate: string | null;
       readonly spec: ProductionSpec | Record<string, unknown>;
+      /** The Recipe's OWN prompt node to inject the Spec into (`Recipe.canvasInputs.promptNode`, e.g.
+       *  `JSON Master` or `Slides Prompts`) — Recipe-declared, never hard-coded here (issue #88). */
+      readonly promptNode: string;
     }
   | {
       readonly kind: "resumed";
@@ -504,7 +656,7 @@ export async function driveToNextGate(
   poll: PollOptions = {},
 ): Promise<DriveToNextGateResult> {
   if (input.kind === "first") {
-    const injected = await injectSpec(port, input.spec, poll);
+    const injected = await injectSpec(port, input.spec, input.promptNode, poll);
     if (!injected.ok) {
       return { ok: false, error: injected.error };
     }

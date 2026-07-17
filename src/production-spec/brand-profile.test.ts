@@ -7,6 +7,8 @@ import {
   requiredCtaFrom,
   requiredHashtagsFrom,
   loadCopyRules,
+  watermarkHandleFrom,
+  loadWatermarkHandle,
 } from "./brand-profile.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -71,5 +73,35 @@ describe("loadCopyRules — bundles required_cta/required_hashtags/banned_words 
   it("a missing Brand Profile loads as no rules configured, never crashes", async () => {
     const rules = await loadCopyRules(join(HERE, "fixtures", "nope.yaml"));
     assert.deepEqual(rules, { requiredCta: null, requiredHashtags: [], bannedWords: [] });
+  });
+});
+
+describe("watermarkHandleFrom (defensive) — QA-1 (issue #88): the @handle a Recipe's watermarkNode gets set to", () => {
+  it("reads a configured production.watermark_handle, trimmed", () => {
+    assert.equal(watermarkHandleFrom({ production: { watermark_handle: "  @strawmotion  " } }), "@strawmotion");
+  });
+
+  it("returns '' for the real profile's default shape (not yet configured) — never null/undefined", () => {
+    assert.equal(watermarkHandleFrom({ production: { watermark_handle: "" } }), "");
+    assert.equal(watermarkHandleFrom({}), "");
+    assert.equal(watermarkHandleFrom({ production: {} }), "");
+  });
+
+  it("returns '' when production or watermark_handle is malformed — never throws", () => {
+    assert.equal(watermarkHandleFrom({ production: "not an object" }), "");
+    assert.equal(watermarkHandleFrom({ production: { watermark_handle: 7 } }), "");
+    assert.equal(watermarkHandleFrom(null), "");
+  });
+});
+
+describe("loadWatermarkHandle — reads production.watermark_handle from a Brand Profile file", () => {
+  it("a missing Brand Profile loads as '' (not yet configured), never crashes", async () => {
+    const handle = await loadWatermarkHandle(join(HERE, "fixtures", "nope.yaml"));
+    assert.equal(handle, "");
+  });
+
+  it("the real fixture profile (no production block) loads as ''", async () => {
+    const handle = await loadWatermarkHandle(BANNED_PROFILE);
+    assert.equal(handle, "");
   });
 });

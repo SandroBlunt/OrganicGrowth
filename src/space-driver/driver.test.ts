@@ -11,6 +11,10 @@ import {
   fallbackGoal,
   pinPick,
   pinGoal,
+  bindMediaAsset,
+  bindMediaGoal,
+  setWatermarkHandle,
+  watermarkGoal,
   fetchAsset,
   JSON_MASTER_NODE_NAME,
   CHARACTER_NODE_NAME,
@@ -40,6 +44,7 @@ import {
   type ProtocolDocument,
 } from "../execution-protocol/protocol.ts";
 import { validSpec } from "../production-spec/fixtures/specs.ts";
+import { validCarouselSpec } from "../production-spec/fixtures/news-carousel-specs.ts";
 
 /**
  * A no-op poll policy: the fake reaches terminal on the second poll, so injecting an instant `sleep`
@@ -143,7 +148,7 @@ describe("injectSpec — inject into JSON Master via the Fallback Protocol and c
     const space = new FakeSpace();
     const before = (await space.readState()).nodes.find((n) => n.name === JSON_MASTER_NODE_NAME)!.value;
 
-    const result = await injectSpec(space, validSpec(), FAST);
+    const result = await injectSpec(space, validSpec(), JSON_MASTER_NODE_NAME, FAST);
 
     assert.equal(result.ok, true);
     if (!result.ok) return;
@@ -160,7 +165,7 @@ describe("injectSpec — inject into JSON Master via the Fallback Protocol and c
 
   it("makes no call outside the injected port (issues the edit + polls + reads back through the port)", async () => {
     const space = new FakeSpace();
-    await injectSpec(space, validSpec(), FAST);
+    await injectSpec(space, validSpec(), JSON_MASTER_NODE_NAME, FAST);
     // The only Space interaction the driver performed was through the port: an edit was recorded, and the
     // node value visible on readState reflects it. No clip/video run was started.
     assert.equal(space.runs.length, 0);
@@ -169,7 +174,7 @@ describe("injectSpec — inject into JSON Master via the Fallback Protocol and c
 
   it("reports an identifiable failure when the readback shows the text did NOT change", async () => {
     const space = new FakeSpace(fakeSpaceState(), { injectNoOp: true });
-    const result = await injectSpec(space, validSpec(), FAST);
+    const result = await injectSpec(space, validSpec(), JSON_MASTER_NODE_NAME, FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "inject_unconfirmed");
@@ -177,9 +182,74 @@ describe("injectSpec — inject into JSON Master via the Fallback Protocol and c
 
   it("embeds the exact Spec JSON in the inject goal", () => {
     const spec = validSpec();
-    const goal = injectGoal(spec);
+    const goal = injectGoal(spec, JSON_MASTER_NODE_NAME);
     assert.match(goal, new RegExp(JSON_MASTER_NODE_NAME));
     assert.ok(goal.includes(JSON.stringify(spec)));
+  });
+});
+
+// === injectSpec generalizes to ANY Recipe-supplied prompt node (QA-2 — isolated unit coverage) =======
+
+/**
+ * A minimal `SpaceMcpPort` stub whose sole text node is named `"Slides Prompts"` — deliberately NOT
+ * named `"JSON Master"` at all (no such node exists on this stub), so a passing `injectSpec` call here
+ * is proof the function is genuinely NOT hard-coded to the wired Recipe's own node. `dropTargetNode`
+ * models a Recipe whose declared prompt node is missing entirely (the `prompt_node_missing` case).
+ */
+class PromptNodeSpace implements SpaceMcpPort {
+  public editGoals: string[] = [];
+  private value: string | undefined;
+  constructor(
+    private readonly nodeName: string,
+    private readonly dropTargetNode = false,
+  ) {
+    this.value = "placeholder";
+  }
+  async readState(): Promise<SpaceStateLike> {
+    if (this.dropTargetNode) return { nodes: [] };
+    return { nodes: [{ id: "node-prompt", name: this.nodeName, ...(this.value !== undefined ? { value: this.value } : {}) }] };
+  }
+  async edit(goal: string): Promise<{ readonly editId: string }> {
+    this.editGoals.push(goal);
+    const marker = goal.indexOf("{");
+    this.value = marker !== -1 ? goal.slice(marker) : "INJECTED";
+    return { editId: "edit-prompt-1" };
+  }
+  async editStatus(): Promise<EditStatus> {
+    return { phase: "succeeded" };
+  }
+  async run(): Promise<{ readonly runId: string }> {
+    return { runId: "run-1" };
+  }
+  async runStatus(): Promise<RunStatus> {
+    return { phase: "succeeded", firedNodeNames: [], creationIds: [] };
+  }
+  async fetchCreations(): Promise<readonly Creation[]> {
+    return [];
+  }
+  async verifyPinned(): Promise<boolean> {
+    return false;
+  }
+}
+
+describe("injectSpec — generalizes to a Recipe-supplied prompt node OTHER than JSON Master (QA-2)", () => {
+  it("injects into 'Slides Prompts' (the News Carousel Recipe's own prompt node) — no JSON Master node exists at all", async () => {
+    const space = new PromptNodeSpace("Slides Prompts");
+    const result = await injectSpec(space, validCarouselSpec(), "Slides Prompts", FAST);
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, /Slides Prompts/);
+    assert.doesNotMatch(space.editGoals[0]!, new RegExp(JSON_MASTER_NODE_NAME));
+  });
+
+  it("fails prompt_node_missing when the Recipe-declared prompt node cannot be read back at all", async () => {
+    const space = new PromptNodeSpace("Slides Prompts", true);
+    const result = await injectSpec(space, validCarouselSpec(), "Slides Prompts", FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "prompt_node_missing");
   });
 });
 
@@ -266,7 +336,12 @@ describe("fetchAsset — resolve the finished Asset's creation identifier to its
 describe("driveToNextGate — the wired recipe: first leg (targetGate: cast) pauses with the Cast", () => {
   it("injects the Spec, runs the cast run-point, and PAUSES with the Cast candidates", async () => {
     const space = new FakeSpace();
-    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: "cast",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
 
     assert.equal(result.ok, true);
@@ -301,7 +376,12 @@ describe("driveToNextGate — the wired recipe: first leg (targetGate: cast) pau
 
   it("falls back to the in-canvas agent when the cast run-point is stale, still pausing with the Cast", async () => {
     const space = new FakeSpace(fakeSpaceState(), { castRunPointStale: true });
-    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: "cast",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
 
     assert.equal(result.ok, true, "must recover, not hard-fail");
@@ -319,7 +399,12 @@ describe("driveToNextGate — the wired recipe: first leg (targetGate: cast) pau
 
   it("falls back when the cast run-point cannot be resolved from the Execution Protocol at all", async () => {
     const space = new FakeSpaceWithAgentFallbackCast();
-    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: "cast",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(space, await space.readState(), input, FAST);
 
     assert.equal(result.ok, true, "must recover, not hard-fail");
@@ -336,7 +421,12 @@ describe("driveToNextGate — the wired recipe: first leg (targetGate: cast) pau
 
   it("hard-fails only when the inject itself cannot be confirmed (not a recovery case)", async () => {
     const space = new FakeSpace(fakeSpaceState(), { injectNoOp: true });
-    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: "cast",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
@@ -435,7 +525,12 @@ describe("driveToNextGate — the wired recipe: resumed leg (targetGate: null) p
 describe("candidates_empty — an empty result fails the op instead of returning ok with nothing to show", () => {
   it("fails candidates_empty when the named cast run surfaces no creations", async () => {
     const space = new FakeSpace(fakeSpaceState(), { castRunEmpty: true });
-    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: "cast",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
@@ -447,7 +542,12 @@ describe("candidates_empty — an empty result fails the op instead of returning
       castRunPointStale: true,
       fallbackProducesNoCast: true,
     });
-    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: "cast",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(space, fakeSpaceState(), input, FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
@@ -506,6 +606,175 @@ describe("pinPick — pin a resolved candidate via the Fallback Protocol and con
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "pin_unconfirmed");
+  });
+});
+
+// === bindMediaAsset / bindMediaGoal — bind a Brand Asset into a named node (issue #88, ADR-0016) =====
+
+/**
+ * A minimal `SpaceMcpPort` stub proving `bindMediaAsset` reuses the SAME `edit`/`verifyPinned`
+ * primitives `pinPick` already uses — never a new port method — mirroring `PinConfirmingSpace`'s
+ * "confirms via the port, not a fake-only marker" shape.
+ */
+class MediaBindConfirmingSpace implements SpaceMcpPort {
+  public editGoals: string[] = [];
+  constructor(
+    private readonly confirmed = true,
+    private readonly editFails = false,
+  ) {}
+  async readState(): Promise<SpaceStateLike> {
+    return fakeSpaceState();
+  }
+  async edit(goal: string): Promise<{ readonly editId: string }> {
+    this.editGoals.push(goal);
+    return { editId: "edit-media-1" };
+  }
+  async editStatus(): Promise<EditStatus> {
+    return this.editFails ? { phase: "failed", error: "the agent could not bind the media" } : { phase: "succeeded" };
+  }
+  async run(): Promise<{ readonly runId: string }> {
+    return { runId: "run-1" };
+  }
+  async runStatus(): Promise<RunStatus> {
+    return { phase: "succeeded", firedNodeNames: [], creationIds: [] };
+  }
+  async fetchCreations(): Promise<readonly Creation[]> {
+    return [];
+  }
+  async verifyPinned(): Promise<boolean> {
+    return this.confirmed;
+  }
+}
+
+describe("bindMediaGoal — describes the media-type-matching upload + bind, naming path/media/node", () => {
+  it("embeds the local path, media kind, and target node name", () => {
+    const goal = bindMediaGoal("/data/brands/straw-motion/assets/brand-logo.png", "image", "Brand Logo");
+    assert.match(goal, /brand-logo\.png/);
+    assert.match(goal, /image/);
+    assert.match(goal, /Brand Logo/);
+  });
+});
+
+describe("bindMediaAsset — bind a Brand Asset's local media into a named node via the Fallback Protocol", () => {
+  it("issues one edit naming the path/node and confirms via port.verifyPinned (reused, not a new port method)", async () => {
+    const space = new MediaBindConfirmingSpace(true);
+    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand Logo", FAST);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.pick, "/tmp/brand-logo.png");
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, /Brand Logo/);
+  });
+
+  it("fails identifiably when the bind edit itself fails", async () => {
+    const space = new MediaBindConfirmingSpace(true, true);
+    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand Logo", FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "media_bind_edit_failed");
+  });
+
+  it("fails identifiably when the port cannot confirm the bind (never trusts a fake-only marker)", async () => {
+    const space = new MediaBindConfirmingSpace(false);
+    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand Logo", FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "media_bind_unconfirmed");
+  });
+});
+
+// === setWatermarkHandle / watermarkGoal — the Brand's @handle onto a Recipe-declared node (QA-1, ADR-0016) ===
+
+/**
+ * A minimal `SpaceMcpPort` stub proving `setWatermarkHandle` REUSES the SAME `edit` + readback-confirm
+ * shape `injectSpec` already uses — never a new port method. Models a node whose text already carries a
+ * bare `@handle` placeholder (mirrors the real, captured `"Watermark instructions"` node); a successful
+ * edit swaps ONLY the placeholder, leaving the rest of the text untouched.
+ */
+class WatermarkConfirmingSpace implements SpaceMcpPort {
+  public editGoals: string[] = [];
+  private nodeValue: string | undefined = "Stamp the corner with @handle, small and subtle.";
+  constructor(
+    private readonly applies = true,
+    private readonly editFails = false,
+    private readonly dropNode = false,
+  ) {}
+  async readState(): Promise<SpaceStateLike> {
+    const nodes = this.dropNode
+      ? []
+      : [{ id: "node-watermark", name: "Watermark instructions", ...(this.nodeValue !== undefined ? { value: this.nodeValue } : {}) }];
+    return { nodes };
+  }
+  async edit(goal: string): Promise<{ readonly editId: string }> {
+    this.editGoals.push(goal);
+    if (this.applies) {
+      this.nodeValue = "Stamp the corner with @strawmotion, small and subtle.";
+    }
+    return { editId: "edit-watermark-1" };
+  }
+  async editStatus(): Promise<EditStatus> {
+    return this.editFails
+      ? { phase: "failed", error: "the agent could not set the watermark handle" }
+      : { phase: "succeeded" };
+  }
+  async run(): Promise<{ readonly runId: string }> {
+    return { runId: "run-1" };
+  }
+  async runStatus(): Promise<RunStatus> {
+    return { phase: "succeeded", firedNodeNames: [], creationIds: [] };
+  }
+  async fetchCreations(): Promise<readonly Creation[]> {
+    return [];
+  }
+  async verifyPinned(): Promise<boolean> {
+    return false;
+  }
+}
+
+describe("watermarkGoal — describes a SURGICAL swap (only @handle), never rewriting the rest of the text", () => {
+  it("embeds the handle and the target node name, and states only @handle is replaced", () => {
+    const goal = watermarkGoal("@strawmotion", "Watermark instructions");
+    assert.match(goal, /@strawmotion/);
+    assert.match(goal, /Watermark instructions/);
+    assert.match(goal, /only/i);
+    assert.match(goal, /@handle/);
+  });
+});
+
+describe("setWatermarkHandle — sets the Brand's @handle onto a Recipe-declared node via the Fallback Protocol", () => {
+  it("issues one edit and confirms the readback now carries the handle", async () => {
+    const space = new WatermarkConfirmingSpace(true);
+    const result = await setWatermarkHandle(space, "@strawmotion", "Watermark instructions", FAST);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.match(result.text, /@strawmotion/);
+    assert.equal(space.editGoals.length, 1);
+    assert.match(space.editGoals[0]!, /Watermark instructions/);
+    assert.match(space.editGoals[0]!, /@strawmotion/);
+  });
+
+  it("fails identifiably when the watermark edit itself fails", async () => {
+    const space = new WatermarkConfirmingSpace(true, true);
+    const result = await setWatermarkHandle(space, "@strawmotion", "Watermark instructions", FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "watermark_edit_failed");
+  });
+
+  it("fails identifiably when the readback does NOT confirm the handle was applied", async () => {
+    const space = new WatermarkConfirmingSpace(false); // edit succeeds but the text never changes
+    const result = await setWatermarkHandle(space, "@strawmotion", "Watermark instructions", FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "watermark_unconfirmed");
+  });
+
+  it("fails watermark_node_missing when the target node cannot be read back", async () => {
+    const space = new WatermarkConfirmingSpace(true, false, true);
+    const result = await setWatermarkHandle(space, "@strawmotion", "Watermark instructions", FAST);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "watermark_node_missing");
   });
 });
 
@@ -602,7 +871,12 @@ class ConfigurableFakeSpace implements SpaceMcpPort {
 describe("driveToNextGate — a ZERO-gate recipe runs straight through, no pause", () => {
   it("a single gateless run-point: first leg injects the Spec, runs it, and FINISHES with the Asset", async () => {
     const space = new ConfigurableFakeSpace([{ name: "Zero Gate Render", gate: null, creationIds: ["asset-zero"] }]);
-    const input: DriveLegInput = { kind: "first", targetGate: null, spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: null,
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(space, await space.readState(), input, FAST);
 
     assert.equal(result.ok, true);
@@ -630,7 +904,12 @@ describe("driveToNextGate — a MULTI-gate recipe pauses at each declared gate a
     ]);
 
     // Leg 1 — the Recipe's FIRST leg targets gateA (its first declared gate).
-    const leg1Input: DriveLegInput = { kind: "first", targetGate: "gateA", spec: validSpec() };
+    const leg1Input: DriveLegInput = {
+      kind: "first",
+      targetGate: "gateA",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const leg1 = await driveToNextGate(space, await space.readState(), leg1Input, FAST);
     assert.equal(leg1.ok, true);
     if (!leg1.ok) return;
@@ -691,7 +970,7 @@ describe("C10 — polling waits on a time budget, not a raw instant count", () =
       intervalMs: 100,
       budgetMs: 500,
     };
-    const result = await injectSpec(space, validSpec(), poll);
+    const result = await injectSpec(space, validSpec(), JSON_MASTER_NODE_NAME, poll);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "inject_edit_failed");

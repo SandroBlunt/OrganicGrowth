@@ -13,6 +13,10 @@
  *
  * Uses the `yaml` package per the issue. I/O lives here; the pure scans/checks live in
  * `brand-safety.ts` (Spec-shape) and `src/copy/validate.ts` (Copy-shape).
+ *
+ * `watermarkHandleFrom`/`loadWatermarkHandle` (QA-1, issue #88) read `production.watermark_handle` — a
+ * DIFFERENT per-Brand parameter than Copy: the thin Producer sets it onto a Recipe's declared
+ * `watermarkNode` before the final render, never folding it into the composed Copy (ADR-0012).
  */
 
 import { readFile } from "node:fs/promises";
@@ -109,4 +113,30 @@ export async function loadCopyRules(path: string): Promise<BrandCopyRules> {
     requiredHashtags: requiredHashtagsFrom(raw),
     bannedWords: bannedWordsFrom(raw),
   };
+}
+
+/**
+ * Extract the Brand's watermark `@handle` from already-parsed brand-profile data
+ * (`production.watermark_handle` — QA-1, issue #88). This is the value the thin Producer sets onto a
+ * Recipe's declared `watermarkNode` before the final render (`src/space-driver/driver.ts`'s
+ * `setWatermarkHandle`) — a Brand-wide hard rule, NOT part of the Asset's Copy (ADR-0012). Pure and
+ * defensive, mirroring `requiredCtaFrom`: a missing/blank/non-string `watermark_handle` (the real
+ * profile's default shape — not yet configured) yields `""`, never `null`/`undefined` — the caller
+ * simply skips the watermark step when this is blank, rather than having to re-check a sentinel.
+ */
+export function watermarkHandleFrom(raw: unknown): string {
+  if (!isObject(raw)) return "";
+  const production = raw.production;
+  if (!isObject(production)) return "";
+  const value = production.watermark_handle;
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+/**
+ * Load the Brand's watermark `@handle` from disk. A missing file, or a profile with no `production`
+ * block / no `watermark_handle` set, loads as `""` (not yet configured) — never crashes.
+ */
+export async function loadWatermarkHandle(path: string): Promise<string> {
+  return watermarkHandleFrom(await readProfile(path));
 }
