@@ -34,7 +34,9 @@ The recurring editorial identity a **Brand** publishes under — its subject **a
 Motion's **"Unhypped News"**: AI/tech news explained in-depth, in plain terms). A Format sits **above
 Ideas** and holds many of them; a Brand may run one or several. It shapes what its Ideas are about and
 how their copy reads. It **owns** its voice/treatment, its trend sources, and its peer-vs-curated mode —
-so one Brand can run several Formats with different voices (ADR-0013). It carries the **default Recipes** its Ideas are produced through (the Operator
+so one Brand can run several Formats with different voices (ADR-0013). It also owns the **look** — a
+per-Recipe **Baseline Prompt** (a referenced document the Recipe's **Skill** interprets to author the
+media; ADR-0015). It carries the **default Recipes** its Ideas are produced through (the Operator
 confirms or trims them at Review). Distinct from a **Recipe** (how the media is made): the bare word "format" used to
 mean both — it now means **only** the editorial line.
 _Avoid_: series, show, content pillar; and — critically — the *production/media* sense (that is a **Recipe**).
@@ -124,8 +126,9 @@ A pre-defined Magnific pipeline that generates the **media** a **Recipe** needs 
 image carousel, a Pixar-3D character Reel. A Space is **brand-agnostic**: any **Brand** can render
 through it. A Space makes **media only** — it does **not** write the post's copy (that is the Recipe's
 copy step). A **Recipe** drives one (or more) Spaces; each Space carries its own input contract (the
-**Production Spec** shape) and its own **Execution Protocol**. Today one Space (the 9:16 character Reel)
-is wired.
+**Production Spec** shape) and its own **Execution Protocol**. A canvas takes **two typed inputs** —
+**media slots** (filled by **Brand Assets** or idea-picks) and a **prompt node** (the Producer's authored
+prompt; ADR-0016). Today one Space (the 9:16 character Reel) is wired.
 _Avoid_: flow, template, pipeline (the Space *is* the pipeline); format (a Space is the media engine
 inside a **Recipe**, not the editorial **Format**).
 
@@ -134,7 +137,9 @@ The plan that turns one **Idea** into one **Asset** — which **Space** (or tool
 ordered steps to drive it, any human **pick-gate**, and the **copy step** that tailors the post's
 caption / hashtags / mentions for this kind of content. A Recipe is **defined in OrganicGrowth's repo** — it names the
 Space(s) and reads each Space's on-canvas run-points for the media, but owns the gates, the copy, and the
-spec shape itself (ADR-0010). The **Operator picks one or many** Recipes per
+spec shape itself (ADR-0010) — plus its canvas's **two typed inputs** (media slots + a prompt node;
+ADR-0016), its **Phase Contracts** (ADR-0017), and a producer **Skill** that authors the media prompt
+(ADR-0018). The **Operator picks one or many** Recipes per
 Idea (a Reel, a carousel, a meme…); each yields its own Asset → Post. A Recipe is **brand-agnostic** and
 shared — the per-Brand halves are the **Format** and idea generation. Today one Recipe is wired —
 **Character Explainer with Cast** (cast → pick the **Character** → render).
@@ -143,9 +148,12 @@ one), media output (that is the Recipe's *result*, not the plan).
 
 **Producer**:
 The agent that renders an accepted **Idea** into its **Assets** by running each chosen **Recipe** — for
-each: driving the Recipe's **Space(s)** for the media (following the Space's on-canvas **Execution
-Protocol**), pausing at the Recipe's **gates**, and running its **copy step**. A thin runner configured by
-the in-repo **Recipe**. It **generates, never publishes**.
+each: running the Recipe's **Skill** to **author the media prompt** — its core craft, from the Brand's
+rules, the Format's **Baseline Prompt**, and the Idea's brief — **binding media** into the canvas's slots,
+driving the Recipe's **Space(s)** for the media (following the Space's on-canvas **Execution
+Protocol**), pausing at the Recipe's **gates**, and running its **copy step**. It **self-audits** each
+phase's output against that phase's **Phase Contract** before advancing (ADR-0017). A thin runner
+configured by the in-repo **Recipe**. It **generates, never publishes**.
 _Avoid_: generator, studio, creator.
 
 **Execution Protocol**:
@@ -161,6 +169,45 @@ and the way it sets node contents that can't be set directly (injecting the **Pr
 pinning the **Character**): it delegates to the Space's in-canvas **agent** with a natural-language
 goal instead of a fixed node run.
 _Avoid_: error handling, retry.
+
+**Baseline Prompt** (a Format's per-Recipe look):
+The **document** a **Format** holds for each **Recipe** it produces through — its **definitions** (card
+styles, the pill/eyebrow text, logo placement, fonts), a **core structure example**, and **samples**. It
+is the **look**, per **(Brand × Format)**, and lives as its own referenced file (not inline YAML). A
+**Recipe Skill** reads and interprets it to author the media prompt (ADR-0015). *(Decided in map #70;
+build pending.)*
+_Avoid_: template, style guide (the Space's is separate), the Space's Execution Protocol.
+
+**Brand Asset** (per-Brand reusable media):
+Reusable **media** — image, video, or audio — a **Brand** stores under `data/brands/<slug>/assets/` (e.g.
+`Brand_Logo`), committed to git and read via the `BrandAssetStore`. It fills a **Recipe**'s brand-asset
+**media slots** at run time, reused every run — the media parallel of the Brand's watermark @handle text
+parameter (ADR-0016). *(Decided in map #70; build pending.)*
+_Avoid_: reference image (too narrow — assets are also video/audio), attachment.
+
+**Media Slot & Prompt Node** (a Recipe's two typed canvas inputs):
+The two kinds of input a **Recipe**'s canvas takes. A **media slot** is a named slot holding an image,
+video, or audio — filled by a **Brand Asset** (reused) or an idea-pick (per Idea, from a gate), via a
+named map the Recipe owns. A **prompt node** is the text the **Producer** authors to the Recipe's
+contract. Authoring the prompt is the Producer's core craft; binding media is the second job (ADR-0016).
+*(Decided in map #70; build pending.)*
+_Avoid_: input, field (name the kind — media slot or prompt node).
+
+**Phase Contract** (per-phase, checkable):
+The **checklist** a production **phase**'s output must satisfy — author the prompt → bind media → gate →
+render → copy → save, each with its own. The **Producer** self-audits its output against the phase's
+contract before advancing (redraft, or STOP on a banned word / broken shape); a **QA** pass re-runs the
+same checklist. Mechanical items stay as code (the spec validator, the copy check, the banned-word scan);
+the rest are agent-judged (ADR-0017). This is OrganicGrowth's **observability** at production time.
+*(Decided in map #70; build pending.)*
+_Avoid_: validation (only the mechanical part is), test.
+
+**Recipe Skill** (a Recipe's producer procedure):
+The interpreting **Skill** the thin **Producer** runs for a Recipe (by the job's slug) — it reads the
+Brand's rules + the Format's **Baseline Prompt** + the Idea's brief and **authors the media prompt** in
+the baseline shape, self-checking against the author **Phase Contract** (ADR-0018). One per wired Recipe
+(e.g. `produce-news-carousel`). *(Decided in map #70; build pending.)*
+_Avoid_: producer.md (that thins to a conductor), instruction file (it is a Skill).
 
 **Production Queue**:
 The serialized backlog of Space generations the **Producer** owns. Because the single attended Operator
@@ -233,6 +280,13 @@ decision, designed fresh for OrganicGrowth.
   - **Performance feedback** *(active loop)* — *post-publication*: measured Performance Scores flow into **Your Data**, re-weighting **Relevance**
   - **Rejection feedback** *(logged only, v1)* — *pre-publication*: the Operator's rejection reasons are captured for later use, not yet wired into suggestions
 - An Idea's **Fit Score** is a *prediction* (one per Idea); a Post's **Performance Score** is the *truth* (one per Recipe/Post). The gap — Fit vs the Idea's best Post — is the learning signal, kept as a 1:N relationship so a per-Post result is never mistaken for a per-Idea judgement
+- **Who owns what at production time (map #70):** the **Recipe** (in-repo) owns the gates, the spec shape,
+  the canvas's **two typed inputs** (media slots + a prompt node), its **Phase Contracts**, and its
+  producer **Skill**; the **Format** owns the **Baseline Prompt** (the look); the **Brand** owns its
+  **Brand Assets** + hard rules; the thin **Producer** binds all three into the shared canvas and
+  self-audits each phase. Drawn in
+  [`docs/architecture/recipe-and-format-model.md`](docs/architecture/recipe-and-format-model.md).
+  *(Decided, build pending.)*
 
 ## Example dialogue
 
@@ -253,6 +307,10 @@ decision, designed fresh for OrganicGrowth.
   the Operator picks **one or many** per Idea, each yielding one **Asset** → one **Post**). The code's
   `formats: [reel]` in `brand-profile.yaml` (today the *media* sense) is to be renamed so "format" only
   ever means the editorial line.
+- **the look (Baseline Prompt) vs the Space** — the **Baseline Prompt** is the *visual recipe* (card
+  styles, the pill/eyebrow, logo rules) a **Format** holds as a document and a **Recipe Skill** interprets
+  into the prompt; the **Space** is the media *engine* that renders that prompt. The look lives in the
+  Format (per Brand × Format), never on the shared Space or Recipe (ADR-0015).
 - **platform** — OrganicGrowth grows organic presence on **Facebook, Instagram, YouTube, or
   LinkedIn**. Production is identical across them (a 9:16 short video); only **trend-scout** and
   **performance-tracker** bind to a platform — via that platform's **Apify actors** (`seeds.yaml`) plus

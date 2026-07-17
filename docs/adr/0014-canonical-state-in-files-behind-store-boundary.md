@@ -3,6 +3,9 @@
 **Status:** accepted — extends ADR-0006; revises the spirit of rule 7 ("state lives in files"). Captured
 in the 2026-07 grilling.
 
+> **Extended by ADR-0016 (map #70):** the store list gains a **`BrandAssetStore`** for per-Brand reusable
+> media (image/video/audio) under `data/brands/<slug>/assets/`.
+
 All state is plain files today (ADR-0006). Multi-format makes the data **relational** (Idea → many
 Assets → many Posts; Formats; Performance). The question raised was whether to move to a database now
 for a productizable foundation, while keeping an MVP scope.
