@@ -1,8 +1,5 @@
-# recipe-registry Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change issue-54-recipe-registry. Update Purpose after archive.
-## Requirements
 ### Requirement: A Recipe is a typed, in-repo registry entry keyed by slug
 
 The system SHALL define a `Recipe` type and an in-repo registry keyed by slug
@@ -72,85 +69,6 @@ Recipe; `isWiredRecipe(slug)` SHALL be the single, sole predicate for whether a 
 - **WHEN** any `checklist` entry across any phase is inspected
 - **THEN** its `kind` is either `"mechanical"` (carrying a non-empty `reference` string naming the
   existing module/function that runs it) or `"agent-judged"` (carrying no `reference` field)
-
-### Requirement: An unwired Recipe is never offered at Review
-
-`offeredRecipes(defaultRecipes)` (`src/recipe/offer.ts`) SHALL filter a Format's `default_recipes` list
-down to WIRED Recipe slugs only (per `isWiredRecipe`), preserving order; any slug not present in the
-registry SHALL be excluded from the offered set and reported separately (`unwired`), never presented as
-an available option. `resolveRecipeSelection(defaultRecipes, requested)` SHALL likewise never add an
-unwired slug to `chosen`, even when the Operator's `requested` list explicitly names one — it SHALL be
-reported in `ignoredUnwired` instead. This holds regardless of whether the unwired slug came from the
-Format file or from the Operator asking for it by name.
-
-#### Scenario: A Format default that is not wired is filtered out of the offer
-
-- **GIVEN** `default_recipes: ["character-explainer-with-cast", "carousel"]` where `"carousel"` is not
-  in the registry
-- **WHEN** `offeredRecipes` is called with that list
-- **THEN** `offered` is `["character-explainer-with-cast"]` and `unwired` is `["carousel"]`
-
-#### Scenario: An Operator request for an unwired Recipe is never added to the chosen set
-
-- **GIVEN** `default_recipes: ["character-explainer-with-cast"]` and an Operator `requested` list of
-  `["character-explainer-with-cast", "carousel"]`
-- **WHEN** `resolveRecipeSelection` is called
-- **THEN** `chosen` is `["character-explainer-with-cast"]` and `ignoredUnwired` is `["carousel"]` —
-  `"carousel"` never appears in `chosen`
-
-### Requirement: default_recipes are pre-filled at Review; declined Recipes are logged verbatim
-
-`resolveRecipeSelection(defaultRecipes, requested)` SHALL compute `chosen` (the wired Recipes the
-Operator kept or added) and `declined` (offered/wired defaults the Operator dropped, present in
-`defaultRecipes` but absent from `chosen`). `/review-ideas` SHALL present the offered (wired-only) set
-as the pre-filled default at Review, let the Operator trim/extend it conversationally, then write the
-resolved selection onto the accepted Idea's ledger record via `writeIdeaRecipeSelection` — recording
-`recipes` (the chosen set) and `declined_recipes` (each declined Recipe paired with a free-text reason
-captured VERBATIM, mirroring Rejection Reasons). Declined-Recipe reasons SHALL be logged only (v1) —
-never auto-applied to future suggestions or future Formats.
-
-#### Scenario: Keeping the pre-filled default results in nothing declined
-
-- **GIVEN** `default_recipes: ["character-explainer-with-cast"]` and the Operator keeps it unchanged
-- **WHEN** `resolveRecipeSelection` is called with `requested` equal to the default
-- **THEN** `chosen` is `["character-explainer-with-cast"]` and `declined` is `[]`
-
-#### Scenario: Declining the only offered Recipe logs it, with the reason stored verbatim
-
-- **GIVEN** `default_recipes: ["character-explainer-with-cast"]` and the Operator declines it with the
-  reason "want to see the first Reel land before trying a second Recipe"
-- **WHEN** the selection is resolved and written via `writeIdeaRecipeSelection`
-- **THEN** the Idea's ledger record has `recipes: []` and
-  `declined_recipes: [{ recipe: "character-explainer-with-cast", reason: "want to see the first Reel
-  land before trying a second Recipe" }]` — the reason stored exactly as given, not summarized or altered
-
-#### Scenario: writeIdeaRecipeSelection preserves unrelated ledger fields
-
-- **GIVEN** an Idea record with unrelated fields (`title`, `fit_score`, etc.) and a sibling Idea record
-- **WHEN** `writeIdeaRecipeSelection` is called for the target Idea
-- **THEN** only the target Idea's `recipes`/`declined_recipes` change; the sibling Idea and the target
-  Idea's other fields are unchanged
-
-### Requirement: The wired production path is unchanged by this slice
-
-Accepting an Idea with at least one chosen Recipe SHALL still call `enqueueOnAccept` exactly as before
-this slice (same signature, same behavior — Recipe-unaware; re-keying the queue per chosen Recipe is a
-later slice). `src/production-spec/**`, `src/execution-protocol/**`, `src/space-driver/**`, and
-`src/production-queue/**` SHALL NOT be modified by this slice.
-
-#### Scenario: Accepting an Idea with the default Recipe kept enqueues exactly as before
-
-- **GIVEN** an Idea whose Format's only default Recipe is kept (not declined)
-- **WHEN** the Idea is accepted
-- **THEN** `enqueueOnAccept(ideaId, brand, { ledgerPath })` is called with the same arguments and
-  effect as it had before this slice — one `cast`-phase, `status: queued` job is appended
-
-#### Scenario: Declining every offered Recipe accepts the Idea without enqueueing production
-
-- **GIVEN** an Idea whose only offered Recipe the Operator declines, naming no replacement
-- **WHEN** the Idea is accepted
-- **THEN** the ledger record's `status` becomes `accepted` and `recipes` is `[]`
-- **AND** `enqueueOnAccept` is NOT called — there is nothing to produce yet
 
 ### Requirement: The registry seeds the Character Explainer with Cast Recipe, reproducing today's wired path unchanged
 
@@ -333,4 +251,3 @@ slot SHALL declare a `media` kind (`"image" | "video" | "audio"`) and a `require
 - **WHEN** its shape is inspected
 - **THEN** `kind` is `"idea-pick"`, it carries `gate: "cast"`, and `"cast"` is a member of that same
   Recipe's `gates` array
-

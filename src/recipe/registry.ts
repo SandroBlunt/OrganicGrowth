@@ -44,6 +44,18 @@
  * flagged) prove the registry's per-Recipe shapes generalize to a genuinely different Recipe. This
  * slice registers the Recipe DESCRIPTIVELY only — actually driving/binding it (the Brand Asset store,
  * the producer Skill, the generic thin producer) is issues #82/#87/#88.
+ *
+ * --- Phase Contracts (ADR-0017, issue #85) ---
+ *
+ * Both Recipes now also declare `phases`: their six ordered Phase Contracts (`author`, `bind-media`,
+ * `gate`, `render`, `copy`, `save` — `recipe/phase-contract.ts`'s `PHASE_ORDER`), each a checklist of
+ * what a valid output for that phase looks like. Mechanical items REFERENCE this Recipe's own
+ * `specShape`/`copyShape` functions (or, for News Carousel's author phase, the graduated
+ * `production-spec/news-carousel-author-checklist.ts`) — never re-implementing them; the rest are
+ * agent-judged prose. `declaresAllPhasesInOrder` is checked at import time for both Recipes below,
+ * mirroring the CAST_RUN_POINT/CLIP_RUN_POINT defensive pattern. This is the checkable-contract HALF
+ * of ADR-0017 — the Producer actually self-auditing against these at production time is later work
+ * (issues #87/#88).
  */
 
 import {
@@ -60,6 +72,7 @@ import { validateNewsCarouselSpec } from "../production-spec/news-carousel-valid
 import { scanNewsCarouselForBannedWords } from "../production-spec/news-carousel-brand-safety.ts";
 import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME } from "../space-driver/driver.ts";
 import { canonicalProtocol, canonicalCarouselProtocol } from "../execution-protocol/protocol.ts";
+import { declaresAllPhasesInOrder, type PhaseContract } from "./phase-contract.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -204,6 +217,13 @@ export interface Recipe {
   readonly copyShape: RecipeCopyShape;
   /** This Recipe's canvas's two typed inputs — media slots + prompt node (ADR-0016, issue #81). */
   readonly canvasInputs: RecipeCanvasInputs;
+  /**
+   * This Recipe's six ordered Phase Contracts — author the prompt -> bind media -> gate -> render ->
+   * copy -> save (ADR-0017, issue #85) — each declaring the checklist its output must satisfy.
+   * `declaresAllPhasesInOrder` (`phase-contract.ts`) is the shape guard every Recipe here is checked
+   * against at import time (see the defensive checks below).
+   */
+  readonly phases: readonly PhaseContract[];
 }
 
 // ---------------------------------------------------------------------------
@@ -248,6 +268,116 @@ if (CAST_RUN_POINT === undefined || CLIP_RUN_POINT === undefined) {
       "— the seeded Character Explainer with Cast Recipe cannot describe its Space nodes.",
   );
 }
+
+/**
+ * The seeded Recipe's six ordered Phase Contracts (ADR-0017, issue #85). The "author" phase's
+ * mechanical items REFERENCE the SAME `specShape.validate`/`specShape.scanBannedWords` this Recipe
+ * already declares above (`recipe/phase-contract.ts`'s `auditAuthorPhase` is the generic runner);
+ * "bind-media" references `auditBindMediaPhase`; "copy" references `auditCopyPhase`. "gate"/"render"/
+ * "save" have no generic auditor yet (driving/saving a second Recipe is issues #57/#87/#88) — their
+ * checklists are prose today, a known limit (see this issue's Build Report).
+ */
+const CHARACTER_EXPLAINER_PHASES: readonly PhaseContract[] = [
+  {
+    phase: "author",
+    description:
+      "Author the Production Spec: 3 character_concepts, 3 clips (image_prompt + video_prompt each, " +
+      "ending in the 9:16 aspect line), 3 top-level thumbnails.",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          `Exactly ${REQUIRED_CHARACTER_CONCEPTS} character_concepts, ${REQUIRED_CLIPS} clips, and ` +
+          `${REQUIRED_THUMBNAILS} top-level thumbnails; each clip's image_prompt ends with the 9:16 ` +
+          "aspect-ratio line and carries a non-empty video_prompt.",
+        reference: "production-spec/validate.ts: validate (this Recipe's specShape.validate)",
+      },
+      {
+        kind: "mechanical",
+        description: "No banned word in any field — reject-only, never a silent swap.",
+        reference:
+          "production-spec/brand-safety.ts: scanForBannedWords (this Recipe's specShape.scanBannedWords)",
+      },
+      {
+        kind: "agent-judged",
+        description:
+          "Each character concept and clip reads as a coherent, on-brief Pixar-3D explainer beat for " +
+          "this Idea (not just contract-shaped, but ON-BRIEF).",
+      },
+    ],
+  },
+  {
+    phase: "bind-media",
+    description:
+      "Bind the canvas's media slots before render: the 'Selected Character' idea-pick slot must carry " +
+      "the Operator's picked Character once the cast gate resolves.",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          "Every REQUIRED media slot (here: 'Selected Character') has a bound asset before render; a " +
+          "missing required slot's asset STOPS the run (ADR-0016) — never bind a half-complete Asset.",
+        reference: "recipe/phase-contract.ts: auditBindMediaPhase",
+      },
+    ],
+  },
+  {
+    phase: "gate",
+    description:
+      "Pause at the 'cast' gate: render the Cast from character_concepts and wait for the Operator's pick.",
+    checklist: [
+      {
+        kind: "agent-judged",
+        description:
+          `The rendered Cast has exactly ${REQUIRED_CHARACTER_CONCEPTS} candidates, one per ` +
+          "character_concepts entry, and the run does not advance past this gate until the Operator's " +
+          'pick is recorded (the ledger\'s pending_gate: "cast" clears only once resumed).',
+      },
+    ],
+  },
+  {
+    phase: "render",
+    description:
+      "Drive the Space's clip run-point to render the final clips + thumbnails against the picked " +
+      "Character.",
+    checklist: [
+      {
+        kind: "agent-judged",
+        description:
+          "The driver follows this Recipe's Execution Protocol run-point order exactly (cast, then " +
+          "clip) — never skipping or reordering a run-point (execution-protocol/protocol.ts: " +
+          "canonicalProtocol).",
+      },
+    ],
+  },
+  {
+    phase: "copy",
+    description:
+      "Compose the Copy out of the Space, separately: a caption of at most 180 chars with 1-3 emojis, " +
+      "plus hashtags.",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          "Caption length/emoji bounds, the required CTA, the required hashtags, and no banned word " +
+          "in the caption or any hashtag (reject-only).",
+        reference: "recipe/phase-contract.ts: auditCopyPhase (copy/validate.ts's validateCopy, this Recipe's copyShape)",
+      },
+    ],
+  },
+  {
+    phase: "save",
+    description: "Write the produced Asset back to the Brand's ledger.",
+    checklist: [
+      {
+        kind: "agent-judged",
+        description:
+          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, asset_url, ' +
+          "produced_at, and the composed copy (ledger-as-source-of-truth, always-rule 7).",
+      },
+    ],
+  },
+];
 
 /** The seeded Recipe (issue #54): wraps today's wired path unchanged. */
 const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
@@ -298,7 +428,16 @@ const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
     // this Recipe's prompt node IS its Spec-input node (ADR-0016).
     promptNode: JSON_MASTER_NODE_NAME,
   },
+  phases: CHARACTER_EXPLAINER_PHASES,
 };
+
+if (!declaresAllPhasesInOrder(CHARACTER_EXPLAINER_WITH_CAST.phases)) {
+  // Defensive, mirroring the CAST_RUN_POINT/CLIP_RUN_POINT guard above: fail loudly at import time
+  // rather than silently registering a Recipe with an incomplete/misordered Phase Contract list.
+  throw new Error(
+    "recipe/registry: CHARACTER_EXPLAINER_PHASES does not declare all six phases in PHASE_ORDER.",
+  );
+}
 
 // ---------------------------------------------------------------------------
 // The second seeded Recipe: "News Carousel" (issue #81, map ticket #77)
@@ -340,6 +479,142 @@ if (CAROUSEL_RUN_POINT === undefined) {
       "News Carousel Recipe cannot describe its Space node.",
   );
 }
+
+/**
+ * The News Carousel Recipe's six ordered Phase Contracts (ADR-0017, issue #85). Its "author" phase is
+ * the SLICE's headline case: 6 of its 8 checklist items are mechanical, graduated from the #77
+ * prototype (`production-spec/news-carousel-author-checklist.ts`'s `auditNewsCarouselAuthorPhase`) —
+ * two of those (the 7-slides/role-order item and the text-length item) are literally the SAME
+ * `validateNewsCarouselSpec` call this Recipe's own `specShape.validate` already runs; the banned-word
+ * item is the SAME `scanNewsCarouselForBannedWords` call `specShape.scanBannedWords` already runs;
+ * the remaining three (logo reference, pill text + never-all-caps, fixed baseline clauses, card style)
+ * are the NEW checks the #77 prototype proved out, parameterized from the Format's Baseline Prompt
+ * (ADR-0015) — never hardcoded. The ONE non-mechanical item ("grounded subject") is agent-judged,
+ * flagged for review, never auto-failed (ADR-0017). "gate" is an empty checklist — this Recipe
+ * declares zero gates, so nothing pauses here.
+ */
+const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
+  {
+    phase: "author",
+    description:
+      "Author the 7-slide Production Spec (one authored image_prompt per slide) from the Idea brief " +
+      "and the Format's Baseline Prompt — graduated from the #77 prototype (map ticket #77).",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          "Exactly 7 slides, in fixed role order hook -> then -> shift -> proof -> different -> next -> cta.",
+        reference: "production-spec/news-carousel-validate.ts: validateNewsCarouselSpec",
+      },
+      {
+        kind: "mechanical",
+        description: "Each slide's on-card text is at most 140 chars.",
+        reference: "production-spec/news-carousel-validate.ts: validateNewsCarouselSpec",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "Each image_prompt references the logo reference name from the Format's Baseline Prompt " +
+          "(parameterized — never a hardcoded literal).",
+        reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "Each image_prompt contains the Baseline Prompt's pill text and its never-all-caps " +
+          "instruction (parameterized — never a hardcoded literal).",
+        reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "Each image_prompt keeps every other fixed Baseline Prompt clause (the logo guardrail, the " +
+          "card clause, the card-text clause, the closing style line — parameterized).",
+        reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
+      },
+      {
+        kind: "agent-judged",
+        description:
+          "Grounded subject — a real product/logo/action, or an intentional photographic scene; " +
+          "never an invented UI shown as a real product's own screen.",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "card_style is one of the Baseline Prompt's confirmed styles; stat_callout is non-empty.",
+        reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
+      },
+      {
+        kind: "mechanical",
+        description: "No banned word in any field — reject-only, never a silent swap.",
+        reference:
+          "production-spec/news-carousel-brand-safety.ts: scanNewsCarouselForBannedWords " +
+          "(this Recipe's specShape.scanBannedWords)",
+      },
+    ],
+  },
+  {
+    phase: "bind-media",
+    description:
+      "Bind the canvas's media slots before render: the 'Brand Logo' brand-asset slot must resolve to " +
+      "the Brand's stored logo.",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          "Every REQUIRED media slot (here: 'Brand Logo') has a bound asset before render; a missing " +
+          "required slot's asset STOPS the run (ADR-0016) — never bind a half-complete Asset.",
+        reference: "recipe/phase-contract.ts: auditBindMediaPhase",
+      },
+    ],
+  },
+  {
+    phase: "gate",
+    description:
+      "This Recipe declares zero gates — nothing pauses here; the run advances straight from bind-media to render.",
+    checklist: [],
+  },
+  {
+    phase: "render",
+    description: "Drive the Space's sole 'Slides Prompts' run-point to render all 7 slides.",
+    checklist: [
+      {
+        kind: "agent-judged",
+        description:
+          "The driver injects the authored 7-slide array and runs the sole run-point exactly once " +
+          "(execution-protocol/protocol.ts: canonicalCarouselProtocol) — no per-slide run-point to skip " +
+          "or reorder.",
+      },
+    ],
+  },
+  {
+    phase: "copy",
+    description:
+      "Compose the Copy out of the Space, separately: a caption of at most 2200 chars with 0-2 " +
+      "emojis, plus hashtags.",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          "Caption length/emoji bounds, the required CTA, the required hashtags, and no banned word " +
+          "in the caption or any hashtag (reject-only).",
+        reference: "recipe/phase-contract.ts: auditCopyPhase (copy/validate.ts's validateCopy, this Recipe's copyShape)",
+      },
+    ],
+  },
+  {
+    phase: "save",
+    description: "Write the produced Asset back to the Brand's ledger.",
+    checklist: [
+      {
+        kind: "agent-judged",
+        description:
+          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, asset_url, ' +
+          "produced_at, and the composed copy (ledger-as-source-of-truth, always-rule 7).",
+      },
+    ],
+  },
+];
 
 /**
  * The second seeded Recipe (issue #81): a ZERO-gate Instagram news carousel. Registered
@@ -395,7 +670,13 @@ const NEWS_CAROUSEL: Recipe = {
     // IS its sole run-point's start node (ADR-0016; see NEWS_CAROUSEL_SLIDES_NODE_NAME above).
     promptNode: NEWS_CAROUSEL_SLIDES_NODE_NAME,
   },
+  phases: NEWS_CAROUSEL_PHASES,
 };
+
+if (!declaresAllPhasesInOrder(NEWS_CAROUSEL.phases)) {
+  // Defensive, mirroring the CHARACTER_EXPLAINER_PHASES guard above.
+  throw new Error("recipe/registry: NEWS_CAROUSEL_PHASES does not declare all six phases in PHASE_ORDER.");
+}
 
 // ---------------------------------------------------------------------------
 // Registry lookups
