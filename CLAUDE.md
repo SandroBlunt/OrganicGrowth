@@ -183,7 +183,9 @@ All state is plain files, behind a typed store boundary (ADR-0014; no database f
 Brand under `data/brands/<slug>/`: `brand-profile.yaml` (Brand-wide hard rules only — banned words,
 required CTA/hashtags, watermark handle, Channel/platform), `seeds.yaml` (the Apify actor slugs per
 platform), `formats/<slug>.yaml` (one file per Format — its voice, trend sources/mode, `default_recipes`,
-`ideas_per_run`; ADR-0013), `ideas/<format>/<run>/
+`ideas_per_run`; ADR-0013), `assets/<key>.<ext>` (a Brand's reusable media — image/video/audio, e.g.
+`brand-logo.png` — a Recipe's brand-asset canvas slots are filled from here, read via the typed
+`BrandAssetStore`; ADR-0016), `ideas/<format>/<run>/
 idea-NN.md` (one Brief each), `ideas/<format>/<run>/idea-NN.<recipe>.spec.json` (a chosen Recipe's
 **Production Spec**, written by the `producer` when that job is produced — there is **no `/produce`**
 command; accepting an Idea with its chosen Recipes adds one job per Recipe to the queue), and

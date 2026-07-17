@@ -55,7 +55,7 @@ export const DEFAULT_QUEUE_PATH: string = STORE_QUEUE_PATH;
 /**
  * All the on-disk paths associated with one Brand.
  *
- * Six paths are per-Brand (under `<brandsRoot>/<slug>/`). `queuePath` is the global Production
+ * Seven paths are per-Brand (under `<brandsRoot>/<slug>/`). `queuePath` is the global Production
  * Queue — always `data/queue.json`, never derived from the slug.
  */
 export interface BrandPaths {
@@ -75,6 +75,13 @@ export interface BrandPaths {
    * `FormatStore` (`src/format/store.ts`) — never stray `readFile` calls elsewhere.
    */
   readonly formatsRoot: string;
+  /**
+   * `<brandsRoot>/<slug>/assets` — root directory for the Brand's reusable media (image/video/
+   * audio, e.g. `brand-logo.png`; ADR-0016). It parallels the Brand's watermark @handle *text*
+   * parameter, but for media. Read through the typed `BrandAssetStore`
+   * (`src/brand-asset/store.ts`) — never stray `readdir`/`readFile` calls elsewhere.
+   */
+  readonly assetsRoot: string;
   /**
    * The global Production Queue path — `data/queue.json`. Brand-agnostic; the same value for
    * every Brand. NOT derived from the slug (ADR-0004, ADR-0006).
@@ -146,7 +153,7 @@ export function slugify(name: string): string {
  * This is the tenancy boundary — callers pass raw CLI arguments and raw `queue.json` values, so a
  * slug like `"../.."` must never be allowed to resolve to a path outside `<brandsRoot>/<slug>/`.
  *
- * The five per-Brand paths all live under `<brandsRoot>/<slug>/`. The `queuePath` is always
+ * The seven per-Brand paths all live under `<brandsRoot>/<slug>/`. The `queuePath` is always
  * `DEFAULT_QUEUE_PATH` — brand-agnostic, never slug-derived (ADR-0006).
  *
  * @param slug        The Brand's filesystem slug (e.g. `"mundotip"`).
@@ -163,6 +170,7 @@ export function resolveBrand(slug: string, brandsRoot: string = DEFAULT_BRANDS_R
     ideasRoot: join(base, "ideas"),
     yourData: join(base, "your-data"),
     formatsRoot: join(base, "formats"),
+    assetsRoot: join(base, "assets"),
     queuePath: DEFAULT_QUEUE_PATH,
   };
 }

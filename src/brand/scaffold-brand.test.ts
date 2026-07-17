@@ -100,6 +100,11 @@ describe("scaffoldBrand — creates the expected Brand directory structure", () 
     const s = await stat(join(tmpBrandsRoot, "testbrand", "formats"));
     assert.ok(s.isDirectory(), "formats/ directory must be created");
   });
+
+  it("creates the assets/ subdirectory (BrandAssetStore home, ADR-0016)", async () => {
+    const s = await stat(join(tmpBrandsRoot, "testbrand", "assets"));
+    assert.ok(s.isDirectory(), "assets/ directory must be created");
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -10,16 +10,20 @@ live under a single Brand directory: `<brandsRoot>/<slug>/`. The set of Brands I
 directories under the brands root — there SHALL be no separate registry file that could drift. A single
 deep module (`src/brand/resolver.ts`) SHALL be the only place the path layout is defined. Adding a new
 Brand is scaffolded from `templates/brand-skeleton/`, which holds the canonical empty shape — including
-a `formats/` directory (ADR-0009/0013) for the Brand's per-Format YAML files.
+a `formats/` directory (ADR-0009/0013) for the Brand's per-Format YAML files and an `assets/` directory
+(ADR-0016) for the Brand's reusable media, read through the typed `BrandAssetStore`
+(`src/brand-asset/store.ts`).
 
 #### Scenario: slug→paths resolution returns all per-Brand paths for a given slug
 
 - **GIVEN** a valid Brand slug (e.g. `mundotip`) and a brands root (e.g. `data/brands`)
 - **WHEN** `resolveBrand(slug, brandsRoot)` is called
-- **THEN** it returns paths for `ledger`, `brandProfile`, `seeds`, `ideasRoot`, `yourData`, and
-  `formatsRoot`, each under `<brandsRoot>/<slug>/`
+- **THEN** it returns paths for `ledger`, `brandProfile`, `seeds`, `ideasRoot`, `yourData`,
+  `formatsRoot`, and `assetsRoot`, each under `<brandsRoot>/<slug>/`
 - **AND** `formatsRoot` equals `<brandsRoot>/<slug>/formats` — the root the typed `FormatStore`
   (`src/format/store.ts`) reads a Brand's Format files from
+- **AND** `assetsRoot` equals `<brandsRoot>/<slug>/assets` — the root the typed `BrandAssetStore`
+  (`src/brand-asset/store.ts`) reads a Brand's reusable media from
 - **AND** the `queuePath` it returns equals the global constant `data/queue.json`, NOT a path
   derived from the slug
 
@@ -227,10 +231,11 @@ SHALL NOT supply placeholder text, inferred values, or fabricated seeds on behal
 The system SHALL expose a `scaffoldBrand(slug, content, options)` thin write shell that:
 
 1. Verifies the Brand directory does not already exist; throws with a clear message if it does.
-2. Copies the directory structure from `templates/brand-skeleton/` (recursively).
+2. Copies the directory structure from `templates/brand-skeleton/` (recursively) — including its
+   `formats/` and `assets/` subdirectories.
 3. Writes the Operator-supplied `brand-profile.yaml`, `seeds.yaml`, and `ledger.json` over the
    template files.
-4. Creates any subdirectories required by the skeleton (e.g. `ideas/`, `your-data/`).
+4. Creates any subdirectories required by the skeleton (e.g. `ideas/`, `your-data/`, `assets/`).
 
 After `scaffoldBrand` completes, the new Brand SHALL appear in `listBrands(brandsRoot)`.
 
@@ -246,6 +251,7 @@ are made by the pure builders before it is called.
 - **AND** `data/brands/<slug>/ledger.json` exists and contains the ledger content
 - **AND** `data/brands/<slug>/ideas/` directory exists
 - **AND** `data/brands/<slug>/your-data/` directory exists
+- **AND** `data/brands/<slug>/assets/` directory exists (BrandAssetStore home, ADR-0016)
 
 #### Scenario: After scaffolding, the Brand appears in listBrands
 
