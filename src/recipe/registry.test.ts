@@ -8,22 +8,33 @@ import {
   isWiredRecipe,
 } from "./registry.ts";
 import { validate as validateProductionSpec } from "../production-spec/validate.ts";
+import { scanForBannedWords } from "../production-spec/brand-safety.ts";
+import { validateNewsCarouselSpec } from "../production-spec/news-carousel-validate.ts";
+import { scanNewsCarouselForBannedWords } from "../production-spec/news-carousel-brand-safety.ts";
 import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME } from "../space-driver/driver.ts";
-import { canonicalProtocol } from "../execution-protocol/protocol.ts";
+import { canonicalProtocol, canonicalCarouselProtocol } from "../execution-protocol/protocol.ts";
 import { validSpec } from "../production-spec/fixtures/specs.ts";
+import { validCarouselSpec } from "../production-spec/fixtures/news-carousel-specs.ts";
 
-describe("Recipe registry — seeded with exactly one entry (issue #54)", () => {
-  it("registers exactly one Recipe: character-explainer-with-cast", () => {
+describe("Recipe registry — seeded with two entries (issue #54, issue #81)", () => {
+  it("registers exactly two Recipes: character-explainer-with-cast and news-carousel", () => {
     const slugs = listWiredRecipeSlugs();
-    assert.deepEqual(slugs, ["character-explainer-with-cast"]);
-    assert.equal(listRecipes().length, 1);
+    assert.deepEqual(slugs, ["character-explainer-with-cast", "news-carousel"]);
+    assert.equal(listRecipes().length, 2);
   });
 
-  it("getRecipe returns the seeded Recipe by slug", () => {
+  it("getRecipe returns the seeded character Recipe by slug", () => {
     const recipe = getRecipe("character-explainer-with-cast");
     assert.ok(recipe !== null);
     assert.equal(recipe!.slug, "character-explainer-with-cast");
     assert.equal(recipe!.name, "Character Explainer with Cast");
+  });
+
+  it("getRecipe returns the seeded news-carousel Recipe by slug", () => {
+    const recipe = getRecipe("news-carousel");
+    assert.ok(recipe !== null);
+    assert.equal(recipe!.slug, "news-carousel");
+    assert.equal(recipe!.name, "News Carousel");
   });
 
   it("getRecipe returns null for an unregistered slug — never throws", () => {
@@ -32,14 +43,15 @@ describe("Recipe registry — seeded with exactly one entry (issue #54)", () => 
     assert.equal(getRecipe("../evil"), null);
   });
 
-  it("isWiredRecipe is true only for the seeded slug", () => {
+  it("isWiredRecipe is true for both seeded slugs and false for an unregistered one", () => {
     assert.equal(isWiredRecipe("character-explainer-with-cast"), true);
+    assert.equal(isWiredRecipe("news-carousel"), true);
     assert.equal(isWiredRecipe("carousel"), false);
     assert.equal(isWiredRecipe(""), false);
   });
 });
 
-describe("The seeded Recipe declares gates + spec-shape + copy-shape + Space target (issue #54 AC1)", () => {
+describe("The character Recipe declares gates + spec-shape + copy-shape + Space target (issue #54 AC1) — UNCHANGED by issue #81", () => {
   const recipe = getRecipe("character-explainer-with-cast")!;
 
   it("declares exactly one gate: cast — matching today's single Cast-gate protocol", () => {
@@ -66,6 +78,10 @@ describe("The seeded Recipe declares gates + spec-shape + copy-shape + Space tar
     assert.equal(recipe.specShape.validate, validateProductionSpec);
   });
 
+  it("declares a spec-shape whose banned-word scan IS the real brand-safety scanner (zero drift, issue #81)", () => {
+    assert.equal(recipe.specShape.scanBannedWords, scanForBannedWords);
+  });
+
   it("the spec-shape's validator accepts a well-formed Spec and rejects a malformed one", () => {
     assert.equal(recipe.specShape.validate(validSpec()).ok, true);
     assert.equal(recipe.specShape.validate({}).ok, false);
@@ -80,5 +96,86 @@ describe("The seeded Recipe declares gates + spec-shape + copy-shape + Space tar
   it("the Spec no longer carries post_copy — copy is composed separately (ADR-0012)", () => {
     assert.equal(recipe.specShape.validate(validSpec()).ok, true);
     assert.equal("post_copy" in validSpec(), false);
+  });
+
+  it("declares its typed canvas inputs: one idea-pick media slot (Selected Character) + a prompt node (issue #81 AC1)", () => {
+    assert.deepEqual(Object.keys(recipe.canvasInputs.mediaSlots), ["Selected Character"]);
+    const slot = recipe.canvasInputs.mediaSlots["Selected Character"]!;
+    assert.equal(slot.kind, "idea-pick");
+    assert.equal(slot.media, "image");
+    assert.equal(slot.required, true);
+    assert.equal(slot.kind === "idea-pick" ? slot.gate : undefined, "cast");
+    // The idea-pick slot's gate must be one of THIS Recipe's own declared gates.
+    assert.ok(recipe.gates.includes(slot.kind === "idea-pick" ? slot.gate : ""));
+  });
+
+  it("declares its prompt node as the SAME node the Producer injects the Production Spec into", () => {
+    assert.equal(recipe.canvasInputs.promptNode, recipe.space.nodes.specInput);
+    assert.equal(recipe.canvasInputs.promptNode, JSON_MASTER_NODE_NAME);
+  });
+});
+
+describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-shape + Space target (issue #81 AC2)", () => {
+  const recipe = getRecipe("news-carousel")!;
+
+  it("declares ZERO gates — a gate count different from the character Recipe's one", () => {
+    assert.deepEqual(recipe.gates, []);
+  });
+
+  it("declares a Space target different from the character Recipe's — the single-lane 'Carrousel' Space", () => {
+    const characterRecipe = getRecipe("character-explainer-with-cast")!;
+    assert.equal(recipe.space.name, "Carrousel");
+    assert.notEqual(recipe.space.id, characterRecipe.space.id);
+    assert.notEqual(recipe.space.name, characterRecipe.space.name);
+  });
+
+  it("declares its Space's SOLE run-point name from the SAME canonicalCarouselProtocol() (zero drift)", () => {
+    const protocol = canonicalCarouselProtocol();
+    assert.equal(protocol.run_points.length, 1);
+    assert.equal(recipe.space.nodes.clipRunPoint, protocol.run_points[0]!.start);
+    assert.equal(recipe.space.nodes.clipRunPoint, "Slides Prompts");
+  });
+
+  it("declares NO pinnedReference/castRunPoint — it has no pick-gate to pin or render a paused Cast for", () => {
+    assert.equal(recipe.space.nodes.pinnedReference, undefined);
+    assert.equal(recipe.space.nodes.castRunPoint, undefined);
+  });
+
+  it("declares a spec-shape whose validator IS the real news-carousel validator (zero drift)", () => {
+    assert.equal(recipe.specShape.validate, validateNewsCarouselSpec);
+  });
+
+  it("declares a spec-shape whose banned-word scan IS the real news-carousel scanner (zero drift)", () => {
+    assert.equal(recipe.specShape.scanBannedWords, scanNewsCarouselForBannedWords);
+  });
+
+  it("the spec-shape's validator accepts a well-formed 7-slide Spec and rejects a malformed one", () => {
+    assert.equal(recipe.specShape.validate(validCarouselSpec()).ok, true);
+    assert.equal(recipe.specShape.validate({}).ok, false);
+  });
+
+  it("the spec-shape's banned-word scan catches a seeded banned word (issue #81 AC3)", () => {
+    const clean = recipe.specShape.scanBannedWords(validCarouselSpec(), ["miracle"]);
+    assert.equal(clean.ok, true);
+  });
+
+  it("declares a copy-shape DIFFERENT from the character Recipe's 180/1-3 (2200/0/2)", () => {
+    assert.equal(recipe.copyShape.maxChars, 2200);
+    assert.equal(recipe.copyShape.minEmojis, 0);
+    assert.equal(recipe.copyShape.maxEmojis, 2);
+  });
+
+  it("declares its typed canvas inputs: one brand-asset media slot (Brand Logo) + a prompt node (issue #81 AC1)", () => {
+    assert.deepEqual(Object.keys(recipe.canvasInputs.mediaSlots), ["Brand Logo"]);
+    const slot = recipe.canvasInputs.mediaSlots["Brand Logo"]!;
+    assert.equal(slot.kind, "brand-asset");
+    assert.equal(slot.media, "image");
+    assert.equal(slot.required, true);
+    assert.equal(slot.kind === "brand-asset" ? slot.brandAssetKey : undefined, "brand-logo");
+  });
+
+  it("declares its prompt node as the SAME node its sole run-point starts at", () => {
+    assert.equal(recipe.canvasInputs.promptNode, recipe.space.nodes.clipRunPoint);
+    assert.equal(recipe.canvasInputs.promptNode, "Slides Prompts");
   });
 });

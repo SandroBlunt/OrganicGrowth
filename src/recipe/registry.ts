@@ -1,27 +1,30 @@
 /**
  * Recipe registry — the brand-agnostic, in-repo definition every downstream slice keys off
- * (CONTEXT.md "Recipe"; ADR-0009, ADR-0010).
+ * (CONTEXT.md "Recipe"; ADR-0009, ADR-0010, ADR-0016).
  *
  * A **Recipe** is a production plan: how one Idea becomes one Asset — its ordered **gate list**
- * (zero..many human picks), its **Production-Spec shape** (schema + validator), its **copy shape**,
- * and **which Space it drives** (+ the on-canvas node NAMES it touches). Recipes are defined HERE, in
- * the repo — never per-Brand — so every Brand can use any WIRED Recipe (ADR-0013). "Wired" means
- * "present in this registry"; `isWiredRecipe`/`getRecipe` are the ONLY gate for whether a Recipe is
- * ever offered to the Operator (issue #54 AC4) — an unwired Recipe (a slug not in `REGISTRY`, e.g. a
- * stray value in a Format's `default_recipes`) is never surfaced at Review.
+ * (zero..many human picks), its **Production-Spec shape** (schema + validator + banned-word scan),
+ * its **copy shape**, **which Space it drives** (+ the on-canvas node NAMES it touches), and its
+ * canvas's **two typed inputs** — a named **media-slot map** and a **prompt node** (ADR-0016,
+ * issue #81). Recipes are defined HERE, in the repo — never per-Brand — so every Brand can use any
+ * WIRED Recipe (ADR-0013). "Wired" means "present in this registry"; `isWiredRecipe`/`getRecipe` are
+ * the ONLY gate for whether a Recipe is ever offered to the Operator (issue #54 AC4) — an unwired
+ * Recipe (a slug not in `REGISTRY`, e.g. a stray value in a Format's `default_recipes`) is never
+ * surfaced at Review.
  *
- * --- Seeded with exactly ONE entry, reproducing today's wired path UNCHANGED ---
+ * --- Seeded entry #1: "Character Explainer with Cast", reproducing today's wired path UNCHANGED ---
  *
  * "Character Explainer with Cast" wraps today's existing Production-Spec contract
- * (`production-spec/contract.ts` + `validate.ts`), Execution Protocol (`canonicalProtocol()`), and
- * cast/clip gates BYTE-FOR-BYTE — this slice makes ZERO behaviour change to the wired production
- * path. The registry entry below does not duplicate any of that logic: it REFERENCES the same
- * exported constants/functions those modules already use (`validateProductionSpec`,
- * `JSON_MASTER_NODE_NAME`, `CHARACTER_NODE_NAME`, `canonicalProtocol()`), so there is no risk of the
- * registry's description drifting from what the driver/validator actually do. `driver.ts`,
- * `contract.ts`, `validate.ts`, `protocol.ts`, and `parse.ts` are NOT modified by this slice — the
- * generic run-until-gate driver that would actually SOURCE its behavior from a Recipe (rather than
- * merely being describable by one) is issue #57.
+ * (`production-spec/contract.ts` + `validate.ts` + `brand-safety.ts`), Execution Protocol
+ * (`canonicalProtocol()`), and cast/clip gates BYTE-FOR-BYTE — this slice makes ZERO behaviour change
+ * to the wired production path (issue #81 AC5). The registry entry below does not duplicate any of
+ * that logic: it REFERENCES the same exported constants/functions those modules already use
+ * (`validateProductionSpec`, `scanForBannedWords`, `JSON_MASTER_NODE_NAME`, `CHARACTER_NODE_NAME`,
+ * `canonicalProtocol()`), so there is no risk of the registry's description drifting from what the
+ * driver/validator actually do. `driver.ts`, `contract.ts`, `validate.ts` (beyond the additive
+ * `ValidationError.code` widening, issue #81), `brand-safety.ts`, `protocol.ts`, and `parse.ts` are NOT
+ * behaviourally modified for this Recipe — the generic run-until-gate driver that would actually
+ * SOURCE its behavior from a Recipe (rather than merely being describable by one) is issue #57.
  *
  * The Space `id` this Recipe targets ("Organic Character Explainer") is verified in
  * `docs/producer-spikes-results.md` and the live capture at
@@ -30,6 +33,17 @@
  * intends the Recipe to become the single source of truth for Space targeting, but re-pointing
  * `producer.md` at the registry is deferred (untestable without the live Space; not part of this
  * slice's zero-behaviour-change bar).
+ *
+ * --- Seeded entry #2: "News Carousel" — a SECOND, zero-gate Recipe (issue #81, map ticket #77) ---
+ *
+ * "News Carousel" drives the rebuilt, single-lane "Carrousel" Space (one run-point: inject + run
+ * "Slides Prompts" downstream, no gate — `canonicalCarouselProtocol()`) with the #77-decided thin
+ * Spec shape (`news-carousel-contract.ts`/`news-carousel-validate.ts`): exactly 7 slides, fixed role
+ * order. Its own copy shape and its own banned-word scan (`news-carousel-brand-safety.ts`, covering
+ * EVERY slide text field including `image_prompt` — closing the gap the issue-60 salvage build report
+ * flagged) prove the registry's per-Recipe shapes generalize to a genuinely different Recipe. This
+ * slice registers the Recipe DESCRIPTIVELY only — actually driving/binding it (the Brand Asset store,
+ * the producer Skill, the generic thin producer) is issues #82/#87/#88.
  */
 
 import {
@@ -41,8 +55,11 @@ import {
   REQUIRED_CLIPS,
   REQUIRED_THUMBNAILS,
 } from "../production-spec/contract.ts";
+import { scanForBannedWords, type BrandSafetyResult } from "../production-spec/brand-safety.ts";
+import { validateNewsCarouselSpec } from "../production-spec/news-carousel-validate.ts";
+import { scanNewsCarouselForBannedWords } from "../production-spec/news-carousel-brand-safety.ts";
 import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME } from "../space-driver/driver.ts";
-import { canonicalProtocol } from "../execution-protocol/protocol.ts";
+import { canonicalProtocol, canonicalCarouselProtocol } from "../execution-protocol/protocol.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,23 +75,44 @@ export interface RecipeSpaceTarget {
   readonly nodes: RecipeSpaceNodes;
 }
 
-/** The on-canvas node names a Recipe's Space steps reference, by name (never a raw node id). */
+/**
+ * The on-canvas node names a Recipe's Space steps reference, by name (never a raw node id).
+ * `pinnedReference`/`castRunPoint` are OPTIONAL (issue #81): they only apply to a Recipe that has at
+ * least one pick-gate to pin/render a paused Cast for. The seeded, one-gate *Character Explainer with
+ * Cast* Recipe sets both; the zero-gate *News Carousel* Recipe sets neither — it has nothing to pin and
+ * only one (simultaneously first-and-final) run-point. `specInput` and `clipRunPoint` stay REQUIRED:
+ * every Recipe injects its Spec somewhere and has exactly one gateless run-point that renders the
+ * final Asset (for a zero-gate Recipe, that IS its only run-point).
+ */
 export interface RecipeSpaceNodes {
   /** The Spec-input text node the Producer injects the Production Spec into (Fallback Protocol). */
   readonly specInput: string;
-  /** The pinned-reference creation node the Operator's gate pick is re-pinned to. */
-  readonly pinnedReference: string;
-  /** The Execution Protocol run-point that renders this Recipe's FIRST gate's candidates. */
-  readonly castRunPoint: string;
-  /** The Execution Protocol run-point that renders the final Asset (no gate follows it). */
+  /** The pinned-reference creation node the Operator's gate pick is re-pinned to. Present only for a
+   *  Recipe with at least one pick-gate. */
+  readonly pinnedReference?: string;
+  /** The Execution Protocol run-point that renders this Recipe's FIRST gate's candidates. Present only
+   *  for a Recipe whose first leg targets a declared gate. */
+  readonly castRunPoint?: string;
+  /** The Execution Protocol run-point that renders the final Asset (no gate follows it). For a
+   *  zero-gate Recipe this is its ONLY run-point (first-and-final leg in one). */
   readonly clipRunPoint: string;
 }
 
-/** A Recipe's declared Production-Spec shape: a human description plus the validator that enforces it. */
+/** A Recipe's declared Production-Spec shape: a human description plus the validator + banned-word
+ *  scan that enforce it. */
 export interface RecipeSpecShape {
   readonly description: string;
   /** Validate a candidate Spec against this Recipe's contract. Never throws on shape (mirrors `validate.ts`). */
   readonly validate: (spec: unknown) => ValidationResult;
+  /**
+   * Scan a candidate Spec for the Brand's banned words, covering EVERY text field THIS Recipe's shape
+   * defines (issue #81 — closes the gap the issue-60 salvage build report flagged, where a carousel
+   * Spec's `image_prompt` was never scanned because the shared scanner only knew the wired Recipe's own
+   * field names). Reuses `brand-safety.ts`'s shared `scanTextFields` core so the word-boundary/
+   * case-insensitivity rule can never drift between Recipes. Never throws on shape; when the Brand
+   * defines no banned words the scan always passes.
+   */
+  readonly scanBannedWords: (spec: unknown, bannedWords: readonly string[]) => BrandSafetyResult;
 }
 
 /** A Recipe's declared copy shape — the constraints its copy step's output must satisfy. */
@@ -85,9 +123,68 @@ export interface RecipeCopyShape {
   readonly maxEmojis: number;
 }
 
+// ---------------------------------------------------------------------------
+// Canvas typed inputs — media slots + prompt node (ADR-0016, issue #81)
+// ---------------------------------------------------------------------------
+
+/** The kind of media a canvas media slot holds. */
+export type MediaKind = "image" | "video" | "audio";
+
+/** Fields every media slot carries, regardless of kind. */
+interface BaseMediaSlot {
+  readonly media: MediaKind;
+  /** A missing REQUIRED slot's asset STOPS the run (ADR-0016) — never bind a half-complete Asset. An
+   *  optional slot may be skipped. */
+  readonly required: boolean;
+}
+
 /**
- * A production plan: how one Idea becomes one Asset (CONTEXT.md "Recipe"; ADR-0009/0010). Recipes are
- * brand-agnostic and shared — every Brand can use any WIRED one (`isWiredRecipe`).
+ * A media slot filled from the Brand's **Brand Asset** store (`data/brands/<slug>/assets/`) — reused
+ * every run (e.g. the News Carousel Recipe's "Brand Logo"). `brandAssetKey` is the store key the
+ * `BrandAssetStore` (issue #82) reads.
+ */
+export interface BrandAssetMediaSlot extends BaseMediaSlot {
+  readonly kind: "brand-asset";
+  readonly brandAssetKey: string;
+}
+
+/**
+ * A media slot filled from a human gate pick — per Idea, resolved once the Operator's pick is in
+ * (e.g. the Character Explainer with Cast Recipe's "Selected Character", filled by its `"cast"` gate).
+ * `gate` SHALL be one of this Recipe's own `gates`.
+ */
+export interface IdeaPickMediaSlot extends BaseMediaSlot {
+  readonly kind: "idea-pick";
+  readonly gate: string;
+}
+
+/** One of a Recipe's canvas media slots — either kind (ADR-0016). */
+export type MediaSlot = BrandAssetMediaSlot | IdeaPickMediaSlot;
+
+/**
+ * A Recipe's named media-slot map: slot name -> its definition. The slot NAME is the conceptual,
+ * product-facing name (e.g. `"Selected Character"`, `"Brand Logo"`) — not necessarily identical to the
+ * underlying Space's own on-canvas reference-node name (`RecipeSpaceNodes.pinnedReference` tracks
+ * THAT, for the Recipe that has one); resolving a slot to its physical canvas target is the binding
+ * step's job (issue #88), out of this slice's scope.
+ */
+export type MediaSlotMap = Readonly<Record<string, MediaSlot>>;
+
+/**
+ * A Recipe's canvas's two typed inputs (ADR-0016): its named **media-slot map** and its **prompt
+ * node** — the text node the Producer authors/injects its media prompt into. Authoring the prompt is
+ * the Producer's core craft; binding media into the slots is the second job.
+ */
+export interface RecipeCanvasInputs {
+  readonly mediaSlots: MediaSlotMap;
+  /** The text node name the Producer authors/injects its prompt into (e.g. `"JSON Master"`, `"Slides
+   *  Prompts"`). */
+  readonly promptNode: string;
+}
+
+/**
+ * A production plan: how one Idea becomes one Asset (CONTEXT.md "Recipe"; ADR-0009/0010/0016). Recipes
+ * are brand-agnostic and shared — every Brand can use any WIRED one (`isWiredRecipe`).
  */
 export interface Recipe {
   /** Stable identifier, e.g. `"character-explainer-with-cast"`. Matches a Format's `default_recipes` entries. */
@@ -96,14 +193,17 @@ export interface Recipe {
   readonly name: string;
   readonly description: string;
   /**
-   * The ordered human pick-gate names this Recipe pauses at (zero..many — ADR-0010). The seeded
-   * Recipe declares exactly one: `"cast"` (CONTEXT.md "Cast"/"Character" — that Recipe's own
-   * vocabulary, not a universal step). A Recipe with an empty array renders unattended end-to-end.
+   * The ordered human pick-gate names this Recipe pauses at (zero..many — ADR-0010). The wired
+   * *Character Explainer with Cast* Recipe declares exactly one: `"cast"` (CONTEXT.md "Cast"/
+   * "Character" — that Recipe's own vocabulary, not a universal step). The *News Carousel* Recipe
+   * declares NONE — an empty array renders unattended end-to-end.
    */
   readonly gates: readonly string[];
   readonly space: RecipeSpaceTarget;
   readonly specShape: RecipeSpecShape;
   readonly copyShape: RecipeCopyShape;
+  /** This Recipe's canvas's two typed inputs — media slots + prompt node (ADR-0016, issue #81). */
+  readonly canvasInputs: RecipeCanvasInputs;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +274,7 @@ const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
       "(each a Pixar-3D image_prompt ending in the 9:16 aspect-ratio line + a video_prompt); " +
       `${REQUIRED_THUMBNAILS} top-level thumbnails. Media instructions only — no post_copy (ADR-0012).`,
     validate: validateProductionSpec,
+    scanBannedWords: scanForBannedWords,
   },
   copyShape: {
     description:
@@ -184,15 +285,128 @@ const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
     minEmojis: CHARACTER_EXPLAINER_COPY_MIN_EMOJIS,
     maxEmojis: CHARACTER_EXPLAINER_COPY_MAX_EMOJIS,
   },
+  canvasInputs: {
+    mediaSlots: {
+      "Selected Character": {
+        kind: "idea-pick",
+        media: "image",
+        required: true,
+        gate: "cast",
+      },
+    },
+    // The Producer injects the whole Production Spec (media instructions) into this same node —
+    // this Recipe's prompt node IS its Spec-input node (ADR-0016).
+    promptNode: JSON_MASTER_NODE_NAME,
+  },
+};
+
+// ---------------------------------------------------------------------------
+// The second seeded Recipe: "News Carousel" (issue #81, map ticket #77)
+// ---------------------------------------------------------------------------
+
+/**
+ * The live Space this Recipe drives — the rebuilt, single-lane "Carrousel" Space. Same Space id as the
+ * pre-rebuild "AI News" board (only its canvas shape changed, per-lane -> single-lane; the id is
+ * stable). Kept as a local constant, brand-agnostic like the wired Recipe's Space.
+ */
+const NEWS_CAROUSEL_SPACE_ID = "a2402c48-b688-436b-8cb6-23a4aad7822e";
+
+/** The single node that is BOTH the Producer's injectable prompt node AND the Execution Protocol's
+ *  sole run-point start (ADR-0016) — the whole downstream chain fires off this one node. */
+const NEWS_CAROUSEL_SLIDES_NODE_NAME = "Slides Prompts";
+
+/**
+ * The News Carousel Recipe's OWN copy-shape params (ADR-0012) — deliberately DIFFERENT from the wired
+ * Recipe's 180/1-3 (a Reel caption): Instagram's hard caption cap is 2,200 characters, and a
+ * news-carousel caption reads as a short editorial summary + hashtags rather than a punchy Reel hook,
+ * so it is given far more room. An editorial/news tone favours few or no emoji (0-2).
+ */
+const NEWS_CAROUSEL_COPY_MAX_CHARS = 2200;
+const NEWS_CAROUSEL_COPY_MIN_EMOJIS = 0;
+const NEWS_CAROUSEL_COPY_MAX_EMOJIS = 2;
+
+/**
+ * The News Carousel Recipe's run-point name, read from the SAME `canonicalCarouselProtocol()` this
+ * Recipe's Space actually runs (`execution-protocol/protocol.ts`) — never re-typed as an independent
+ * string literal, so the registry can't drift from the real protocol.
+ */
+const CAROUSEL_PROTOCOL = canonicalCarouselProtocol();
+const CAROUSEL_RUN_POINT = CAROUSEL_PROTOCOL.run_points.find((rp) => rp.gate === null);
+if (CAROUSEL_RUN_POINT === undefined) {
+  // Defensive: canonicalCarouselProtocol() is a static, committed, tested artifact (protocol.test.ts
+  // asserts its shape) — this can only fire if that artifact itself regresses.
+  throw new Error(
+    "recipe/registry: canonicalCarouselProtocol() no longer has a gateless run-point — the seeded " +
+      "News Carousel Recipe cannot describe its Space node.",
+  );
+}
+
+/**
+ * The second seeded Recipe (issue #81): a ZERO-gate Instagram news carousel. Registered
+ * DESCRIPTIVELY — its own Spec shape/validator/banned-word scan, its own copy shape, its own Space
+ * target, and its own typed canvas inputs (a "Brand Logo" brand-asset media slot) — proving the
+ * registry's per-Recipe shapes generalize to a genuinely different Recipe (a different gate count,
+ * spec shape, and media). Actually driving/binding it end-to-end is issues #82/#87/#88.
+ */
+const NEWS_CAROUSEL: Recipe = {
+  slug: "news-carousel",
+  name: "News Carousel",
+  description:
+    "A 7-slide Instagram news carousel in fixed role order (hook -> then -> shift -> proof -> " +
+    "different -> next -> cta), rendered from one authored slide-prompt array against the Brand's " +
+    "logo (map ticket #77).",
+  gates: [],
+  space: {
+    id: NEWS_CAROUSEL_SPACE_ID,
+    name: "Carrousel",
+    nodes: {
+      specInput: NEWS_CAROUSEL_SLIDES_NODE_NAME,
+      clipRunPoint: CAROUSEL_RUN_POINT.start,
+    },
+  },
+  specShape: {
+    description:
+      "Exactly 7 slides, in fixed role order hook -> then -> shift -> proof -> different -> next -> " +
+      "cta; each slide carries slide_index, role, card_style, stat_callout, an on-card text of at " +
+      "most 140 chars, and the full authored image_prompt (map ticket #77). Media instructions " +
+      "only — no post_copy (ADR-0012).",
+    validate: validateNewsCarouselSpec,
+    scanBannedWords: scanNewsCarouselForBannedWords,
+  },
+  copyShape: {
+    description:
+      "Copy is composed OUT of the Space, separately, by the shared copy step (`src/copy/`) — a " +
+      "caption of at most 2200 chars with 0-2 emojis, plus hashtags (ADR-0012). This Recipe's OWN " +
+      "params, different from the wired Recipe's 180/1-3.",
+    maxChars: NEWS_CAROUSEL_COPY_MAX_CHARS,
+    minEmojis: NEWS_CAROUSEL_COPY_MIN_EMOJIS,
+    maxEmojis: NEWS_CAROUSEL_COPY_MAX_EMOJIS,
+  },
+  canvasInputs: {
+    mediaSlots: {
+      "Brand Logo": {
+        kind: "brand-asset",
+        media: "image",
+        required: true,
+        brandAssetKey: "brand-logo",
+      },
+    },
+    // The Producer authors the whole 7-slide array into this same node — this Recipe's prompt node
+    // IS its sole run-point's start node (ADR-0016; see NEWS_CAROUSEL_SLIDES_NODE_NAME above).
+    promptNode: NEWS_CAROUSEL_SLIDES_NODE_NAME,
+  },
 };
 
 // ---------------------------------------------------------------------------
 // Registry lookups
 // ---------------------------------------------------------------------------
 
-/** The full in-repo Recipe registry, keyed by slug. Seeded with exactly one entry (issue #54). */
+/** The full in-repo Recipe registry, keyed by slug. Seeded with two entries (issue #54, issue #81):
+ *  the wired *Character Explainer with Cast* Recipe (one gate) and the *News Carousel* Recipe (zero
+ *  gates), in registration order. */
 const REGISTRY: ReadonlyMap<string, Recipe> = new Map([
   [CHARACTER_EXPLAINER_WITH_CAST.slug, CHARACTER_EXPLAINER_WITH_CAST],
+  [NEWS_CAROUSEL.slug, NEWS_CAROUSEL],
 ]);
 
 /** Look up a Recipe by slug, or `null` if it is not (yet) wired/registered. Never throws. */

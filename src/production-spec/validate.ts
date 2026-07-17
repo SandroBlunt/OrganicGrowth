@@ -13,6 +13,15 @@
  *
  * Every failure is returned as a `{ code, message }` so callers (and tests) can assert the SPECIFIC
  * reason, not just pass/fail.
+ *
+ * --- `ValidationResult`/`ValidationError` are the SHARED spec-validation shape (issue #81) ---
+ *
+ * `RecipeSpecShape.validate` (`src/recipe/registry.ts`) types EVERY Recipe's spec validator as
+ * `(spec: unknown) => ValidationResult` — not just this WIRED contract's. `ValidationError.code` is
+ * therefore typed as plain `string`, not the narrower `ValidationCode` union below: `validate()` here
+ * only ever produces `ValidationCode` values (a subtype of `string`, so nothing here changes), but a
+ * DIFFERENT Recipe (the News Carousel, `news-carousel-validate.ts`) has its OWN error-code vocabulary
+ * and reuses these two interfaces rather than inventing a parallel, redundant pair.
  */
 
 import {
@@ -22,7 +31,7 @@ import {
   ASPECT_RATIO_LINE,
 } from "./contract.ts";
 
-/** Stable, machine-checkable identifiers for each contract violation. */
+/** Stable, machine-checkable identifiers for each contract violation THIS validator produces. */
 export type ValidationCode =
   | "not_an_object"
   | "character_concepts_count"
@@ -32,9 +41,12 @@ export type ValidationCode =
   | "thumbnails_not_top_level"
   | "thumbnails_count";
 
-/** One contract violation: a stable `code` plus a human-readable `message`. */
+/** One contract violation: a stable `code` plus a human-readable `message`. `code` is plain `string`
+ *  (not narrowed to `ValidationCode`) so a DIFFERENT Recipe's validator can produce this same shape
+ *  with its own codes (see the module docstring). `validate()` below only ever pushes `ValidationCode`
+ *  values. */
 export interface ValidationError {
-  readonly code: ValidationCode;
+  readonly code: string;
   readonly message: string;
 }
 

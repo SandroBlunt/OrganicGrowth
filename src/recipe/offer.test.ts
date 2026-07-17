@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { offeredRecipes, resolveRecipeSelection } from "./offer.ts";
 
 const WIRED = "character-explainer-with-cast";
+const SECOND_WIRED = "news-carousel"; // wired by issue #81 — proves AC4 generalizes to a new Recipe
 const UNWIRED = "carousel"; // not in the registry — must never be offered/chosen (AC4)
 
 describe("offeredRecipes — filters a Format's default_recipes to wired-only (issue #54 AC3/AC4)", () => {
@@ -29,6 +30,24 @@ describe("offeredRecipes — filters a Format's default_recipes to wired-only (i
     const result = offeredRecipes(["carousel", "meme"]);
     assert.deepEqual(result.offered, []);
     assert.deepEqual(result.unwired, ["carousel", "meme"]);
+  });
+
+  it("offers news-carousel for a Format whose default_recipes lists it (issue #81 AC4)", () => {
+    const result = offeredRecipes([SECOND_WIRED]);
+    assert.deepEqual(result.offered, [SECOND_WIRED]);
+    assert.deepEqual(result.unwired, []);
+  });
+
+  it("offers BOTH wired Recipes when a Format's default_recipes lists both, order preserved", () => {
+    const result = offeredRecipes([WIRED, SECOND_WIRED]);
+    assert.deepEqual(result.offered, [WIRED, SECOND_WIRED]);
+    assert.deepEqual(result.unwired, []);
+  });
+
+  it("news-carousel becoming wired does NOT make a different unwired slug ever surface", () => {
+    const result = offeredRecipes([SECOND_WIRED, UNWIRED]);
+    assert.deepEqual(result.offered, [SECOND_WIRED]);
+    assert.deepEqual(result.unwired, [UNWIRED]);
   });
 });
 
