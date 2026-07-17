@@ -7,6 +7,7 @@ import {
   listWiredRecipeSlugs,
   isWiredRecipe,
 } from "./registry.ts";
+import { PHASE_ORDER, declaresAllPhasesInOrder } from "./phase-contract.ts";
 import { validate as validateProductionSpec } from "../production-spec/validate.ts";
 import { scanForBannedWords } from "../production-spec/brand-safety.ts";
 import { validateNewsCarouselSpec } from "../production-spec/news-carousel-validate.ts";
@@ -113,6 +114,32 @@ describe("The character Recipe declares gates + spec-shape + copy-shape + Space 
     assert.equal(recipe.canvasInputs.promptNode, recipe.space.nodes.specInput);
     assert.equal(recipe.canvasInputs.promptNode, JSON_MASTER_NODE_NAME);
   });
+
+  it("declares all six Phase Contracts, in PHASE_ORDER's exact order (issue #85 AC1)", () => {
+    assert.equal(declaresAllPhasesInOrder(recipe.phases), true);
+    assert.deepEqual(
+      recipe.phases.map((p) => p.phase),
+      [...PHASE_ORDER],
+    );
+  });
+
+  it("its author-phase checklist has exactly 3 items: 2 mechanical (referencing its OWN specShape) + 1 agent-judged", () => {
+    const author = recipe.phases.find((p) => p.phase === "author")!;
+    assert.equal(author.checklist.length, 3);
+    const mechanical = author.checklist.filter((i) => i.kind === "mechanical");
+    const agentJudged = author.checklist.filter((i) => i.kind === "agent-judged");
+    assert.equal(mechanical.length, 2);
+    assert.equal(agentJudged.length, 1);
+  });
+
+  it("its bind-media-phase and copy-phase checklists each have exactly 1 mechanical item", () => {
+    const bindMedia = recipe.phases.find((p) => p.phase === "bind-media")!;
+    const copy = recipe.phases.find((p) => p.phase === "copy")!;
+    assert.equal(bindMedia.checklist.length, 1);
+    assert.equal(bindMedia.checklist[0]!.kind, "mechanical");
+    assert.equal(copy.checklist.length, 1);
+    assert.equal(copy.checklist[0]!.kind, "mechanical");
+  });
 });
 
 describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-shape + Space target (issue #81 AC2)", () => {
@@ -177,5 +204,47 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
   it("declares its prompt node as the SAME node its sole run-point starts at", () => {
     assert.equal(recipe.canvasInputs.promptNode, recipe.space.nodes.clipRunPoint);
     assert.equal(recipe.canvasInputs.promptNode, "Slides Prompts");
+  });
+
+  it("declares all six Phase Contracts, in PHASE_ORDER's exact order (issue #85 AC1)", () => {
+    assert.equal(declaresAllPhasesInOrder(recipe.phases), true);
+    assert.deepEqual(
+      recipe.phases.map((p) => p.phase),
+      [...PHASE_ORDER],
+    );
+  });
+
+  it("its author-phase checklist has exactly 8 items: 7 mechanical + 1 agent-judged ('grounded subject') — the slice's headline case (issue #85 AC2)", () => {
+    const author = recipe.phases.find((p) => p.phase === "author")!;
+    assert.equal(author.checklist.length, 8);
+    const mechanical = author.checklist.filter((i) => i.kind === "mechanical");
+    const agentJudged = author.checklist.filter((i) => i.kind === "agent-judged");
+    assert.equal(mechanical.length, 7);
+    assert.equal(agentJudged.length, 1);
+    assert.match(agentJudged[0]!.description, /grounded subject/i);
+  });
+
+  it("its gate-phase checklist is EMPTY — it declares zero gates, so nothing pauses there", () => {
+    const gate = recipe.phases.find((p) => p.phase === "gate")!;
+    assert.deepEqual(gate.checklist, []);
+  });
+
+  it("its bind-media-phase and copy-phase checklists each have exactly 1 mechanical item", () => {
+    const bindMedia = recipe.phases.find((p) => p.phase === "bind-media")!;
+    const copy = recipe.phases.find((p) => p.phase === "copy")!;
+    assert.equal(bindMedia.checklist.length, 1);
+    assert.equal(bindMedia.checklist[0]!.kind, "mechanical");
+    assert.equal(copy.checklist.length, 1);
+    assert.equal(copy.checklist[0]!.kind, "mechanical");
+  });
+
+  it("every mechanical checklist item across every phase carries a non-empty reference (issue #85 AC3: referenced, not duplicated)", () => {
+    for (const phase of recipe.phases) {
+      for (const item of phase.checklist) {
+        if (item.kind === "mechanical") {
+          assert.ok(item.reference.length > 0, `${phase.phase}: ${item.description}`);
+        }
+      }
+    }
   });
 });
