@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { driveToNextGate, injectSpec, pinPick } from "../driver.ts";
+import { driveToNextGate, injectSpec, pinPick, JSON_MASTER_NODE_NAME } from "../driver.ts";
 import type { DriveLegInput, PollOptions } from "../driver.ts";
 import { parse } from "../../execution-protocol/parse.ts";
 import {
@@ -25,7 +25,7 @@ const FAST: PollOptions = { sleep: async () => {} };
 describe("injectSpec over the live adapter — confirms the REAL 02 (pre) -> 11 (post-inject) readback change", () => {
   it("succeeds and returns the real post-inject JSON Master text", async () => {
     const port = new LiveSpaceAdapter(new ReplayMcpTransport(), LIVE_SPACE_ID);
-    const result = await injectSpec(port, validSpec(), FAST);
+    const result = await injectSpec(port, validSpec(), JSON_MASTER_NODE_NAME, FAST);
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.match(result.text, /ISSUE40-INJECT/, "the real 11 capture is the confirmed post-inject text");
@@ -61,7 +61,12 @@ describe("driveToNextGate over the live adapter — as captured (the real Produc
     const port = new LiveSpaceAdapter(replay, LIVE_SPACE_ID);
     const state = await port.readState();
 
-    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: "cast",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(port, state, input, FAST);
     assert.equal(result.ok, true, "the driver must recover via the Fallback Protocol, not hard-fail");
     if (!result.ok) return;
@@ -95,7 +100,12 @@ describe("driveToNextGate over the live adapter — with the canonical protocol 
     assert.equal(castRunPoint?.start_name, "Character Variants Generator");
     assert.equal(castRunPoint?.start_node_id, "bfd20cd1-9468-4e96-a237-157b9aefda8f", "the real node id");
 
-    const input: DriveLegInput = { kind: "first", targetGate: "cast", spec: validSpec() };
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: "cast",
+      spec: validSpec(),
+      promptNode: JSON_MASTER_NODE_NAME,
+    };
     const result = await driveToNextGate(port, withCanonicalProtocol, input, FAST);
     assert.equal(result.ok, true);
     if (!result.ok) return;

@@ -101,10 +101,13 @@ export interface SpaceMcpPort {
   fetchCreations(ids: readonly string[]): Promise<readonly Creation[]>;
 
   /**
-   * Confirm the chosen **Character** is pinned as the render reference (the readback confirmation of a
-   * pin edit — ADR-0003 Phase B). The driver never inspects raw node values to decide this: the port
-   * owns "is this Character pinned?" so a live adapter can answer it against real Space state, while the
-   * FAKE answers it via its own pin marker. Returns true when `character` is the pinned Character.
+   * Confirm `value` is bound as the render reference it was just pinned/bound to (the readback
+   * confirmation of an `edit` — ADR-0003 Phase B). Originally named for confirming the chosen
+   * **Character** pin, this same primitive is REUSED, unchanged, to confirm a Brand Asset's bind
+   * (`driver.ts`'s `bindMediaAsset`, issue #88/ADR-0016) — the port owns "is this value bound?" so a
+   * live adapter can answer it against real Space state, while the FAKE answers it via its own marker.
+   * Returns true when `value` (a Character candidate identifier, or a Brand Asset's local path) is
+   * confirmed bound.
    */
-  verifyPinned(character: string): Promise<boolean>;
+  verifyPinned(value: string): Promise<boolean>;
 }

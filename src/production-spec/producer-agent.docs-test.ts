@@ -72,3 +72,105 @@ describe("producer agent definition", () => {
     );
   });
 });
+
+describe("producer.md is a thin, recipe-generic conductor — no recipe-specific procedure (issue #88)", () => {
+  it("resolves every Recipe-specific fact from the in-repo registry, never hard-coding one Recipe's shape", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /src\/recipe\/registry\.ts/);
+    assert.match(text, /getRecipe\(job\.recipe\)/);
+    assert.match(text, /thin,\s*\n?\s*recipe-generic conductor/i);
+  });
+
+  it("never reads production.space_id from a Brand Profile any more (issue #88 AC)", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.doesNotMatch(
+      text,
+      /production\.space_id/,
+      "producer.md must not read/instruct reading production.space_id — the canvas id comes from the Recipe",
+    );
+    assert.match(text, /never read any Brand Profile field for it/i);
+  });
+
+  it("runs the Recipe's own producer Skill BY SLUG (ADR-0018) — never authoring prompts itself", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /produce-character-explainer/);
+    assert.match(text, /produce-news-carousel/);
+    assert.match(text, /Skill tool/);
+  });
+
+  it("resolves the Idea's Format from the ledger record, STOPping when it is absent (issue #88)", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /resolveIdeaFormat/);
+    assert.match(text, /src\/producer\/resolve-format\.ts/);
+    assert.match(text, /never guess or default a Format/i);
+  });
+
+  it("binds media slots via bindMediaSlots and STOPs on a missing required asset (ADR-0016)", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /bindMediaSlots/);
+    assert.match(text, /src\/producer\/bind-media\.ts/);
+    assert.match(text, /STOPS the whole run/i);
+    assert.match(text, /ADR-0016/);
+  });
+
+  it("self-audits each phase against its #85 Phase Contract before advancing", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /auditAuthorPhase/);
+    assert.match(text, /auditBindMediaPhase/);
+    assert.match(text, /auditCopyPhase/);
+    assert.match(text, /ADR-0017/);
+  });
+
+  it("drives ANY Recipe's canvas via the SAME generic driveToNextGate — pausing only at ITS declared gates", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /driveToNextGate/);
+    assert.match(text, /Recipe\.gates/);
+    assert.match(text, /gateless Recipe/i);
+  });
+
+  it("never hard-codes the wired Recipe's own canvas node names (e.g. 'Character Variants Generator')", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.doesNotMatch(text, /Character Variants Generator/);
+    assert.doesNotMatch(text, /Selected Character/);
+  });
+});
+
+describe("producer.md restores the watermark-@handle step, generically (QA-1, issue #88 Round 1 regression guard)", () => {
+  // QA-1 (Round 1): the rewritten producer.md silently dropped the watermark-@handle step the
+  // pre-#88 doc explicitly instructed (Phase B step 1: replace_text on "Watermark instructions",
+  // setting production.watermark_handle) — a real, still-live step (the captured live Producer
+  // Protocol, src/space-driver/fixtures/live-captures/02-spaces_get_nodes.keynodes.txt, contains
+  // exactly this replace_text/@handle step). These assertions pin its restoration so it can never
+  // silently disappear again.
+  it("mentions the watermark step at all (the Round-1 regression: zero hits)", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /watermark/i, "producer.md must describe the watermark-handle step (QA-1)");
+  });
+
+  it("declares it as a GENERIC, Recipe-declared step — never hard-coded to one Recipe", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /watermarkNode/);
+    assert.match(text, /Recipe\.space\.nodes\.watermarkNode/);
+    assert.match(text, /generic/i);
+  });
+
+  it("names the exact driver primitive and Brand Profile reader that implement it", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /setWatermarkHandle/);
+    assert.match(text, /src\/space-driver\/driver\.ts/);
+    assert.match(text, /loadWatermarkHandle/);
+    assert.match(text, /src\/production-spec\/brand-profile\.ts/);
+  });
+
+  it("skips cleanly when the Brand's handle is blank — never fails the run over an unset optional field", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /blank/i);
+    assert.match(text, /skip/i);
+  });
+
+  it("states the watermark @handle is NOT part of the Asset's Copy (ADR-0012)", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /NOT (part of the Asset's Copy|Copy)/);
+    assert.match(text, /ADR-0012/);
+  });
+});

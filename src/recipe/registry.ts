@@ -28,11 +28,10 @@
  *
  * The Space `id` this Recipe targets ("Organic Character Explainer") is verified in
  * `docs/producer-spikes-results.md` and the live capture at
- * `src/space-driver/fixtures/live-captures/README.md`; it is also (today) configured per-Brand at
- * `brand-profile.yaml`'s `production.space_id` (read by the attended `producer` agent) — ADR-0013
- * intends the Recipe to become the single source of truth for Space targeting, but re-pointing
- * `producer.md` at the registry is deferred (untestable without the live Space; not part of this
- * slice's zero-behaviour-change bar).
+ * `src/space-driver/fixtures/live-captures/README.md`. THIS `space` field is now the ONLY source of
+ * truth for Space targeting (ADR-0013/ADR-0016) — the thin, recipe-generic Producer resolves it from
+ * here; the old per-Brand `brand-profile.yaml` pointer this Recipe used to also be configured at is
+ * RETIRED (issue #88 — `producer.md` no longer reads any Brand Profile field for a Space id).
  *
  * --- Seeded entry #2: "News Carousel" — a SECOND, zero-gate Recipe (issue #81, map ticket #77) ---
  *
@@ -70,7 +69,11 @@ import {
 import { scanForBannedWords, type BrandSafetyResult } from "../production-spec/brand-safety.ts";
 import { validateNewsCarouselSpec } from "../production-spec/news-carousel-validate.ts";
 import { scanNewsCarouselForBannedWords } from "../production-spec/news-carousel-brand-safety.ts";
-import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME } from "../space-driver/driver.ts";
+import {
+  JSON_MASTER_NODE_NAME,
+  CHARACTER_NODE_NAME,
+  WATERMARK_NODE_NAME,
+} from "../space-driver/driver.ts";
 import { canonicalProtocol, canonicalCarouselProtocol } from "../execution-protocol/protocol.ts";
 import { declaresAllPhasesInOrder, type PhaseContract } from "./phase-contract.ts";
 
@@ -96,6 +99,14 @@ export interface RecipeSpaceTarget {
  * only one (simultaneously first-and-final) run-point. `specInput` and `clipRunPoint` stay REQUIRED:
  * every Recipe injects its Spec somewhere and has exactly one gateless run-point that renders the
  * final Asset (for a zero-gate Recipe, that IS its only run-point).
+ *
+ * `watermarkNode` is OPTIONAL too (QA-1, issue #88): a Recipe whose canvas carries a watermark
+ * parameter node names it here; the thin Producer then sets the Brand's `watermark_handle` onto that
+ * node before the final render — a GENERIC, Recipe-declared pre-render step
+ * (`src/space-driver/driver.ts`'s `setWatermarkHandle`), never hard-coded per Recipe. The seeded
+ * *Character Explainer with Cast* Recipe sets it (`WATERMARK_NODE_NAME`, verified in the live capture);
+ * the *News Carousel* Recipe has no such node and leaves it absent — the step is simply skipped for
+ * any Recipe that doesn't declare one.
  */
 export interface RecipeSpaceNodes {
   /** The Spec-input text node the Producer injects the Production Spec into (Fallback Protocol). */
@@ -109,6 +120,9 @@ export interface RecipeSpaceNodes {
   /** The Execution Protocol run-point that renders the final Asset (no gate follows it). For a
    *  zero-gate Recipe this is its ONLY run-point (first-and-final leg in one). */
   readonly clipRunPoint: string;
+  /** The watermark-instructions text node the Brand's `watermark_handle` is set onto before the final
+   *  render (`setWatermarkHandle`). Present only for a Recipe whose canvas has one. */
+  readonly watermarkNode?: string;
 }
 
 /** A Recipe's declared Production-Spec shape: a human description plus the validator + banned-word
@@ -232,10 +246,11 @@ export interface Recipe {
 
 /**
  * The live Space this Recipe drives — "Organic Character Explainer". Verified in
- * `docs/producer-spikes-results.md` and `data/brands/mundotip/brand-profile.yaml`'s
- * `production.space_id`. Kept as a local constant (not imported from `space-driver/live/replay/
- * transport.ts`, which is a test-only record/replay harness) — this is a stable production fact, not
- * a fixture.
+ * `docs/producer-spikes-results.md` (formerly ALSO configured per-Brand at
+ * `data/brands/mundotip/brand-profile.yaml`'s now-retired `production.space_id`, issue #88 — this
+ * field is the sole source of truth today). Kept as a local constant (not imported from
+ * `space-driver/live/replay/transport.ts`, which is a test-only record/replay harness) — this is a
+ * stable production fact, not a fixture.
  */
 const CHARACTER_EXPLAINER_SPACE_ID = "a1f05d67-1b98-4d10-9251-6603bea3b578";
 
@@ -348,6 +363,14 @@ const CHARACTER_EXPLAINER_PHASES: readonly PhaseContract[] = [
           "clip) — never skipping or reordering a run-point (execution-protocol/protocol.ts: " +
           "canonicalProtocol).",
       },
+      {
+        kind: "agent-judged",
+        description:
+          "Before this Recipe's clip run-point fires, the Brand's watermark_handle is set onto " +
+          'this Recipe\'s declared "watermarkNode" (space.nodes.watermarkNode) via ' +
+          "setWatermarkHandle — a surgical @handle swap, never touching the rest of the node's " +
+          "text (QA-1, issue #88; the real captured Producer Protocol's replace_text step).",
+      },
     ],
   },
   {
@@ -396,6 +419,7 @@ const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
       pinnedReference: CHARACTER_NODE_NAME,
       castRunPoint: CAST_RUN_POINT.start,
       clipRunPoint: CLIP_RUN_POINT.start,
+      watermarkNode: WATERMARK_NODE_NAME,
     },
   },
   specShape: {

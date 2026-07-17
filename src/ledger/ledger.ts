@@ -32,12 +32,20 @@ export type IdeaStatus = "suggested" | "accepted" | "rejected";
  *  present so a re-enqueue path (e.g. `/run-pipeline`'s stranded-Idea recovery) can enqueue the SAME
  *  Recipes the Idea was originally accepted with, rather than guessing (issue #56). Absent on an Idea
  *  accepted before recipe selection existed (every real Idea today) — callers fall back to the one
- *  wired Recipe (`asset/migrate.ts`'s `DEFAULT_ASSET_RECIPE`) in that case. */
+ *  wired Recipe (`asset/migrate.ts`'s `DEFAULT_ASSET_RECIPE`) in that case.
+ *
+ *  `format` is the Idea's Format slug (ADR-0009/0013), read through UNCHANGED — the thin Producer
+ *  (issue #88) resolves it from here to know which Format's voice/Baseline-Prompt document governs
+ *  this Idea's production. Absent on an Idea recorded before multi-format existed (e.g. every real
+ *  MundoTip Idea today, `data/brands/mundotip/ledger.json`) — a caller MUST treat a missing `format`
+ *  as an explicit STOP condition (never guess/default one; `src/producer/resolve-format.ts`), never a
+ *  crash. A non-string or blank raw value degrades to omitted too (data-handling rule 4). */
 export interface LedgerIdea {
   readonly id: string;
   readonly status: string;
   readonly assets?: readonly LedgerAssetRecord[];
   readonly recipes?: readonly string[];
+  readonly format?: string;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -76,6 +84,14 @@ function parseRecipesList(raw: unknown): string[] {
   return raw.filter((r): r is string => typeof r === "string" && r.length > 0);
 }
 
+/** Coerce a raw `format` field into a trimmed, non-empty Format slug, or `undefined` (data-handling
+ *  rule 4) — a non-string, blank, or absent value all degrade to `undefined`, never fabricated. */
+function parseFormat(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 /**
  * Read the ledger's Idea records (defensive: a record missing a string `id` is skipped — we never
  * invent an identity). The path is required — there is no brand-scoped default. Pass `brand` so a
@@ -98,9 +114,14 @@ export async function loadIdeas(path: string, brand?: string): Promise<LedgerIde
     .map((r) => {
       const { status, assets } = normalizeIdeaStatus(r);
       const recipes = parseRecipesList(r.recipes);
-      return recipes.length > 0
-        ? { id: r.id as string, status, assets, recipes }
-        : { id: r.id as string, status, assets };
+      const format = parseFormat(r.format);
+      return {
+        id: r.id as string,
+        status,
+        assets,
+        ...(recipes.length > 0 ? { recipes } : {}),
+        ...(format !== undefined ? { format } : {}),
+      };
     });
 }
 

@@ -12,7 +12,7 @@ import { validate as validateProductionSpec } from "../production-spec/validate.
 import { scanForBannedWords } from "../production-spec/brand-safety.ts";
 import { validateNewsCarouselSpec } from "../production-spec/news-carousel-validate.ts";
 import { scanNewsCarouselForBannedWords } from "../production-spec/news-carousel-brand-safety.ts";
-import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME } from "../space-driver/driver.ts";
+import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME, WATERMARK_NODE_NAME } from "../space-driver/driver.ts";
 import { canonicalProtocol, canonicalCarouselProtocol } from "../execution-protocol/protocol.ts";
 import { validSpec } from "../production-spec/fixtures/specs.ts";
 import { validCarouselSpec } from "../production-spec/fixtures/news-carousel-specs.ts";
@@ -73,6 +73,10 @@ describe("The character Recipe declares gates + spec-shape + copy-shape + Space 
     const clipRunPoint = protocol.run_points.find((rp) => rp.gate === null)!;
     assert.equal(recipe.space.nodes.castRunPoint, castRunPoint.start);
     assert.equal(recipe.space.nodes.clipRunPoint, clipRunPoint.start);
+  });
+
+  it("declares a watermarkNode — the real, captured Watermark-instructions node (QA-1, issue #88)", () => {
+    assert.equal(recipe.space.nodes.watermarkNode, WATERMARK_NODE_NAME);
   });
 
   it("declares a spec-shape whose validator IS the real production-spec validator (zero drift)", () => {
@@ -166,6 +170,10 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
   it("declares NO pinnedReference/castRunPoint — it has no pick-gate to pin or render a paused Cast for", () => {
     assert.equal(recipe.space.nodes.pinnedReference, undefined);
     assert.equal(recipe.space.nodes.castRunPoint, undefined);
+  });
+
+  it("declares NO watermarkNode — its canvas has no watermark parameter (QA-1, issue #88)", () => {
+    assert.equal(recipe.space.nodes.watermarkNode, undefined);
   });
 
   it("declares a spec-shape whose validator IS the real news-carousel validator (zero drift)", () => {
