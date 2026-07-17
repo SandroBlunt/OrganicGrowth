@@ -47,3 +47,11 @@ ideas_per_run: 10   # how many Idea briefs to suggest per Run of THIS Format
 # WIRED Recipes (src/recipe/registry.ts, issue #54) — today's single wired Recipe:
 default_recipes:
   - character-explainer-with-cast
+
+# Per-Recipe Baseline Prompt pointers (ADR-0015, CONTEXT.md "Baseline Prompt"): a relative filename,
+# resolved under data/brands/straw-motion/baseline-prompts/unhypped-news/ — never inline YAML. The
+# document itself is the Operator's locked, byte-faithfully-imported prototype (issue #83); the
+# "News Carousel" Recipe's producer Skill (ADR-0018, issue #87) reads and interprets it to author
+# each slide's image prompt.
+baseline_prompts:
+  news-carousel: news-carousel.md

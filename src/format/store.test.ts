@@ -23,6 +23,7 @@ import {
   parseFormatFile,
   formatFilePath,
   formatIdeasRoot,
+  formatBaselinePromptsRoot,
   listFormatSlugs,
   loadFormat,
   type FormatFile,
@@ -127,6 +128,7 @@ describe("parseFormatFile — a fully-populated Format file parses to the typed 
     },
     ideas_per_run: 10,
     default_recipes: ["character-explainer-with-cast"],
+    baseline_prompts: { "news-carousel": "news-carousel.md" },
   };
 
   it("parses every field verbatim", () => {
@@ -142,6 +144,7 @@ describe("parseFormatFile — a fully-populated Format file parses to the typed 
     assert.equal(format.sources.overperformanceOnly, true);
     assert.equal(format.ideasPerRun, 10);
     assert.deepEqual(format.defaultRecipes, ["character-explainer-with-cast"]);
+    assert.deepEqual(format.baselinePrompts, { "news-carousel": "news-carousel.md" });
   });
 });
 
@@ -189,6 +192,7 @@ describe("parseFormatFile — defensive defaults on missing/garbled input", () =
     assert.equal(format.sources.overperformanceOnly, true);
     assert.equal(format.ideasPerRun, 10);
     assert.deepEqual(format.defaultRecipes, []);
+    assert.deepEqual(format.baselinePrompts, {}, "no Format declares an empty {} — a clear 'none', never an error");
   });
 
   it("drops non-string entries from array fields instead of crashing", () => {
@@ -206,10 +210,68 @@ describe("parseFormatFile — defensive defaults on missing/garbled input", () =
 });
 
 // ---------------------------------------------------------------------------
+// baseline_prompts — per-Recipe Baseline Prompt pointers (ADR-0015, issue #83)
+// ---------------------------------------------------------------------------
+
+describe("parseFormatFile — baseline_prompts (per-Recipe Baseline Prompt pointers, ADR-0015)", () => {
+  it("parses a fully-populated per-Recipe pointer map, keys and values trimmed", () => {
+    const format = parseFormatFile(
+      { baseline_prompts: { "  news-carousel  ": "  news-carousel.md  " } },
+      "unhypped-news",
+    );
+    assert.deepEqual(format.baselinePrompts, { "news-carousel": "news-carousel.md" });
+  });
+
+  it("supports more than one Recipe pointer on the same Format", () => {
+    const format = parseFormatFile(
+      {
+        baseline_prompts: {
+          "news-carousel": "news-carousel.md",
+          "character-explainer-with-cast": "character-explainer.md",
+        },
+      },
+      "unhypped-news",
+    );
+    assert.deepEqual(format.baselinePrompts, {
+      "news-carousel": "news-carousel.md",
+      "character-explainer-with-cast": "character-explainer.md",
+    });
+  });
+
+  it("yields an empty {} — never a throw — when no baseline_prompts key is present at all (AC1 'none')", () => {
+    const format = parseFormatFile({ name: "Life Hacks" }, "life-hacks");
+    assert.deepEqual(format.baselinePrompts, {});
+  });
+
+  it("drops non-string values instead of crashing (a malformed entry, issue #83 AC3)", () => {
+    const format = parseFormatFile(
+      { baseline_prompts: { "news-carousel": 42, "also-bad": null, "still-bad": ["a"] } },
+      "x",
+    );
+    assert.deepEqual(format.baselinePrompts, {});
+  });
+
+  it("drops empty-string keys/values after trimming", () => {
+    const format = parseFormatFile(
+      { baseline_prompts: { "   ": "news-carousel.md", "news-carousel": "   " } },
+      "x",
+    );
+    assert.deepEqual(format.baselinePrompts, {});
+  });
+
+  it("never throws when baseline_prompts itself is garbled (not an object)", () => {
+    assert.doesNotThrow(() => parseFormatFile({ baseline_prompts: "not an object" }, "x"));
+    assert.doesNotThrow(() => parseFormatFile({ baseline_prompts: ["a", "b"] }, "x"));
+    assert.doesNotThrow(() => parseFormatFile({ baseline_prompts: null }, "x"));
+    assert.deepEqual(parseFormatFile({ baseline_prompts: "not an object" }, "x").baselinePrompts, {});
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Path resolution
 // ---------------------------------------------------------------------------
 
-describe("formatFilePath / formatIdeasRoot — path shape", () => {
+describe("formatFilePath / formatIdeasRoot / formatBaselinePromptsRoot — path shape", () => {
   it("resolves the Format file path under the Brand's formats/ directory", () => {
     assert.equal(
       formatFilePath("mundotip", "life-hacks", "data/brands"),
@@ -224,9 +286,20 @@ describe("formatFilePath / formatIdeasRoot — path shape", () => {
     );
   });
 
+  it("resolves the Format-namespaced Baseline Prompt root (ADR-0015)", () => {
+    assert.equal(
+      formatBaselinePromptsRoot("straw-motion", "unhypped-news", "data/brands"),
+      "data/brands/straw-motion/baseline-prompts/unhypped-news",
+    );
+  });
+
   it("rejects a path-traversal Format slug before touching the filesystem", () => {
     assert.throws(() => formatFilePath("mundotip", "../evil", "data/brands"), /Invalid Format slug/);
     assert.throws(() => formatIdeasRoot("mundotip", "../evil", "data/brands"), /Invalid Format slug/);
+    assert.throws(
+      () => formatBaselinePromptsRoot("mundotip", "../evil", "data/brands"),
+      /Invalid Format slug/,
+    );
   });
 
   it("rejects an invalid Brand slug too (delegates to resolveBrand)", () => {
@@ -299,6 +372,8 @@ describe("loadFormat — reads + parses a real Format file from disk", () => {
         "ideas_per_run: 10",
         "default_recipes:",
         "  - character-explainer-with-cast",
+        "baseline_prompts:",
+        "  news-carousel: news-carousel.md",
         "",
       ].join("\n"),
     );
@@ -316,6 +391,7 @@ describe("loadFormat — reads + parses a real Format file from disk", () => {
     assert.equal(format.sources.seedPages.length, 1);
     assert.equal(format.ideasPerRun, 10);
     assert.deepEqual(format.defaultRecipes, ["character-explainer-with-cast"]);
+    assert.deepEqual(format.baselinePrompts, { "news-carousel": "news-carousel.md" });
   });
 
   it("throws a clear, actionable error for an unknown Format, listing available Formats", async () => {
@@ -371,6 +447,11 @@ describe("mundotip and straw-motion are migrated to their own Format files (issu
     assert.equal(format.sources.mode, "curated");
     assert.ok(format.sources.curatedSources.length > 0, "must carry Straw Motion's real curated sources");
     assert.ok(format.voice.length > 0, "must carry a real voice, not a placeholder");
+  });
+
+  it("straw-motion's real unhypped-news.yaml declares the Baseline Prompt pointer for news-carousel (issue #83 AC2)", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    assert.equal(format.baselinePrompts["news-carousel"], "news-carousel.md");
   });
 
   it("listFormatSlugs finds both real Brands' migrated Format", async () => {
