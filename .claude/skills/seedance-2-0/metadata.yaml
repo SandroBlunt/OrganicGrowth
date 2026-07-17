@@ -1,0 +1,113 @@
+name: gen-prompting-seedance-2-0
+version: 0.2.1
+disclosure_tier: 2
+created: 2026-04-27
+updated: 2026-07-06
+domain_path: gen-prompting/code/video/seedance-2-0
+variant: code
+target_model:
+  vendor: bytedance
+  model_id: seedance-2.0
+  modalities: [text-to-video, image-to-video, multi-reference-mixed, first-and-last-frame, audio]
+modes:
+  - id: T2V
+    name: text-to-video
+  - id: I2V
+    name: image-to-video
+  - id: MR
+    name: multi-reference-mixed
+    documented_caps:
+      images: 9
+      videos: 3
+      audios: 3
+      total: 12
+    mix_budget_heuristic:
+      vendor_status: unconfirmed
+      effective_video_cap: 2
+      effective_audio_cap: 2
+      min_images_when_av_present: 2
+    edit_vs_reference_required_for_video_inputs: true
+  - id: F/L
+    name: first-and-last-frame
+techniques:
+  - id: shot-script
+    name: shot-script-format
+    structure: "[Basic Settings] + per-shot [00:00-00:02] timecode blocks + [Constraints]"
+  - id: sub-second-timecodes
+    name: fractional-timecodes
+    examples: ["[0.0s-0.5s]", "0.3s", "200-400 milliseconds"]
+  - id: notation-alternatives
+    canonical: "@Image1, @Video1, @Audio1"
+    alternative: "<<<Image1>>>, <<<Video1>>>"
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: true
+  - name: setting
+    type: string
+    required: true
+  - name: style
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: true
+  - name: motion
+    type: string
+    required: true
+  - name: references
+    type: json
+    required: false
+  - name: i2v_reference
+    type: string
+    required: false
+  - name: first_frame
+    type: string
+    required: false
+  - name: last_frame
+    type: string
+    required: false
+  - name: audio
+    type: string
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+  - name: override_mix_budget
+    type: string
+    required: false
+  - name: edit_vs_reference
+    type: string
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Seedance 2.0 prompt across all four modes including per-modality caps and the mix-budget heuristic.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (per-modality caps, mix-budget heuristic, Edit vs Reference, shot-script, sub-second timecodes, notation alternatives, camera rules).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the Seedance 2.0 vendor docs.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://seed.bytedance.com/en/seedance2_0
+  additional_sources:
+    - "vendor-doc: Seedance_2.0_Complete_Prompting_Guide.md"
+    - "vendor-doc: Seedance_2.0_ImagineArt_Prompt_Structure_and_Examples.md"
+    - "vendor-doc: Seedance_2.0_Morphic_CRAFT_Method_Guide.md"
+    - "vendor-doc: seedance-20-prompt-optimizer.skill"
+  fetched_at: 2026-04-28
+shared_references:
+  mode: relative-link
+  path: ../../../references/

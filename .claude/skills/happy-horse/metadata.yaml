@@ -1,0 +1,124 @@
+name: gen-prompting-happy-horse
+version: 0.1.1
+disclosure_tier: 2
+created: 2026-06-04
+updated: 2026-07-06
+domain_path: gen-prompting/code/video/happy-horse
+variant: code
+target_model:
+  vendor: alibaba
+  model_id: happyhorse-1.0
+  front_end: happy-horse.ai
+  modalities: [text-to-video, image-to-video, reference-to-video, video-edit, native-audio, multilingual-lip-sync]
+modes:
+  - id: T2V
+    name: text-to-video
+  - id: I2V
+    name: image-to-video
+    first_frame: true
+    reference_count: 1
+  - id: R2V
+    name: reference-to-video
+    reference_count_range: [1, 5]
+  - id: edit
+    name: video-edit
+    reference_count_range: [1, 5]
+distinctive_features:
+  native_audio: true
+  multilingual_lip_sync:
+    languages: [english, mandarin, cantonese, japanese, korean, german, french]
+  reference_tokens: ["@Image1", "@Video1"]
+  camera_moves: [pan, tilt, dolly, zoom, orbit, crane]
+front_end_controls:
+  durations_s: [4, 15]
+  resolutions: ["480p", "720p", "1080p"]
+  default_resolution: "1080p"
+  aspect_ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"]
+  default_aspect_ratio: "16:9"
+prompt_rules:
+  ordering: subject-action-then-camera-then-style-then-environment
+  audio_position: last
+  sequence_keywords: ["First", "then", "finally"]
+  char_limit: 2500
+  negative_prompt_field: false
+  motion_strength_slider: false
+  last_frame_input: false
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: true
+  - name: style
+    type: string
+    required: false
+  - name: environment
+    type: string
+    required: false
+  - name: references
+    type: json
+    required: false
+  - name: dialogue
+    type: string
+    required: false
+  - name: sfx
+    type: string
+    required: false
+  - name: ambience
+    type: string
+    required: false
+  - name: music
+    type: string
+    required: false
+  - name: sequence
+    type: json
+    required: false
+  - name: duration
+    type: integer
+    required: false
+  - name: resolution
+    type: string
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Happy Horse front-end prompt across all four modes.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (native audio, multilingual lip-sync, reference tokens, six camera moves, no negative/motion-slider/last-frame, front-end vs model distinction).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the happy-horse.ai docs and the HappyHorse-1.0 model facts with source URLs and fetch date.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://happy-horse.ai/docs/basic-usage
+  additional_sources:
+    - https://happy-horse.ai/docs/prompt-guide
+    - https://happy-horse.ai/docs/camera-params
+    - https://fal.ai/happyhorse-1.0
+  fetched_at: 2026-06-04
+  notes: >
+    Skill is front-end / prompting focused on happy-horse.ai. happy-horse.ai
+    is a third-party front-end to Alibaba's HappyHorse-1.0 model; the
+    official model API is on fal.ai. Front-end control ranges (4-15s,
+    480/720/1080p) follow happy-horse.ai; the underlying model supports a
+    slightly wider range (see translation-notes). Parameters the stack does
+    NOT have (negative_prompt, motion-strength slider, last-frame input) are
+    deliberately excluded.
+shared_references:
+  mode: relative-link
+  path: ../../../references/

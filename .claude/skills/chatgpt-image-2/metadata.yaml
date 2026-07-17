@@ -1,0 +1,65 @@
+name: gen-prompting-chatgpt-image-2
+version: 0.1.1
+disclosure_tier: 2
+created: 2026-04-27
+updated: 2026-07-06
+domain_path: gen-prompting/code/image/chatgpt-image-2
+variant: code
+target_model:
+  vendor: openai
+  model_id: gpt-image-2
+  modalities: [text-to-image, image-to-image, multi-reference-edit]
+modes:
+  - id: T2I
+    name: text-to-image
+  - id: I2I
+    name: image-to-image
+  - id: MR
+    name: multi-reference-edit
+    practical_max_references: 4
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: true
+  - name: setting
+    type: string
+    required: true
+  - name: style
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: true
+  - name: references
+    type: json
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a gpt-image-2 prompt from the five clauses.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks and translation rules.
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the official OpenAI prompt guide with sources.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://developers.openai.com/api/docs/models/gpt-image-2
+  fetched_at: 2026-04-27
+shared_references:
+  mode: relative-link
+  path: ../../../references/

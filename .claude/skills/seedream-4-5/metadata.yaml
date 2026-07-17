@@ -1,0 +1,118 @@
+name: gen-prompting-seedream-4-5
+version: 0.1.1
+disclosure_tier: 2
+created: 2026-06-04
+updated: 2026-07-06
+domain_path: gen-prompting/code/image/seedream-4-5
+variant: code
+target_model:
+  vendor: bytedance
+  model_id: seedream-4-5
+  modalities: [text-to-image, image-edit, multi-reference, sequential-set]
+  front_ends: [dreamina, jimeng, fal, wavespeed]
+modes:
+  - id: T2I
+    name: text-to-image
+  - id: Edit
+    name: single-image-edit
+    reference_count: 1
+  - id: MR
+    name: multi-reference-composition
+    reference_count_range: [1, 10]
+    addressing: ordinal
+    identity_anchor: image-1
+  - id: sequential-set
+    name: sequential-consistent-set
+    set_count_range: [2, 8]
+    distinctive: true
+front_end_controls:
+  aspect_ratios:
+    - "1:1"
+    - "4:3"
+    - "3:4"
+    - "16:9"
+    - "9:16"
+    - "3:2"
+    - "2:3"
+    - "21:9"
+  resolutions: ["1K", "2K", "4K"]
+  default_resolution: "2K"
+  max_pixels: 4096
+prompt_rules:
+  ordering: subject-first
+  early_token_weighting: true
+  word_budget: [30, 100]
+  word_hard_ceiling: 120
+  in_image_text: quote-literal-double-quotes
+  negative_prompt_field: false
+signature_strengths:
+  - in-image-text-rendering
+  - sequential-consistent-set
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: false
+  - name: setting
+    type: string
+    required: false
+  - name: style
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: false
+  - name: references
+    type: json
+    required: false
+  - name: frames
+    type: json
+    required: false
+  - name: set_count
+    type: integer
+    required: false
+  - name: in_image_text
+    type: string
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+  - name: resolution
+    type: string
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Seedream 4.5 front-end prompt across all four modes.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (earlier-token weighting, word budget, quoted-text rule, reference cap, identity-on-Image-1, sequential sets, no negative field).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the BytePlus prompt guide and fal/wavespeed prompt guidance with source URLs and fetch date.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://docs.byteplus.com/en/docs/ModelArk/1829186
+  additional_sources:
+    - https://fal.ai/learn/devs/seedream-v4-5-prompt-guide
+    - https://wavespeed.ai/blog/posts/seedream-4-5-complete-guide-2026/
+    - https://seed.bytedance.com/en/seedream4_5
+  fetched_at: 2026-06-04
+  notes: >
+    Skill is front-end / prompting focused. API-only parameters (seed,
+    watermark, num_images, safety checker) are intentionally out of scope.
+    Some third-party guides publish Stable-Diffusion-style parameters
+    (guidance_scale, steps, scheduler, negative_prompt) that Seedream does
+    NOT have; those are deliberately excluded.
+shared_references:
+  mode: relative-link
+  path: ../../../references/

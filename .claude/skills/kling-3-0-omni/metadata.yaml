@@ -1,0 +1,124 @@
+name: gen-prompting-kling-3-0-omni
+version: 0.1.2
+disclosure_tier: 2
+created: 2026-04-27
+updated: 2026-07-06
+domain_path: gen-prompting/code/video/kling-3-0-omni
+variant: code
+target_model:
+  vendor: kuaishou
+  model_id: kling-3.0-omni
+  modalities: [text-to-video, image-to-video, video-to-video, multi-reference-mixed, first-and-last-frame, multi-shot, native-audio, voice-binding, video-character-reference]
+modes:
+  - id: T2V
+    name: text-to-video
+  - id: I2V
+    name: image-to-video
+  - id: V2V
+    name: video-to-video
+  - id: MR
+    name: multi-reference-mixed
+    max_total_inputs: 7
+    max_when_video_present: 5
+    mix_budget_heuristic:
+      vendor_status: unconfirmed
+      max_video: 2
+      max_audio: 1
+      min_images_when_video_present: 3
+  - id: F/L
+    name: first-and-last-frame
+  - id: Multi-Shot
+    name: multi-shot
+    auto: true
+    custom: true
+    max_shots: 6
+    duration_range_seconds: [3, 15]
+techniques:
+  - id: video-character-reference
+    name: video-character-reference
+    duration_range_seconds: [3, 8]
+    multi_angle_recommended: true
+  - id: voice-binding
+    name: voice-binding
+    routes:
+      - video-character-reference
+      - multi-image-element-with-voice-clip
+    voice_clip_duration_range_seconds: [5, 30]
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: true
+  - name: setting
+    type: string
+    required: true
+  - name: style
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: true
+  - name: motion
+    type: string
+    required: true
+  - name: references
+    type: json
+    required: false
+  - name: i2v_reference
+    type: string
+    required: false
+  - name: v2v_reference
+    type: string
+    required: false
+  - name: v2v_role
+    type: string
+    required: false
+  - name: first_frame
+    type: string
+    required: false
+  - name: last_frame
+    type: string
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+  - name: override_mix_budget
+    type: string
+    required: false
+  - name: multi_shot_mode
+    type: string
+    required: false
+  - name: shots
+    type: json
+    required: false
+  - name: audio
+    type: string
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Kling 3.0 Omni prompt across all five modes including the mix-budget heuristic.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (mix-budget heuristic, V2V role rules, video character reference, voice binding, native audio, Multi-Shot).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the Kling 3.0 Omni vendor doc.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://replicate.com/kwaivgi/kling-v3-omni-video
+  additional_sources:
+    - "vendor-doc: Kling 3 omni prompting guide.md (Kling AI Official Documentation via NotebookLM export)"
+  fetched_at: 2026-04-28
+shared_references:
+  mode: relative-link
+  path: ../../../references/

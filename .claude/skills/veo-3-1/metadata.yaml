@@ -1,0 +1,113 @@
+name: gen-prompting-veo-3-1
+version: 0.1.2
+disclosure_tier: 2
+created: 2026-04-27
+updated: 2026-07-06
+domain_path: gen-prompting/code/video/veo-3-1
+variant: code
+target_model:
+  vendor: google
+  model_id: veo-3.1
+  modalities: [text-to-video, image-to-video, ingredients-to-video, first-and-last-frame, audio, add-remove-object]
+modes:
+  - id: T2V
+    name: text-to-video
+  - id: I2V
+    name: image-to-video
+  - id: Ingredients
+    name: ingredients-to-video
+    aliases: [MR, R2V]
+    reference_count_range: [1, 3]
+    mutually_exclusive_with: [F/L]
+    audio_supported: true
+  - id: F/L
+    name: first-and-last-frame
+    mutually_exclusive_with: [Ingredients]
+    audio_supported: true
+  - id: AddRemove
+    name: add-remove-object
+    underlying_model: veo-2
+    audio_supported: false
+techniques:
+  - id: timestamp-prompting
+    name: timestamp-prompting
+    bracket_format: "[MM:SS-MM:SS]"
+    notes: "Multi-shot inside a single 8-second clip; segments must sum to total duration."
+  - id: dialogue-syntax
+    pattern: '<Speaker> says, "<line>." [tone modifier]'
+  - id: sfx-syntax
+    pattern: "SFX: <description>"
+  - id: ambient-syntax
+    pattern: "Ambient noise: <background>"
+  - id: fl-handoff-from-nano-banana-2
+    name: fl-handoff-from-nano-banana-2
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: true
+  - name: setting
+    type: string
+    required: true
+  - name: style
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: true
+  - name: motion
+    type: string
+    required: true
+  - name: references
+    type: json
+    required: false
+  - name: first_frame
+    type: string
+    required: false
+  - name: last_frame
+    type: string
+    required: false
+  - name: audio
+    type: string
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+  - name: timestamp_segments
+    type: json
+    required: false
+  - name: negative_prompt
+    type: string
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Veo 3.1 prompt across all modes.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (mode exclusivity, audio rules, timestamp prompting, Add/Remove Object on Veo 2, SynthID, F/L hand-off from Nano Banana 2).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the Veo 3.1 vendor docs and Google Cloud blog.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../references/.
+source_tracking:
+  official_guidelines_url: https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-veo-3-1
+  additional_sources:
+    - https://deepmind.google/models/veo/
+    - "vendor-doc: Ultimate_prompting_guide_for_Veo_3.1_Google_Cloud_Blog.md"
+    - "vendor-doc: Veo_3.1_Prompt_Guide.md"
+    - "vendor-doc: Veo_3.1_Prompt_Guide_Best_Veo_3.1_Prompts_LTX_Studio.md"
+    - "vendor-doc: veo-31-prompt-optimizer.skill"
+  fetched_at: 2026-04-28
+shared_references:
+  mode: relative-link
+  path: ../../../references/
