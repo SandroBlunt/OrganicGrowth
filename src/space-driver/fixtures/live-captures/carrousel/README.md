@@ -38,3 +38,11 @@ Flow: **JSON Master** (`text`, the inject node) → **Assistant** (`prompt-gener
 - `00-spaces_show.fullboard.json` — full board (all 7 nodes, their data, all 5 connections); tokens
   `REDACTED`. The authoritative source for rebuilding the fake.
 - `01-creations_get.brand-logo.txt` — the pinned logo creation's metadata; tokens `REDACTED`.
+
+## Status
+
+Implemented by issue #89: `src/recipe/registry.ts`'s `NEWS_CAROUSEL` now declares `promptNode: "JSON
+Master"` and a `"Brand_Logo"` brand-asset media slot; `canonicalCarouselProtocol()`
+(`src/execution-protocol/protocol.ts`) declares its run-point at `"JSON Master"`; the FAKE Carrousel
+(`src/producer/fixtures/fake-carousel-space.ts`) is rebuilt to this file's exact node inventory, proven
+by `src/producer/fixtures/fake-carousel-space.test.ts` parsing this capture directly.

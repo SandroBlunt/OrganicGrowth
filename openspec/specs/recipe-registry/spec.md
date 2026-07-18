@@ -243,13 +243,23 @@ registry's per-Recipe shapes generalize to a genuinely different production plan
 `production-spec/news-carousel-validate.ts`'s `validateNewsCarouselSpec` and
 `production-spec/news-carousel-brand-safety.ts`'s `scanNewsCarouselForBannedWords`; its `copyShape`
 SHALL be `{ maxChars: 2200, minEmojis: 0, maxEmojis: 2 }` — DIFFERENT from the Character Explainer with
-Cast Recipe's `180`/`1`/`3`; its `canvasInputs` SHALL declare exactly one `brand-asset` media slot
-named `"Brand Logo"` (image, required, `brandAssetKey: "brand-logo"`) whose `promptNode` equals its
-sole run-point's name; and its `phases` SHALL declare all six phases in order, with its `author`
-phase's checklist carrying exactly 8 items (7 mechanical, 1 agent-judged — the "grounded subject"
-item), its `gate` phase's checklist EMPTY (it declares zero gates), and its `copy` phase's checklist
-carrying exactly one mechanical item referencing `copy/validate.ts`'s `validateCopy` under this
-Recipe's own `copyShape`.
+Cast Recipe's `180`/`1`/`3`; its `canvasInputs` SHALL declare exactly one `brand-asset` media slot named
+`"Brand_Logo"` (image, required, `brandAssetKey: "brand-logo"`) whose `promptNode` equals its sole
+run-point's name; and its `phases` SHALL declare all six phases in order, with its `author` phase's
+checklist carrying exactly 8 items (7 mechanical, 1 agent-judged — the "grounded subject" item), its
+`gate` phase's checklist EMPTY (it declares zero gates), and its `copy` phase's checklist carrying
+exactly one mechanical item referencing `copy/validate.ts`'s `validateCopy` under this Recipe's own
+`copyShape`.
+
+`"Brand_Logo"` and `"JSON Master"` (the run-point/prompt-node name below) are the REAL canvas node
+names, verified against the live "Carrousel" Space capture (issue #86,
+`src/space-driver/fixtures/live-captures/carrousel/00-spaces_show.fullboard.json`). The earlier
+placeholders (`"Brand Logo"`, `"Slides Prompts"`) named no real canvas node at all; the Operator chose
+(2026-07-18, recorded in the capture's own README) to align the BUILD to the canvas rather than rename
+the canvas (issue #89). A brand-asset media slot has no separate `pinnedReference`-style field (unlike
+an idea-pick slot) — its map key IS its physical canvas node, mirroring how `promptNode` already works.
+This is a DIFFERENT node, on a DIFFERENT Space, than the wired *Character Explainer with Cast* Recipe's
+own `"JSON Master"` node — the two share only a name, never a canvas.
 
 #### Scenario: The News Carousel Recipe declares zero gates
 
@@ -271,7 +281,7 @@ Recipe's own `copyShape`.
   `canonicalCarouselProtocol()`
 - **WHEN** the Recipe's `space.nodes.clipRunPoint` is compared to the protocol's sole run-point's
   `start` name
-- **THEN** they are equal (`"Slides Prompts"`)
+- **THEN** they are equal (`"JSON Master"`) — the REAL, captured node name (issue #86/#89)
 
 #### Scenario: The News Carousel Recipe's spec-shape is its own validator and scanner, not a re-implementation
 
@@ -288,13 +298,13 @@ Recipe's own `copyShape`.
 - **THEN** News Carousel's is `{ maxChars: 2200, minEmojis: 0, maxEmojis: 2 }`, different from the
   other Recipe's `{ maxChars: 180, minEmojis: 1, maxEmojis: 3 }`
 
-#### Scenario: The News Carousel Recipe's canvasInputs describe its Brand Logo slot and its sole prompt node
+#### Scenario: The News Carousel Recipe's canvasInputs describe its Brand_Logo slot and its sole prompt node
 
 - **GIVEN** the seeded `news-carousel` Recipe
 - **WHEN** its `canvasInputs` is inspected
-- **THEN** `mediaSlots["Brand Logo"]` is `{ kind: "brand-asset", media: "image", required: true,
-  brandAssetKey: "brand-logo" }`
-- **AND** `promptNode` equals `space.nodes.clipRunPoint` (`"Slides Prompts"`)
+- **THEN** `mediaSlots["Brand_Logo"]` is `{ kind: "brand-asset", media: "image", required: true,
+  brandAssetKey: "brand-logo" }` — the map key IS the real, captured canvas node name (issue #86/#89)
+- **AND** `promptNode` equals `space.nodes.clipRunPoint` (`"JSON Master"`)
 
 #### Scenario: The News Carousel Recipe's author-phase checklist has 8 items, 7 mechanical + 1 agent-judged
 

@@ -104,8 +104,8 @@ describe("auditBindMediaPhase — generic across ANY wired Recipe, via its OWN c
     assert.ok(result.items[0]!.detail?.includes("STOPS"));
   });
 
-  it("passes the news-carousel Recipe when its required 'Brand Logo' slot is bound", () => {
-    const result = auditBindMediaPhase(carouselRecipe, { boundSlotNames: new Set(["Brand Logo"]) });
+  it("passes the news-carousel Recipe when its required 'Brand_Logo' slot is bound", () => {
+    const result = auditBindMediaPhase(carouselRecipe, { boundSlotNames: new Set(["Brand_Logo"]) });
     assert.equal(result.ok, true);
   });
 
@@ -159,9 +159,9 @@ describe("auditPhase — single dispatcher entry point (issue #85 AC4: 'an audit
   it("dispatches 'bind-media' identically, for either Recipe", () => {
     const viaDispatcher = auditPhase(carouselRecipe, {
       phase: "bind-media",
-      boundSlotNames: new Set(["Brand Logo"]),
+      boundSlotNames: new Set(["Brand_Logo"]),
     });
-    const direct = auditBindMediaPhase(carouselRecipe, { boundSlotNames: new Set(["Brand Logo"]) });
+    const direct = auditBindMediaPhase(carouselRecipe, { boundSlotNames: new Set(["Brand_Logo"]) });
     assert.deepEqual(viaDispatcher, direct);
   });
 

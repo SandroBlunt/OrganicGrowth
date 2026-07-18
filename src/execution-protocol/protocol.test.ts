@@ -62,11 +62,11 @@ describe("Producer Protocol node name", () => {
   });
 });
 
-describe("canonical carousel Producer Protocol — the single-lane 'Carrousel' Space (issue #81)", () => {
-  it("has exactly ONE run-point, starting at 'Slides Prompts'", () => {
+describe("canonical carousel Producer Protocol — the single-lane 'Carrousel' Space (issue #81, node name verified against the live capture in issue #86/#89)", () => {
+  it("has exactly ONE run-point, starting at 'JSON Master' (the real, captured inject node)", () => {
     const rp = canonicalCarouselProtocol().run_points;
     assert.equal(rp.length, 1);
-    assert.equal(rp[0]!.start, "Slides Prompts");
+    assert.equal(rp[0]!.start, "JSON Master");
   });
 
   it("has no gate — a zero-gate Recipe renders straight through", () => {
@@ -80,7 +80,7 @@ describe("canonical carousel Producer Protocol — the single-lane 'Carrousel' S
   it("references the node only by name — never a hard-coded node ID", () => {
     const json = serializeProtocol(canonicalCarouselProtocol());
     assert.ok(!/node-[0-9a-f]/i.test(json), "protocol must not embed node IDs");
-    assert.match(json, /Slides Prompts/);
+    assert.match(json, /JSON Master/);
   });
 
   it("serializes comfortably under the read-API truncation cap", () => {

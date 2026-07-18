@@ -8,20 +8,20 @@ const NEWS_CAROUSEL = getRecipe("news-carousel")!;
 const CHARACTER = getRecipe("character-explainer-with-cast")!;
 
 describe("bindMediaSlots — resolve a Recipe's declared media slots; STOP on a missing REQUIRED one (ADR-0016)", () => {
-  it("binds a brand-asset slot when its resolution is found — News Carousel's 'Brand Logo'", () => {
+  it("binds a brand-asset slot when its resolution is found — News Carousel's 'Brand_Logo'", () => {
     const result = bindMediaSlots(NEWS_CAROUSEL, {
-      "Brand Logo": { kind: "brand-asset", found: true, path: "/tmp/brand-logo.png" },
+      "Brand_Logo": { kind: "brand-asset", found: true, path: "/tmp/brand-logo.png" },
     });
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(result.bound.length, 1);
-    assert.equal(result.bound[0]!.name, "Brand Logo");
-    assert.deepEqual(result.boundSlotNames, new Set(["Brand Logo"]));
+    assert.equal(result.bound[0]!.name, "Brand_Logo");
+    assert.deepEqual(result.boundSlotNames, new Set(["Brand_Logo"]));
   });
 
   it("STOPs with a clear message when a REQUIRED brand-asset slot's asset is not found", () => {
     const result = bindMediaSlots(NEWS_CAROUSEL, {
-      "Brand Logo": {
+      "Brand_Logo": {
         kind: "brand-asset",
         found: false,
         message: 'Brand Asset "brand-logo" not found for Brand "straw-motion" (looked in .../assets).',
@@ -29,7 +29,7 @@ describe("bindMediaSlots — resolve a Recipe's declared media slots; STOP on a 
     });
     assert.equal(result.ok, false);
     if (result.ok) return;
-    assert.equal(result.missingSlot, "Brand Logo");
+    assert.equal(result.missingSlot, "Brand_Logo");
     assert.match(result.message, /not found for Brand "straw-motion"/);
   });
 
@@ -37,7 +37,7 @@ describe("bindMediaSlots — resolve a Recipe's declared media slots; STOP on a 
     const result = bindMediaSlots(NEWS_CAROUSEL, {});
     assert.equal(result.ok, false);
     if (result.ok) return;
-    assert.equal(result.missingSlot, "Brand Logo");
+    assert.equal(result.missingSlot, "Brand_Logo");
     assert.match(result.message, /REQUIRED/);
     assert.match(result.message, /ADR-0016/);
     assert.match(result.message, /never bind a half-complete Asset/i);
@@ -66,7 +66,7 @@ describe("bindMediaSlots — resolve a Recipe's declared media slots; STOP on a 
 
   it("never returns ok:true with a half-bound Asset — required-missing always short-circuits ok:false", () => {
     const result = bindMediaSlots(NEWS_CAROUSEL, {
-      "Brand Logo": { kind: "brand-asset", found: false, message: "missing" },
+      "Brand_Logo": { kind: "brand-asset", found: false, message: "missing" },
     });
     assert.equal(result.ok, false);
   });

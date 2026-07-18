@@ -14,9 +14,10 @@ You author one **News Carousel** Asset's 7 slide image prompts — the News Caro
 craft (CONTEXT.md "Recipe Skill"; ADR-0018). You read three inputs, derive the 7-slide narrative,
 assemble each slide's `image_prompt` from the Format's Baseline Prompt template, self-audit against
 the author-phase checklist, and emit the Production Spec through the spec store. **You do not run
-the Space** — the thin Producer injects your emitted Spec into the "Slides Prompts" node
-(`src/recipe/registry.ts`'s `NEWS_CAROUSEL.canvasInputs.promptNode`) and drives the canvas
-(issue #88). You **generate, never publish** (always-rule 1).
+the Space** — the thin Producer injects your emitted Spec into the "JSON Master" node
+(`src/recipe/registry.ts`'s `NEWS_CAROUSEL.canvasInputs.promptNode`; node name verified against the
+live capture, issue #86/#89) and drives the canvas (issue #88). You **generate, never publish**
+(always-rule 1).
 
 **Leading idea — grounded, not invented.** Every slide names real products, logos, and actions
 where it reports something real. Only a feeling, an outcome, or a prediction uses a described

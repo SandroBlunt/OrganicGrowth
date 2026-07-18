@@ -164,7 +164,7 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
     const protocol = canonicalCarouselProtocol();
     assert.equal(protocol.run_points.length, 1);
     assert.equal(recipe.space.nodes.clipRunPoint, protocol.run_points[0]!.start);
-    assert.equal(recipe.space.nodes.clipRunPoint, "Slides Prompts");
+    assert.equal(recipe.space.nodes.clipRunPoint, "JSON Master");
   });
 
   it("declares NO pinnedReference/castRunPoint — it has no pick-gate to pin or render a paused Cast for", () => {
@@ -200,9 +200,9 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
     assert.equal(recipe.copyShape.maxEmojis, 2);
   });
 
-  it("declares its typed canvas inputs: one brand-asset media slot (Brand Logo) + a prompt node (issue #81 AC1)", () => {
-    assert.deepEqual(Object.keys(recipe.canvasInputs.mediaSlots), ["Brand Logo"]);
-    const slot = recipe.canvasInputs.mediaSlots["Brand Logo"]!;
+  it("declares its typed canvas inputs: one brand-asset media slot (Brand_Logo, the real captured canvas node) + a prompt node (issue #81 AC1, issue #89 node-name alignment)", () => {
+    assert.deepEqual(Object.keys(recipe.canvasInputs.mediaSlots), ["Brand_Logo"]);
+    const slot = recipe.canvasInputs.mediaSlots["Brand_Logo"]!;
     assert.equal(slot.kind, "brand-asset");
     assert.equal(slot.media, "image");
     assert.equal(slot.required, true);
@@ -211,7 +211,7 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
 
   it("declares its prompt node as the SAME node its sole run-point starts at", () => {
     assert.equal(recipe.canvasInputs.promptNode, recipe.space.nodes.clipRunPoint);
-    assert.equal(recipe.canvasInputs.promptNode, "Slides Prompts");
+    assert.equal(recipe.canvasInputs.promptNode, "JSON Master");
   });
 
   it("declares all six Phase Contracts, in PHASE_ORDER's exact order (issue #85 AC1)", () => {

@@ -4,8 +4,9 @@
  *
  * Unlike the wired *Character Explainer with Cast* Recipe (3 `character_concepts` + 3 `clips` + 3
  * `thumbnails`, `contract.ts`), the **News Carousel** Recipe drives the single-lane "Carrousel" Space
- * with one JSON array of exactly 7 slides, injected wholesale into that Space's "Slides Prompts" node
- * (`recipe/registry.ts`'s `NEWS_CAROUSEL` entry) — no per-slide run-point, no gate.
+ * with one JSON array of exactly 7 slides, injected wholesale into that Space's "JSON Master" node
+ * (`recipe/registry.ts`'s `NEWS_CAROUSEL` entry; node name verified against the live capture, issue
+ * #86/#89) — no per-slide run-point, no gate.
  *
  * --- Shape decided by the #77 prototype (GO on the thin-spec bet, with one refinement) ---
  *
@@ -64,7 +65,7 @@ export interface CarouselSlide {
   readonly stat_callout: string;
   /** The on-card supporting line, at most `CAROUSEL_TEXT_MAX_CHARS` chars, in the Format's voice. */
   readonly text: string;
-  /** The full authored image prompt the Space's single "Slides Prompts" node renders this slide from. */
+  /** The full authored image prompt the Space's single "JSON Master" node renders this slide from. */
   readonly image_prompt: string;
 }
 
