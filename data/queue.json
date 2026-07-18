@@ -1,5 +1,30 @@
 {
-  "jobs": [],
+  "jobs": [
+    {
+      "idea_id": "idea-01",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-18T07:33:16.547Z"
+    },
+    {
+      "idea_id": "idea-02",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-18T07:33:16.549Z"
+    },
+    {
+      "idea_id": "idea-03",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-18T07:33:16.550Z"
+    }
+  ],
   "lock": {
     "active_job": null
   }
