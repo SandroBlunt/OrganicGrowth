@@ -1,5 +1,7 @@
 # News Carousel — live e2e smoke test (2026-07-18)
 
+> Connected issue: SandroBlunt/OrganicGrowth#102 (HITL — iterate baseline prompt + contract).
+
 Three `news-carousel` Ideas produced end-to-end against the **live Carrousel Space**
 (`https://www.magnific.com/app/spaces/a2402c48-b688-436b-8cb6-23a4aad7822e`), one attended session,
 one job at a time. **Generated, never published.** 21 slides, 75 credits/slide, ~1,575 total, zero
