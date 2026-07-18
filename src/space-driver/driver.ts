@@ -7,10 +7,11 @@
  * Fallback Protocol behind a handful of primitives plus ONE generic orchestrator:
  *
  *   • injectSpec(port, spec, promptNode)       — Fallback-Protocol inject into the Recipe's OWN prompt
- *                                                node (`Recipe.canvasInputs.promptNode`, e.g. `JSON
- *                                                Master` for the character Recipe, `Slides Prompts` for
- *                                                the News Carousel Recipe — issue #88, ADR-0016) +
- *                                                readback. Never hard-coded to one Recipe's node name.
+ *                                                node (`Recipe.canvasInputs.promptNode` — the wired
+ *                                                character Recipe and the News Carousel Recipe each
+ *                                                declare their OWN "JSON Master" node, on two DIFFERENT
+ *                                                Spaces — issue #88/#89, ADR-0016) + readback. Never
+ *                                                hard-coded to one Recipe's node name.
  *   • runRunPoint(port, startNodeId, mode)     — start a run, poll to terminal, return fired-nodes + creations.
  *   • pinPick(port, pick, nodeName)            — Fallback-Protocol pin of a resolved pick into a named
  *                                                on-canvas node (the node name is Recipe-declared, never
@@ -84,8 +85,9 @@ export type DriverErrorCode =
   | "inject_edit_failed"
   /** The readback after the inject did not show the prompt node's text changed. */
   | "inject_unconfirmed"
-  /** The Recipe's prompt node (e.g. `JSON Master`, `Slides Prompts`) was not found on the Space for
-   *  readback (issue #88 — generalized beyond the one wired Recipe's `JSON Master`). */
+  /** The Recipe's prompt node (e.g. `JSON Master`) was not found on the Space for readback (issue #88
+   *  — generalized beyond the one wired Recipe's own node; a DIFFERENT Recipe's "JSON Master" lives on
+   *  a DIFFERENT Space, never assumed to be the same node). */
   | "prompt_node_missing"
   /** A run failed for a reason other than a missing/stale start node. */
   | "run_failed"
@@ -240,10 +242,10 @@ async function pollRun(port: SpaceMcpPort, runId: string, poll: PollOptions): Pr
 
 /**
  * Build the natural-language goal the in-canvas agent receives to inject the Spec. It names the TARGET
- * node — the Recipe's own prompt node (`promptNode`, e.g. `JSON Master` for the character Recipe,
- * `Slides Prompts` for the News Carousel Recipe — `Recipe.canvasInputs.promptNode`, issue #88) — and
- * embeds the exact JSON to set, so the agent replaces that node's text contract. Never hard-coded to one
- * Recipe's node name.
+ * node — the Recipe's own prompt node (`promptNode` — `Recipe.canvasInputs.promptNode`, issue #88; the
+ * wired character Recipe and the News Carousel Recipe each declare their OWN "JSON Master" node, on
+ * two DIFFERENT Spaces) — and embeds the exact JSON to set, so the agent replaces that node's text
+ * contract. Never hard-coded to one Recipe's node name.
  */
 export function injectGoal(spec: ProductionSpec | Record<string, unknown>, promptNode: string): string {
   const json = JSON.stringify(spec);
@@ -515,7 +517,8 @@ export type DriveLegInput =
       readonly targetGate: string | null;
       readonly spec: ProductionSpec | Record<string, unknown>;
       /** The Recipe's OWN prompt node to inject the Spec into (`Recipe.canvasInputs.promptNode`, e.g.
-       *  `JSON Master` or `Slides Prompts`) — Recipe-declared, never hard-coded here (issue #88). */
+       *  `JSON Master` — a different Recipe's own node on a different Space, never assumed shared) —
+       *  Recipe-declared, never hard-coded here (issue #88). */
       readonly promptNode: string;
     }
   | {

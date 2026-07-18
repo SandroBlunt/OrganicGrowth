@@ -128,9 +128,10 @@ Use `src/space-driver/driver.ts`'s generic `driveToNextGate(port, spaceState, in
 SAME function for every Recipe, never hard-coded to one:
 
 - **A job's FIRST leg** (`input.kind: "first"`) injects the just-authored Spec into the Recipe's OWN
-  `canvasInputs.promptNode` (e.g. `JSON Master` for the wired Recipe, `Slides Prompts` for the News
-  Carousel Recipe — never a fixed node name) and runs to the Recipe's first declared gate (or straight
-  through to the finished Asset for a gateless Recipe).
+  `canvasInputs.promptNode` — resolved from `src/recipe/registry.ts`'s `getRecipe(job.recipe)`, never a
+  node name hard-coded in this doc (every wired Recipe declares its own; two different Recipes' own
+  nodes may even share a literal name while living on two different Spaces) — and runs to the Recipe's
+  first declared gate (or straight through to the finished Asset for a gateless Recipe).
 - **A resumed leg** (`input.kind: "resumed"`) pins the Operator's resolved pick into the Recipe's
   declared pinned-reference node and runs to the NEXT declared gate, or to the final render when there
   is none.

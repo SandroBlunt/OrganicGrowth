@@ -36,13 +36,22 @@
  * --- Seeded entry #2: "News Carousel" — a SECOND, zero-gate Recipe (issue #81, map ticket #77) ---
  *
  * "News Carousel" drives the rebuilt, single-lane "Carrousel" Space (one run-point: inject + run
- * "Slides Prompts" downstream, no gate — `canonicalCarouselProtocol()`) with the #77-decided thin
+ * "JSON Master" downstream, no gate — `canonicalCarouselProtocol()`) with the #77-decided thin
  * Spec shape (`news-carousel-contract.ts`/`news-carousel-validate.ts`): exactly 7 slides, fixed role
  * order. Its own copy shape and its own banned-word scan (`news-carousel-brand-safety.ts`, covering
  * EVERY slide text field including `image_prompt` — closing the gap the issue-60 salvage build report
  * flagged) prove the registry's per-Recipe shapes generalize to a genuinely different Recipe. This
  * slice registers the Recipe DESCRIPTIVELY only — actually driving/binding it (the Brand Asset store,
  * the producer Skill, the generic thin producer) is issues #82/#87/#88.
+ *
+ * --- Node-name alignment to the live canvas (issue #86/#89) ---
+ *
+ * The live "Carrousel" Space capture (issue #86) showed the real canvas uses `"JSON Master"` as its
+ * inject/run-point node (NOT the earlier placeholder `"Slides Prompts"`) and `"Brand_Logo"` as its
+ * logo reference node (NOT `"Brand Logo"`). The Operator chose to align the BUILD to the canvas (issue
+ * #89) — `NEWS_CAROUSEL_SLIDES_NODE_NAME` and the `mediaSlots` key below now hold the REAL, captured
+ * names. This is a DIFFERENT Space than the wired *Character Explainer with Cast* Recipe's own "JSON
+ * Master" node — the two share only a string, never a canvas.
  *
  * --- Phase Contracts (ADR-0017, issue #85) ---
  *
@@ -167,8 +176,8 @@ interface BaseMediaSlot {
 
 /**
  * A media slot filled from the Brand's **Brand Asset** store (`data/brands/<slug>/assets/`) — reused
- * every run (e.g. the News Carousel Recipe's "Brand Logo"). `brandAssetKey` is the store key the
- * `BrandAssetStore` (issue #82) reads.
+ * every run (e.g. the News Carousel Recipe's "Brand_Logo"). `brandAssetKey` is the store key the
+ * `BrandAssetStore` (issue #82) reads — a SEPARATE thing from the slot's own map-key/name (below).
  */
 export interface BrandAssetMediaSlot extends BaseMediaSlot {
   readonly kind: "brand-asset";
@@ -190,10 +199,13 @@ export type MediaSlot = BrandAssetMediaSlot | IdeaPickMediaSlot;
 
 /**
  * A Recipe's named media-slot map: slot name -> its definition. The slot NAME is the conceptual,
- * product-facing name (e.g. `"Selected Character"`, `"Brand Logo"`) — not necessarily identical to the
- * underlying Space's own on-canvas reference-node name (`RecipeSpaceNodes.pinnedReference` tracks
- * THAT, for the Recipe that has one); resolving a slot to its physical canvas target is the binding
- * step's job (issue #88), out of this slice's scope.
+ * product-facing name — not NECESSARILY identical to the underlying Space's own on-canvas
+ * reference-node name. An **idea-pick** slot's physical target is tracked SEPARATELY, on
+ * `RecipeSpaceNodes.pinnedReference` (e.g. the character Recipe's slot is named "Selected Character"
+ * but pins into the canvas node "Character #2"). A **brand-asset** slot has no such separate field —
+ * its map key IS its physical canvas target (mirroring `promptNode`'s convention below); the News
+ * Carousel Recipe's `"Brand_Logo"` slot therefore names the REAL, captured canvas node directly
+ * (issue #86/#89) — resolving a slot to whatever it binds is the binding step's job (issue #88).
  */
 export type MediaSlotMap = Readonly<Record<string, MediaSlot>>;
 
@@ -474,9 +486,17 @@ if (!declaresAllPhasesInOrder(CHARACTER_EXPLAINER_WITH_CAST.phases)) {
  */
 const NEWS_CAROUSEL_SPACE_ID = "a2402c48-b688-436b-8cb6-23a4aad7822e";
 
-/** The single node that is BOTH the Producer's injectable prompt node AND the Execution Protocol's
- *  sole run-point start (ADR-0016) — the whole downstream chain fires off this one node. */
-const NEWS_CAROUSEL_SLIDES_NODE_NAME = "Slides Prompts";
+/**
+ * The single node that is BOTH the Producer's injectable prompt node AND the Execution Protocol's
+ * sole run-point start (ADR-0016) — the whole downstream chain (Assistant -> List -> Image Generator
+ * -> Generated slides) fires off this one node. Verified against the live "Carrousel" Space capture
+ * (issue #86, `src/space-driver/fixtures/live-captures/carrousel/00-spaces_show.fullboard.json`): the
+ * real node is `"JSON Master"` — the earlier placeholder `"Slides Prompts"` named no real canvas node
+ * at all. The Operator chose to align the build to the canvas (issue #89). This is a DIFFERENT node,
+ * on a DIFFERENT Space, than the wired *Character Explainer with Cast* Recipe's own "JSON Master" —
+ * the two share only a name.
+ */
+const NEWS_CAROUSEL_SLIDES_NODE_NAME = "JSON Master";
 
 /**
  * The News Carousel Recipe's OWN copy-shape params (ADR-0012) — deliberately DIFFERENT from the wired
@@ -580,13 +600,13 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
   {
     phase: "bind-media",
     description:
-      "Bind the canvas's media slots before render: the 'Brand Logo' brand-asset slot must resolve to " +
+      "Bind the canvas's media slots before render: the 'Brand_Logo' brand-asset slot must resolve to " +
       "the Brand's stored logo.",
     checklist: [
       {
         kind: "mechanical",
         description:
-          "Every REQUIRED media slot (here: 'Brand Logo') has a bound asset before render; a missing " +
+          "Every REQUIRED media slot (here: 'Brand_Logo') has a bound asset before render; a missing " +
           "required slot's asset STOPS the run (ADR-0016) — never bind a half-complete Asset.",
         reference: "recipe/phase-contract.ts: auditBindMediaPhase",
       },
@@ -600,7 +620,7 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
   },
   {
     phase: "render",
-    description: "Drive the Space's sole 'Slides Prompts' run-point to render all 7 slides.",
+    description: "Drive the Space's sole 'JSON Master' run-point to render all 7 slides.",
     checklist: [
       {
         kind: "agent-judged",
@@ -643,9 +663,10 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
 /**
  * The second seeded Recipe (issue #81): a ZERO-gate Instagram news carousel. Registered
  * DESCRIPTIVELY — its own Spec shape/validator/banned-word scan, its own copy shape, its own Space
- * target, and its own typed canvas inputs (a "Brand Logo" brand-asset media slot) — proving the
+ * target, and its own typed canvas inputs (a "Brand_Logo" brand-asset media slot) — proving the
  * registry's per-Recipe shapes generalize to a genuinely different Recipe (a different gate count,
- * spec shape, and media). Actually driving/binding it end-to-end is issues #82/#87/#88.
+ * spec shape, and media). Driving/binding it end-to-end against the FAKE, rebuilt to the real
+ * single-lane canvas shape, is proven in issue #89 (`src/producer/two-recipes-end-to-end.test.ts`).
  */
 const NEWS_CAROUSEL: Recipe = {
   slug: "news-carousel",
@@ -683,7 +704,11 @@ const NEWS_CAROUSEL: Recipe = {
   },
   canvasInputs: {
     mediaSlots: {
-      "Brand Logo": {
+      // The slot's map key IS the physical canvas node name (a brand-asset slot has no separate
+      // `pinnedReference`-style field — see the `MediaSlotMap` doc above). "Brand_Logo" is the REAL,
+      // captured node name (issue #86/#89) — the store KEY (`brandAssetKey: "brand-logo"`) is a
+      // separate thing and is unchanged.
+      "Brand_Logo": {
         kind: "brand-asset",
         media: "image",
         required: true,

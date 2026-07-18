@@ -8,7 +8,8 @@ import { bindMediaAsset, driveToNextGate, type DriveLegInput } from "../space-dr
 import type { PollOptions } from "../space-driver/driver.ts";
 import {
   FakeCarouselSpace,
-  SLIDES_PROMPTS_NODE_NAME,
+  CARROUSEL_JSON_MASTER_NODE_NAME,
+  CARROUSEL_BRAND_LOGO_NODE_NAME,
   CAROUSEL_ASSET_CREATION_ID,
   CAROUSEL_ASSET_URL,
 } from "./fixtures/fake-carousel-space.ts";
@@ -21,17 +22,25 @@ import { auditNewsCarouselAuthorPhase } from "../production-spec/news-carousel-a
 const FAST: PollOptions = { sleep: async () => {} };
 const NEWS_CAROUSEL = getRecipe("news-carousel")!;
 const BRAND_LOGO_LOCAL_PATH = "/data/brands/straw-motion/assets/brand-logo.png";
-const LOGO_NODE_NAME = STRAW_MOTION_BASELINE.logoReferenceName; // "Straw_Motion_Logo" — real, per-Format
+// The media slot's map KEY is the real, captured canvas node ("Brand_Logo", issue #86/#89) — the
+// bind target below is read straight off the Recipe's own slot map, never re-typed as a literal.
+const LOGO_SLOT_NAME = Object.keys(NEWS_CAROUSEL.canvasInputs.mediaSlots)[0]!;
 
 /**
- * The thin, recipe-generic Producer's carousel path, proven end-to-end against the FAKE (issue #88):
- * author (already-authored real Straw Motion Spec, self-audited) -> bind-media (Brand Logo found,
- * self-audited) -> bind the logo into its node -> drive the canvas (ZERO gates — runs straight through)
- * -> copy (self-audited). No live `spaces_*`/`creations_*` call anywhere — the Magnific fake stands in.
+ * The thin, recipe-generic Producer's carousel path, proven end-to-end against the FAKE — rebuilt to
+ * the REAL, captured single-lane "Carrousel" canvas shape (issue #86/#89; `fake-carousel-space.test.ts`
+ * proves the fake's node inventory matches the capture). author (already-authored real Straw Motion
+ * Spec, self-audited) -> bind-media (Brand_Logo found, self-audited) -> bind the logo into its real
+ * node -> drive the canvas (ZERO gates — runs straight through) -> copy (self-audited). No live
+ * `spaces_*`/`creations_*` call anywhere — the Magnific fake stands in.
  */
-describe("carousel end-to-end — a gate-free News Carousel job runs straight through against the fake (issue #88)", () => {
+describe("carousel end-to-end — a gate-free News Carousel job runs straight through against the fake (issue #88, node names aligned to the live capture in #89)", () => {
   it("has ZERO declared gates (the Recipe-level fact this whole test proves out)", () => {
     assert.deepEqual(NEWS_CAROUSEL.gates, []);
+  });
+
+  it("its logo media slot's map key IS the real canvas node name (Brand_Logo — issue #86/#89)", () => {
+    assert.equal(LOGO_SLOT_NAME, CARROUSEL_BRAND_LOGO_NODE_NAME);
   });
 
   it("author phase: the real Straw Motion Spec self-audits ok against BOTH the generic and the graduated checklist", () => {
@@ -43,9 +52,9 @@ describe("carousel end-to-end — a gate-free News Carousel job runs straight th
     assert.equal(graduated.ok, true);
   });
 
-  it("bind-media phase + render: binds the found Brand Logo, then drives the gate-free canvas to a finished Asset", async () => {
+  it("bind-media phase + render: binds the found Brand_Logo, then drives the gate-free canvas to a finished Asset", async () => {
     const bindResult = bindMediaSlots(NEWS_CAROUSEL, {
-      "Brand Logo": { kind: "brand-asset", found: true, path: BRAND_LOGO_LOCAL_PATH },
+      [LOGO_SLOT_NAME]: { kind: "brand-asset", found: true, path: BRAND_LOGO_LOCAL_PATH },
     });
     assert.equal(bindResult.ok, true);
     if (!bindResult.ok) return;
@@ -53,14 +62,15 @@ describe("carousel end-to-end — a gate-free News Carousel job runs straight th
     const bindAudit = auditBindMediaPhase(NEWS_CAROUSEL, { boundSlotNames: bindResult.boundSlotNames });
     assert.equal(bindAudit.ok, true);
 
-    const space = new FakeCarouselSpace(LOGO_NODE_NAME);
+    const space = new FakeCarouselSpace();
 
     // Bind the ONE resolved brand-asset slot into its canvas node BEFORE the render leg — mirrors the
-    // thin Producer's bind phase (issue #88, ADR-0016).
+    // thin Producer's bind phase (issue #88, ADR-0016). The bind target is the slot's OWN name (a
+    // brand-asset slot's map key IS its physical canvas node — see `recipe/registry.ts`).
     for (const b of bindResult.bound) {
       assert.equal(b.resolution.kind, "brand-asset");
       if (b.resolution.kind !== "brand-asset") continue;
-      const bound = await bindMediaAsset(space, b.resolution.path, b.slot.media, LOGO_NODE_NAME, FAST);
+      const bound = await bindMediaAsset(space, b.resolution.path, b.slot.media, b.name, FAST);
       assert.equal(bound.ok, true);
     }
     assert.equal(space.editGoals.length, 1, "exactly one media-bind edit, before any render call");
@@ -73,7 +83,9 @@ describe("carousel end-to-end — a gate-free News Carousel job runs straight th
       spec,
       promptNode: NEWS_CAROUSEL.canvasInputs.promptNode,
     };
-    assert.equal(input.promptNode, SLIDES_PROMPTS_NODE_NAME);
+    // The real, captured inject/run-point node — "JSON Master" on THIS (Carrousel) canvas, a
+    // different Space than the wired Recipe's own "JSON Master" (issue #86/#89).
+    assert.equal(input.promptNode, CARROUSEL_JSON_MASTER_NODE_NAME);
 
     const result = await driveToNextGate(space, await space.readState(), input, FAST);
     assert.equal(result.ok, true);
@@ -105,7 +117,7 @@ describe("carousel end-to-end — a gate-free News Carousel job runs straight th
 describe("carousel — a missing REQUIRED Brand Asset STOPS the run before any Space call (issue #88, ADR-0016)", () => {
   it("bind-media STOPs with a clear message naming the slot; the fake is never touched", async () => {
     const bindResult = bindMediaSlots(NEWS_CAROUSEL, {
-      "Brand Logo": {
+      [LOGO_SLOT_NAME]: {
         kind: "brand-asset",
         found: false,
         message:
@@ -115,7 +127,7 @@ describe("carousel — a missing REQUIRED Brand Asset STOPS the run before any S
     });
     assert.equal(bindResult.ok, false);
     if (bindResult.ok) return;
-    assert.equal(bindResult.missingSlot, "Brand Logo");
+    assert.equal(bindResult.missingSlot, LOGO_SLOT_NAME);
     assert.match(bindResult.message, /not found for Brand "straw-motion"/);
 
     // The audit ALSO reports the gap (for observability), but the run has already stopped above —
@@ -124,7 +136,7 @@ describe("carousel — a missing REQUIRED Brand Asset STOPS the run before any S
     assert.equal(audit.ok, false);
 
     // Prove the STOP happened BEFORE any Space interaction: a fresh fake, never called.
-    const space = new FakeCarouselSpace(LOGO_NODE_NAME);
+    const space = new FakeCarouselSpace();
     assert.equal(space.editGoals.length, 0);
     assert.equal(space.runs.length, 0);
   });

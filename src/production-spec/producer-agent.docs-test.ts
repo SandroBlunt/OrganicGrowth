@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getRecipe } from "../recipe/registry.ts";
 
 /**
  * Documentation-conformance suite. Proves the content `producer` agent definition exists, is model
@@ -132,6 +133,37 @@ describe("producer.md is a thin, recipe-generic conductor — no recipe-specific
     const text = await readFile(PRODUCER_AGENT, "utf8");
     assert.doesNotMatch(text, /Character Variants Generator/);
     assert.doesNotMatch(text, /Selected Character/);
+  });
+
+  it("never hard-codes the News Carousel Recipe's own canvas node names either — pinned against the registry's REAL values (issue #89 Round 2 regression guard)", async () => {
+    // #89 aligned the News Carousel Recipe's canvas node names to the live "Carrousel" capture
+    // (issue #86): its real promptNode is "JSON Master" and its real brand-asset media slot/canvas
+    // node is "Brand_Logo" — replacing the placeholders "Slides Prompts"/"Brand Logo", which named no
+    // real canvas node at all. A stale citation of the OLD placeholder slipped into this very doc
+    // during #88 (before #86's capture existed) and went uncaught because nothing reads this prose at
+    // production time (the driver reads the live registry, never this doc) — the same doc-drift class
+    // as the #88 Round-1 watermark regression this file already guards above.
+    //
+    // These values are read from the LIVE registry (`getRecipe`), never copied as a frozen literal:
+    // if the registry's own values ever change again, the `assert.equal`/`assert.deepEqual` calls
+    // below fail FIRST and loudly, so this guard's own premise can never itself go silently stale.
+    const carousel = getRecipe("news-carousel")!;
+    assert.equal(carousel.canvasInputs.promptNode, "JSON Master");
+    assert.deepEqual(Object.keys(carousel.canvasInputs.mediaSlots), ["Brand_Logo"]);
+
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.doesNotMatch(
+      text,
+      /Slides Prompts/,
+      'producer.md must not cite "Slides Prompts" — retired (issue #86/#89); the News Carousel ' +
+        `Recipe's real promptNode is "${carousel.canvasInputs.promptNode}" (src/recipe/registry.ts)`,
+    );
+    assert.doesNotMatch(
+      text,
+      /"Brand Logo"/,
+      'producer.md must not cite "Brand Logo" — retired (issue #86/#89); the News Carousel Recipe\'s ' +
+        `real canvas node is "${Object.keys(carousel.canvasInputs.mediaSlots)[0]}" (src/recipe/registry.ts)`,
+    );
   });
 });
 

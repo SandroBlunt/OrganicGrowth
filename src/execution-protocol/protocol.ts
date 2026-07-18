@@ -105,16 +105,23 @@ export function canonicalProtocol(): ProtocolDocument {
  * Recipe, issue #81) — the rebuilt, single-lane replacement for the old multi-lane "AI News" board
  * (per-lane "Image Prompt Slide 1..7" run-points are dead; see the salvage note in the issue).
  *
- * Exactly ONE run-point: inject the 7-slide Spec into the Space's "Slides Prompts" node (the SAME node
+ * Exactly ONE run-point: inject the 7-slide Spec into the Space's "JSON Master" node (the SAME node
  * this run-point starts at — a single node doubles as both the Producer's injectable prompt node and
  * the Execution Protocol's run-point, since the Space's whole downstream chain — Assistant -> List ->
- * generator -> Generated slides — fires off that one node), run it `downstream`, and finish straight
- * through to the rendered slides. No gate: the News Carousel Recipe declares zero pick-gates
+ * Image Generator -> Generated slides — fires off that one node), run it `downstream`, and finish
+ * straight through to the rendered slides. No gate: the News Carousel Recipe declares zero pick-gates
  * (`recipe/registry.ts`'s `NEWS_CAROUSEL.gates`), so this is simultaneously the FIRST and FINAL leg.
+ *
+ * Node name verified against the live "Carrousel" Space capture (issue #86,
+ * `src/space-driver/fixtures/live-captures/carrousel/00-spaces_show.fullboard.json`): the real inject
+ * node is `"JSON Master"`, NOT the earlier placeholder `"Slides Prompts"`. The Operator chose to align
+ * the build to the canvas rather than rename the canvas (issue #89) — this is a DIFFERENT canvas from
+ * the wired *Character Explainer with Cast* Recipe's own `"JSON Master"` node (different Space id); the
+ * two share only a name, never a node.
  */
 export function canonicalCarouselProtocol(): ProtocolDocument {
   return {
-    run_points: [{ start: "Slides Prompts", mode: "downstream", gate: null }],
+    run_points: [{ start: "JSON Master", mode: "downstream", gate: null }],
   };
 }
 

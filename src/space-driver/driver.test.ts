@@ -191,10 +191,14 @@ describe("injectSpec — inject into JSON Master via the Fallback Protocol and c
 // === injectSpec generalizes to ANY Recipe-supplied prompt node (QA-2 — isolated unit coverage) =======
 
 /**
- * A minimal `SpaceMcpPort` stub whose sole text node is named `"Slides Prompts"` — deliberately NOT
- * named `"JSON Master"` at all (no such node exists on this stub), so a passing `injectSpec` call here
- * is proof the function is genuinely NOT hard-coded to the wired Recipe's own node. `dropTargetNode`
- * models a Recipe whose declared prompt node is missing entirely (the `prompt_node_missing` case).
+ * A minimal `SpaceMcpPort` stub whose sole text node is named `"Arbitrary Recipe Prompt Node"` —
+ * deliberately NOT named `"JSON Master"` at all (no such node exists on this stub), so a passing
+ * `injectSpec` call here is proof the function is genuinely NOT hard-coded to the wired Recipe's own
+ * node. This is a SYNTHETIC stand-in for "whatever prompt node some other Recipe might declare" — it
+ * is NOT the real News Carousel Recipe's own prompt node, which (after issue #86/#89's node-name
+ * alignment to the live capture) is ALSO literally named "JSON Master", just on a DIFFERENT Space; a
+ * genuinely different name is needed here to prove genericity. `dropTargetNode` models a Recipe whose
+ * declared prompt node is missing entirely (the `prompt_node_missing` case).
  */
 class PromptNodeSpace implements SpaceMcpPort {
   public editGoals: string[] = [];
@@ -233,20 +237,22 @@ class PromptNodeSpace implements SpaceMcpPort {
 }
 
 describe("injectSpec — generalizes to a Recipe-supplied prompt node OTHER than JSON Master (QA-2)", () => {
-  it("injects into 'Slides Prompts' (the News Carousel Recipe's own prompt node) — no JSON Master node exists at all", async () => {
-    const space = new PromptNodeSpace("Slides Prompts");
-    const result = await injectSpec(space, validCarouselSpec(), "Slides Prompts", FAST);
+  const ARBITRARY_NODE = "Arbitrary Recipe Prompt Node";
+
+  it("injects into an arbitrary Recipe-supplied node name — no JSON Master node exists at all", async () => {
+    const space = new PromptNodeSpace(ARBITRARY_NODE);
+    const result = await injectSpec(space, validCarouselSpec(), ARBITRARY_NODE, FAST);
 
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(space.editGoals.length, 1);
-    assert.match(space.editGoals[0]!, /Slides Prompts/);
+    assert.match(space.editGoals[0]!, new RegExp(ARBITRARY_NODE));
     assert.doesNotMatch(space.editGoals[0]!, new RegExp(JSON_MASTER_NODE_NAME));
   });
 
   it("fails prompt_node_missing when the Recipe-declared prompt node cannot be read back at all", async () => {
-    const space = new PromptNodeSpace("Slides Prompts", true);
-    const result = await injectSpec(space, validCarouselSpec(), "Slides Prompts", FAST);
+    const space = new PromptNodeSpace(ARBITRARY_NODE, true);
+    const result = await injectSpec(space, validCarouselSpec(), ARBITRARY_NODE, FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "prompt_node_missing");
@@ -648,27 +654,27 @@ class MediaBindConfirmingSpace implements SpaceMcpPort {
 
 describe("bindMediaGoal — describes the media-type-matching upload + bind, naming path/media/node", () => {
   it("embeds the local path, media kind, and target node name", () => {
-    const goal = bindMediaGoal("/data/brands/straw-motion/assets/brand-logo.png", "image", "Brand Logo");
+    const goal = bindMediaGoal("/data/brands/straw-motion/assets/brand-logo.png", "image", "Brand_Logo");
     assert.match(goal, /brand-logo\.png/);
     assert.match(goal, /image/);
-    assert.match(goal, /Brand Logo/);
+    assert.match(goal, /Brand_Logo/);
   });
 });
 
 describe("bindMediaAsset — bind a Brand Asset's local media into a named node via the Fallback Protocol", () => {
   it("issues one edit naming the path/node and confirms via port.verifyPinned (reused, not a new port method)", async () => {
     const space = new MediaBindConfirmingSpace(true);
-    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand Logo", FAST);
+    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand_Logo", FAST);
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(result.pick, "/tmp/brand-logo.png");
     assert.equal(space.editGoals.length, 1);
-    assert.match(space.editGoals[0]!, /Brand Logo/);
+    assert.match(space.editGoals[0]!, /Brand_Logo/);
   });
 
   it("fails identifiably when the bind edit itself fails", async () => {
     const space = new MediaBindConfirmingSpace(true, true);
-    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand Logo", FAST);
+    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand_Logo", FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "media_bind_edit_failed");
@@ -676,7 +682,7 @@ describe("bindMediaAsset — bind a Brand Asset's local media into a named node 
 
   it("fails identifiably when the port cannot confirm the bind (never trusts a fake-only marker)", async () => {
     const space = new MediaBindConfirmingSpace(false);
-    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand Logo", FAST);
+    const result = await bindMediaAsset(space, "/tmp/brand-logo.png", "image", "Brand_Logo", FAST);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "media_bind_unconfirmed");
