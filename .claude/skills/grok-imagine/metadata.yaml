@@ -1,0 +1,131 @@
+name: gen-prompting-grok-imagine
+version: 0.1.0
+disclosure_tier: 2
+created: 2026-07-17
+updated: 2026-07-17T12:00:00Z
+domain_path: gen-prompting/code/image/grok-imagine
+variant: code
+target_model:
+  vendor: xai
+  model: grok-imagine
+  suite: grok-imagine-1-5
+  modalities: [text-to-image, image-edit]
+  front_ends: [grok.com, x, grok-imagine-app]
+modes:
+  - id: T2I
+    name: text-to-image
+  - id: edit
+    name: image-editing
+    reference_count: 1
+    structure: change-plus-keep
+front_end_controls:
+  aspect_ratios:
+    - "1:1"
+    - "16:9"
+    - "9:16"
+    - "4:5"
+    - "5:4"
+    - "3:4"
+    - "4:3"
+    - "3:2"
+    - "2:3"
+    - "auto"
+  default_aspect_ratio: "1:1"
+  resolution: auto
+  note: >
+    Aspect ratio and resolution are on-screen settings, not prompt text.
+    Grok Imagine sizes the output; match the aspect ratio to the final
+    use (portrait for characters, landscape for environments, square for
+    social).
+prompt_rules:
+  ordering: subject-first
+  natural_language: true
+  word_budget: [30, 80]
+  word_hard_ceiling: 100
+  lighting_required: true
+  style_required: true
+  positive_direction_only: true
+  negative_prompt_field: false
+moderation:
+  scanner: true
+  categories: [violence, extreme-photorealism, quality-spam]
+  override_flag: "--override-safety"
+  principle: >
+    Image filters scan predicted realism, identity risk, violence,
+    explicit content, and brands. Reframe risky wording as staged /
+    theatrical / cinematic / stylized; avoid combining multiple mild risk
+    signals in one prompt.
+signature_strengths:
+  - moderation-aware-prompting
+  - change-plus-keep-editing
+  - lighting-led-direction
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: false
+  - name: environment
+    type: string
+    required: false
+  - name: lighting
+    type: string
+    required: false
+  - name: camera
+    type: string
+    required: false
+  - name: style
+    type: string
+    required: false
+  - name: details
+    type: string
+    required: false
+  - name: change
+    type: string
+    required: false
+  - name: keep
+    type: string
+    required: false
+  - name: references
+    type: json
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+  - name: override_safety
+    type: boolean
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Grok Imagine image prompt (T2I and edit), enforcing subject-first order, required lighting + named style for T2I, the change + keep + one-reference rule for edit, the 30-80 word budget (hard ceiling 100), the moderation-safety scanner with safer rephrasings and an --override-safety escape hatch, the negation guard, and aspect-ratio validation.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (subject-first weighting, lighting-led direction, 30-80 word budget, change + keep editing, and the full moderation risk table with tactics).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the Grok Imagine image prompting guidance with source URLs, fetch date, and known uncertainties.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../_shared/references/.
+source_tracking:
+  official_guidelines_url: https://pixeldojo.ai/guides/xai-video-prompting-guide
+  additional_sources:
+    - https://medium.com/@carolletta/mastering-illumination-with-grok-imagine-portrait-photography-f7f9a197e21b
+  fetched_at: 2026-07-17
+  notes: >
+    Skill is front-end / prompting focused. The image side ships under the
+    Grok Imagine 1.5 suite umbrella; xAI does not publish a separate
+    version number for the image model, so this skill is versioned under
+    the suite name. The moderation guidance is derived from the Grok
+    Imagine image prompting guide and community tactics for passing the
+    image filters; it is for getting legitimate creative work through, not
+    for defeating platform policy. Grok Imagine's exact aspect-ratio preset
+    list and resolution tiers vary by front-end and change over time; see
+    the official-guidelines audit notes.
+shared_references:
+  mode: relative-link
+  path: ../../../_shared/references/

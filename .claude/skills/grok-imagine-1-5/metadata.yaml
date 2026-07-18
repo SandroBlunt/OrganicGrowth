@@ -1,0 +1,129 @@
+name: gen-prompting-grok-imagine-1-5
+version: 0.1.0
+disclosure_tier: 2
+created: 2026-07-17
+updated: 2026-07-17T12:00:00Z
+domain_path: gen-prompting/code/video/grok-imagine-1-5
+variant: code
+target_model:
+  vendor: xai
+  model_id: grok-imagine-1.5
+  front_end: grok.com / X / Grok Imagine app
+  modalities: [text-to-video, image-to-video, video-extension, reference-guidance, native-audio]
+modes:
+  - id: T2V
+    name: text-to-video
+  - id: I2V
+    name: image-to-video
+    first_frame: true
+    reference_count: 1
+    preferred: true
+  - id: extend
+    name: video-extension
+    reference_count: 1
+  - id: reference
+    name: reference-guidance
+    reference_count_range: [1, 7]
+distinctive_features:
+  moderation_aware_prompting: true
+  native_audio: true
+  one_camera_move_per_clip: true
+  camera_moves: [push-in, dolly, orbit, tracking, arc, pan, tilt, zoom, crane, static, handheld]
+  moderation_high_risk_triggers:
+    violence: [fight, strike, punch, impact, attack, crash, explosion, blood, injury, struggle]
+    photorealism: [ultra-realistic, 8k-photorealistic, raw-footage, cctv, documentary-realism, found-footage]
+    likeness: [real-people, celebrities, identifiable-likenesses]
+front_end_controls:
+  durations_s: [1, 15]
+  duration_sweet_spot_s: [5, 8]
+  aspect_ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"]
+  default_aspect_ratio: "16:9"
+prompt_rules:
+  ordering: camera-then-subject-action-then-environment-then-style
+  sound_position: last
+  sound_required: true
+  char_limit: 2000
+  negative_prompt_field: false
+  separate_audio_step: false
+  camera_moves_per_clip: 1
+inputs:
+  - name: mode
+    type: string
+    required: true
+  - name: camera
+    type: string
+    required: true
+  - name: subject
+    type: string
+    required: true
+  - name: action
+    type: string
+    required: true
+  - name: environment
+    type: string
+    required: false
+  - name: style
+    type: string
+    required: false
+  - name: references
+    type: json
+    required: false
+  - name: dialogue
+    type: string
+    required: false
+  - name: sfx
+    type: string
+    required: false
+  - name: ambience
+    type: string
+    required: false
+  - name: music
+    type: string
+    required: false
+  - name: staging
+    type: boolean
+    required: false
+  - name: duration
+    type: integer
+    required: false
+  - name: aspect_ratio
+    type: string
+    required: false
+  - name: override_camera
+    type: boolean
+    required: false
+  - name: override_safety
+    type: boolean
+    required: false
+outputs:
+  - name: prompt
+    type: string
+scripts:
+  - path: scripts/build-prompt.py
+    purpose: Assemble and validate a Grok Imagine 1.5 video prompt across all four modes, with the required Sound section, the one-camera-move rule, and the moderation-safety scanner.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first) — ordering, sound-required, I2V/extend/reference rules, camera stacking + override, moderation scanner + override, negation guard, duration range.
+references:
+  - path: references/translation-notes.md
+    purpose: Model-specific quirks (moderation-aware prompting, native audio, four modes, one move per clip, no negative prompt, front-end set, 5-8s sweet spot).
+  - path: references/official-guidelines.md
+    purpose: Distilled summary of the Grok Imagine 1.5 prompt guide and moderation tactics with source URLs and fetch date.
+  - path: references/README.md
+    purpose: Pointer to shared references at ../../../_shared/references/.
+source_tracking:
+  official_guidelines_url: https://www.imagine.art/blogs/grok-imagine-video-1-5-prompt-guide
+  additional_sources:
+    - https://www.roborhythms.com/grok-imagine-moderation/
+  fetched_at: 2026-07-17
+  notes: >
+    Skill is front-end / prompting focused on Grok Imagine 1.5 (video) across
+    xAI's grok.com, X app, and Grok Imagine app. The signature is
+    moderation-aware prompting: Grok's video filter predicts motion and scores
+    realism + harm, so the build script front-loads a high-risk-trigger
+    scanner and the guide's risky-to-safer rephrasing table. On-screen ranges
+    (1-15s, aspect set) can vary across the three front-ends and over time; the
+    moderation trigger list is distilled from community guidance and is
+    heuristic, not an official xAI publication.
+shared_references:
+  mode: relative-link
+  path: ../../../_shared/references/
