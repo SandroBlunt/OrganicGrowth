@@ -1,0 +1,14 @@
+identifier: fFtSanNCDY
+name: Clear Logo.png
+family: a24344e4-77e4-441f-bed0-4fa44787aac0
+tool: upload
+status: completed
+url: "https://pikaso.cdnpk.net/private/production/4885893474/clear-logo.png?token=REDACTED"
+thumbnailUrl: "https://pikaso.cdnpk.net/private/production/4885893474/conversions/clear-logo-preview.jpg?token=REDACTED"
+previewUrl: "https://pikaso.cdnpk.net/private/production/4885893474/clear-logo.png?token=REDACTED&w=1024&preview=1"
+createdAt: "2026-07-15T06:47:03+00:00"
+metadata:
+  prompt: "Digital illustration: White text on a white background, with shadows creating a 3D effect"
+  width: 383
+  height: 80
+webUrl: "https://www.magnific.com/app/creation/fFtSanNCDY?utm_source=mcp&utm_medium=ai_connector"
