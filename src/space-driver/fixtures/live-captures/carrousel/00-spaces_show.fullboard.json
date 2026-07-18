@@ -1,0 +1,772 @@
+{
+  "space": {
+    "id": "a2402c48-b688-436b-8cb6-23a4aad7822e",
+    "name": "Carrousel",
+    "elementCount": 7,
+    "webUrl": "https://www.magnific.com/app/spaces/a2402c48-b688-436b-8cb6-23a4aad7822e?utm_source=mcp&utm_medium=ai_connector"
+  },
+  "elements": [
+    {
+      "id": "0db83e4b-2e12-4efe-89c6-30a07bd81f57",
+      "type": "text",
+      "name": "Producer Protocol",
+      "x": 11170.28807823209,
+      "y": 197.88277905511083,
+      "width": 319,
+      "height": 262,
+      "data": {
+        "text": "{\n  \"run_points\": [\n    {\n      \"start\": \"JSON Master\",\n      \"mode\": \"downstream\",\n      \"gate\": null\n    }\n  ]\n}",
+        "color": "#1C1C1C",
+        "fontSize": null
+      }
+    },
+    {
+      "id": "1b034cd7-01de-410c-9976-461e2ebd8499",
+      "type": "prompt-generator",
+      "name": "Assistant",
+      "x": 12080.911565128623,
+      "y": 203.1984962630279,
+      "width": 420,
+      "height": 392,
+      "data": {
+        "instructions": "return the value of each \"image_prompt\" and put it on a list",
+        "model": "GPT41MINI",
+        "systemPrompt": "You are to treat the input data and output data as a formal JavaScript object notation system. operate with the variables mentioned and not modify under any circumstance the the values of those variables or the content in them. \n\nWe're returning the value of a key do not return the quotation marks. \n\nDO NOT modify or add anything that is not given in the instruction or that is not present in the original JSON. ",
+        "sourceElement": null,
+        "promptResult": "1. A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\n2. A vertical viral Instagram news post. A full frame high quality photograph filling the entire frame edge to edge, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Near the bottom of the frame, inset with a visible margin of photo on all sides (not touching the frame edges), floats a compact solid white rounded card, like a notification toast. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\n3. A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\n4. A vertical viral Instagram news post. A full frame high quality photograph filling nearly the entire frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the lower-left corner, a small compact solid white rounded rectangle card, not full width, floats over the photo like a small overlay badge. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the compact card, in a single condensed row, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Directly beneath that row, in bold black display type, is the condensed stat callout \"3 companies.\" with the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" in smaller near-black sentence-case text wrapping beneath it. All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\n5. A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the bottom-right corner of the photo, a small circular inset photo shows a close-up of the ChatGPT Work interface's task-complete checkmark, with the text \"JOB: DONE\" above it. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\n6. A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the upper-right corner of that photo, a small circular inset photo shows a close-up of the Anthropic Claude Cowork interface synced across the laptop and the phone beside it. No caption text. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\n7. A vertical viral Instagram news post. A full frame high quality photograph filling nearly the entire frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the bottom-right corner of the photo, a small circular inset photo shows a close-up of Meta's Muse Spark interface mid-call to an external tool, with the text \"TOOLS: LIVE\" above it. In the lower-left corner, a small compact solid white rounded rectangle card, not full width, floats over the photo like a small overlay badge. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the compact card, in a single condensed row, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Directly beneath that row, in bold black display type, is the condensed stat callout \"3 companies.\" with the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" in smaller near-black sentence-case text wrapping beneath it. All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
+        "outputMode": "as_list",
+        "outputListSize": 2
+      }
+    },
+    {
+      "id": "40f3c408-df5b-4d10-8f12-d1fcd1ef49b8",
+      "type": "list",
+      "name": "Generated slides",
+      "x": 14060.162337765014,
+      "y": -139.93375756941646,
+      "width": 840,
+      "height": 897,
+      "data": {
+        "itemType": "image",
+        "items": [
+          {
+            "id": null,
+            "type": "image",
+            "creationIdentifier": "BmDJJKWoQR",
+            "value": "",
+            "text": null,
+            "status": "completed",
+            "metadata": {
+              "workflowRunId": 122120083,
+              "workflowNodeRunId": 156245633
+            },
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "image",
+            "creationIdentifier": "cDGxxQY0eP",
+            "value": "",
+            "text": null,
+            "status": "completed",
+            "metadata": {
+              "workflowRunId": 122120083,
+              "workflowNodeRunId": 156245633
+            },
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "image",
+            "creationIdentifier": "xg5MMYCjfW",
+            "value": "",
+            "text": null,
+            "status": "completed",
+            "metadata": {
+              "workflowRunId": 122120083,
+              "workflowNodeRunId": 156245633
+            },
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "image",
+            "creationIdentifier": "rlbVV0Gxtc",
+            "value": "",
+            "text": null,
+            "status": "completed",
+            "metadata": {
+              "workflowRunId": 122120083,
+              "workflowNodeRunId": 156245633
+            },
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "image",
+            "creationIdentifier": "8veyy4ZIrU",
+            "value": "",
+            "text": null,
+            "status": "completed",
+            "metadata": {
+              "workflowRunId": 122120083,
+              "workflowNodeRunId": 156245633
+            },
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "image",
+            "creationIdentifier": "fFt33zbCDY",
+            "value": "",
+            "text": null,
+            "status": "completed",
+            "metadata": {
+              "workflowRunId": 122120083,
+              "workflowNodeRunId": 156245633
+            },
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "image",
+            "creationIdentifier": "bruYYB65Y2",
+            "value": "",
+            "text": null,
+            "status": "completed",
+            "metadata": {
+              "workflowRunId": 122120083,
+              "workflowNodeRunId": 156245633
+            },
+            "checked": null
+          }
+        ],
+        "mode": "replace",
+        "viewMode": "grid",
+        "mediaFit": "fit",
+        "metadata": {
+          "workflowRunId": "kUCxwD16BU"
+        },
+        "cost": null
+      }
+    },
+    {
+      "id": "7596ced9-80b6-4561-9816-61bb4d8843d6",
+      "type": "image-generator",
+      "name": "Image Generator #21",
+      "x": 13378.202894933107,
+      "y": 125.77992498653987,
+      "width": 420,
+      "height": 560,
+      "data": {
+        "currentCreationIdentifier": "bruYYB65Y2",
+        "currentGeneration": {
+          "creationIdentifier": "bruYYB65Y2",
+          "workflowRunId": "kUCxwD16BU",
+          "nodeRunId": "156245633",
+          "generatedAt": "2026-07-15T14:19:34+00:00"
+        },
+        "historyGenerations": [
+          {
+            "creationIdentifier": "1sqn8wyr4r",
+            "workflowRunId": "vbp74Da47y",
+            "nodeRunId": "156071974",
+            "generatedAt": "2026-07-15T11:34:15+00:00"
+          },
+          {
+            "creationIdentifier": "TenkymzVNR",
+            "workflowRunId": "vbp74Da47y",
+            "nodeRunId": "156071974",
+            "generatedAt": "2026-07-15T11:34:17+00:00"
+          },
+          {
+            "creationIdentifier": "Piw8bcy42C",
+            "workflowRunId": "vbp74Da47y",
+            "nodeRunId": "156071974",
+            "generatedAt": "2026-07-15T11:34:19+00:00"
+          },
+          {
+            "creationIdentifier": "fFt9SEWCDY",
+            "workflowRunId": "BCWUuGoQRm",
+            "nodeRunId": "156092840",
+            "generatedAt": "2026-07-15T11:56:46+00:00"
+          },
+          {
+            "creationIdentifier": "Ten157wVNR",
+            "workflowRunId": "danSoDXSLv",
+            "nodeRunId": "156096628",
+            "generatedAt": "2026-07-15T12:00:38+00:00"
+          },
+          {
+            "creationIdentifier": "kLHnABd16B",
+            "workflowRunId": "danSoDXSLv",
+            "nodeRunId": "156096628",
+            "generatedAt": "2026-07-15T12:00:39+00:00"
+          },
+          {
+            "creationIdentifier": "1sqYGtsr4r",
+            "workflowRunId": "danSoDXSLv",
+            "nodeRunId": "156096628",
+            "generatedAt": "2026-07-15T12:00:41+00:00"
+          },
+          {
+            "creationIdentifier": "fFt9yMgCDY",
+            "workflowRunId": "danSoDXSLv",
+            "nodeRunId": "156096628",
+            "generatedAt": "2026-07-15T12:00:42+00:00"
+          },
+          {
+            "creationIdentifier": "ohpUlYT829",
+            "workflowRunId": "danSoDXSLv",
+            "nodeRunId": "156096628",
+            "generatedAt": "2026-07-15T12:00:43+00:00"
+          },
+          {
+            "creationIdentifier": "hEoydkPvqL",
+            "workflowRunId": "uroA4qQLDr",
+            "nodeRunId": "156114471",
+            "generatedAt": "2026-07-15T12:16:57+00:00"
+          },
+          {
+            "creationIdentifier": "CHmN8l5EEy",
+            "workflowRunId": "uroA4qQLDr",
+            "nodeRunId": "156114471",
+            "generatedAt": "2026-07-15T12:16:58+00:00"
+          },
+          {
+            "creationIdentifier": "y6U8lDcPW9",
+            "workflowRunId": "uroA4qQLDr",
+            "nodeRunId": "156114471",
+            "generatedAt": "2026-07-15T12:17:01+00:00"
+          },
+          {
+            "creationIdentifier": "tfXJpUgmZJ",
+            "workflowRunId": "uroA4qQLDr",
+            "nodeRunId": "156114471",
+            "generatedAt": "2026-07-15T12:17:03+00:00"
+          },
+          {
+            "creationIdentifier": "y6UIMUePW9",
+            "workflowRunId": "WX6leKcXeY",
+            "nodeRunId": "156131099",
+            "generatedAt": "2026-07-15T12:33:14+00:00"
+          },
+          {
+            "creationIdentifier": "3G4CoihREY",
+            "workflowRunId": "WX6leKcXeY",
+            "nodeRunId": "156131099",
+            "generatedAt": "2026-07-15T12:33:16+00:00"
+          },
+          {
+            "creationIdentifier": "rlbcZsgxtc",
+            "workflowRunId": "WX6leKcXeY",
+            "nodeRunId": "156131099",
+            "generatedAt": "2026-07-15T12:33:18+00:00"
+          },
+          {
+            "creationIdentifier": "jSKTAUALD0",
+            "workflowRunId": "WX6leKcXeY",
+            "nodeRunId": "156131099",
+            "generatedAt": "2026-07-15T12:33:19+00:00"
+          },
+          {
+            "creationIdentifier": "gJxpIFuSXO",
+            "workflowRunId": "fKdnjzCDYB",
+            "nodeRunId": "156140293",
+            "generatedAt": "2026-07-15T12:42:04+00:00"
+          },
+          {
+            "creationIdentifier": "e8TlOn7dqL",
+            "workflowRunId": "fKdnjzCDYB",
+            "nodeRunId": "156140293",
+            "generatedAt": "2026-07-15T12:42:06+00:00"
+          },
+          {
+            "creationIdentifier": "fFtNAtgCDY",
+            "workflowRunId": "fKdnjzCDYB",
+            "nodeRunId": "156140293",
+            "generatedAt": "2026-07-15T12:42:09+00:00"
+          },
+          {
+            "creationIdentifier": "jSKTXjbLD0",
+            "workflowRunId": "fKdnjzCDYB",
+            "nodeRunId": "156140293",
+            "generatedAt": "2026-07-15T12:42:12+00:00"
+          },
+          {
+            "creationIdentifier": "sw1MkVQl8e",
+            "workflowRunId": "LyFmftswO4",
+            "nodeRunId": "156151290",
+            "generatedAt": "2026-07-15T12:52:19+00:00"
+          },
+          {
+            "creationIdentifier": "cDGkAxO0eP",
+            "workflowRunId": "LyFmftswO4",
+            "nodeRunId": "156151290",
+            "generatedAt": "2026-07-15T12:52:21+00:00"
+          },
+          {
+            "creationIdentifier": "LUkVK83swO",
+            "workflowRunId": "LyFmftswO4",
+            "nodeRunId": "156151290",
+            "generatedAt": "2026-07-15T12:52:24+00:00"
+          },
+          {
+            "creationIdentifier": "y6UISHfPW9",
+            "workflowRunId": "LyFmftswO4",
+            "nodeRunId": "156151290",
+            "generatedAt": "2026-07-15T12:52:26+00:00"
+          },
+          {
+            "creationIdentifier": "tfXy5XNmZJ",
+            "workflowRunId": "CkXVUOEEyu",
+            "nodeRunId": "156162725",
+            "generatedAt": "2026-07-15T13:02:59+00:00"
+          },
+          {
+            "creationIdentifier": "hEo4kIXvqL",
+            "workflowRunId": "CkXVUOEEyu",
+            "nodeRunId": "156162725",
+            "generatedAt": "2026-07-15T13:03:00+00:00"
+          },
+          {
+            "creationIdentifier": "5xQnJrSKxe",
+            "workflowRunId": "CkXVUOEEyu",
+            "nodeRunId": "156162725",
+            "generatedAt": "2026-07-15T13:03:03+00:00"
+          },
+          {
+            "creationIdentifier": "MXWLf8HDCm",
+            "workflowRunId": "CkXVUOEEyu",
+            "nodeRunId": "156162725",
+            "generatedAt": "2026-07-15T13:03:06+00:00"
+          },
+          {
+            "creationIdentifier": "VdYjwAEMMU",
+            "workflowRunId": "tFVc0XmZJ4",
+            "nodeRunId": "156178076",
+            "generatedAt": "2026-07-15T13:16:09+00:00"
+          },
+          {
+            "creationIdentifier": "ohp7Npc829",
+            "workflowRunId": "tFVc0XmZJ4",
+            "nodeRunId": "156178076",
+            "generatedAt": "2026-07-15T13:16:11+00:00"
+          },
+          {
+            "creationIdentifier": "SOjdmSXUb8",
+            "workflowRunId": "tFVc0XmZJ4",
+            "nodeRunId": "156178076",
+            "generatedAt": "2026-07-15T13:16:13+00:00"
+          },
+          {
+            "creationIdentifier": "rlb0XlJxtc",
+            "workflowRunId": "tFVc0XmZJ4",
+            "nodeRunId": "156178076",
+            "generatedAt": "2026-07-15T13:16:15+00:00"
+          },
+          {
+            "creationIdentifier": "rlb088Gxtc",
+            "workflowRunId": "0o36EgTfWv",
+            "nodeRunId": "156180301",
+            "generatedAt": "2026-07-15T13:18:14+00:00"
+          },
+          {
+            "creationIdentifier": "5xQndB3Kxe",
+            "workflowRunId": "0o36EgTfWv",
+            "nodeRunId": "156180301",
+            "generatedAt": "2026-07-15T13:18:15+00:00"
+          },
+          {
+            "creationIdentifier": "l7rpvFAgv9",
+            "workflowRunId": "0o36EgTfWv",
+            "nodeRunId": "156180301",
+            "generatedAt": "2026-07-15T13:18:18+00:00"
+          },
+          {
+            "creationIdentifier": "mCBPGDDhJQ",
+            "workflowRunId": "0o36EgTfWv",
+            "nodeRunId": "156180301",
+            "generatedAt": "2026-07-15T13:18:20+00:00"
+          },
+          {
+            "creationIdentifier": "UyLBWbnwny",
+            "workflowRunId": "LyFbckswO4",
+            "nodeRunId": "156202978",
+            "generatedAt": "2026-07-15T13:39:17+00:00"
+          },
+          {
+            "creationIdentifier": "DBclqGipcl",
+            "workflowRunId": "LyFbckswO4",
+            "nodeRunId": "156202978",
+            "generatedAt": "2026-07-15T13:39:19+00:00"
+          },
+          {
+            "creationIdentifier": "437vp7d9Aa",
+            "workflowRunId": "LyFbckswO4",
+            "nodeRunId": "156202978",
+            "generatedAt": "2026-07-15T13:39:22+00:00"
+          },
+          {
+            "creationIdentifier": "1sq03kYr4r",
+            "workflowRunId": "LyFbckswO4",
+            "nodeRunId": "156202978",
+            "generatedAt": "2026-07-15T13:39:24+00:00"
+          },
+          {
+            "creationIdentifier": "jSKMAgALD0",
+            "workflowRunId": "LyFbckswO4",
+            "nodeRunId": "156202978",
+            "generatedAt": "2026-07-15T13:39:27+00:00"
+          },
+          {
+            "creationIdentifier": "MXWsqICDCm",
+            "workflowRunId": "LyFbckswO4",
+            "nodeRunId": "156202978",
+            "generatedAt": "2026-07-15T13:39:30+00:00"
+          },
+          {
+            "creationIdentifier": "IadyLH5tvE",
+            "workflowRunId": "LyFbckswO4",
+            "nodeRunId": "156202978",
+            "generatedAt": "2026-07-15T13:39:31+00:00"
+          },
+          {
+            "creationIdentifier": "TenjlRPVNR",
+            "workflowRunId": "kUfFdL16BU",
+            "nodeRunId": "156212610",
+            "generatedAt": "2026-07-15T13:47:07+00:00"
+          },
+          {
+            "creationIdentifier": "BmD7yMxoQR",
+            "workflowRunId": "kUfFdL16BU",
+            "nodeRunId": "156212610",
+            "generatedAt": "2026-07-15T13:47:10+00:00"
+          },
+          {
+            "creationIdentifier": "ohpJPdp829",
+            "workflowRunId": "kUfFdL16BU",
+            "nodeRunId": "156212610",
+            "generatedAt": "2026-07-15T13:47:11+00:00"
+          },
+          {
+            "creationIdentifier": "vu8NRuka47",
+            "workflowRunId": "kUfFdL16BU",
+            "nodeRunId": "156212610",
+            "generatedAt": "2026-07-15T13:47:15+00:00"
+          },
+          {
+            "creationIdentifier": "sw1pBO6l8e",
+            "workflowRunId": "kUfFdL16BU",
+            "nodeRunId": "156212610",
+            "generatedAt": "2026-07-15T13:47:17+00:00"
+          },
+          {
+            "creationIdentifier": "SOjXI6QUb8",
+            "workflowRunId": "kUfFdL16BU",
+            "nodeRunId": "156212610",
+            "generatedAt": "2026-07-15T13:47:18+00:00"
+          },
+          {
+            "creationIdentifier": "LUkDX6LswO",
+            "workflowRunId": "kUfFdL16BU",
+            "nodeRunId": "156212610",
+            "generatedAt": "2026-07-15T13:47:20+00:00"
+          },
+          {
+            "creationIdentifier": "Tenj3bDVNR",
+            "workflowRunId": "cBizEx0ePT",
+            "nodeRunId": "156219987",
+            "generatedAt": "2026-07-15T13:55:09+00:00"
+          },
+          {
+            "creationIdentifier": "PiwhjI242C",
+            "workflowRunId": "cBizEx0ePT",
+            "nodeRunId": "156219987",
+            "generatedAt": "2026-07-15T13:55:11+00:00"
+          },
+          {
+            "creationIdentifier": "kLHca0x16B",
+            "workflowRunId": "cBizEx0ePT",
+            "nodeRunId": "156219987",
+            "generatedAt": "2026-07-15T13:55:14+00:00"
+          },
+          {
+            "creationIdentifier": "XtMwn4hBfo",
+            "workflowRunId": "cBizEx0ePT",
+            "nodeRunId": "156219987",
+            "generatedAt": "2026-07-15T13:55:17+00:00"
+          },
+          {
+            "creationIdentifier": "74l8kuBJAL",
+            "workflowRunId": "cBizEx0ePT",
+            "nodeRunId": "156219987",
+            "generatedAt": "2026-07-15T13:55:19+00:00"
+          },
+          {
+            "creationIdentifier": "nTZK4OdYQD",
+            "workflowRunId": "cBizEx0ePT",
+            "nodeRunId": "156219987",
+            "generatedAt": "2026-07-15T13:55:21+00:00"
+          },
+          {
+            "creationIdentifier": "UyLB551wny",
+            "workflowRunId": "cBizEx0ePT",
+            "nodeRunId": "156219987",
+            "generatedAt": "2026-07-15T13:55:23+00:00"
+          },
+          {
+            "creationIdentifier": "BmDJJKWoQR",
+            "workflowRunId": "kUCxwD16BU",
+            "nodeRunId": "156245633",
+            "generatedAt": "2026-07-15T14:19:19+00:00"
+          },
+          {
+            "creationIdentifier": "cDGxxQY0eP",
+            "workflowRunId": "kUCxwD16BU",
+            "nodeRunId": "156245633",
+            "generatedAt": "2026-07-15T14:19:22+00:00"
+          },
+          {
+            "creationIdentifier": "xg5MMYCjfW",
+            "workflowRunId": "kUCxwD16BU",
+            "nodeRunId": "156245633",
+            "generatedAt": "2026-07-15T14:19:24+00:00"
+          },
+          {
+            "creationIdentifier": "rlbVV0Gxtc",
+            "workflowRunId": "kUCxwD16BU",
+            "nodeRunId": "156245633",
+            "generatedAt": "2026-07-15T14:19:26+00:00"
+          },
+          {
+            "creationIdentifier": "8veyy4ZIrU",
+            "workflowRunId": "kUCxwD16BU",
+            "nodeRunId": "156245633",
+            "generatedAt": "2026-07-15T14:19:28+00:00"
+          },
+          {
+            "creationIdentifier": "fFt33zbCDY",
+            "workflowRunId": "kUCxwD16BU",
+            "nodeRunId": "156245633",
+            "generatedAt": "2026-07-15T14:19:30+00:00"
+          },
+          {
+            "creationIdentifier": "bruYYB65Y2",
+            "workflowRunId": "kUCxwD16BU",
+            "nodeRunId": "156245633",
+            "generatedAt": "2026-07-15T14:19:34+00:00"
+          }
+        ],
+        "numberOfGenerations": 1,
+        "prompt": "",
+        "processedPrompt": "",
+        "aspectRatio": "3:4",
+        "mode": "imagen-nano-banana-2-flash",
+        "experiment": null,
+        "resolution": "1k",
+        "modifiers": [],
+        "styleTransfer": null,
+        "colorPalette": [],
+        "seed": null,
+        "negativePrompt": "",
+        "imagePromptStrength": null,
+        "numInferenceSteps": null,
+        "guidanceScale": null,
+        "outputElements": [],
+        "isUnlimitedMode": null,
+        "cost": {
+          "creditsCost": 0,
+          "isUnlimited": true,
+          "unlimitedStatus": true,
+          "lastCalculated": "2026-07-16T18:28:17.132Z"
+        },
+        "cinematographer": null,
+        "version": "v2",
+        "smartPrompt": true,
+        "thinkingLevel": "minimal",
+        "useGoogleSearchTool": true,
+        "v2References": null,
+        "magnificSubmode": null,
+        "cinematicControls": null,
+        "effects": null,
+        "framing": null,
+        "structure": null,
+        "customReferences": null,
+        "batchInputMode": null
+      },
+      "creationIdentifier": "bruYYB65Y2",
+      "webUrl": "https://www.magnific.com/app/creation/bruYYB65Y2",
+      "url": "https://pikaso.cdnpk.net/private/production/4891253220/render.png?token=REDACTED",
+      "thumbnailUrl": "https://pikaso.cdnpk.net/private/production/4891253220/conversions/render-preview.jpg?token=REDACTED",
+      "kind": "image"
+    },
+    {
+      "id": "e8a32428-2c18-41df-abad-612762de43c7",
+      "type": "text",
+      "name": "JSON Master",
+      "x": 11627.470642921171,
+      "y": 185.80160306899256,
+      "width": 380,
+      "height": 460,
+      "data": {
+        "text": "[\n  {\n    \"variation_id\": \"3.1-final\",\n    \"placement\": \"Bottom, full-width card — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.2-final\",\n    \"placement\": \"Bottom, floating \\\"toast\\\" card — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph filling the entire frame edge to edge, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Near the bottom of the frame, inset with a visible margin of photo on all sides (not touching the frame edges), floats a compact solid white rounded card, like a notification toast. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.3-final\",\n    \"placement\": \"Top card, photo below — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.5-final\",\n    \"placement\": \"Small floating badge card, lower-left — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph filling nearly the entire frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the lower-left corner, a small compact solid white rounded rectangle card, not full width, floats over the photo like a small overlay badge. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the compact card, in a single condensed row, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Directly beneath that row, in bold black display type, is the condensed stat callout \\\"3 companies.\\\" with the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" in smaller near-black sentence-case text wrapping beneath it. All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.1-circle\",\n    \"placement\": \"Bottom, full-width card + circular inset, bottom-right of the photo — JOB: DONE, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the bottom-right corner of the photo, a small circular inset photo shows a close-up of the ChatGPT Work interface's task-complete checkmark, with the text \\\"JOB: DONE\\\" above it. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.3-circle\",\n    \"placement\": \"Top card, photo below + circular inset, upper-right of the photo — no caption, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the upper-right corner of that photo, a small circular inset photo shows a close-up of the Anthropic Claude Cowork interface synced across the laptop and the phone beside it. No caption text. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.5-circle\",\n    \"placement\": \"Small floating badge card, lower-left + circular inset, bottom-right of the photo — TOOLS: LIVE, pill badge\",\n[\n  {\n    \"variation_id\": \"3.1-final\",\n    \"placement\": \"Bottom, full-width card — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.2-final\",\n    \"placement\": \"Bottom, floating \\\"toast\\\" card — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph filling the entire frame edge to edge, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Near the bottom of the frame, inset with a visible margin of photo on all sides (not touching the frame edges), floats a compact solid white rounded card, like a notification toast. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.3-final\",\n    \"placement\": \"Top card, photo below — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.5-final\",\n    \"placement\": \"Small floating badge card, lower-left — WINNING FORMULA, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph filling nearly the entire frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the lower-left corner, a small compact solid white rounded rectangle card, not full width, floats over the photo like a small overlay badge. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the compact card, in a single condensed row, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Directly beneath that row, in bold black display type, is the condensed stat callout \\\"3 companies.\\\" with the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" in smaller near-black sentence-case text wrapping beneath it. All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.1-circle\",\n    \"placement\": \"Bottom, full-width card + circular inset, bottom-right of the photo — JOB: DONE, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the bottom-right corner of the photo, a small circular inset photo shows a close-up of the ChatGPT Work interface's task-complete checkmark, with the text \\\"JOB: DONE\\\" above it. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.3-circle\",\n    \"placement\": \"Top card, photo below + circular inset, upper-right of the photo — no caption, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \\\"3 companies.\\\", and beneath it, in smaller near-black sentence-case text, the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the upper-right corner of that photo, a small circular inset photo shows a close-up of the Anthropic Claude Cowork interface synced across the laptop and the phone beside it. No caption text. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  },\n  {\n    \"variation_id\": \"3.5-circle\",\n    \"placement\": \"Small floating badge card, lower-left + circular inset, bottom-right of the photo — TOOLS: LIVE, pill badge\",\n    \"image_prompt\": \"A vertical viral Instagram news post. A full frame high quality photograph filling nearly the entire frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the bottom-right corner of the photo, a small circular inset photo shows a close-up of Meta's Muse Spark interface mid-call to an external tool, with the text \\\"TOOLS: LIVE\\\" above it. In the lower-left corner, a small compact solid white rounded rectangle card, not full width, floats over the photo like a small overlay badge. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the compact card, in a single condensed row, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \\\"Unhypped News\\\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \\\"Unhypped News\\\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Directly beneath that row, in bold black display type, is the condensed stat callout \\\"3 companies.\\\" with the supporting line \\\"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\\\" in smaller near-black sentence-case text wrapping beneath it. All text on the card — inside the \\\"Unhypped News\\\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.\"\n  }\n]  }\n]",
+        "color": "#1C1C1C",
+        "fontSize": null
+      }
+    },
+    {
+      "id": "ed5536a0-41dd-4b13-a38b-dd260c42a78b",
+      "type": "list",
+      "name": "List",
+      "x": 12589.553480001043,
+      "y": 214.88227187640337,
+      "width": 420,
+      "height": 392,
+      "data": {
+        "itemType": "text",
+        "items": [
+          {
+            "id": null,
+            "type": "text",
+            "creationIdentifier": null,
+            "value": "A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
+            "text": null,
+            "status": null,
+            "metadata": null,
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "text",
+            "creationIdentifier": null,
+            "value": "A vertical viral Instagram news post. A full frame high quality photograph filling the entire frame edge to edge, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Near the bottom of the frame, inset with a visible margin of photo on all sides (not touching the frame edges), floats a compact solid white rounded card, like a notification toast. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
+            "text": null,
+            "status": null,
+            "metadata": null,
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "text",
+            "creationIdentifier": null,
+            "value": "A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
+            "text": null,
+            "status": null,
+            "metadata": null,
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "text",
+            "creationIdentifier": null,
+            "value": "A vertical viral Instagram news post. A full frame high quality photograph filling nearly the entire frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the lower-left corner, a small compact solid white rounded rectangle card, not full width, floats over the photo like a small overlay badge. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the compact card, in a single condensed row, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Directly beneath that row, in bold black display type, is the condensed stat callout \"3 companies.\" with the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" in smaller near-black sentence-case text wrapping beneath it. All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
+            "text": null,
+            "status": null,
+            "metadata": null,
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "text",
+            "creationIdentifier": null,
+            "value": "A vertical viral Instagram news post. A full frame high quality photograph, cropped to the top ~70% of the frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the bottom-right corner of the photo, a small circular inset photo shows a close-up of the ChatGPT Work interface's task-complete checkmark, with the text \"JOB: DONE\" above it. Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card sitting on top of the image like a native app UI panel, full width, edge to edge. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
+            "text": null,
+            "status": null,
+            "metadata": null,
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "text",
+            "creationIdentifier": null,
+            "value": "A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the upper-right corner of that photo, a small circular inset photo shows a close-up of the Anthropic Claude Cowork interface synced across the laptop and the phone beside it. No caption text. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
+            "text": null,
+            "status": null,
+            "metadata": null,
+            "checked": null
+          },
+          {
+            "id": null,
+            "type": "text",
+            "creationIdentifier": null,
+            "value": "A vertical viral Instagram news post. A full frame high quality photograph filling nearly the entire frame, of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. In the bottom-right corner of the photo, a small circular inset photo shows a close-up of Meta's Muse Spark interface mid-call to an external tool, with the text \"TOOLS: LIVE\" above it. In the lower-left corner, a small compact solid white rounded rectangle card, not full width, floats over the photo like a small overlay badge. A soft dark vignette sits behind the card, in the photo, for legibility and separation — in addition to its own subtle drop shadow. Inside the compact card, in a single condensed row, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Directly beneath that row, in bold black display type, is the condensed stat callout \"3 companies.\" with the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" in smaller near-black sentence-case text wrapping beneath it. All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
+            "text": null,
+            "status": null,
+            "metadata": null,
+            "checked": null
+          }
+        ],
+        "mode": "replace",
+        "viewMode": "grid",
+        "mediaFit": "fit",
+        "metadata": {
+          "workflowRunId": "kUCxwD16BU"
+        },
+        "cost": null
+      }
+    },
+    {
+      "id": "edb93767-2acb-49a1-9013-6531f60ed460",
+      "type": "creation",
+      "name": "Brand_Logo",
+      "x": 12560.664185532563,
+      "y": -75.28303704846532,
+      "width": 478.74999999999994,
+      "height": 100,
+      "data": {
+        "creationIdentifier": "fFtSanNCDY",
+        "snapshotCreationIdentifier": null,
+        "cameraState": null
+      },
+      "creationIdentifier": "fFtSanNCDY",
+      "webUrl": "https://www.magnific.com/app/creation/fFtSanNCDY",
+      "url": "https://pikaso.cdnpk.net/private/production/4885893474/clear-logo.png?token=REDACTED",
+      "thumbnailUrl": "https://pikaso.cdnpk.net/private/production/4885893474/conversions/clear-logo-preview.jpg?token=REDACTED",
+      "kind": "image"
+    }
+  ],
+  "connections": [
+    {
+      "id": "14303a95-8e1d-4799-ad82-9313a3db8d87",
+      "sourceElementId": "7596ced9-80b6-4561-9816-61bb4d8843d6",
+      "targetElementId": "40f3c408-df5b-4d10-8f12-d1fcd1ef49b8",
+      "sourcePort": "output",
+      "targetPort": "images",
+      "dataType": "image"
+    },
+    {
+      "id": "8e5894cb-b07e-4e49-8f2d-b8351951acba",
+      "sourceElementId": "edb93767-2acb-49a1-9013-6531f60ed460",
+      "targetElementId": "7596ced9-80b6-4561-9816-61bb4d8843d6",
+      "sourcePort": "output",
+      "targetPort": "reference",
+      "dataType": "image"
+    },
+    {
+      "id": "9985d16a-a1a2-466a-9231-caca94d4857b",
+      "sourceElementId": "1b034cd7-01de-410c-9976-461e2ebd8499",
+      "targetElementId": "ed5536a0-41dd-4b13-a38b-dd260c42a78b",
+      "sourcePort": "generated_prompt",
+      "targetPort": "texts",
+      "dataType": "text"
+    },
+    {
+      "id": "b26a3dea-8891-4f5a-b459-6e8810fded95",
+      "sourceElementId": "e8a32428-2c18-41df-abad-612762de43c7",
+      "targetElementId": "1b034cd7-01de-410c-9976-461e2ebd8499",
+      "sourcePort": "text",
+      "targetPort": "prompt",
+      "dataType": "text"
+    },
+    {
+      "id": "b7098f7b-5888-476d-89a3-9555cc2f380b",
+      "sourceElementId": "ed5536a0-41dd-4b13-a38b-dd260c42a78b",
+      "targetElementId": "7596ced9-80b6-4561-9816-61bb4d8843d6",
+      "sourcePort": "output-texts",
+      "targetPort": "prompt",
+      "dataType": "text"
+    }
+  ],
+  "instruction": "Inline preview rendered when supported. Always give the user `space.webUrl` to open the board in the app. Do not paste raw JSON. When replying to the user, use names, titles, webUrl, and plain descriptions — do not quote internal identifiers (UUIDs, folder references, session or request ids) unless they explicitly ask."
+}
