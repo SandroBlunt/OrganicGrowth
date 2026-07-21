@@ -63,6 +63,13 @@ export interface CarouselSlide {
   readonly card_style: string;
   /** The short stat/quote callout this slide surfaces (e.g. `"3 companies."`). */
   readonly stat_callout: string;
+  /**
+   * The real companies whose logos appear next to the pill badge on THIS slide — e.g.
+   * `["OpenAI", "Anthropic"]` — or an empty array when the slide names no real company (map #77's
+   * fixed "three tiny real product logos" clause was previously improvised prose only; issue #102
+   * finding #1). A checkable, per-slide field instead of a fact buried inside `image_prompt`.
+   */
+  readonly companies: readonly string[];
   /** The on-card supporting line, at most `CAROUSEL_TEXT_MAX_CHARS` chars, in the Format's voice. */
   readonly text: string;
   /** The full authored image prompt the Space's single "JSON Master" node renders this slide from. */

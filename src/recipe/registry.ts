@@ -407,7 +407,8 @@ const CHARACTER_EXPLAINER_PHASES: readonly PhaseContract[] = [
       {
         kind: "agent-judged",
         description:
-          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, asset_url, ' +
+          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, ' +
+          "asset_paths (the downloaded media's durable LOCAL file paths — issue #102 finding #3), " +
           "produced_at, and the composed copy (ledger-as-source-of-truth, always-rule 7).",
       },
     ],
@@ -653,8 +654,16 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
       {
         kind: "agent-judged",
         description:
-          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, asset_url, ' +
+          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, ' +
+          "asset_paths (the downloaded media's durable LOCAL file paths — issue #102 finding #3), " +
           "produced_at, and the composed copy (ledger-as-source-of-truth, always-rule 7).",
+      },
+      {
+        kind: "agent-judged",
+        description:
+          "Each downloaded file was matched to its slide by the slide's own unique stat_callout " +
+          "read off the rendered card — never by the aggregated creation list's position; that " +
+          "list's count/order is flaky mid-run (issue #102 finding #4).",
       },
     ],
   },

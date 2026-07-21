@@ -10,6 +10,7 @@ import {
   slideIndexOffByOne,
   textTooLong,
   missingImagePrompt,
+  missingCompanies,
 } from "./fixtures/news-carousel-specs.ts";
 
 /** Whether the validation result carries an error with the given code. */
@@ -69,6 +70,12 @@ describe("validateNewsCarouselSpec — per-slide shape", () => {
 
   it("rejects a slide missing its image_prompt", () => {
     const result = validateNewsCarouselSpec(missingImagePrompt());
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "slide_shape"), true);
+  });
+
+  it("rejects a slide missing its companies field", () => {
+    const result = validateNewsCarouselSpec(missingCompanies());
     assert.equal(result.ok, false);
     assert.equal(hasCode(result, "slide_shape"), true);
   });

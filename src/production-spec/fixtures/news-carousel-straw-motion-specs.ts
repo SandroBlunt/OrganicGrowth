@@ -110,13 +110,16 @@ function cardClause(cardStyle: CardStyle): string {
         "separation — in addition to its own subtle drop shadow.";
 }
 
-function pillClause(logos: string): string {
+function pillClause(companies: readonly string[]): string {
+  const logoRow =
+    companies.length > 0
+      ? ` Positioned next to the pill are ${companies.length} tiny real product logos (${companies.join(", ")}) in a row.`
+      : "";
   return (
     "Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline " +
     `with a thin black border and a white fill — containing the text "${PILL_TEXT}" centered inside ` +
     `it, set in Inter font, black text. Render the text inside the pill exactly as "${PILL_TEXT}" — ` +
-    `capital U, capital N, every other letter lowercase. ${NEVER_ALL_CAPS_INSTRUCTION} Positioned ` +
-    `next to the pill are three tiny real product logos (${logos}) in a row.`
+    `capital U, capital N, every other letter lowercase. ${NEVER_ALL_CAPS_INSTRUCTION}${logoRow}`
   );
 }
 
@@ -132,7 +135,7 @@ function buildImagePrompt(input: {
   readonly cardStyle: CardStyle;
   readonly logoEdge: "top" | "bottom";
   readonly subject: string;
-  readonly logos: string;
+  readonly companies: readonly string[];
   readonly statCallout: string;
   readonly text: string;
   readonly inset: Inset | null;
@@ -142,7 +145,7 @@ function buildImagePrompt(input: {
     logoClause(input.logoEdge),
     insetClause(input.inset),
     cardClause(input.cardStyle),
-    pillClause(input.logos),
+    pillClause(input.companies),
     cardTextClause(input.statCallout, input.text),
     FIXED_CLAUSES[4],
   ]
@@ -159,7 +162,7 @@ interface AuthoredSlide {
   readonly cardStyle: CardStyle;
   readonly logoEdge: "top" | "bottom";
   readonly statCallout: string;
-  readonly logos: string;
+  readonly companies: readonly string[];
   readonly text: string;
   readonly subject: string;
   readonly inset: Inset | null;
@@ -171,7 +174,7 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     cardStyle: "full_width",
     logoEdge: "top",
     statCallout: "3 companies.",
-    logos: "OpenAI, Anthropic, Meta",
+    companies: ["OpenAI", "Anthropic", "Meta"],
     text: "A week ago your AI answered questions. This week it clocked into a job.",
     subject:
       "a desk filling the frame with two laptops side by side — the left screen glowing dim blue " +
@@ -185,7 +188,7 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     cardStyle: "floating_toast",
     logoEdge: "top",
     statCallout: "Just answers.",
-    logos: "OpenAI, Anthropic, Meta",
+    companies: ["OpenAI", "Anthropic", "Meta"],
     text: '"AI assistant" meant a chat window. You asked, it answered, you still did the work.',
     subject:
       "a single laptop on a plain desk, its screen showing an ordinary AI chat conversation — a " +
@@ -198,7 +201,7 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     cardStyle: "full_width",
     logoEdge: "top",
     statCallout: "Same week.",
-    logos: "OpenAI, Anthropic, Meta",
+    companies: ["OpenAI", "Anthropic", "Meta"],
     text:
       "OpenAI, Anthropic, and Meta all made the same move — ChatGPT Work, Claude Cowork, Muse Spark " +
       "— AI that finishes tasks, not just talks.",
@@ -214,7 +217,7 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     cardStyle: "floating_toast",
     logoEdge: "top",
     statCallout: "Off your list.",
-    logos: "OpenAI, Anthropic, Meta",
+    companies: ["OpenAI", "Anthropic", "Meta"],
     text:
       "each one can take something off your list — write the follow-up, run the report, handle the " +
       "busywork — without you babysitting.",
@@ -233,7 +236,7 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     cardStyle: "full_width",
     logoEdge: "top",
     statCallout: "Time back.",
-    logos: "OpenAI, Anthropic, Meta",
+    companies: ["OpenAI", "Anthropic", "Meta"],
     text:
       "for a small business, that's real time back — if you're willing to still check the work " +
       "before it goes out.",
@@ -249,7 +252,7 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     cardStyle: "floating_toast",
     logoEdge: "top",
     statCallout: "Not a one-off.",
-    logos: "OpenAI, Anthropic, Meta",
+    companies: ["OpenAI", "Anthropic", "Meta"],
     text:
       "three competitors landing this at once means it's not a one-off — expect every AI tool you " +
       "use to start moving this way.",
@@ -265,7 +268,7 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     cardStyle: "full_width",
     logoEdge: "top",
     statCallout: "Follow along.",
-    logos: "OpenAI, Anthropic, Meta",
+    companies: ["OpenAI", "Anthropic", "Meta"],
     text: 'Follow along as we track how far "hands-off AI" actually gets.',
     subject:
       "the same desk-with-two-laptops scene as the opening slide, framed the same way as a matching " +
@@ -297,6 +300,7 @@ export function strawMotionIdeaOneCarouselSpec(): Record<string, unknown> {
     card_style: s.cardStyle,
     stat_callout: s.statCallout,
     text: s.text,
+    companies: s.companies,
     image_prompt: buildImagePrompt(s),
   }));
   return { slides };

@@ -2,7 +2,7 @@
  * Tests for the Baseline Prompt loader deep module (`src/format/baseline-prompt.ts`; ADR-0015,
  * issue #83). Most tests use in-memory `FormatFile` fixtures + temp-dir fixtures for the document
  * files; one describe block loads the REAL migrated `data/brands/straw-motion/` state to prove
- * issue #83 AC2 (the real pointer + the real, byte-faithfully-imported document). No live Magnific
+ * issue #83 AC2 (the real pointer resolves to the real, substantial document). No live Magnific
  * Space, no Apify, no network — this slice never touches the Magnific Space (Baseline Prompt
  * documents are plain markdown files, resolved and read entirely on disk). The Magnific fake is NOT
  * needed here.
@@ -14,14 +14,9 @@ import { mkdtemp, mkdir, writeFile, rm, readFile, readdir } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
 
 import { resolveBaselinePromptPath, loadBaselinePrompt } from "./baseline-prompt.ts";
 import { parseFormatFile, formatBaselinePromptsRoot, type FormatFile } from "./store.ts";
-
-function sha256(text: string): string {
-  return createHash("sha256").update(text, "utf8").digest("hex");
-}
 
 // ---------------------------------------------------------------------------
 // resolveBaselinePromptPath — pure, no I/O
@@ -207,32 +202,14 @@ describe("straw-motion's real unhypped-news Format carries a real, byte-faithful
     assert.ok(result.content.length > 1000, "the real document is a substantial multi-part document, not a stub");
   });
 
-  it("the imported document is BYTE-FAITHFUL to the locked Operator prototype (verbatim import, not rewritten)", async () => {
-    // This pins the exact SHA-256 of the committed in-repo copy against the ORIGINAL bytes seen at
-    // import time (issue #83's "import verbatim" requirement) — a future accidental edit of the
-    // committed file would break this test, which is the point: the in-repo copy is now the source
-    // of truth, and it must never silently drift from what was actually imported.
-    const path = join(
-      "data",
-      "brands",
-      "straw-motion",
-      "baseline-prompts",
-      "unhypped-news",
-      "news-carousel.md",
-    );
-    const committedBytes = await readFile(path); // raw Buffer — a true BYTE count, not a decoded
-    // JS string length (the document contains multi-byte UTF-8 characters, e.g. em dashes/arrows,
-    // so `.length` on a decoded string would undercount actual bytes on disk)
-    const committed = committedBytes.toString("utf8");
-    assert.equal(committedBytes.byteLength, 25434, "byte length must match the locked prototype exactly");
-    assert.equal(
-      sha256(committed),
-      "d44c12aaee4fa459a0d0d48f2afb669ea2d55821603b1f493b32bffe4400751f",
-      "SHA-256 of the locked Operator prototype at " +
-        "valencia/.context/prototypes/baseline-prompt.md, computed at import time — the committed " +
-        "copy must match it exactly, byte-for-byte",
-    );
-  });
+  // The former "byte-faithful to the locked import" test lived here (issue #83) — a one-time guard
+  // against an ACCIDENTAL edit of the freshly-imported document. It pinned an exact byte count and
+  // SHA-256 by design, so that the FIRST deliberate edit would break it. That edit has now happened
+  // (2026-07-21 dry run: Subject rules, per-role narrative formulas, all 7 card styles confirmed) —
+  // the document is a living, Operator-edited document now, not a frozen import, so a byte-for-byte
+  // pin no longer makes sense to keep. `loadFormat + loadBaselinePrompt together resolve the real
+  // document` above still guards the part that matters going forward: the document exists, resolves,
+  // and is substantial.
 });
 
 // ---------------------------------------------------------------------------

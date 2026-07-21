@@ -17,10 +17,32 @@
       "format": "unhypped-news",
       "fit_score": 0.73,
       "fit_basis": "Dead-center agentic-AI lane, aimed straight at entrepreneurs. momentum 0.95 (both newsletters), brand_fit 0.95, relevance 0.5 (no scored history). No penalties.",
-      "status": "suggested",
+      "status": "accepted",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-01.md",
       "created_at": "2026-07-13T16:15:56Z",
-      "assets": []
+      "assets": [
+        {
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.spec.json",
+          "asset_url": "https://pikaso.cdnpk.net/private/production/4918815677/render.png?token=exp=1784592000~hmac=a3bc394d50ef14de25ee930399f7037b16e39fd0789a1fec7d0416cd5e0994c9",
+          "produced_at": "2026-07-18T07:58:23.258Z",
+          "copy": {
+            "caption": "Your AI just changed jobs. In one stretch, OpenAI, Anthropic, and Meta all shipped the same move: AI that does the task, not just talks about it — ChatGPT Work, Claude Cowork, and Meta's Muse Spark.\n\nThe plain-English version for a business owner:\n\n- The shift is \"answers your question\" to \"finishes the job while you're away.\"\n- Each one can take real busywork off your plate — draft the follow-up, run the report, handle the admin.\n- The honest catch: it still needs a human check. Don't hand over the keys just yet.\n- Three rivals landing this in one week means the agent era just went mainstream. Expect every tool you use to start moving this way.\n\nThis is a starting line, not a finished race. We'll keep tracking how far hands-off AI actually gets — no hype, just where it really is.\n\nSwipe through the 7-slide breakdown 👉",
+            "hashtags": [
+              "#AInews",
+              "#AgenticAI",
+              "#AIagents",
+              "#SmallBusinessAI",
+              "#ChatGPT"
+            ]
+          },
+          "recipe": "news-carousel"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
     },
     {
       "id": "idea-02",
@@ -31,10 +53,32 @@
       "format": "unhypped-news",
       "fit_score": 0.7,
       "fit_basis": "Clean model-release news, a core AI-news beat. momentum 0.90 (both newsletters), brand_fit 0.90, relevance 0.5 (no history). No penalties.",
-      "status": "suggested",
+      "status": "accepted",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-02.md",
       "created_at": "2026-07-13T16:15:56Z",
-      "assets": []
+      "assets": [
+        {
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.spec.json",
+          "asset_url": "https://pikaso.cdnpk.net/private/production/4918896460/render.png?token=exp=1784592000~hmac=7f2ceae92e1311690599ac25b9302ed1dcf3ac917800427fb7e7e3039b3207cd",
+          "produced_at": "2026-07-18T08:17:57.665Z",
+          "copy": {
+            "caption": "GPT-5.6 is live for everyone today. Before you rebuild your whole week around it, here's the no-hype read.\n\nWhat \"live for everyone\" means: it's the default now, free and paid, wherever you already chat with AI. No waitlist, no setup — it just shows up.\n\nWhat's actually better, in plain terms (not benchmark numbers):\n- It follows long, multi-step instructions more reliably.\n- It drifts off task less.\n- It makes fewer things up.\n\nThe honest \"meh\": for quick everyday questions you won't feel much. If last week worked for you, this week works about the same.\n\nWho should care today? If you build with AI, you'll feel it first — worth trying now. If you're a casual user, you can wait; it reaches you automatically anyway.\n\nVerdict: a real upgrade for builders, easy-to-ignore hype for everyone else. We'll keep giving you the plain version, not the launch-day noise.\n\nSwipe for the 60-second rundown 👉",
+            "hashtags": [
+              "#GPT5",
+              "#OpenAI",
+              "#AInews",
+              "#AItools",
+              "#UnhyppedNews"
+            ]
+          },
+          "recipe": "news-carousel"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
     },
     {
       "id": "idea-03",
@@ -45,10 +89,32 @@
       "format": "unhypped-news",
       "fit_score": 0.69,
       "fit_basis": "Model-vs-model comparison is explicitly in-niche; cost angle speaks to business owners. momentum 0.85 (single source), brand_fit 0.90, relevance 0.5 (no history). No penalties.",
-      "status": "suggested",
+      "status": "accepted",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-03.md",
       "created_at": "2026-07-13T16:15:56Z",
-      "assets": []
+      "assets": [
+        {
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.spec.json",
+          "asset_url": "https://pikaso.cdnpk.net/private/production/4918948925/render.png?token=exp=1784592000~hmac=d35c00315cccbace50dfb8c35b37eb3ec9b3ee46323bf1d6860b2cd3927554a7",
+          "produced_at": "2026-07-18T08:32:01.246Z",
+          "copy": {
+            "caption": "Grok 4.5 vs Claude Opus 4.8: the cheaper challenger reportedly out-coded the premium flagship on a benchmark — at about half the cost per token. Here's the no-hype read for someone actually paying the bill.\n\nWhat happened: Grok 4.5 posted a higher coding score than Claude Opus 4.8, for roughly half the price per token.\n\nThe catch nobody leads with: a coding benchmark is one lab test — set tasks, clean prompts. It measures skill, not your messy real codebase.\n\nWhere the price gap matters: at scale, half price is real money — big automated jobs feel it fast. For a few prompts a day, you won't notice.\n\nThe smart move: trial the challenger on your own real work before you switch anything. One benchmark isn't a migration plan.\n\nVerdict: worth a look for builders watching cost — not a reason to switch blind. We'll keep giving you the plain read, not the fan-war.\n\nSwipe for the buyer's-eye breakdown 👉",
+            "hashtags": [
+              "#Grok",
+              "#Claude",
+              "#AInews",
+              "#AIcoding",
+              "#ModelComparison"
+            ]
+          },
+          "recipe": "news-carousel"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
     },
     {
       "id": "idea-04",

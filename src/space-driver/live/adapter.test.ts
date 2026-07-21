@@ -225,8 +225,18 @@ describe("LiveSpaceAdapter.fetchCreations — real creations_get parsing, never 
 describe("LiveSpaceAdapter.verifyPinned — reads the real Selected Character node, not a fake marker", () => {
   it("returns true for the real pinned character and false for any other identifier", async () => {
     const adapter = new LiveSpaceAdapter(new StubTransport(), SPACE_ID);
-    assert.equal(await adapter.verifyPinned("VdPHh9JMMU"), true);
-    assert.equal(await adapter.verifyPinned("some-other-candidate"), false);
+    assert.equal(await adapter.verifyPinned("VdPHh9JMMU", SELECTED_CHARACTER_NODE_NAME), true);
+    assert.equal(await adapter.verifyPinned("some-other-candidate", SELECTED_CHARACTER_NODE_NAME), false);
+  });
+
+  it("checks the CALLER-supplied node, never hard-coded to Selected Character (issue #102 finding #4)", async () => {
+    // Regression: bindMediaAsset/pinPick both pass their own target node's name; a live adapter that
+    // ignored it and always checked "Selected Character" would silently mis-verify every OTHER
+    // Recipe's bind (e.g. the News Carousel Recipe's "Brand_Logo" slot).
+    const adapter = new LiveSpaceAdapter(new StubTransport(), SPACE_ID);
+    // "VdPHh9JMMU" IS the real pinned Selected Character's value, but it is NOT JSON Master's value —
+    // passing "JSON Master" explicitly must check THAT node, not silently fall back to the character one.
+    assert.equal(await adapter.verifyPinned("VdPHh9JMMU", "JSON Master"), false);
   });
 });
 

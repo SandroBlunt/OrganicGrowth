@@ -27,14 +27,22 @@ export const TEST_BASELINE: NewsCarouselBaselineParams = {
   confirmedCardStyles: ["full_width", "floating_toast"],
 };
 
-/** Assembles ONE slide's image_prompt carrying EVERY clause `TEST_BASELINE` declares, verbatim. */
-function baselineAdherentImagePrompt(role: string): string {
+/** A stand-in set of companies for the slides that name real ones (the rest name none). */
+const TEST_COMPANIES: readonly string[] = ["Acme", "Globex"];
+
+/** Assembles ONE slide's image_prompt carrying EVERY clause `TEST_BASELINE` declares, verbatim, plus a
+ *  logo row citing `companies` (omitted entirely when `companies` is empty — issue #102 finding #1). */
+function baselineAdherentImagePrompt(role: string, companies: readonly string[]): string {
   const [clause0, clause1, clause2, clause3, clause4] = TEST_BASELINE.fixedClauses;
+  const logoRow =
+    companies.length > 0
+      ? ` Positioned next to the pill are ${companies.length} tiny real product logos (${companies.join(", ")}) in a row.`
+      : "";
   return (
     `${clause0} A grounded photographic scene for the "${role}" beat, with the connected reference ` +
     `image ${TEST_BASELINE.logoReferenceName} placed along the free edge. ${clause1} Below it, ${clause2} ` +
-    `carries a pill badge reading "${TEST_BASELINE.pillText}". ${TEST_BASELINE.neverAllCapsInstruction} ` +
-    `All card text is ${clause3}. ${clause4}`
+    `carries a pill badge reading "${TEST_BASELINE.pillText}". ${TEST_BASELINE.neverAllCapsInstruction}` +
+    `${logoRow} All card text is ${clause3}. ${clause4}`
   );
 }
 
@@ -45,14 +53,20 @@ function clone(spec: Record<string, unknown>): Record<string, unknown> {
 /** A well-formed, BASELINE-ADHERENT News Carousel Spec: every image_prompt carries every
  *  `TEST_BASELINE` clause verbatim (map #77's graduated checklist, issue #85). */
 export function baselineAdherentCarouselSpec(): Record<string, unknown> {
-  const slides: CarouselSlide[] = CAROUSEL_ROLES.map((role, i) => ({
-    slide_index: i,
-    role,
-    card_style: TEST_BASELINE.confirmedCardStyles[i % 2]!,
-    stat_callout: `Stat ${i + 1}.`,
-    text: `Slide ${i + 1} (${role}): a short on-card supporting line.`,
-    image_prompt: baselineAdherentImagePrompt(role),
-  }));
+  const slides: CarouselSlide[] = CAROUSEL_ROLES.map((role, i) => {
+    // Odd slides name no real company (proving the empty-companies path needs no logo row); even
+    // slides name TEST_COMPANIES — mirrors a real carousel varying which slides show real companies.
+    const companies = i % 2 === 0 ? TEST_COMPANIES : [];
+    return {
+      slide_index: i,
+      role,
+      card_style: TEST_BASELINE.confirmedCardStyles[i % 2]!,
+      stat_callout: `Stat ${i + 1}.`,
+      text: `Slide ${i + 1} (${role}): a short on-card supporting line.`,
+      companies,
+      image_prompt: baselineAdherentImagePrompt(role, companies),
+    };
+  });
   return { slides };
 }
 
@@ -106,6 +120,23 @@ export function unconfirmedCardStyle(): Record<string, unknown> {
   const s = clone(baselineAdherentCarouselSpec());
   const slides = s.slides as CarouselSlide[];
   slides[0] = { ...slides[0]!, card_style: "gradient_burst" };
+  return s;
+}
+
+/** The "hook" slide's companies field names a company its own image_prompt never mentions. */
+export function companyNotCitedInPrompt(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[0] = { ...slides[0]!, companies: [...slides[0]!.companies, "Initech"] };
+  return s;
+}
+
+/** The "hook" slide's companies field names a company that appears ONLY inside a longer word of its
+ *  image_prompt ("Glo" inside "Globex") — a bare-substring check would false-pass it. */
+export function companyOnlySubstringInPrompt(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[0] = { ...slides[0]!, companies: [...slides[0]!.companies, "Glo"] };
   return s;
 }
 

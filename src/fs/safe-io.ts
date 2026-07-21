@@ -29,11 +29,12 @@ import { randomBytes } from "node:crypto";
  * On any failure the temp file is removed (best-effort) before the original error is re-thrown.
  *
  * @param path  the target file path
- * @param data  the full file contents to write
+ * @param data  the full file contents to write — text, or raw bytes (a downloaded image/video)
  */
-export async function writeFileAtomic(path: string, data: string): Promise<void> {
+export async function writeFileAtomic(path: string, data: string | Uint8Array): Promise<void> {
   const tmp = `${path}.${randomBytes(6).toString("hex")}.tmp`;
   try {
+    // The encoding applies only when `data` is a string; Node ignores it for bytes.
     await writeFile(tmp, data, "utf8");
     await rename(tmp, path);
   } catch (err: unknown) {
