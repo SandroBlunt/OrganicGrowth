@@ -35,7 +35,11 @@ still being tested:
   lowercase — **never** all-caps, regardless of surrounding typography), sitting next to the slide's
   tiny real product logos — one per company in that slide's `companies` list (a slide naming no
   real company omits the logo row entirely).
-- **Card text:** stat callout + supporting line, both set in **Inter**.
+- **Card text:** stat callout + supporting line, both set in **Inter**. Never an em dash ("—"), an en
+  dash ("–"), or a hyphen used as a sentence dash (" - ", with spaces on both sides) in either one —
+  it is an AI "tell" and hurts scannability. Where a dash would join two clauses, write them as
+  separate short sentences instead. An ordinary hyphenated word (`state-of-the-art`) is unaffected —
+  only a hyphen surrounded by spaces counts.
 - **Card style — all 7 placements below are confirmed, working options** (`1`–`7` in the Examples
   below): full-width bottom card, floating "toast" card, top card with photo below, small floating
   badge, and three circular-inset variants layered on the first three. Pick whichever placement

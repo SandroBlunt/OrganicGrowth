@@ -147,3 +147,11 @@ export function bannedWordInText(bannedWord: string): Record<string, unknown> {
   slides[6] = { ...slides[6]!, text: `${slides[6]!.text} ${bannedWord}` };
   return s;
 }
+
+/** The "cta" slide's on-card text carries an em dash — the AI "tell" issue #108 forbids. */
+export function dashInText(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[6] = { ...slides[6]!, text: `${slides[6]!.text} — and more.` };
+  return s;
+}

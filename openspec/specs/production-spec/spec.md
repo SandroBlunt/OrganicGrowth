@@ -263,7 +263,7 @@ The system SHALL provide `auditNewsCarouselAuthorPhase(candidateSpec, bannedWord
 `src/production-spec/news-carousel-author-checklist.ts`, where `baseline` is a
 `NewsCarouselBaselineParams` (`{ logoReferenceName, pillText, neverAllCapsInstruction, fixedClauses,
 confirmedCardStyles }`). It SHALL run the News Carousel Recipe's FULL author-phase checklist entirely
-as CODE, returning a `PhaseAuditResult` (`src/recipe/phase-contract.ts`) with exactly 8 `items`, in
+as CODE, returning a `PhaseAuditResult` (`src/recipe/phase-contract.ts`) with exactly 9 `items`, in
 this order:
 
 1. Exactly 7 slides, in fixed role order (`hook, then, shift, proof, different, next, cta`) — derived
@@ -285,6 +285,13 @@ this order:
    guaranteed by item 1's referenced structural validator).
 8. No banned word in any field — derived from `news-carousel-brand-safety.ts`'s
    `scanNewsCarouselForBannedWords`'s own result, REJECT-only (never a silent swap, always-rule 9).
+9. No em dash, en dash, or hyphen used as a sentence dash in any slide's `stat_callout`/`text` — a NEW
+   check (issue #108), REJECT-only (never a silent swap), via `dash-safety.ts`'s
+   `scanTextFieldsForDashes`. Deliberately does NOT scan `image_prompt`: the Baseline Prompt's own
+   FIXED, verbatim-required clauses legitimately contain em dashes, and `image_prompt` is a media
+   instruction fed to the image model, never itself reader-facing "Copy" (CONTEXT.md "Copy"). An
+   ordinary hyphenated compound word (e.g. `state-of-the-art`) is NOT flagged — only a hyphen with
+   whitespace on both sides counts as a "used as a dash" tell.
 
 The overall `ok` SHALL be `true` iff `validateNewsCarouselSpec(candidateSpec).ok` is `true` AND no item
 above is `ok: false` (the referenced structural validator is the authoritative gate for shape/count/
@@ -294,9 +301,10 @@ order/length). The function SHALL never throw, for any input shape.
 
 - **GIVEN** a well-formed 7-slide Spec whose every `image_prompt` carries `baseline.logoReferenceName`,
   `baseline.pillText`, `baseline.neverAllCapsInstruction`, and every clause in `baseline.fixedClauses`,
-  and whose `card_style`s are each one of `baseline.confirmedCardStyles`
+  whose `card_style`s are each one of `baseline.confirmedCardStyles`, and whose `stat_callout`/`text`
+  fields carry no dash tell
 - **WHEN** `auditNewsCarouselAuthorPhase(spec, [], baseline)` is called
-- **THEN** the result's `ok` is `true`, `items.length` is `8`, exactly one item is `kind:
+- **THEN** the result's `ok` is `true`, `items.length` is `9`, exactly one item is `kind:
   "agent-judged"` with `ok: null`, and every `kind: "mechanical"` item is `ok: true`
 
 #### Scenario: A short Spec fails item 1 by referencing validateNewsCarouselSpec, not duplicating it
@@ -342,6 +350,23 @@ order/length). The function SHALL never throw, for any input shape.
 - **THEN** the result's `ok` is `false`, `items[7].ok` is `false`, its `detail` names `"miracle"`, and
   no rewritten/corrected Spec is ever returned alongside the result
 
+#### Scenario: A slide's on-card text containing an em dash fails item 9, reject-only, isolated from every other item
+
+- **GIVEN** a baseline-adherent Spec whose "cta" slide's `text` contains an em dash ("—")
+- **WHEN** `auditNewsCarouselAuthorPhase(spec, [], baseline)` is called
+- **THEN** the result's `ok` is `false`, the `no-dash-tells` item's `ok` is `false` and its `detail`
+  names the em dash and the specific `slides[N].text` field it was found in
+- **AND** every OTHER mechanical item (e.g. the banned-word item) remains `ok: true`
+- **AND** no rewritten/corrected Spec is ever returned alongside the result
+
+#### Scenario: A slide's stat_callout/text using an ordinary hyphenated word is NOT flagged by item 9
+
+- **GIVEN** a baseline-adherent Spec whose "hook" slide's `text` reads "This is a state-of-the-art
+  task-assistant."
+- **WHEN** `auditNewsCarouselAuthorPhase(spec, [], baseline)` is called
+- **THEN** the `no-dash-tells` item's `ok` is `true` — an ordinary hyphenated compound word is never a
+  false positive
+
 #### Scenario: The checklist is genuinely parameterized — different (Brand x Format) strings change the outcome
 
 - **GIVEN** a Spec authored to carry one `NewsCarouselBaselineParams`'s strings verbatim (a
@@ -367,7 +392,8 @@ SHALL export `STRAW_MOTION_BASELINE` (a `NewsCarouselBaselineParams` built from 
 committed `data/brands/straw-motion/baseline-prompts/unhypped-news/news-carousel.md`: its logo
 reference name, its pill text, its never-all-caps instruction, five of its fixed clauses verbatim,
 and its two confirmed card styles) and `strawMotionIdeaOneCarouselSpec()` (idea-01's 7-slide
-authored Spec).
+authored Spec). Every slide's `stat_callout`/`text` SHALL itself be dash-tell-free (issue #108) — the
+fixture is a genuinely on-contract example, not merely a structurally-valid one.
 
 #### Scenario: The committed fixture passes the #81 structural validator
 
@@ -379,8 +405,9 @@ authored Spec).
 
 - **GIVEN** `strawMotionIdeaOneCarouselSpec()` and `STRAW_MOTION_BASELINE`
 - **WHEN** `auditNewsCarouselAuthorPhase(spec, [], STRAW_MOTION_BASELINE)` is called
-- **THEN** the result's `ok` is `true`, `items.length` is `8`, exactly one item is `kind:
-  "agent-judged"` with `ok: null`, and every `kind: "mechanical"` item is `ok: true`
+- **THEN** the result's `ok` is `true`, `items.length` is `9`, exactly one item is `kind:
+  "agent-judged"` with `ok: null`, and every `kind: "mechanical"` item is `ok: true` (including the
+  `no-dash-tells` item, issue #108)
 
 #### Scenario: STRAW_MOTION_BASELINE's own strings are genuinely present in the real, committed document
 
@@ -428,4 +455,50 @@ the real profile's default shape (not yet configured).
 - **GIVEN** a path with no file on disk
 - **WHEN** `loadWatermarkHandle(path)` is called
 - **THEN** it resolves to `""`, never rejecting
+
+### Requirement: A pure, reusable dash "tell" scanner rejects em dashes, en dashes, and spaced hyphens
+
+The system SHALL provide `scanTextFieldsForDashes(fields)` in `src/production-spec/dash-safety.ts` —
+pure, deterministic, no I/O, no clock, no Brand configuration — generic over the SAME `TextField[]`
+shape (`{ field, text }`) `brand-safety.ts`'s `scanTextFields` (the banned-word core) already shares
+between the News Carousel Spec-shape scan and the composed-Copy scan. It SHALL flag, per field: an em
+dash ("—"); an en dash ("–"); and a hyphen-minus with whitespace on BOTH sides (" - ", the
+typewriter-era stand-in for an em dash). It SHALL NOT flag an ordinary hyphenated compound word (no
+whitespace touches its hyphen, e.g. `state-of-the-art`, `task-assistant`) nor a bare negative number
+(nothing follows its hyphen but a digit, e.g. `-3.7x`). The function SHALL be REJECT-ONLY: it SHALL
+NEVER rewrite or strip the offending text — a hit only ever fails the scan, mirroring
+`scanTextFields`'s own "report, never rewrite" contract exactly.
+
+#### Scenario: An em dash, an en dash, and a spaced hyphen are each flagged
+
+- **GIVEN** three separate text fields, one containing an em dash, one an en dash, and one a hyphen
+  surrounded by whitespace on both sides (" - ")
+- **WHEN** `scanTextFieldsForDashes` is called with all three
+- **THEN** the result's `ok` is `false` and `hits` names all three fields, one hit each
+
+#### Scenario: An ordinary hyphenated compound word is never flagged
+
+- **GIVEN** a text field reading "This is a state-of-the-art task-assistant."
+- **WHEN** `scanTextFieldsForDashes` is called with it
+- **THEN** the result's `ok` is `true` — neither hyphen has whitespace touching it, so neither is a
+  "used as a dash" tell
+
+#### Scenario: A bare negative number is never flagged
+
+- **GIVEN** a text field reading "Distribution was -3.7x the baseline."
+- **WHEN** `scanTextFieldsForDashes` is called with it
+- **THEN** the result's `ok` is `true` — the hyphen has no whitespace immediately after it
+
+#### Scenario: A dash-free field passes; an empty fields list always passes
+
+- **GIVEN** a text field with no dash of any kind, and separately an empty `fields` list
+- **WHEN** `scanTextFieldsForDashes` is called with each
+- **THEN** both report `ok: true` with no hits
+
+#### Scenario: The scanner never rewrites — the result carries only hits, never a corrected text
+
+- **GIVEN** a text field containing an em dash
+- **WHEN** `scanTextFieldsForDashes` is called with it
+- **THEN** the result reports `ok: false` with a hit naming the field and the exact tell matched
+- **AND** the result carries no "corrected"/rewritten text of any kind
 

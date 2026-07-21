@@ -44,7 +44,7 @@ describe("the produce-news-carousel Skill's graduated output passes both gates (
       STRAW_MOTION_BASELINE,
     );
     assert.equal(result.ok, true);
-    assert.equal(result.items.length, 9);
+    assert.equal(result.items.length, 10);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);

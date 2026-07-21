@@ -16,6 +16,7 @@ import {
   companyNotCitedInPrompt,
   companyOnlySubstringInPrompt,
   bannedWordInText,
+  dashInText,
 } from "./fixtures/news-carousel-author-checklist-specs.ts";
 import { sixSlides, rolesOutOfOrder, textTooLong } from "./fixtures/news-carousel-specs.ts";
 import type { ChecklistItemAudit, PhaseAuditResult } from "../recipe/phase-contract.ts";
@@ -34,7 +35,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     assert.equal(result.ok, true);
     assert.equal(result.phase, "author");
     assert.equal(result.recipe, "news-carousel");
-    assert.equal(result.items.length, 9);
+    assert.equal(result.items.length, 10);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);
@@ -118,6 +119,22 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     assert.equal("spec" in result, false);
   });
 
+  it("fails the new no-dash-tells item when a slide's on-card text carries an em dash — reject-only, never rewrites (issue #108)", () => {
+    const result = auditNewsCarouselAuthorPhase(dashInText(), [], TEST_BASELINE);
+    assert.equal(result.ok, false);
+    const dashItem = item(result, "no-dash-tells");
+    assert.equal(dashItem.ok, false);
+    assert.ok(dashItem.detail?.includes("—"));
+    // Every OTHER mechanical item still passes — only this one is isolated by the mutation.
+    assert.equal(item(result, "banned-words").ok, true);
+    assert.equal("spec" in result, false);
+  });
+
+  it("the baseline-adherent Spec's stat_callout/text are already dash-free — the new item passes cleanly", () => {
+    const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
+    assert.equal(item(result, "no-dash-tells").ok, true);
+  });
+
   it("never throws on a malformed / non-object Spec, and fails cleanly", () => {
     assert.doesNotThrow(() => auditNewsCarouselAuthorPhase(null, [], TEST_BASELINE));
     assert.doesNotThrow(() => auditNewsCarouselAuthorPhase({}, [], TEST_BASELINE));
@@ -145,7 +162,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
 
   it("omitting the raw document text skips the baseline-copy-verification item entirely", () => {
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
-    assert.equal(result.items.length, 9);
+    assert.equal(result.items.length, 10);
   });
 
   it("supplying the raw document text adds one more item, verifying the hand-copy against it", () => {
@@ -153,7 +170,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
       `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
       `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE, documentText);
-    assert.equal(result.items.length, 10);
+    assert.equal(result.items.length, 11);
     assert.equal(item(result, "baseline-doc-verified").ok, true);
   });
 

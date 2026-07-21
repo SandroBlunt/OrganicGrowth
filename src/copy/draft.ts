@@ -64,7 +64,8 @@ function emojiTail(count: number): string {
 export function defaultDraftCopy(input: CopyInput, shape: CopyShape): Copy {
   const tail = emojiTail(shape.minEmojis);
   const room = Math.max(0, shape.maxChars - [...tail].length);
-  const body = input.mediaContext ? `${input.title} — ${input.mediaContext}` : input.title;
+  // Separate short sentences, never an em dash to join them (issue #108: a dash join is an AI "tell").
+  const body = input.mediaContext ? `${input.title}. ${input.mediaContext}` : input.title;
   const head = [...body].slice(0, room).join("").trimEnd();
   const caption = `${head}${tail}`.trim();
   return { caption, hashtags: [...(input.hashtags ?? [])] };

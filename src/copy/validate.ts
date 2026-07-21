@@ -14,12 +14,17 @@
  *     auto-edited (always-rule 9). This re-points the banned-word scan that used to run on the Spec's
  *     `post_copy` (`production-spec/brand-safety.ts`) onto the composed Copy instead, sharing the SAME
  *     `scanTextFields` core so the word-boundary/case-insensitivity rule can never drift between the two.
+ *   - no em dash, en dash, or hyphen-used-as-a-dash appears in EITHER the caption or any hashtag
+ *     (issue #108) — REJECT-ONLY, never auto-edited, exactly mirroring the banned-word rule above.
+ *     Rewrite the offending clause as separate short sentences instead. Reuses `dash-safety.ts`'s
+ *     `scanTextFieldsForDashes` against the SAME `fields` array the banned-word scan already builds.
  *
  * Every failure is returned as a `{ code, message }`, mirroring `production-spec/validate.ts`, so
  * callers (and tests) can assert the SPECIFIC reason, not just pass/fail.
  */
 
 import { scanTextFields, type TextField } from "../production-spec/brand-safety.ts";
+import { scanTextFieldsForDashes } from "../production-spec/dash-safety.ts";
 import type { BrandCopyRules } from "../production-spec/brand-profile.ts";
 import type { CopyShape } from "./contract.ts";
 
@@ -32,7 +37,8 @@ export type CopyValidationCode =
   | "hashtags_invalid"
   | "required_cta_missing"
   | "required_hashtag_missing"
-  | "banned_word";
+  | "banned_word"
+  | "dash_in_copy";
 
 /** One Copy contract violation: a stable `code` plus a human-readable `message`. */
 export interface CopyValidationError {
@@ -159,6 +165,18 @@ export function validateCopy(
     errors.push({
       code: "banned_word",
       message: `banned word "${hit.word}" found in ${hit.field}.`,
+    });
+  }
+
+  // Em dash / en dash / hyphen-used-as-a-dash — reject-only, an AI "tell" that hurts scannability
+  // (issue #108). Rewrite as separate short sentences instead — never a silent substitution.
+  const dashes = scanTextFieldsForDashes(fields);
+  for (const hit of dashes.hits) {
+    errors.push({
+      code: "dash_in_copy",
+      message:
+        `dash "${hit.match}" found in ${hit.field} — rewrite as separate short sentences instead ` +
+        "(an em dash, en dash, or hyphen used as a sentence dash is never allowed in Copy).",
     });
   }
 

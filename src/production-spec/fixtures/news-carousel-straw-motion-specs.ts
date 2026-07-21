@@ -17,6 +17,13 @@
  * `news-carousel-straw-motion-fixture.test.ts`, which reads the document and asserts containment) —
  * mirroring the Skill's own step 2 ("assemble each prompt from the baseline template, swapping only
  * the bracketed parts; keep every fixed clause verbatim").
+ *
+ * `IDEA_01_AUTHORED_SLIDES`'s "shift"/"proof"/"different"/"next" `text` values were rewritten (issue
+ * #108): the ORIGINAL authored copy joined clauses with em dashes ("...same move — ChatGPT Work,
+ * Claude Cowork, Muse Spark — AI that finishes tasks...") — a live, reproduction-confirmed instance of
+ * the exact "tell" issue #108 forbids, caught by this file's own companion test once the new
+ * `no-dash-tells` checklist item landed. Rewritten as separate short sentences, meaning preserved,
+ * still within `CAROUSEL_TEXT_MAX_CHARS` (140).
  */
 
 import { CAROUSEL_ROLES, type CarouselRole, type CarouselSlide } from "../news-carousel-contract.ts";
@@ -203,8 +210,8 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     statCallout: "Same week.",
     companies: ["OpenAI", "Anthropic", "Meta"],
     text:
-      "OpenAI, Anthropic, and Meta all made the same move — ChatGPT Work, Claude Cowork, Muse Spark " +
-      "— AI that finishes tasks, not just talks.",
+      "OpenAI, Anthropic, and Meta all made the same move. ChatGPT Work, Claude Cowork, and Muse " +
+      "Spark. AI that finishes tasks, not just talks.",
     subject:
       "an overhead desk shot of three different laptops arranged side by side, each screen glowing " +
       "with a distinct, believable task-assistant interface mid-task — three separate tools at " +
@@ -219,8 +226,8 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     statCallout: "Off your list.",
     companies: ["OpenAI", "Anthropic", "Meta"],
     text:
-      "each one can take something off your list — write the follow-up, run the report, handle the " +
-      "busywork — without you babysitting.",
+      "Each one can take something off your list. Write the follow-up, run the report, handle the " +
+      "busywork. It never needs babysitting.",
     subject:
       "a laptop screen filling most of the frame on a clean desk, showing a task-and-checklist app " +
       "with one item's checkbox actively ticking itself off; a coffee cup steaming just in frame, " +
@@ -237,9 +244,7 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     logoEdge: "top",
     statCallout: "Time back.",
     companies: ["OpenAI", "Anthropic", "Meta"],
-    text:
-      "for a small business, that's real time back — if you're willing to still check the work " +
-      "before it goes out.",
+    text: "For a small business, that's real time back. You still need to check the work before it goes out.",
     subject:
       "a candid, believable photograph of a small-business owner in their late thirties leaning " +
       "back in a chair, relaxed, a coffee mug in hand, glancing at a wristwatch; a laptop sits " +
@@ -254,8 +259,8 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
     statCallout: "Not a one-off.",
     companies: ["OpenAI", "Anthropic", "Meta"],
     text:
-      "three competitors landing this at once means it's not a one-off — expect every AI tool you " +
-      "use to start moving this way.",
+      "Three competitors landing this at once means it's not a one-off. Expect every AI tool you use " +
+      "to start moving this way.",
     subject:
       "an overhead desk shot with three different devices — a laptop, a tablet, and a phone — each " +
       "screen realistically lit and each showing a different, distinct app interface, hinting the " +
