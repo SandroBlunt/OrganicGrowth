@@ -14,6 +14,7 @@ import {
   missingFixedClause,
   unconfirmedCardStyle,
   companyNotCitedInPrompt,
+  companyOnlySubstringInPrompt,
   bannedWordInText,
 } from "./fixtures/news-carousel-author-checklist-specs.ts";
 import { sixSlides, rolesOutOfOrder, textTooLong } from "./fixtures/news-carousel-specs.ts";
@@ -88,6 +89,12 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
 
   it("fails the companies item when a slide names a company its own image_prompt never cites", () => {
     const result = auditNewsCarouselAuthorPhase(companyNotCitedInPrompt(), [], TEST_BASELINE);
+    assert.equal(result.ok, false);
+    assert.equal(result.items[7]!.ok, false);
+  });
+
+  it("fails the companies item when the name appears only inside a longer word — never a bare substring match", () => {
+    const result = auditNewsCarouselAuthorPhase(companyOnlySubstringInPrompt(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
     assert.equal(result.items[7]!.ok, false);
   });

@@ -225,8 +225,8 @@ describe("LiveSpaceAdapter.fetchCreations — real creations_get parsing, never 
 describe("LiveSpaceAdapter.verifyPinned — reads the real Selected Character node, not a fake marker", () => {
   it("returns true for the real pinned character and false for any other identifier", async () => {
     const adapter = new LiveSpaceAdapter(new StubTransport(), SPACE_ID);
-    assert.equal(await adapter.verifyPinned("VdPHh9JMMU"), true);
-    assert.equal(await adapter.verifyPinned("some-other-candidate"), false);
+    assert.equal(await adapter.verifyPinned("VdPHh9JMMU", SELECTED_CHARACTER_NODE_NAME), true);
+    assert.equal(await adapter.verifyPinned("some-other-candidate", SELECTED_CHARACTER_NODE_NAME), false);
   });
 
   it("checks the CALLER-supplied node, never hard-coded to Selected Character (issue #102 finding #4)", async () => {

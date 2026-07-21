@@ -113,7 +113,7 @@ function cardClause(cardStyle: CardStyle): string {
 function pillClause(companies: readonly string[]): string {
   const logoRow =
     companies.length > 0
-      ? ` Positioned next to the pill are three tiny real product logos (${companies.join(", ")}) in a row.`
+      ? ` Positioned next to the pill are ${companies.length} tiny real product logos (${companies.join(", ")}) in a row.`
       : "";
   return (
     "Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline " +

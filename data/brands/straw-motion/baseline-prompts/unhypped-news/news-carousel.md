@@ -32,8 +32,9 @@ still being tested:
   legibility.
 - **"Unhypped News" pill:** a fully rounded, stadium-shaped badge — thin black border, white fill —
   with "Unhypped News" centered inside it in Inter, title case only (capital U, capital N, the rest
-  lowercase — **never** all-caps, regardless of surrounding typography), sitting next to the 3 tiny
-  real product logos relevant to the story.
+  lowercase — **never** all-caps, regardless of surrounding typography), sitting next to the slide's
+  tiny real product logos — one per company in that slide's `companies` list (a slide naming no
+  real company omits the logo row entirely).
 - **Card text:** stat callout + supporting line, both set in **Inter**.
 - **Card style — all 7 placements below are confirmed, working options** (`1`–`7` in the Examples
   below): full-width bottom card, floating "toast" card, top card with photo below, small floating
@@ -105,8 +106,11 @@ in with *this* story's own specifics — never a generic restatement of the role
 > rounded, stadium-shaped outline with a thin black border and a white fill — containing the text
 > "Unhypped News" centered inside it, set in Inter font, black text. Render the text inside the
 > pill exactly as "Unhypped News" — capital U, capital N, every other letter lowercase. Never
-> render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned
-> next to the pill are three tiny real product logos (`[relevant companies]`) in a row. Below that,
+> render it in all-caps/uppercase lettering, no matter the surrounding typography style. `[LOGO ROW —
+> one sentence matched to this slide's companies list, e.g. "Positioned next to the pill are three
+> tiny real product logos (OpenAI, Anthropic, Meta) in a row." for three, or "Positioned next to the
+> pill is a single tiny OpenAI product logo." for one; omit the sentence entirely when companies is
+> empty]` Below that,
 > in large bold black display type, is the stat callout "`[STAT]`", and beneath it, in smaller
 > near-black sentence-case text, the supporting line "`[SLIDE TEXT / HEADLINE]`" All text on the
 > card — inside the "Unhypped News" pill, the stat callout, and the supporting line — is set in
@@ -120,7 +124,7 @@ in with *this* story's own specifics — never a generic restatement of the role
 Worked examples of the baseline template above, applied to idea-01's Hook slide. "Unhypped News"
 renders as the pill badge shown in the reference image you supplied — a fully rounded,
 stadium-shaped badge (thin black outline, white fill) with "Unhypped News" centered inside it in
-Inter, title case only, next to the 3 tiny real product logos.
+Inter, title case only, next to the example story's 3 tiny real product logos.
 
 ```json
 [
@@ -136,7 +140,7 @@ Inter, title case only, next to the 3 tiny real product logos.
   },
   {
     "variation_id": "3",
-    "placement": "Top card, photo below — , pill badge",
+    "placement": "Top card, photo below — pill badge",
     "image_prompt": "A vertical viral Instagram news post. Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the image like a native app UI panel, full width. Inside the card, top-left, is a pill-shaped badge — a fully rounded, stadium-shaped outline with a thin black border and a white fill, matching a simple rounded-rectangle badge — containing the text \"Unhypped News\" centered inside it, set in Inter font, black text. Render the text inside the pill exactly as \"Unhypped News\" — capital U, capital N, every other letter lowercase. Never render it in all-caps/uppercase lettering, no matter the surrounding typography style. Positioned next to the pill are three tiny real product logos (OpenAI, Anthropic, Meta) in a row. Below that, in large bold black display type, is the stat callout \"3 companies.\", and beneath it, in smaller near-black sentence-case text, the supporting line \"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job.\" All text on the card — inside the \"Unhypped News\" pill, the stat callout, and the supporting line — is set in Inter. Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality photograph of a modern desk with three laptops side by side, each open to a different real AI product actively mid-task: on the left, the OpenAI ChatGPT Work interface completing a multi-step to-do; in the middle, the Anthropic Claude Cowork interface open across both the laptop screen and a phone propped beside it; on the right, Meta's Muse Spark interface shown mid-task, calling an external tool. Each screen shows its real, current logo and interface design. Along the bottom edge of that photo, lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale — no wider than roughly a third of the frame width — so it stays a quiet brand mark and never competes with the headline or stat callout for attention. Render the logo exactly as provided in the reference image: do not change its shape, proportions, or color in any way, and do not restyle it to match the scene. A soft dark vignette sits behind it for legibility against the photo. Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card."
   },
   {

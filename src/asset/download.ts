@@ -12,7 +12,7 @@
 
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { writeFileAtomicBinary } from "../fs/safe-io.ts";
+import { writeFileAtomic } from "../fs/safe-io.ts";
 
 /** One remote creation to download, and the local file name to save it under. */
 export interface AssetDownloadTarget {
@@ -30,7 +30,7 @@ export interface DownloadedAssetFile {
 
 /**
  * Download every target's bytes into `destDir` (created, including parents, if absent) and write each
- * to its own file via the atomic binary writer (crash-safe: a reader never sees a half-written file).
+ * to its own file via the atomic writer (crash-safe: a reader never sees a half-written file).
  * Returns the written files in the SAME order as `targets`. `fetchImpl` is injectable so tests never
  * hit the network — defaults to the global `fetch`.
  *
@@ -61,7 +61,7 @@ export async function downloadAssetFiles(
     }
     const bytes = Buffer.from(await response.arrayBuffer());
     const path = join(destDir, target.filename);
-    await writeFileAtomicBinary(path, bytes);
+    await writeFileAtomic(path, bytes);
     results.push({ filename: target.filename, path });
   }
   return results;

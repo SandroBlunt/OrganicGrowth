@@ -124,16 +124,24 @@ function companies(slide: Record<string, unknown>): readonly string[] {
   return slide.companies.filter((c): c is string => typeof c === "string");
 }
 
+/** True when `name` appears in `prompt` as a standalone token — bounded by non-alphanumerics or the
+ *  string's edges — so a companies entry can never false-pass as a fragment of a longer word (e.g.
+ *  "Meta" must not match inside "Metadata"). */
+function citesCompany(prompt: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^A-Za-z0-9])${escaped}($|[^A-Za-z0-9])`).test(prompt);
+}
+
 /**
- * A slide with no real company to name (`companies` empty) has nothing to check here — the "three
- * tiny real product logos" clause is omitted entirely for that slide (issue #102 finding #1). A
- * slide that DOES name companies must cite every one of them, verbatim, in its own image_prompt.
+ * A slide with no real company to name (`companies` empty) has nothing to check here — the logo-row
+ * clause is omitted entirely for that slide (issue #102 finding #1). A slide that DOES name
+ * companies must cite every one of them, verbatim, in its own image_prompt.
  */
 function companiesCitedInPrompt(slide: Record<string, unknown>): boolean {
   const named = companies(slide);
   if (named.length === 0) return true;
   const prompt = imagePrompt(slide);
-  return named.every((c) => prompt.includes(c));
+  return named.every((c) => citesCompany(prompt, c));
 }
 
 /**

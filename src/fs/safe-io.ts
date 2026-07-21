@@ -29,30 +29,13 @@ import { randomBytes } from "node:crypto";
  * On any failure the temp file is removed (best-effort) before the original error is re-thrown.
  *
  * @param path  the target file path
- * @param data  the full file contents to write
+ * @param data  the full file contents to write — text, or raw bytes (a downloaded image/video)
  */
-export async function writeFileAtomic(path: string, data: string): Promise<void> {
+export async function writeFileAtomic(path: string, data: string | Uint8Array): Promise<void> {
   const tmp = `${path}.${randomBytes(6).toString("hex")}.tmp`;
   try {
+    // The encoding applies only when `data` is a string; Node ignores it for bytes.
     await writeFile(tmp, data, "utf8");
-    await rename(tmp, path);
-  } catch (err: unknown) {
-    await rm(tmp, { force: true }).catch(() => {
-      /* best-effort cleanup; surface the original error, not the cleanup failure */
-    });
-    throw err;
-  }
-}
-
-/**
- * The same atomic write, for raw bytes (a downloaded image/video, not JSON/text) — `writeFileAtomic`
- * is `utf8`-only and would corrupt binary content. Same crash-safety guarantee: a sibling temp file,
- * then an atomic rename; best-effort temp cleanup on failure before the original error re-throws.
- */
-export async function writeFileAtomicBinary(path: string, data: Buffer): Promise<void> {
-  const tmp = `${path}.${randomBytes(6).toString("hex")}.tmp`;
-  try {
-    await writeFile(tmp, data);
     await rename(tmp, path);
   } catch (err: unknown) {
     await rm(tmp, { force: true }).catch(() => {

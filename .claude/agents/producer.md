@@ -184,7 +184,10 @@ bytes to a durable local file: `src/asset/download.ts`'s `downloadAssetFiles(des
 `destDir` is `data/brands/<slug>/ideas/<format>/<run>/idea-NN.<recipe>.assets/` (a sibling of the
 Brief and the Spec) and each target's `filename` identifies its slide/role (e.g. `"0-hook.png"` — for
 a single-media Recipe, just one file, e.g. `"asset.mp4"`). Fetch each creation's URL fresh right
-before downloading it (`fetchCreations`/`fetchAsset` — never a cached or stale URL).
+before downloading it (`fetchCreations`/`fetchAsset` — never a cached or stale URL). For a
+multi-slide Recipe, match each finished creation to its slide by the slide's own unique
+`stat_callout` read off the rendered card — never by the aggregated creation list's position; that
+list's count/order is flaky mid-run (issue #102 finding #4).
 
 Save the Asset to the Brand's ledger exactly as ADR-0011 already shapes it: the Recipe's own
 `recipe`/`spec_path`/`produced_at`/composed `copy`, plus that Recipe's own gate-local fields (e.g. the

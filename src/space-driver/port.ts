@@ -111,10 +111,9 @@ export interface SpaceMcpPort {
    *
    * `nodeName` names WHICH on-canvas node to check (a Recipe-declared reference — e.g. `"Selected
    * Character"` for the wired Recipe's Cast pin, `"Brand_Logo"` for the News Carousel Recipe's logo
-   * slot). Optional, defaulting to the wired Recipe's own `"Selected Character"` node for backward
-   * compatibility with existing callers — but `pinPick`/`bindMediaAsset` always pass it explicitly
-   * (issue #102 finding #4): a live implementation that ignored it and always checked one hard-coded
-   * node would silently mis-verify every OTHER Recipe's bind.
+   * slot). REQUIRED — a default here is exactly the silent wrong-node trap issue #102 finding #4
+   * fixed: a live implementation that fell back to one hard-coded node would silently mis-verify
+   * every OTHER Recipe's bind. `pinPick`/`bindMediaAsset` pass their own target node through.
    */
-  verifyPinned(value: string, nodeName?: string): Promise<boolean>;
+  verifyPinned(value: string, nodeName: string): Promise<boolean>;
 }

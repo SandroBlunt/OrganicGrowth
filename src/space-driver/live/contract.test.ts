@@ -6,7 +6,7 @@ import { pinGoal, CHARACTER_NODE_NAME } from "../driver.ts";
 import { FakeSpace } from "../fixtures/fake-space.ts";
 import { parse } from "../../execution-protocol/parse.ts";
 import { fakeSpaceState } from "../../execution-protocol/fixtures/space-state.ts";
-import { LiveSpaceAdapter } from "./adapter.ts";
+import { LiveSpaceAdapter, SELECTED_CHARACTER_NODE_NAME } from "./adapter.ts";
 import { LIVE_SPACE_ID, ReplayMcpTransport } from "./replay/transport.ts";
 
 /**
@@ -25,6 +25,9 @@ interface ContractFixture {
   readonly pinnedCharacter: string;
   /** A different candidate identifier that must NOT read back as pinned. */
   readonly notPinnedCharacter: string;
+  /** The on-canvas node THIS implementation pins the Character to (and verifies the pin against) —
+   *  the fake's and the real board's pin nodes are named differently (issue #40 gotcha #3). */
+  readonly pinNodeName: string;
 }
 
 async function pollToTerminal<T extends { readonly phase: string }>(
@@ -76,12 +79,12 @@ function runSharedPortContract(label: string, make: () => ContractFixture): void
     });
 
     it("verifyPinned confirms the pinned Character and rejects a different one, after the SAME pinGoal edit", async () => {
-      const { port, pinnedCharacter, notPinnedCharacter } = make();
-      const { editId } = await port.edit(pinGoal(pinnedCharacter, CHARACTER_NODE_NAME));
+      const { port, pinnedCharacter, notPinnedCharacter, pinNodeName } = make();
+      const { editId } = await port.edit(pinGoal(pinnedCharacter, pinNodeName));
       const status = await pollToTerminal<EditStatus>(() => port.editStatus(editId));
       assert.equal(status.phase, "succeeded");
-      assert.equal(await port.verifyPinned(pinnedCharacter), true);
-      assert.equal(await port.verifyPinned(notPinnedCharacter), false);
+      assert.equal(await port.verifyPinned(pinnedCharacter, pinNodeName), true);
+      assert.equal(await port.verifyPinned(notPinnedCharacter, pinNodeName), false);
     });
   });
 }
@@ -101,6 +104,7 @@ runSharedPortContract("FakeSpace (the Magnific fake, unmodified)", () => ({
   knownCreationId: "cast-1",
   pinnedCharacter: "cast-3",
   notPinnedCharacter: "cast-1",
+  pinNodeName: CHARACTER_NODE_NAME,
 }));
 
 runSharedPortContract("LiveSpaceAdapter over ReplayMcpTransport (real captured shapes)", () => ({
@@ -111,4 +115,5 @@ runSharedPortContract("LiveSpaceAdapter over ReplayMcpTransport (real captured s
   // The real pinned "Selected Character" creationIdentifier (fixture 02/README).
   pinnedCharacter: "VdPHh9JMMU",
   notPinnedCharacter: "some-other-candidate",
+  pinNodeName: SELECTED_CHARACTER_NODE_NAME,
 }));

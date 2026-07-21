@@ -131,6 +131,15 @@ export function companyNotCitedInPrompt(): Record<string, unknown> {
   return s;
 }
 
+/** The "hook" slide's companies field names a company that appears ONLY inside a longer word of its
+ *  image_prompt ("Glo" inside "Globex") — a bare-substring check would false-pass it. */
+export function companyOnlySubstringInPrompt(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[0] = { ...slides[0]!, companies: [...slides[0]!.companies, "Glo"] };
+  return s;
+}
+
 /** The "cta" slide's on-card text carries a banned word. */
 export function bannedWordInText(bannedWord: string): Record<string, unknown> {
   const s = clone(baselineAdherentCarouselSpec());
