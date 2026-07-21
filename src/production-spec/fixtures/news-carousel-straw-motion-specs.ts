@@ -33,13 +33,13 @@ import type { NewsCarouselBaselineParams } from "../news-carousel-author-checkli
 // Straw Motion's REAL Baseline Prompt strings (news-carousel.md, "★ THE BASELINE PROMPT")
 // ---------------------------------------------------------------------------
 
-/** The real, committed document's own logo reference-image name (news-carousel.md line 63). */
+/** The real, committed document's own logo reference-image name (news-carousel.md, "Logo" bullet). */
 const LOGO_REFERENCE_NAME = "Straw_Motion_Logo";
 
-/** The real, committed document's own pill/eyebrow badge text (news-carousel.md line 71). */
+/** The real, committed document's own pill/eyebrow badge text (news-carousel.md, "Unhypped News" pill bullet). */
 const PILL_TEXT = "Unhypped News";
 
-/** The real, committed document's own never-all-caps guardrail sentence (news-carousel.md line 72-73). */
+/** The real, committed document's own never-all-caps guardrail sentence (news-carousel.md, "Unhypped News" pill bullet). */
 const NEVER_ALL_CAPS_INSTRUCTION =
   "Never render it in all-caps/uppercase lettering, no matter the surrounding typography style.";
 
@@ -53,7 +53,8 @@ const FIXED_CLAUSES = [
   "A vertical viral Instagram news post.",
   "Render the logo exactly as provided in the reference image: do not change its shape, " +
     "proportions, or color in any way, and do not restyle it to match the scene.",
-  "A soft dark vignette sits behind it for legibility against the photo.",
+  "A soft dark gradient vignette sits behind it for legibility against the photo, never a " +
+    "hard-edged solid black bar or box.",
   "solid white rounded card",
   "Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay " +
     "for the photo, clean flat UI-card typography for the card.",
@@ -79,8 +80,9 @@ type CardStyle = "full_width" | "floating_toast";
 
 function photoClause(cardStyle: CardStyle): string {
   return cardStyle === "full_width"
-    ? "A full frame high quality photograph, cropped to the top ~70% of the frame"
-    : "A full frame high quality photograph filling the entire frame edge to edge";
+    ? "A full frame high quality photograph, cropped to the top ~70% of the frame, that photo " +
+        "filling its own region edge to edge with no black margins"
+    : "A full frame high quality photograph filling the entire frame edge to edge with no black margins";
 }
 
 function logoClause(edge: "top" | "bottom"): string {
@@ -113,8 +115,9 @@ function cardClause(cardStyle: CardStyle): string {
         "sitting on top of the image like a native app UI panel, full width, edge to edge."
     : "Near the bottom of the frame, inset with a visible margin of photo on all sides (not " +
         "touching the frame edges), floats a compact solid white rounded card, like a notification " +
-        "toast. A soft dark vignette sits behind the card, in the photo, for legibility and " +
-        "separation — in addition to its own subtle drop shadow.";
+        "toast. A soft dark gradient vignette sits behind the card, in the photo, for legibility and " +
+        "separation — never a hard-edged solid black bar or box — in addition to its own subtle " +
+        "drop shadow.";
 }
 
 function pillClause(companies: readonly string[]): string {
@@ -133,7 +136,8 @@ function pillClause(companies: readonly string[]): string {
 function cardTextClause(stat: string, line: string): string {
   return (
     `Below that, in large bold black display type, is the stat callout "${stat}", and beneath it, ` +
-    `in smaller near-black sentence-case text, the supporting line "${line}" All text on the card ` +
+    "in clearly readable near-black sentence-case text (no smaller than roughly 13-14px " +
+    `equivalent), the supporting line "${line}" All text on the card ` +
     `— inside the "${PILL_TEXT}" pill, the stat callout, and the supporting line — is set in Inter.`
   );
 }

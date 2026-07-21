@@ -30,6 +30,21 @@ import { loadFormat } from "../format/store.ts";
 import { loadBaselinePrompt } from "../format/baseline-prompt.ts";
 import { TEST_BASELINE } from "./fixtures/news-carousel-author-checklist-specs.ts";
 
+/**
+ * The document is a wrapped markdown blockquote (each line prefixed "> ", sentences wrapped
+ * mid-line). Normalize it the way a reader interprets rendered prose — strip the blockquote
+ * markers, join lines with a space, collapse repeated whitespace — before checking containment,
+ * since a sentence spanning a wrapped line break is never a literal contiguous byte run in the raw
+ * file. Shared by every test below that reads the real document's prose.
+ */
+function normalizeBaselineProse(content: string): string {
+  return content
+    .split("\n")
+    .map((line) => line.replace(/^>\s?/, ""))
+    .join(" ")
+    .replace(/\s+/g, " ");
+}
+
 describe("the produce-news-carousel Skill's graduated output passes both gates (issue #87 AC2)", () => {
   it("passes validateNewsCarouselSpec (#81's structural contract)", () => {
     const result = validateNewsCarouselSpec(strawMotionIdeaOneCarouselSpec());
@@ -93,16 +108,7 @@ describe("STRAW_MOTION_BASELINE's strings are genuinely Straw Motion's own (not 
     assert.equal(lookup.found, true);
     assert.ok(lookup.found);
 
-    // The document is a wrapped markdown blockquote (each line prefixed "> ", sentences wrapped
-    // mid-line). Normalize it the way a reader interprets rendered prose — strip the blockquote
-    // markers, join lines with a space, collapse repeated whitespace — before checking containment,
-    // since a sentence spanning a wrapped line break is never a literal contiguous byte run in the
-    // raw file.
-    const normalized = lookup.content
-      .split("\n")
-      .map((line) => line.replace(/^>\s?/, ""))
-      .join(" ")
-      .replace(/\s+/g, " ");
+    const normalized = normalizeBaselineProse(lookup.content);
 
     assert.ok(
       normalized.includes(STRAW_MOTION_BASELINE.logoReferenceName),
@@ -127,5 +133,64 @@ describe("STRAW_MOTION_BASELINE's strings are genuinely Straw Motion's own (not 
   it("is genuinely a DIFFERENT baseline than the stand-in TEST_BASELINE (proving this isn't the same fixture renamed)", () => {
     assert.notEqual(STRAW_MOTION_BASELINE.logoReferenceName, TEST_BASELINE.logoReferenceName);
     assert.notEqual(STRAW_MOTION_BASELINE.pillText, TEST_BASELINE.pillText);
+  });
+});
+
+/**
+ * Pins the four render-fidelity guardrails issue #109 adds to the document (epic #106 items 8, 10,
+ * 11, 12) — a docs-test in spirit (guards prose content), kept as a REGULAR `.test.ts` because it's
+ * part of the SAME real-document read this file already does for issue #83/#85's own pins, so it
+ * runs under `npm test`'s always-on gate rather than the separate `npm run test:docs` pass.
+ */
+describe("news-carousel.md instructs the four render-fidelity guardrails (issue #109)", () => {
+  it("(8) prefers real, recognizable products/screens over fine invented UI text, which renders as misspelled gibberish; keeps on-screen text minimal where no real screen exists", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /renders? as misspelled gibberish/i);
+    assert.match(normalized, /keep any on-screen text minimal/i);
+  });
+
+  it("(10) the supporting line has a readable minimum size (~13-14px equivalent), never a tiny caption-sized afterthought", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /13-14px equivalent/);
+    assert.match(normalized, /caption-sized afterthought/i);
+  });
+
+  it("(11) every card style, including the top card, fills its photo region edge to edge with no black margins or letterboxing", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /including the top card/i);
+    assert.match(normalized, /no black margins/i);
+    assert.match(normalized, /edge to edge/i);
+  });
+
+  it("(12) the logo/text backing is always a soft gradient vignette, never a hard-edged solid black bar or box", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /soft dark gradient vignette/i);
+    assert.match(normalized, /never a hard-edged solid black bar or (?:box|filled box)/i);
+  });
+
+  it("every strawMotionIdeaOneCarouselSpec() slide still carries the UPDATED vignette clause verbatim (the doc/fixture stay in sync after issue #109's wording change)", () => {
+    const spec = strawMotionIdeaOneCarouselSpec() as { slides: readonly { image_prompt: string }[] };
+    for (const slide of spec.slides) {
+      assert.match(
+        slide.image_prompt,
+        /A soft dark gradient vignette sits behind it for legibility against the photo, never a hard-edged solid black bar or box\./,
+      );
+    }
   });
 });
