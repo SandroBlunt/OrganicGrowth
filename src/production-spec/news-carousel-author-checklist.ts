@@ -47,6 +47,31 @@
  * check cannot make. It is included in the returned checklist for completeness (`kind: "agent-judged"`,
  * `ok: null`) but is never computed here, and never blocks `ok` (ADR-0017: agent-judged items are
  * flagged for review, never auto-failed).
+ *
+ * --- Logo consistency via a negative-prompt guardrail, never a forced literal (issue #110) ---
+ *
+ * Epic #106 item 5's reproduction: forcing the raw, underscored reference name (e.g.
+ * "Straw_Motion_Logo") into every `image_prompt` sometimes backfires — the image model prints that odd,
+ * filename-like token as literal on-image TEXT (plus draws a wrong, generic icon) instead of treating it
+ * as a bare identifier for the canvas-connected reference image. The Operator's decision (issue #110):
+ * fix this with a NEGATIVE-PROMPT guardrail, never by compositing the real logo file. The `logo-reference`
+ * item below no longer REQUIRES the raw name on its own: a prompt passes as long as it (a) references
+ * the connected logo — via the raw reference name OR the Baseline Prompt's own name-free reference
+ * phrase (`logoReferencePhrase`) — AND (b) carries the document's own negative guardrail instruction
+ * (`logoNameGuardrailInstruction`) forbidding that reference name/filename from ever being rendered as
+ * visible text. `logo-name-not-as-text` is a NEW, separate reject-only item (mirroring `no-dash-tells`/
+ * `banned-words`): it flags the specific anti-pattern of the reference name appearing QUOTED — this same
+ * document's own convention for literal on-image text (e.g. `"Unhypped News"`) — a strong, checkable
+ * signal a prompt is telling the model to DRAW the name, not just use it as a reference.
+ *
+ * No in-repo negative-prompt CANVAS field exists for this Recipe: `recipe/registry.ts`'s
+ * `RecipeCanvasInputs`/`RecipeSpaceNodes` has no such typed input, and `space-driver/port.ts`'s
+ * `SpaceMcpPort` has no primitive to set a per-node `negativePrompt` attribute distinct from the single
+ * injectable prompt-text node (the live Carrousel Space's Image Generator node DOES carry a raw
+ * `negativePrompt` field in its captured board JSON, but nothing in this codebase's Recipe/driver
+ * abstraction reads or writes it). So the guardrail is authored as an explicit prohibitory CLAUSE inside
+ * the `image_prompt` text itself (issue #110's own documented fallback), never a separate canvas
+ * parameter.
  */
 
 import { validateNewsCarouselSpec } from "./news-carousel-validate.ts";
@@ -58,17 +83,37 @@ import type { ChecklistItemAudit, PhaseAuditResult } from "../recipe/phase-contr
 /** The Format/Brand-specific strings this checklist checks a candidate Spec against — read from the
  *  Format's Baseline Prompt document (ADR-0015), never hardcoded here. */
 export interface NewsCarouselBaselineParams {
-  /** The logo reference name every image_prompt must cite (e.g. `"Brand_Logo"`). */
+  /**
+   * The logo reference name an image_prompt MAY cite (e.g. `"Brand_Logo"`) — one of two acceptable
+   * ways to reference the connected logo (the other is `logoReferencePhrase`). No longer REQUIRED on
+   * its own: forcing this raw, underscored, filename-like token into every prompt is exactly what
+   * sometimes made the model print it as on-image text instead of using it as a bare reference
+   * identifier (issue #110).
+   */
   readonly logoReferenceName: string;
   /** The pill/eyebrow badge text every image_prompt must carry verbatim (e.g. `"Unhypped News"`). */
   readonly pillText: string;
   /** The never-all-caps instruction sentence the Baseline Prompt pairs with the pill text. */
   readonly neverAllCapsInstruction: string;
   /**
+   * A name-free, generic phrase the Baseline Prompt uses to describe the connected logo (e.g. `"the
+   * connected reference image"`) — the OTHER acceptable way (alongside `logoReferenceName`) for an
+   * image_prompt to reference the logo, so a prompt need never carry the raw reference name to pass
+   * the `logo-reference` item (issue #110).
+   */
+  readonly logoReferencePhrase: string;
+  /**
+   * The Baseline Prompt's own negative-prompt guardrail sentence: never render the logo's reference
+   * name/filename as visible on-image text. Every image_prompt SHALL carry this verbatim, alongside
+   * EITHER `logoReferenceName` or `logoReferencePhrase`, for the `logo-reference` item to pass
+   * (issue #110).
+   */
+  readonly logoNameGuardrailInstruction: string;
+  /**
    * Every OTHER fixed clause the Baseline Prompt's worked example carries verbatim in each
-   * image_prompt (the logo guardrail, the card clause, the card-text clause, the closing style
-   * line...). `pillText`/`neverAllCapsInstruction` are checked separately (the issue calls them out
-   * by name); this list is everything else.
+   * image_prompt (the "render unaltered" logo clause, the card clause, the card-text clause, the
+   * closing style line...). `pillText`/`neverAllCapsInstruction`/`logoNameGuardrailInstruction` are
+   * checked separately (the issue calls them out by name); this list is everything else.
    */
   readonly fixedClauses: readonly string[];
   /** The Baseline Prompt's own confirmed card styles (e.g. `["full_width", "floating_toast"]`). */
@@ -108,6 +153,14 @@ export function verifyBaselineParamsAgainstDocument(
   }
   if (!documentText.includes(params.neverAllCapsInstruction)) {
     mismatches.push("neverAllCapsInstruction not found in the document, verbatim");
+  }
+  if (!documentText.includes(params.logoReferencePhrase)) {
+    mismatches.push(
+      `logoReferencePhrase ${JSON.stringify(params.logoReferencePhrase)} not found in the document`,
+    );
+  }
+  if (!documentText.includes(params.logoNameGuardrailInstruction)) {
+    mismatches.push("logoNameGuardrailInstruction not found in the document, verbatim");
   }
   for (const clause of params.fixedClauses) {
     if (!documentText.includes(clause)) {
@@ -157,6 +210,25 @@ function companiesCitedInPrompt(slide: Record<string, unknown>): boolean {
 }
 
 /**
+ * Whether `prompt` references the connected logo AT ALL — via the raw reference name OR the Baseline
+ * Prompt's own name-free generic phrase. Either is acceptable (issue #110): the raw name is no longer
+ * required on its own.
+ */
+function referencesConnectedLogo(prompt: string, baseline: NewsCarouselBaselineParams): boolean {
+  return prompt.includes(baseline.logoReferenceName) || prompt.includes(baseline.logoReferencePhrase);
+}
+
+/**
+ * The specific anti-pattern issue #110 flags: the logo reference name appearing QUOTED — exactly the
+ * convention this same document uses to mark literal on-image text (e.g. `"Unhypped News"`, a stat
+ * callout). A reference name inside quotes reads as an instruction to DRAW that string, never as a bare
+ * identifier for which connected reference to use.
+ */
+function quotesLogoReferenceName(prompt: string, logoReferenceName: string): boolean {
+  return prompt.includes(`"${logoReferenceName}"`);
+}
+
+/**
  * Collect every slide's `stat_callout` + `text` — the Baseline Prompt document's own "Card text"
  * fields ("Card text: stat callout + supporting line, both set in Inter") — the reader-facing on-card
  * copy the dash-tell check applies to (issue #108). Deliberately excludes `image_prompt`: the Baseline
@@ -202,6 +274,10 @@ export function auditNewsCarouselAuthorPhase(
   const slides = extractSlides(candidateSpec);
   const hasSlides = slides.length > 0;
   const dashes = scanTextFieldsForDashes(cardTextFields(slides));
+  const quotedLogoNameHits = slides
+    .map((s, i) => ({ i, prompt: imagePrompt(s) }))
+    .filter(({ prompt }) => quotesLogoReferenceName(prompt, baseline.logoReferenceName))
+    .map(({ i }) => `slides[${i}].image_prompt`);
 
   const hasStructuralCode = (code: string): boolean => structural.errors.some((e) => e.code === code);
 
@@ -221,9 +297,30 @@ export function auditNewsCarouselAuthorPhase(
     },
     {
       id: "logo-reference",
-      description: `Each image_prompt references the logo reference name (${JSON.stringify(baseline.logoReferenceName)}).`,
+      description:
+        "Each image_prompt references the connected logo — via the reference name or the Baseline " +
+        "Prompt's own name-free reference phrase — and carries its negative guardrail against ever " +
+        "rendering that reference name/filename as visible on-image text. The raw underscored " +
+        "reference name is no longer required on its own (issue #110).",
       kind: "mechanical",
-      ok: hasSlides && slides.every((s) => imagePrompt(s).includes(baseline.logoReferenceName)),
+      ok:
+        hasSlides &&
+        slides.every((s) => {
+          const prompt = imagePrompt(s);
+          return (
+            referencesConnectedLogo(prompt, baseline) &&
+            prompt.includes(baseline.logoNameGuardrailInstruction)
+          );
+        }),
+    },
+    {
+      id: "logo-name-not-as-text",
+      description:
+        "The logo reference name never appears quoted as literal on-image text — reject-only; it " +
+        "identifies which connected reference to use, never a caption to draw (issue #110).",
+      kind: "mechanical",
+      ok: quotedLogoNameHits.length === 0,
+      ...(quotedLogoNameHits.length === 0 ? {} : { detail: quotedLogoNameHits.join("; ") }),
     },
     {
       id: "pill-text-caps",

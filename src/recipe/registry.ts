@@ -559,8 +559,11 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
       {
         kind: "mechanical",
         description:
-          "Each image_prompt references the logo reference name from the Format's Baseline Prompt " +
-          "(parameterized — never a hardcoded literal).",
+          "Each image_prompt references the connected logo — the Format's Baseline Prompt reference " +
+          "name OR its name-free generic reference phrase — and carries its negative guardrail " +
+          "against ever rendering that reference name/filename as visible on-image text; the raw " +
+          "reference name is never required on its own (parameterized — never a hardcoded literal; " +
+          "issue #110).",
         reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
       },
       {

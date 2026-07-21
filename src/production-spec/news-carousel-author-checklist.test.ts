@@ -8,7 +8,10 @@ import {
 import {
   TEST_BASELINE,
   baselineAdherentCarouselSpec,
-  missingLogoReference,
+  logoReferenceNameFreeButGuarded,
+  missingLogoGuardrail,
+  logoNotReferencedAtAll,
+  logoReferenceNameRenderedAsText,
   missingPillText,
   missingCapsGuardrail,
   missingFixedClause,
@@ -35,7 +38,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     assert.equal(result.ok, true);
     assert.equal(result.phase, "author");
     assert.equal(result.recipe, "news-carousel");
-    assert.equal(result.items.length, 10);
+    assert.equal(result.items.length, 11);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);
@@ -65,12 +68,48 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     assert.equal(item(result, "text-length").ok, false);
   });
 
-  it("fails the logo-reference item when the parameterized logo reference name is absent", () => {
-    const result = auditNewsCarouselAuthorPhase(missingLogoReference(), [], TEST_BASELINE);
+  it("passes the reworked logo-reference item when the raw reference name is absent but the generic phrase + negative guardrail are present (issue #110 AC2/AC5)", () => {
+    const spec = logoReferenceNameFreeButGuarded();
+    const result = auditNewsCarouselAuthorPhase(spec, [], TEST_BASELINE);
+    assert.equal(item(result, "logo-reference").ok, true);
+    // The raw name is genuinely gone — proves this isn't accidentally still passing via the name.
+    const { slides } = spec as { slides: readonly { image_prompt: string }[] };
+    for (const slide of slides) {
+      assert.equal(slide.image_prompt.includes(TEST_BASELINE.logoReferenceName), false);
+    }
+    // Every OTHER mechanical item still passes — only the (formerly failing) logo-reference item moved.
+    assert.equal(item(result, "pill-text-caps").ok, true);
+    assert.equal(item(result, "logo-name-not-as-text").ok, true);
+  });
+
+  it("fails the logo-reference item when the negative guardrail instruction is absent, even though the raw name is still present (issue #110)", () => {
+    const result = auditNewsCarouselAuthorPhase(missingLogoGuardrail(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
     assert.equal(item(result, "logo-reference").ok, false);
     // Every OTHER mechanical item still passes — only this one is isolated by the mutation.
     assert.equal(item(result, "pill-text-caps").ok, true);
+  });
+
+  it("fails the logo-reference item when the logo is not referenced at all (neither the raw name nor the generic phrase) — the item is not vacuously true", () => {
+    const result = auditNewsCarouselAuthorPhase(logoNotReferencedAtAll(), [], TEST_BASELINE);
+    assert.equal(result.ok, false);
+    assert.equal(item(result, "logo-reference").ok, false);
+  });
+
+  it("fails the new logo-name-not-as-text item when the reference name is rendered as literal quoted on-image text (issue #110 AC5) — isolated from every other item", () => {
+    const result = auditNewsCarouselAuthorPhase(logoReferenceNameRenderedAsText(), [], TEST_BASELINE);
+    assert.equal(result.ok, false);
+    const quotedItem = item(result, "logo-name-not-as-text");
+    assert.equal(quotedItem.ok, false);
+    assert.ok(quotedItem.detail?.includes("slides[0].image_prompt"));
+    // The plain, unquoted reference is untouched by this mutation, so logo-reference still passes.
+    assert.equal(item(result, "logo-reference").ok, true);
+    assert.equal(item(result, "pill-text-caps").ok, true);
+  });
+
+  it("the baseline-adherent Spec's image_prompts never quote the reference name — the new item passes cleanly", () => {
+    const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
+    assert.equal(item(result, "logo-name-not-as-text").ok, true);
   });
 
   it("fails the pill-text/caps-guard item when the parameterized pill text is absent", () => {
@@ -162,15 +201,16 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
 
   it("omitting the raw document text skips the baseline-copy-verification item entirely", () => {
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
-    assert.equal(result.items.length, 10);
+    assert.equal(result.items.length, 11);
   });
 
   it("supplying the raw document text adds one more item, verifying the hand-copy against it", () => {
     const documentText =
       `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
-      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
+      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.logoReferencePhrase} ` +
+      `${TEST_BASELINE.logoNameGuardrailInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE, documentText);
-    assert.equal(result.items.length, 11);
+    assert.equal(result.items.length, 12);
     assert.equal(item(result, "baseline-doc-verified").ok, true);
   });
 
@@ -188,7 +228,8 @@ describe("verifyBaselineParamsAgainstDocument — cross-checks a hand-copied bas
   it("passes when every verbatim fact is present in the document", () => {
     const documentText =
       `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
-      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
+      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.logoReferencePhrase} ` +
+      `${TEST_BASELINE.logoNameGuardrailInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
     const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, documentText);
     assert.equal(result.ok, true);
     assert.deepEqual(result.mismatches, []);
@@ -206,7 +247,8 @@ describe("verifyBaselineParamsAgainstDocument — cross-checks a hand-copied bas
     // must still pass — confirmedCardStyles is deliberately excluded from this verbatim check.
     const documentText =
       `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
-      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
+      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.logoReferencePhrase} ` +
+      `${TEST_BASELINE.logoNameGuardrailInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
     const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, documentText);
     assert.equal(result.ok, true);
   });

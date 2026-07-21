@@ -87,12 +87,17 @@ actually shows.
 
 Build each `image_prompt` from the Baseline Prompt document's own reusable template: swap **only**
 the bracketed, per-shot parts (subject, the card clause, the stat, the supporting line, the
-`companies` logo row — omitted entirely when `companies` is `[]` — the optional inset). Keep every
+`companies` logo row — omitted entirely when `companies` is `[]` — the optional inset, and the
+logo/pill **scale** bracket — larger on the hook slide, noticeably smaller on every other slide,
+issue #110). Keep every
 **fixed clause verbatim** from the
-document — the logo guardrail (cited by the document's own reference-image name, laid along the
-free edge, rendered unaltered, a vignette behind it), the pill/eyebrow badge with its
-never-all-caps guardrail, the font notes, and the closing style line. Start from the document's own
-worked example for the `card_style` you chose.
+document — the logo guardrail (laid along the free edge, rendered unaltered — no redraw/restyle/
+recolor — with a vignette behind it, and its negative-prompt instruction never rendering the
+reference name/filename as visible on-image text, issue #110), the pill/eyebrow badge with its
+never-all-caps guardrail, the font notes, and the closing style line. The document's own logo
+reference name or its name-free generic reference phrase is enough to identify the connected
+reference image — never force the raw underscored name in just to satisfy a check. Start from the
+document's own worked example for the `card_style` you chose.
 
 **Aspect ratio and model are the canvas's own settings — never write them into the prompt.**
 
@@ -133,11 +138,17 @@ is saved at that path.
 
 - Exactly 7 slides, roles in fixed order: hook, then, shift, proof, different, next, cta.
 - Each `text` at most 140 characters.
-- Each `image_prompt` references the Baseline Prompt document's own logo reference name.
+- Each `image_prompt` references the connected logo — the document's own logo reference name OR its
+  name-free generic reference phrase — AND carries the document's negative guardrail against ever
+  rendering that reference name/filename as visible on-image text. The raw underscored reference
+  name is no longer required on its own (issue #110) — forcing it in was what sometimes made the
+  model print it as text.
+- The logo reference name never appears QUOTED as literal on-image text — reject-only; that is the
+  specific "draw this as a caption" anti-pattern the negative guardrail forbids (issue #110).
 - Each `image_prompt` contains the document's pill/eyebrow text and its never-all-caps
   instruction.
-- Each `image_prompt` keeps every other fixed Baseline Prompt clause verbatim (the logo guardrail,
-  the card clause, the card-text clause, the closing style line).
+- Each `image_prompt` keeps every other fixed Baseline Prompt clause verbatim (the "render
+  unaltered" logo clause, the card clause, the card-text clause, the closing style line).
 - Each `image_prompt` has a grounded subject — a real product/logo/action, or an intentional
   photographic scene; never an invented UI shown as a real product's own screen. *(Agent-judged —
   flagged for review, never auto-failed; ADR-0017.)*
@@ -149,7 +160,8 @@ is saved at that path.
   reject-only; rewrite as separate short sentences instead (issue #108). `image_prompt` is not
   checked — the Baseline Prompt's own fixed clauses legitimately contain em dashes.
 - When the raw document text is supplied: every hand-copied baseline fact (logo name, pill text,
-  caps guardrail, fixed clauses) actually appears, verbatim, in that document (issue #102).
+  caps guardrail, the name-free reference phrase, the negative guardrail, fixed clauses) actually
+  appears, verbatim, in that document (issue #102).
 
 ## What this Skill does not do
 

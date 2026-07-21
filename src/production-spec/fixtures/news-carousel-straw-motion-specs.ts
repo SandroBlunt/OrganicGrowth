@@ -24,6 +24,13 @@
  * the exact "tell" issue #108 forbids, caught by this file's own companion test once the new
  * `no-dash-tells` checklist item landed. Rewritten as separate short sentences, meaning preserved,
  * still within `CAROUSEL_TEXT_MAX_CHARS` (140).
+ *
+ * `logoClause()` now also carries the negative-prompt logo guardrail (issue #110): every slide's
+ * `image_prompt` states, verbatim, that the logo's reference name/file name is never rendered as
+ * visible on-image text — the document's own fix for the model sometimes printing the raw reference
+ * name as a caption. The pre-existing "no wider than roughly a third of the frame width" scale is left
+ * as-is here (idea-01 is a committed, historical example authored before issue #110's slide-position
+ * sizing rule; see this slice's Build Report "Known limits").
  */
 
 import { CAROUSEL_ROLES, type CarouselRole, type CarouselSlide } from "../news-carousel-contract.ts";
@@ -42,6 +49,17 @@ const PILL_TEXT = "Unhypped News";
 /** The real, committed document's own never-all-caps guardrail sentence (news-carousel.md, "Unhypped News" pill bullet). */
 const NEVER_ALL_CAPS_INSTRUCTION =
   "Never render it in all-caps/uppercase lettering, no matter the surrounding typography style.";
+
+/** The real, committed document's own name-free, generic phrase for the connected logo (news-carousel.md,
+ *  "Logo" bullet + reusable template — issue #110). */
+const LOGO_REFERENCE_PHRASE = "the connected reference image";
+
+/** The real, committed document's own negative-prompt guardrail sentence: never render the logo's
+ *  reference name/file name as visible on-image text (news-carousel.md, "Logo guardrail" bullet — issue
+ *  #110's fix for epic #106 item 5's reproduction). */
+const LOGO_NAME_GUARDRAIL_INSTRUCTION =
+  "Never render this reference image's name or file name (for example Straw_Motion_Logo) as visible " +
+  "text anywhere in the image. It identifies which reference to use, never a caption to draw.";
 
 /**
  * Five clauses that appear VERBATIM in the real document's reusable template AND in both of its
@@ -68,6 +86,8 @@ export const STRAW_MOTION_BASELINE: NewsCarouselBaselineParams = {
   logoReferenceName: LOGO_REFERENCE_NAME,
   pillText: PILL_TEXT,
   neverAllCapsInstruction: NEVER_ALL_CAPS_INSTRUCTION,
+  logoReferencePhrase: LOGO_REFERENCE_PHRASE,
+  logoNameGuardrailInstruction: LOGO_NAME_GUARDRAIL_INSTRUCTION,
   fixedClauses: FIXED_CLAUSES,
   confirmedCardStyles: CONFIRMED_CARD_STYLES,
 };
@@ -87,10 +107,10 @@ function photoClause(cardStyle: CardStyle): string {
 
 function logoClause(edge: "top" | "bottom"): string {
   return (
-    `Along the ${edge} edge of the photo, lay the connected reference image ${LOGO_REFERENCE_NAME} ` +
+    `Along the ${edge} edge of the photo, lay ${LOGO_REFERENCE_PHRASE} ${LOGO_REFERENCE_NAME} ` +
     "horizontally, small and subtle in scale — no wider than roughly a third of the frame width — " +
     "so it stays a quiet brand mark and never competes with the headline or stat callout for " +
-    `attention. ${FIXED_CLAUSES[1]} ${FIXED_CLAUSES[2]}`
+    `attention. ${FIXED_CLAUSES[1]} ${LOGO_NAME_GUARDRAIL_INSTRUCTION} ${FIXED_CLAUSES[2]}`
   );
 }
 
