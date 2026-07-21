@@ -1,30 +1,32 @@
 # OrganicGrowth
 
-**In plain terms:** OrganicGrowth grows your organic social presence — on **Facebook, Instagram, or
-YouTube** (Facebook-first today) — for you. It watches what's working for similar accounts, writes post
-ideas that fit your brand, and **turns the best ones into finished, ready-to-publish posts** — then
-watches how your posts perform and uses that to make next week's ideas even better.
+**In plain terms:** OrganicGrowth grows your organic social presence — on **Facebook, Instagram,
+YouTube, or LinkedIn** (Facebook-first today) — for you. It watches what's working for similar
+accounts, writes post ideas that fit your brand, and **turns the best ones into finished,
+ready-to-publish content** — then watches how your posts perform and uses that to make next week's
+ideas even better.
 
-One idea can become **more than one kind of post**. You choose which **Recipes** to run it through —
+One idea can become **more than one kind of content**. You choose which **Recipes** to run it through —
 today there are two: a **Character Explainer Reel** (an AI-character explainer video) and a **News
-Carousel** (a 7-slide image carousel). Each Recipe you pick produces **one finished post**.
+Carousel** (a 7-slide image carousel). Each Recipe you pick produces **one finished, ready-to-publish
+piece** — an **Asset**.
 
 **What you do — a few minutes a week:**
 
 1. **Approve** the ideas you like (reject the rest) — and pick which **Recipes** to make from each.
 2. **Make the pick** each Recipe asks for (the Reel asks you to pick its character; the Carousel asks
    for nothing).
-3. **Publish** the finished post and paste its link back.
+3. **Publish** the finished Asset and paste its link back.
 
 Everything in between — trend research, idea writing, and production — runs on its own. No scripting,
 filming, or editing.
 
-> It **makes the post but never publishes it**: you review, make the picks, and publish. The gate is
+> It **makes the Asset but never publishes it**: you review, make the picks, and publish. The gate is
 > *publication*, not *creation*. Full domain language in [`CONTEXT.md`](./CONTEXT.md).
 
 **The tools, and what each is for:**
 
-- **Claude Code** — runs the AI agents that scout trends, write ideas, and produce each post.
+- **Claude Code** — runs the AI agents that scout trends, write ideas, and produce each Asset.
 - **Apify** — scrapes public metrics: peer trends on the way in, your posts' performance on the way back.
 - **Magnific** — turns an idea into a finished Reel or Carousel. Each Recipe drives its own Magnific
   **Space**, and the **Space's flow picks the models** (the Carousel uses Nano Banana 2; the Reel's
@@ -70,8 +72,9 @@ Magnific calls as they happen — there is no unattended background worker
 
 **1 · Local — today.** Runs on your machine with **Claude Code** as the agent enabler. Four content
 agents — `trend-scout`, `idea-strategist`, `producer`, `performance-tracker` — run as Claude Code
-subagents/commands over plain-file state. Each Recipe's production procedure is a Skill the thin,
-recipe-generic `producer` invokes by slug (`produce-news-carousel`, `produce-character-explainer`).
+subagents/commands over plain-file state. Each Recipe's production procedure is a Skill the
+recipe-generic `producer` loads by slug and runs as its own authoring craft (`produce-news-carousel`,
+`produce-character-explainer`).
 External muscle: **Apify** (scraping) and one **Magnific Space per Recipe via MCP**.
 
 **2 · Cloud — later (planned).** The hands-off steps (trend research, performance tracking) packaged as a
@@ -115,6 +118,7 @@ Scoped per Brand under `data/brands/<slug>/` (the Production Queue is the one br
 | `ideas/<run>/idea-NN.md` | One Brief per suggested Idea |
 | `ideas/<run>/idea-NN.<recipe>.spec.json` | A chosen Recipe's Production Spec (written when the job is produced) |
 | `ledger.json` | The index: each Idea's **per-Recipe Assets** (Cast/character, Copy, Post URL, Performance, status) |
+| `your-data/` | *Optional* Meta Content exports for richer enrichment (git-ignored, never committed) |
 | `data/queue.json` | The production queue, keyed `(brand, idea, recipe)` (brand-agnostic) |
 
 Each Idea holds **one Asset per chosen Recipe**, moving through `queued → in_production → produced →
@@ -137,4 +141,4 @@ posted → tracking → scored` (ADR-0011). A human pick is a pause inside `in_p
 
 ---
 
-_Created 2026-06-04 · Updated 2026-07-18 (Format/Recipe model, two wired Recipes, attended production)._
+_Created 2026-06-04 · Updated 2026-07-21 (Format/Recipe model, two wired Recipes, attended production)._
