@@ -63,6 +63,12 @@ function slideShapeError(slide: unknown, index: number): string | null {
   if (typeof slide.image_prompt !== "string" || slide.image_prompt.trim().length === 0) {
     return `slides[${index}] must have a non-empty string image_prompt.`;
   }
+  if (!Array.isArray(slide.companies)) {
+    return `slides[${index}] must have a companies array (may be empty when no real company is named).`;
+  }
+  if (!slide.companies.every((c: unknown) => typeof c === "string" && c.trim().length > 0)) {
+    return `slides[${index}].companies must contain only non-empty strings.`;
+  }
   return null;
 }
 

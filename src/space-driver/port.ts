@@ -108,6 +108,13 @@ export interface SpaceMcpPort {
    * live adapter can answer it against real Space state, while the FAKE answers it via its own marker.
    * Returns true when `value` (a Character candidate identifier, or a Brand Asset's local path) is
    * confirmed bound.
+   *
+   * `nodeName` names WHICH on-canvas node to check (a Recipe-declared reference — e.g. `"Selected
+   * Character"` for the wired Recipe's Cast pin, `"Brand_Logo"` for the News Carousel Recipe's logo
+   * slot). Optional, defaulting to the wired Recipe's own `"Selected Character"` node for backward
+   * compatibility with existing callers — but `pinPick`/`bindMediaAsset` always pass it explicitly
+   * (issue #102 finding #4): a live implementation that ignored it and always checked one hard-coded
+   * node would silently mis-verify every OTHER Recipe's bind.
    */
-  verifyPinned(value: string): Promise<boolean>;
+  verifyPinned(value: string, nodeName?: string): Promise<boolean>;
 }

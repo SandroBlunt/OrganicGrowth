@@ -45,6 +45,24 @@ export async function writeFileAtomic(path: string, data: string): Promise<void>
 }
 
 /**
+ * The same atomic write, for raw bytes (a downloaded image/video, not JSON/text) — `writeFileAtomic`
+ * is `utf8`-only and would corrupt binary content. Same crash-safety guarantee: a sibling temp file,
+ * then an atomic rename; best-effort temp cleanup on failure before the original error re-throws.
+ */
+export async function writeFileAtomicBinary(path: string, data: Buffer): Promise<void> {
+  const tmp = `${path}.${randomBytes(6).toString("hex")}.tmp`;
+  try {
+    await writeFile(tmp, data);
+    await rename(tmp, path);
+  } catch (err: unknown) {
+    await rm(tmp, { force: true }).catch(() => {
+      /* best-effort cleanup; surface the original error, not the cleanup failure */
+    });
+    throw err;
+  }
+}
+
+/**
  * Read and JSON-parse a file. Read errors (e.g. a missing file's `ENOENT`) propagate unchanged so
  * callers can special-case them; a *parse* failure is re-thrown as an `Error` that NAMES the path and
  * gives a recovery hint, instead of a bare `SyntaxError` that names nothing.

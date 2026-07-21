@@ -18,10 +18,11 @@ export function validCarouselSpec(): Record<string, unknown> {
     card_style: i % 2 === 0 ? "full_width" : "floating_toast",
     stat_callout: `Stat ${i + 1}.`,
     text: `Slide ${i + 1} (${role}): a short on-card supporting line in the Format's voice.`,
+    companies: ["OpenAI", "Anthropic"],
     image_prompt:
       `A vertical viral Instagram news post, slide ${i + 1} of 7 (${role}). A grounded, ` +
       "real photographic scene with the Brand_Logo reference and the pill text placed per the " +
-      "Baseline Prompt.",
+      "Baseline Prompt, naming OpenAI and Anthropic in the logo row.",
   }));
   return { slides };
 }
@@ -87,6 +88,15 @@ export function missingImagePrompt(): Record<string, unknown> {
   const s = clone(validCarouselSpec());
   const slides = s.slides as Array<Partial<CarouselSlide>>;
   const { image_prompt: _dropped, ...rest } = slides[3]!;
+  slides[3] = rest;
+  return s;
+}
+
+/** The "proof" slide is missing its companies field entirely. */
+export function missingCompanies(): Record<string, unknown> {
+  const s = clone(validCarouselSpec());
+  const slides = s.slides as Array<Partial<CarouselSlide>>;
+  const { companies: _dropped, ...rest } = slides[3]!;
   slides[3] = rest;
   return s;
 }

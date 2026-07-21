@@ -47,29 +47,45 @@ interface, and never claim it belongs to a named product.
 ### 1. Derive the 7-slide narrative
 
 Fixed role order (`src/production-spec/news-carousel-contract.ts`'s `CAROUSEL_ROLES`): **hook →
-then → shift → proof → different → next → cta.** For each slide, decide:
+then → shift → proof → different → next → cta.** Each role has a fixed job, defined as a copy
+formula in the Baseline Prompt document's "The 7-slide narrative" section — read it now. Before
+deciding any slide's content, write one line per role, grounded in the brief, following that role's
+formula: what THIS story's hook is, what THIS story's "then" is, and so on through cta. Only once
+all 7 lines are drafted, move on to deciding each slide's full content below.
+
+For each slide, decide:
 
 - **text** — the on-slide supporting line, in the Format's voice, at most
   `CAROUSEL_TEXT_MAX_CHARS` (140) characters (the role label itself is never on-slide text and
   never counts toward the limit).
 - **stat_callout** — a short, bold pulled figure or phrase (e.g. `"3 companies."`).
-- **subject** — grounded (see "leading idea" above): the real product/logo/action where the slide
-  reports something real; a full-frame photographic scene of the reader's world for a feeling, an
-  outcome, or a prediction.
-- **card_style** — one of the Baseline Prompt document's own **confirmed** styles only — never an
-  unconfirmed variant from the document's exploratory/historical rounds.
+- **subject** — before writing this, pull the specific facts (names, numbers, claims) straight out
+  of the idea's brief for this slide and list them. Build the subject only from those facts plus
+  the Baseline Prompt document's new Subject rules: the real product/logo/action (or the real,
+  named person, if the story is clearly theirs) where the slide reports something real; an equally
+  concrete, specific photographic scene of the reader's world for a feeling, an outcome, or a
+  prediction. Never fall back to something generic.
+- **card_style** — one of the Baseline Prompt document's confirmed placements (all 7 in its Examples
+  section are confirmed, working options — none are historical-only). Vary it across the carousel's
+  7 slides for visual range; never default to repeating the same one or two placements.
+- **companies** — the real company names this slide's logo row shows, as a plain list (e.g.
+  `["OpenAI", "Anthropic"]`) — or `[]` when this slide names no real company. A real field, not a
+  fact left only inside the prose (issue #102 finding #1); the count and names may — and should —
+  vary slide to slide with what the brief actually supports, never padded to match another slide.
 - **logo edge** — whichever edge the chosen `card_style` does not occupy.
 - **inset** — an optional circular detail shot; include only when it earns its place, never on
   every slide by default.
 
 Completion: all 7 roles have a ≤140-char `text`, a non-empty `stat_callout`, a grounded subject,
-and a confirmed `card_style`.
+a confirmed `card_style`, and a `companies` list consistent with what that slide's image_prompt
+actually shows.
 
 ### 2. Assemble each slide's image_prompt
 
 Build each `image_prompt` from the Baseline Prompt document's own reusable template: swap **only**
 the bracketed, per-shot parts (subject, the card clause, the stat, the supporting line, the
-story's real product logos, the optional inset). Keep every **fixed clause verbatim** from the
+`companies` logo row — omitted entirely when `companies` is `[]` — the optional inset). Keep every
+**fixed clause verbatim** from the
 document — the logo guardrail (cited by the document's own reference-image name, laid along the
 free edge, rendered unaltered, a vignette behind it), the pill/eyebrow badge with its
 never-all-caps guardrail, the font notes, and the closing style line. Start from the document's own
@@ -83,20 +99,24 @@ own per-slide brackets filled in.
 ### 3. Self-audit against the author-phase checklist
 
 Run `src/production-spec/news-carousel-author-checklist.ts`'s
-`auditNewsCarouselAuthorPhase(spec, bannedWords, baseline)` against your 7 slides, where `baseline`
-(a `NewsCarouselBaselineParams`) is built from the SAME Baseline Prompt document you just read —
-its own `logoReferenceName`, `pillText`, `neverAllCapsInstruction`, `fixedClauses`, and
-`confirmedCardStyles` — **never a value read from a different Brand/Format's document.** Fix and
-re-audit any miss. **A banned word is REJECT-ONLY — STOP and report; never silently swap it for
-another word** (always-rule 6/9).
+`auditNewsCarouselAuthorPhase(spec, bannedWords, baseline, documentText)` against your 7 slides,
+where `baseline` (a `NewsCarouselBaselineParams`) is built from the SAME Baseline Prompt document
+you just read — its own `logoReferenceName`, `pillText`, `neverAllCapsInstruction`, `fixedClauses`,
+and `confirmedCardStyles` — **never a value read from a different Brand/Format's document.** Pass
+`documentText` too — the raw text of that same document, unmodified — so the checklist can verify
+your hand-copy actually matches it; nothing else catches a stale or mistyped copy. Fix and re-audit
+any miss. **A banned word is REJECT-ONLY — STOP and report; never silently swap it for another
+word** (always-rule 6/9).
 
 Completion: `auditNewsCarouselAuthorPhase(...).ok` is `true`.
 
 ### 4. Emit the Production Spec through the spec store
 
 Shape the result to `src/production-spec/news-carousel-contract.ts`'s `NewsCarouselSpec`
-(`{ slides: [{ slide_index, role, card_style, stat_callout, text, image_prompt }] }`, ordered by
-role) and independently confirm it with `src/production-spec/news-carousel-validate.ts`'s
+(`{ slides: [{ slide_index, role, card_style, stat_callout, text, companies, image_prompt }] }`,
+ordered by role — `companies` is the real company names cited in that slide's own logo row, or `[]`
+when the slide names none) and independently confirm it with
+`src/production-spec/news-carousel-validate.ts`'s
 `validateNewsCarouselSpec`. Write it via `src/production-spec/store.ts`'s `saveSpec` to the path
 `specPathFor(ideaId, run, ideasRoot, "news-carousel")` —
 `data/brands/<slug>/ideas/<format>/<run>/idea-NN.news-carousel.spec.json`, sitting beside the
@@ -119,7 +139,11 @@ is saved at that path.
   photographic scene; never an invented UI shown as a real product's own screen. *(Agent-judged —
   flagged for review, never auto-failed; ADR-0017.)*
 - `card_style` is one of the document's own confirmed styles; `stat_callout` is non-empty.
+- Every company named in a slide's `companies` field is cited in that same slide's `image_prompt`
+  (a slide naming no real company skips the logo row entirely — issue #102 finding #1).
 - No banned word in any field — reject-only, never a silent swap.
+- When the raw document text is supplied: every hand-copied baseline fact (logo name, pill text,
+  caps guardrail, fixed clauses) actually appears, verbatim, in that document (issue #102).
 
 ## What this Skill does not do
 

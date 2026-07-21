@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { auditNewsCarouselAuthorPhase } from "./news-carousel-author-checklist.ts";
+import {
+  auditNewsCarouselAuthorPhase,
+  verifyBaselineParamsAgainstDocument,
+} from "./news-carousel-author-checklist.ts";
 import {
   TEST_BASELINE,
   baselineAdherentCarouselSpec,
@@ -10,6 +13,7 @@ import {
   missingCapsGuardrail,
   missingFixedClause,
   unconfirmedCardStyle,
+  companyNotCitedInPrompt,
   bannedWordInText,
 } from "./fixtures/news-carousel-author-checklist-specs.ts";
 import { sixSlides, rolesOutOfOrder, textTooLong } from "./fixtures/news-carousel-specs.ts";
@@ -20,7 +24,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     assert.equal(result.ok, true);
     assert.equal(result.phase, "author");
     assert.equal(result.recipe, "news-carousel");
-    assert.equal(result.items.length, 8);
+    assert.equal(result.items.length, 9);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);
@@ -82,11 +86,17 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     assert.equal(result.items[6]!.ok, false);
   });
 
+  it("fails the companies item when a slide names a company its own image_prompt never cites", () => {
+    const result = auditNewsCarouselAuthorPhase(companyNotCitedInPrompt(), [], TEST_BASELINE);
+    assert.equal(result.ok, false);
+    assert.equal(result.items[7]!.ok, false);
+  });
+
   it("fails the banned-word item, reject-only, and names the word and field — never rewrites the Spec", () => {
     const spec = bannedWordInText("miracle");
     const result = auditNewsCarouselAuthorPhase(spec, ["miracle"], TEST_BASELINE);
     assert.equal(result.ok, false);
-    const bannedItem = result.items[7]!;
+    const bannedItem = result.items[8]!;
     assert.equal(bannedItem.ok, false);
     assert.ok(bannedItem.detail?.includes("miracle"));
     assert.equal("spec" in result, false);
@@ -114,6 +124,57 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
 
   it("an empty banned-words list always passes the banned-word item", () => {
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
-    assert.equal(result.items[7]!.ok, true);
+    assert.equal(result.items[8]!.ok, true);
+  });
+
+  it("omitting the raw document text skips the baseline-copy-verification item entirely", () => {
+    const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
+    assert.equal(result.items.length, 9);
+  });
+
+  it("supplying the raw document text adds one more item, verifying the hand-copy against it", () => {
+    const documentText =
+      `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
+      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
+    const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE, documentText);
+    assert.equal(result.items.length, 10);
+    assert.equal(result.items[9]!.ok, true);
+  });
+
+  it("fails the baseline-copy-verification item when a hand-copied fact isn't actually in the document", () => {
+    const documentText = "a document that never mentions the logo name, pill text, or fixed clauses";
+    const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE, documentText);
+    assert.equal(result.ok, false);
+    const item = result.items[9]!;
+    assert.equal(item.ok, false);
+    assert.ok(item.detail?.includes(TEST_BASELINE.logoReferenceName));
+  });
+});
+
+describe("verifyBaselineParamsAgainstDocument — cross-checks a hand-copied baseline against the raw document", () => {
+  it("passes when every verbatim fact is present in the document", () => {
+    const documentText =
+      `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
+      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
+    const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, documentText);
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.mismatches, []);
+  });
+
+  it("reports every fact that is missing from the document, without throwing", () => {
+    const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, "an unrelated document");
+    assert.equal(result.ok, false);
+    assert.equal(result.mismatches.length > 0, true);
+    assert.ok(result.mismatches.some((m) => m.includes(TEST_BASELINE.logoReferenceName)));
+  });
+
+  it("never checks confirmedCardStyles — those are the Skill's own names, not literal document text", () => {
+    // A document naming every OTHER fact verbatim but never using the code-style slug "full_width"
+    // must still pass — confirmedCardStyles is deliberately excluded from this verbatim check.
+    const documentText =
+      `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
+      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
+    const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, documentText);
+    assert.equal(result.ok, true);
   });
 });

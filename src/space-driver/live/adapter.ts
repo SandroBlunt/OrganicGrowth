@@ -175,10 +175,18 @@ export class LiveSpaceAdapter implements SpaceMcpPort {
     return results;
   }
 
-  async verifyPinned(character: string): Promise<boolean> {
+  /**
+   * Checks `nodeName` (defaulting to the wired Recipe's own "Selected Character" pin for backward
+   * compatibility) — NOT hard-coded to one node regardless of caller (issue #102 finding #4). Reads
+   * via `readState()`'s full-board merge; for a node name outside `KEY_NODE_NAMES` (e.g. a News
+   * Carousel Recipe's "Brand_Logo") this naturally uses the plain `spaces_state` inventory value —
+   * the read proven reliable for a creation-type node's bind, per the live smoke test that surfaced
+   * this bug (the SCOPED `spaces_get_nodes` read was the one that mis-reported it as missing).
+   */
+  async verifyPinned(value: string, nodeName: string = SELECTED_CHARACTER_NODE_NAME): Promise<boolean> {
     const state = await this.readState();
-    const node = state.nodes.find((n) => n.name === SELECTED_CHARACTER_NODE_NAME);
-    return node?.value === character;
+    const node = state.nodes.find((n) => n.name === nodeName);
+    return node?.value === value;
   }
 
   /**

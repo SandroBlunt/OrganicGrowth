@@ -407,7 +407,8 @@ const CHARACTER_EXPLAINER_PHASES: readonly PhaseContract[] = [
       {
         kind: "agent-judged",
         description:
-          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, asset_url, ' +
+          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, ' +
+          "asset_paths (the downloaded media's durable LOCAL file paths — issue #102 finding #3), " +
           "produced_at, and the composed copy (ledger-as-source-of-truth, always-rule 7).",
       },
     ],
@@ -653,7 +654,8 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
       {
         kind: "agent-judged",
         description:
-          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, asset_url, ' +
+          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, ' +
+          "asset_paths (the downloaded media's durable LOCAL file paths — issue #102 finding #3), " +
           "produced_at, and the composed copy (ledger-as-source-of-truth, always-rule 7).",
       },
     ],

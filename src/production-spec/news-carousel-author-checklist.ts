@@ -67,6 +67,44 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** The result of cross-checking a hand-typed `NewsCarouselBaselineParams` against the raw document. */
+export interface BaselineParamsVerification {
+  readonly ok: boolean;
+  /** One entry per fact that could NOT be found, verbatim, in the document text. */
+  readonly mismatches: readonly string[];
+}
+
+/**
+ * Cross-check a hand-typed `NewsCarouselBaselineParams` against the RAW Baseline Prompt document text
+ * it was supposedly read from — catches a stale or mistyped hand-copy before the checklist silently
+ * checks slides against the wrong facts (issue #102: nothing previously verified this copy step).
+ * Checks only the fields meant to be reproduced VERBATIM (ADR-0015): `logoReferenceName`, `pillText`,
+ * `neverAllCapsInstruction`, `fixedClauses`. `confirmedCardStyles` is deliberately excluded — those
+ * are the Skill's own short names for styles the document describes in prose, not literal substrings
+ * of it, so a plain-text search would always (wrongly) fail them.
+ */
+export function verifyBaselineParamsAgainstDocument(
+  params: NewsCarouselBaselineParams,
+  documentText: string,
+): BaselineParamsVerification {
+  const mismatches: string[] = [];
+  if (!documentText.includes(params.logoReferenceName)) {
+    mismatches.push(`logoReferenceName ${JSON.stringify(params.logoReferenceName)} not found in the document`);
+  }
+  if (!documentText.includes(params.pillText)) {
+    mismatches.push(`pillText ${JSON.stringify(params.pillText)} not found in the document`);
+  }
+  if (!documentText.includes(params.neverAllCapsInstruction)) {
+    mismatches.push("neverAllCapsInstruction not found in the document, verbatim");
+  }
+  for (const clause of params.fixedClauses) {
+    if (!documentText.includes(clause)) {
+      mismatches.push(`fixed clause not found in the document, verbatim: ${JSON.stringify(clause)}`);
+    }
+  }
+  return { ok: mismatches.length === 0, mismatches };
+}
+
 /** Best-effort slide extraction for the granular checks below — never throws on a malformed Spec; the
  *  REFERENCED `validateNewsCarouselSpec` call is what actually rejects a malformed shape. */
 function extractSlides(spec: unknown): readonly Record<string, unknown>[] {
@@ -80,6 +118,24 @@ function imagePrompt(slide: Record<string, unknown>): string {
   return typeof slide.image_prompt === "string" ? slide.image_prompt : "";
 }
 
+/** This slide's `companies` field, defensively narrowed (never throws on a malformed Spec). */
+function companies(slide: Record<string, unknown>): readonly string[] {
+  if (!Array.isArray(slide.companies)) return [];
+  return slide.companies.filter((c): c is string => typeof c === "string");
+}
+
+/**
+ * A slide with no real company to name (`companies` empty) has nothing to check here — the "three
+ * tiny real product logos" clause is omitted entirely for that slide (issue #102 finding #1). A
+ * slide that DOES name companies must cite every one of them, verbatim, in its own image_prompt.
+ */
+function companiesCitedInPrompt(slide: Record<string, unknown>): boolean {
+  const named = companies(slide);
+  if (named.length === 0) return true;
+  const prompt = imagePrompt(slide);
+  return named.every((c) => prompt.includes(c));
+}
+
 /**
  * Audit a candidate News Carousel Production Spec against its FULL, graduated author-phase checklist
  * (map #77, issue #85). Runs entirely as CODE — every item is either a mechanical check REFERENCING
@@ -87,14 +143,18 @@ function imagePrompt(slide: Record<string, unknown>): string {
  * check parameterized from `baseline` (never a hardcoded literal), except the single agent-judged
  * "grounded subject" item, which is flagged for review and never computed. Never throws.
  *
- * @param candidateSpec the candidate News Carousel Production Spec (untrusted shape)
- * @param bannedWords   the Brand's banned words (`production-spec/brand-profile.ts`'s `loadBannedWords`)
- * @param baseline      the (Brand x Format) Baseline Prompt's own strings this Spec is checked against
+ * @param candidateSpec       the candidate News Carousel Production Spec (untrusted shape)
+ * @param bannedWords         the Brand's banned words (`production-spec/brand-profile.ts`'s `loadBannedWords`)
+ * @param baseline            the (Brand x Format) Baseline Prompt's own strings this Spec is checked against
+ * @param baselineDocumentText the RAW Baseline Prompt document text `baseline` was hand-copied from.
+ *   Optional (omit only when the raw text genuinely isn't available); when supplied, adds one more
+ *   mechanical item verifying the hand-copy against the real document (issue #102).
  */
 export function auditNewsCarouselAuthorPhase(
   candidateSpec: unknown,
   bannedWords: readonly string[],
   baseline: NewsCarouselBaselineParams,
+  baselineDocumentText?: string,
 ): PhaseAuditResult {
   const structural = validateNewsCarouselSpec(candidateSpec);
   const safety = scanNewsCarouselForBannedWords(candidateSpec, bannedWords);
@@ -162,12 +222,32 @@ export function auditNewsCarouselAuthorPhase(
         ),
     },
     {
+      description:
+        "Every company named in a slide's companies field is cited in that slide's own image_prompt " +
+        "(a slide naming no real company skips the logo row entirely).",
+      kind: "mechanical",
+      ok: hasSlides && slides.every((s) => companiesCitedInPrompt(s)),
+    },
+    {
       description: "No banned word in any field — reject-only, never a silent swap.",
       kind: "mechanical",
       ok: safety.ok,
       ...(safety.ok ? {} : { detail: safety.hits.map((h) => `"${h.word}" in ${h.field}`).join("; ") }),
     },
   ];
+
+  if (baselineDocumentText !== undefined) {
+    const verification = verifyBaselineParamsAgainstDocument(baseline, baselineDocumentText);
+    items.push({
+      description:
+        "The hand-copied baseline facts (logo name, pill text, caps guardrail, fixed clauses) " +
+        "actually appear, verbatim, in the Baseline Prompt document just read — catches a stale or " +
+        "mistyped copy before it silently becomes what every slide gets checked against.",
+      kind: "mechanical",
+      ok: verification.ok,
+      ...(verification.ok ? {} : { detail: verification.mismatches.join("; ") }),
+    });
+  }
 
   // The referenced structural validator is the authoritative gate for shape/count/order/length: a
   // malformed Spec fails the whole checklist even if a granular item above couldn't itself tell why.

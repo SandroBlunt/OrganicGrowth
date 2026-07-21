@@ -115,7 +115,20 @@ export interface LedgerAssetRecord {
   readonly cast?: readonly LedgerCastCandidate[];
   /** Recipe-local: the *Character Explainer with Cast* Recipe's picked Character. */
   readonly character?: string;
+  /**
+   * A single remote reference for the produced media — kept for older records and any Recipe that
+   * hasn't moved to `asset_paths` yet. A signed URL like this expires and isn't itself an inspectable
+   * or postable file (issue #102 finding #3) — prefer `asset_paths`.
+   */
   readonly asset_url?: string;
+  /**
+   * Durable LOCAL file paths for the produced media, downloaded once at production time
+   * (`src/asset/download.ts`'s `downloadAssetFiles`) — never a remote URL, which can expire before
+   * the Operator gets to review or post it. One entry for a single-media Recipe (e.g. the wired
+   * Character Explainer's Reel), one per slide, IN SLIDE ORDER, for the News Carousel Recipe's 7
+   * images (issue #102 finding #3).
+   */
+  readonly asset_paths?: readonly string[];
   readonly produced_at?: string;
   readonly post_url?: string;
   readonly posted_at?: string;
@@ -256,6 +269,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
   const copy = parseCopy(raw.copy);
   const metrics = parseAssetMetrics(raw.metrics);
   const history = parseAssetMetricsHistory(raw.history);
+  const assetPaths = parseAssetPaths(raw.asset_paths);
 
   return {
     recipe: raw.recipe,
@@ -266,6 +280,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
     ...(cast.length > 0 ? { cast } : {}),
     ...(nonEmptyString(raw.character) ? { character: raw.character } : {}),
     ...(nonEmptyString(raw.asset_url) ? { asset_url: raw.asset_url } : {}),
+    ...(assetPaths.length > 0 ? { asset_paths: assetPaths } : {}),
     ...(nonEmptyString(raw.produced_at) ? { produced_at: raw.produced_at } : {}),
     ...(nonEmptyString(raw.post_url) ? { post_url: raw.post_url } : {}),
     ...(nonEmptyString(raw.posted_at) ? { posted_at: raw.posted_at } : {}),
@@ -274,6 +289,12 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
     ...(nonEmptyString(raw.tracked_at) ? { tracked_at: raw.tracked_at } : {}),
     ...(history.length > 0 ? { history } : {}),
   };
+}
+
+/** Parse a raw `asset_paths` array, dropping non-string/empty entries. Non-array input yields `[]`. */
+export function parseAssetPaths(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((p): p is string => nonEmptyString(p));
 }
 
 /** Parse a raw Assets array, dropping malformed entries. Non-array/absent input yields `[]`. */

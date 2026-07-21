@@ -372,7 +372,7 @@ export async function pinPick(
     return { ok: false, error: err("pin_edit_failed", status.error ?? "the pin edit failed") };
   }
 
-  if (!(await port.verifyPinned(pick))) {
+  if (!(await port.verifyPinned(pick, nodeName))) {
     return {
       ok: false,
       error: err(
@@ -422,7 +422,7 @@ export async function bindMediaAsset(
     };
   }
 
-  if (!(await port.verifyPinned(path))) {
+  if (!(await port.verifyPinned(path, nodeName))) {
     return {
       ok: false,
       error: err(

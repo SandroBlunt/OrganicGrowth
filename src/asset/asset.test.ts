@@ -15,6 +15,7 @@ import {
   parseAssetMetrics,
   parseAssetMetricsSnapshot,
   parseAssetMetricsHistory,
+  parseAssetPaths,
   parseAssetRecord,
   parseAssetsArray,
   findAsset,
@@ -192,6 +193,22 @@ describe("parseAssetMetricsHistory — drops malformed entries, never throws", (
 // parseAssetRecord / parseAssetsArray
 // ---------------------------------------------------------------------------
 
+describe("parseAssetPaths — defensive parse of local downloaded-asset file paths", () => {
+  it("keeps every non-empty string entry, in order", () => {
+    assert.deepEqual(parseAssetPaths(["a.png", "b.png"]), ["a.png", "b.png"]);
+  });
+
+  it("drops non-string and empty-string entries rather than throwing", () => {
+    assert.deepEqual(parseAssetPaths(["a.png", 42, "", null, "b.png"]), ["a.png", "b.png"]);
+  });
+
+  it("yields [] for non-array input", () => {
+    assert.deepEqual(parseAssetPaths(undefined), []);
+    assert.deepEqual(parseAssetPaths("not-an-array"), []);
+    assert.deepEqual(parseAssetPaths(null), []);
+  });
+});
+
 describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
   it("requires a non-empty recipe and a valid AssetStatus", () => {
     assert.equal(parseAssetRecord({ recipe: "", status: "queued" }), null);
@@ -216,6 +233,7 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       cast: [{ identifier: "cast-1", url: "https://x/1.png" }],
       character: "cast-1",
       asset_url: "https://x/asset.mp4",
+      asset_paths: ["data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.assets/asset.mp4"],
       produced_at: "2026-06-05T12:00:00.000Z",
       post_url: "https://facebook.com/post/1",
       posted_at: "2026-06-06T12:00:00.000Z",
@@ -243,6 +261,7 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       character: 42,
       metrics: { shares: -1, comments: 1, reactions: 1, views: 1 },
       history: "not-an-array",
+      asset_paths: "not-an-array",
     });
     assert.deepEqual(a, { recipe: "r", status: "produced" });
   });
