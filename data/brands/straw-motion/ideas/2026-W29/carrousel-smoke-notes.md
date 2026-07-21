@@ -62,6 +62,12 @@ Spec: `idea-03.news-carousel.spec.json`
    characters` and it fell back to 7 chunked appends. Operator confirms longer prompts inject fine —
    so this is the **wrong method**, not a canvas limit. Define + document the correct one-shot inject
    so an unassisted run injects the whole spec in one call.
+   - **Resolved 2026-07-21 (PR #103): the 4,000-character-limit premise above was wrong** (Operator-
+     confirmed). The pinned one-shot method is the driver's own `injectSpec`
+     (`src/space-driver/driver.ts`): ONE `spaces_edit` call carrying the full Spec, polled to
+     terminal, then a read-back confirming the node text changed. Production routes through
+     `driveToNextGate`, whose first leg uses exactly this — the chunked-append improvisation above is
+     retired, not the method.
 
 3. **Ledger asset shape for a carousel.** `LedgerAssetRecord.asset_url` is a single, signed/expiring
    URL; a 7-slide carousel needs a durable, multi-image representation. Durable per-slide links are the
