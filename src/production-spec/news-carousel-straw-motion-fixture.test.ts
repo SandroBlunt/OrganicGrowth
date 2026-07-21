@@ -29,6 +29,21 @@ import {
 import { loadFormat } from "../format/store.ts";
 import { loadBaselinePrompt } from "../format/baseline-prompt.ts";
 import { TEST_BASELINE } from "./fixtures/news-carousel-author-checklist-specs.ts";
+import type { CarouselSlide } from "./news-carousel-contract.ts";
+
+/**
+ * The document is a wrapped markdown blockquote (each line prefixed "> ", sentences wrapped
+ * mid-line). Normalize it the way a reader interprets rendered prose — strip the blockquote markers,
+ * join lines with a space, collapse repeated whitespace — before checking containment, since a
+ * sentence spanning a wrapped line break is never a literal contiguous byte run in the raw file.
+ */
+function normalizeBaselineDoc(content: string): string {
+  return content
+    .split("\n")
+    .map((line) => line.replace(/^>\s?/, ""))
+    .join(" ")
+    .replace(/\s+/g, " ");
+}
 
 describe("the produce-news-carousel Skill's graduated output passes both gates (issue #87 AC2)", () => {
   it("passes validateNewsCarouselSpec (#81's structural contract)", () => {
@@ -44,7 +59,7 @@ describe("the produce-news-carousel Skill's graduated output passes both gates (
       STRAW_MOTION_BASELINE,
     );
     assert.equal(result.ok, true);
-    assert.equal(result.items.length, 9);
+    assert.equal(result.items.length, 10);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);
@@ -93,16 +108,7 @@ describe("STRAW_MOTION_BASELINE's strings are genuinely Straw Motion's own (not 
     assert.equal(lookup.found, true);
     assert.ok(lookup.found);
 
-    // The document is a wrapped markdown blockquote (each line prefixed "> ", sentences wrapped
-    // mid-line). Normalize it the way a reader interprets rendered prose — strip the blockquote
-    // markers, join lines with a space, collapse repeated whitespace — before checking containment,
-    // since a sentence spanning a wrapped line break is never a literal contiguous byte run in the
-    // raw file.
-    const normalized = lookup.content
-      .split("\n")
-      .map((line) => line.replace(/^>\s?/, ""))
-      .join(" ")
-      .replace(/\s+/g, " ");
+    const normalized = normalizeBaselineDoc(lookup.content);
 
     assert.ok(
       normalized.includes(STRAW_MOTION_BASELINE.logoReferenceName),
@@ -127,5 +133,77 @@ describe("STRAW_MOTION_BASELINE's strings are genuinely Straw Motion's own (not 
   it("is genuinely a DIFFERENT baseline than the stand-in TEST_BASELINE (proving this isn't the same fixture renamed)", () => {
     assert.notEqual(STRAW_MOTION_BASELINE.logoReferenceName, TEST_BASELINE.logoReferenceName);
     assert.notEqual(STRAW_MOTION_BASELINE.pillText, TEST_BASELINE.pillText);
+  });
+});
+
+describe("the placement-variety item against idea-01's ACTUAL reported pattern, real style names (issue #106)", () => {
+  it("flags the exact monotone pattern reproduction-confirmed on idea-01 — AC1", () => {
+    // The Triage Assessment's own reproduction: idea-01's card_style values across its 7 slides were
+    // full_width, floating_toast, small_badge, full_width_inset, floating_toast, small_badge_inset,
+    // full_width — 5 distinct values, all bottom/lower-left, ZERO top-region cards, even though
+    // STRAW_MOTION_BASELINE.confirmedCardStyles already includes the document's own top-region option.
+    const ideaOnePattern = [
+      "full_width",
+      "floating_toast",
+      "small_badge",
+      "full_width_inset",
+      "floating_toast",
+      "small_badge_inset",
+      "full_width",
+    ];
+    const base = strawMotionIdeaOneCarouselSpec() as { slides: readonly CarouselSlide[] };
+    const monotoneSpec = {
+      slides: base.slides.map((slide, i) => ({ ...slide, card_style: ideaOnePattern[i]! })),
+    };
+
+    const result = auditNewsCarouselAuthorPhase(monotoneSpec, [], STRAW_MOTION_BASELINE);
+    assert.equal(result.ok, false);
+    const variety = result.items.find((i) => i.id === "placement-variety");
+    assert.ok(variety, "the placement-variety item must be present");
+    assert.equal(variety.kind, "mechanical");
+    assert.equal(variety.ok, false);
+
+    // Only card_style values changed — every OTHER mechanical item (all sourced from the SAME real
+    // image_prompt prose, untouched) still passes, isolating placement-variety as the sole failure.
+    for (const other of result.items) {
+      if (other.id !== "placement-variety" && other.kind === "mechanical") {
+        assert.equal(other.ok, true, `${other.id} must still pass: ${other.detail ?? ""}`);
+      }
+    }
+  });
+
+  it("passes a genuinely varied 7-slide spread that includes a top-region card — AC2", () => {
+    const result = auditNewsCarouselAuthorPhase(
+      strawMotionIdeaOneCarouselSpec(),
+      [],
+      STRAW_MOTION_BASELINE,
+    );
+    assert.equal(result.ok, true);
+    const variety = result.items.find((i) => i.id === "placement-variety");
+    assert.ok(variety);
+    assert.equal(variety.ok, true);
+  });
+});
+
+describe("the real Baseline Prompt document instructs active placement spread, subject variety, and real-named-people balance (issue #106 AC5)", () => {
+  it("the Card style guidance requires at least one top-region placement, actively, not just as an option among many", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineDoc(lookup.content);
+
+    assert.match(normalized, /actively spread placements/i);
+    assert.match(normalized, /must use at least one/i);
+    assert.match(normalized, /top card, photo below/i);
+  });
+
+  it("the Subject guidance instructs varying subject TYPE and reaching for the real named person, balanced with product shots", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineDoc(lookup.content);
+
+    assert.match(normalized, /vary the subject type/i);
+    assert.match(normalized, /balance (?:people|real people)/i);
   });
 });

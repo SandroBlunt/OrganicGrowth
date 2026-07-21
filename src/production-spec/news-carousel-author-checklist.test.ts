@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   auditNewsCarouselAuthorPhase,
   verifyBaselineParamsAgainstDocument,
+  type NewsCarouselBaselineParams,
 } from "./news-carousel-author-checklist.ts";
 import {
   TEST_BASELINE,
@@ -16,6 +17,8 @@ import {
   companyNotCitedInPrompt,
   companyOnlySubstringInPrompt,
   bannedWordInText,
+  allBottomPlacements,
+  tooFewDistinctPlacements,
 } from "./fixtures/news-carousel-author-checklist-specs.ts";
 import { sixSlides, rolesOutOfOrder, textTooLong } from "./fixtures/news-carousel-specs.ts";
 import type { ChecklistItemAudit, PhaseAuditResult } from "../recipe/phase-contract.ts";
@@ -34,7 +37,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     assert.equal(result.ok, true);
     assert.equal(result.phase, "author");
     assert.equal(result.recipe, "news-carousel");
-    assert.equal(result.items.length, 9);
+    assert.equal(result.items.length, 10);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);
@@ -96,6 +99,60 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     assert.equal(item(result, "card-style-stat-callout").ok, false);
   });
 
+  describe("placement-variety — the NEW mechanical item (issue #106)", () => {
+    it("is present, kind: mechanical, and flags an all-bottom-region Spec — the idea-01 pattern (AC1)", () => {
+      const result = auditNewsCarouselAuthorPhase(allBottomPlacements(), [], TEST_BASELINE);
+      assert.equal(result.ok, false);
+      const variety = item(result, "placement-variety");
+      assert.equal(variety.kind, "mechanical");
+      assert.equal(variety.ok, false);
+      // Every OTHER mechanical item still passes — only card_style values changed, so only
+      // placement-variety is isolated by this mutation (a "too few distinct" fixture would also
+      // trip card-style-stat-callout if the mutation used an unconfirmed style; it doesn't here).
+      assert.equal(item(result, "logo-reference").ok, true);
+      assert.equal(item(result, "pill-text-caps").ok, true);
+      assert.equal(item(result, "fixed-clauses").ok, true);
+      assert.equal(item(result, "card-style-stat-callout").ok, true);
+    });
+
+    it("passes when placements spread across the vertical range and include a top-region card (AC2)", () => {
+      const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
+      assert.equal(result.ok, true);
+      assert.equal(item(result, "placement-variety").ok, true);
+    });
+
+    it("fails on too few distinct placements even when a top-region card IS used — the OTHER disjunct", () => {
+      const result = auditNewsCarouselAuthorPhase(tooFewDistinctPlacements(), [], TEST_BASELINE);
+      assert.equal(result.ok, false);
+      assert.equal(item(result, "placement-variety").ok, false);
+    });
+
+    it("participates in the overall ok — a mechanical item is never merely flagged (ADR-0017 vs agent-judged)", () => {
+      const failing = auditNewsCarouselAuthorPhase(allBottomPlacements(), [], TEST_BASELINE);
+      assert.equal(item(failing, "placement-variety").ok, false);
+      assert.equal(failing.ok, false, "overall ok must be false when placement-variety fails");
+    });
+
+    it("takes 'top region' and the distinct-count threshold from NewsCarouselBaselineParams — never a hardcoded literal (AC3)", () => {
+      // The SAME all-bottom Spec, unmodified, now passes once a DIFFERENT NewsCarouselBaselineParams
+      // redefines "top region" to include a style the Spec actually uses and relaxes the threshold —
+      // proving the rule is genuinely parameterized, not a literal baked into the checked module.
+      const relaxedBaseline: NewsCarouselBaselineParams = {
+        ...TEST_BASELINE,
+        topRegionCardStyles: [TEST_BASELINE.confirmedCardStyles[0]!],
+        minDistinctCardStyles: 1,
+      };
+      const result = auditNewsCarouselAuthorPhase(allBottomPlacements(), [], relaxedBaseline);
+      assert.equal(item(result, "placement-variety").ok, true);
+    });
+
+    it("never throws on a malformed / non-object Spec, and the placement-variety item itself fails cleanly", () => {
+      assert.doesNotThrow(() => auditNewsCarouselAuthorPhase({}, [], TEST_BASELINE));
+      const result = auditNewsCarouselAuthorPhase({}, [], TEST_BASELINE);
+      assert.equal(item(result, "placement-variety").ok, false);
+    });
+  });
+
   it("fails the companies item when a slide names a company its own image_prompt never cites", () => {
     const result = auditNewsCarouselAuthorPhase(companyNotCitedInPrompt(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
@@ -145,7 +202,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
 
   it("omitting the raw document text skips the baseline-copy-verification item entirely", () => {
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
-    assert.equal(result.items.length, 9);
+    assert.equal(result.items.length, 10);
   });
 
   it("supplying the raw document text adds one more item, verifying the hand-copy against it", () => {
@@ -153,7 +210,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
       `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
       `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE, documentText);
-    assert.equal(result.items.length, 10);
+    assert.equal(result.items.length, 11);
     assert.equal(item(result, "baseline-doc-verified").ok, true);
   });
 
