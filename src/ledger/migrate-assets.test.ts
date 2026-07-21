@@ -256,13 +256,15 @@ describe("migrateLedgerFile — round-trip against the REAL mundotip and straw-m
         const afterFirstText = await readFile(copyPath, "utf8");
         const after = JSON.parse(afterFirstText) as { ideas: Array<Record<string, unknown>> };
 
-        // Every Idea gained assets:[] (none had a legacy production status — ADR-0011's "nearly free
-        // now" claim), and the id/status/title set is preserved 1:1.
+        // LOSSLESS: an Idea with no assets gains assets:[]; an Idea that already carries real
+        // per-Recipe Assets (the live smoke-test carousels do, since 2026-W29) keeps them EXACTLY.
+        // The id/status set is preserved 1:1. (The old pin `assets deep-equals []` was a snapshot of
+        // the pre-production ledger and rotted the day real Assets landed.)
         assert.equal(after.ideas.length, before.ideas.length);
         for (let i = 0; i < before.ideas.length; i++) {
           assert.equal(after.ideas[i]!.id, before.ideas[i]!.id);
           assert.equal(after.ideas[i]!.status, before.ideas[i]!.status, "no live Idea has a legacy production status to remap");
-          assert.deepEqual(after.ideas[i]!.assets, []);
+          assert.deepEqual(after.ideas[i]!.assets, before.ideas[i]!.assets ?? []);
         }
 
         // Idempotent: a second run against the now-migrated copy is a no-op.

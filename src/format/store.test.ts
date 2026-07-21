@@ -467,13 +467,14 @@ describe("mundotip and straw-motion are migrated to their own Format files (issu
     }
   });
 
-  it("straw-motion's real pending Ideas carry the real Format slug, never the media-sense value (QA D1)", async () => {
+  it("straw-motion's real 2026-W29 Ideas carry the real Format slug, never the media-sense value (QA D1)", async () => {
+    // Scoped by RUN, not status — the W29 set is frozen, statuses keep moving as the pipeline runs.
     const raw = JSON.parse(
       await readFile(join("data", "brands", "straw-motion", "ledger.json"), "utf8"),
     ) as { ideas: Array<Record<string, unknown>> };
-    const suggested = raw.ideas.filter((i) => i["status"] === "suggested");
-    assert.ok(suggested.length >= 7, "expected the 7 real pending 2026-W29 Ideas");
-    for (const idea of suggested) {
+    const w29 = raw.ideas.filter((i) => i["run"] === "2026-W29");
+    assert.ok(w29.length >= 7, "expected the 7 real 2026-W29 Ideas");
+    for (const idea of w29) {
       assert.equal(idea["format"], "unhypped-news", `${idea["id"]} must carry the real Format slug`);
       assert.notEqual(idea["format"], "reel", `${idea["id"]} must not carry the retired media-sense value`);
     }

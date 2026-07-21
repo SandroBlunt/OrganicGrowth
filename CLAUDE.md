@@ -17,13 +17,14 @@ was never removed (see [`docs/adr/0002`](./docs/adr/0002-producer-generates-asse
 
 The domain language is defined in [`CONTEXT.md`](./CONTEXT.md) — read it before working here.
 
-> **Multi-format (ADRs 0009–0014).** OrganicGrowth runs on the **multi-format** model. A **Format** is a
+> **Multi-format (ADRs 0009–0018).** OrganicGrowth runs on the **multi-format** model. A **Format** is a
 > Brand's editorial line (e.g. Straw Motion's *Unhypped News*); a **Recipe** is an in-repo, brand-agnostic
-> production plan (`src/recipe/registry.ts`) — seeded today with **one** wired entry, *Character Explainer
-> with Cast*. One Idea → the Operator's chosen **Recipes** (picked at Review, pre-filled from the Format)
+> production plan (`src/recipe/registry.ts`) — **two** wired entries today: *Character Explainer with
+> Cast* (one gate — the Cast pick) and *News Carousel* (zero gates, runs straight through). One Idea →
+> the Operator's chosen **Recipes** (picked at Review, pre-filled from the Format)
 > → **one Asset per Recipe** → one Post per Asset. Gates, the Production-Spec shape, and the copy step are
 > all **per-Recipe**; the producer composes the Copy outside the Space, late, once the media exists. The
-> sections below describe this model as it runs today; a second wired Recipe is future work (issue #60) —
+> sections below describe this model as it runs today —
 > see the glossary for the full definitions.
 
 ## Agents
@@ -36,7 +37,7 @@ and are intentionally kept out of this table.*
 |---|---|---|
 | `trend-scout` | Sonnet | Scrapes peer Pages via Apify (or, for a Brand with `curated_sources` in `seeds.yaml`, digests the Operator's own curated public newsletters instead); distills the result into **Trends** |
 | `idea-strategist` | Opus | Turns Trends into ranked, brand-fit **Idea briefs** with a predicted **Fit Score** |
-| `producer` | Opus | Runs each of an accepted Idea's chosen **Recipes** (ADR-0009/0010) — today the one wired **Character Explainer with Cast** Recipe: generates a **Production Spec**, drives that Recipe's Space to a **Cast**, pauses at that Recipe's gate(s), then (after the Operator picks the **Character**) renders the **Asset** and composes its **Copy** outside the Space — **one Asset per chosen Recipe** |
+| `producer` | Opus | Runs each of an accepted Idea's chosen **Recipes** (ADR-0009/0010) — two wired today: **Character Explainer with Cast** (drives its Space to a **Cast**, pauses for the Operator's **Character** pick, then renders) and the zero-gate **News Carousel** (runs straight through): authors that Recipe's **Production Spec** via its Skill, drives its Space, then composes the **Copy** outside the Space — **one Asset per chosen Recipe** |
 | `performance-tracker` | Sonnet | Pulls posts' **public** metrics via Apify; computes **Performance Score**; updates the feedback loop |
 
 ## The OrganicGrowth pipeline (weekly loop)
@@ -191,8 +192,13 @@ Recipe — never inline YAML; a Recipe's producer Skill reads and interprets it 
 prompt, read via the typed loader `loadBaselinePrompt`; ADR-0015), `ideas/<format>/<run>/
 idea-NN.md` (one Brief each), `ideas/<format>/<run>/idea-NN.<recipe>.spec.json` (a chosen Recipe's
 **Production Spec**, written by the `producer` when that job is produced — there is **no `/produce`**
-command; accepting an Idea with its chosen Recipes adds one job per Recipe to the queue), and
-`ledger.json`. The Production Queue is the one exception — it is brand-agnostic at `data/queue.json`
+command; accepting an Idea with its chosen Recipes adds one job per Recipe to the queue),
+`ideas/…/idea-NN.<recipe>.assets/` (the Save phase's downloaded media, one file per slide/clip —
+git-ignored, durable on the Operator's disk; the ledger's `asset_paths` point here), and
+`ledger.json`. **Legacy layout note:** runs that predate Format-namespacing sit one level up, at
+`ideas/<run>/…` (e.g. straw-motion's 2026-W29) — deliberately left in place; an Idea's recorded
+`brief_path`/`spec_path` is canonical and always wins over a path reconstructed from its Format
+(`src/format/brief-path.ts`). The Production Queue is the one exception — it is brand-agnostic at `data/queue.json`
 (ADR-0006, ADR-0008).
 
 **Ledger grain (ADR-0011).** An Idea itself only ever carries `suggested / accepted / rejected`, plus a
@@ -207,7 +213,9 @@ climbing) and `scored` once it is 7+ days old (settled — final for the feedbac
 carries `fit_basis` — a short free-text note from the `idea-strategist` recording *why* the Fit Score is
 what it is (the brand-fit reasoning behind the prediction). Each Asset carries `recipe`, `pending_gate`,
 `spec_path`, the composed `copy` (structured `{ caption, hashtags }`), the wired Recipe's own `cast`/
-`character` fields, `asset_url`, `produced_at`, `post_url`, `posted_at`, `performance_score`, the public
+`character` fields, `asset_paths` (the downloaded media's durable local file paths, in slide order —
+issue #102; the single remote `asset_url` remains only as a legacy fallback), `produced_at`,
+`post_url`, `posted_at`, `performance_score`, the public
 `metrics` (`{ shares, comments, reactions, views }`) behind that score, `tracked_at`, and a small
 `history` of earlier reads (issue #84 — `src/commands/track-performance.ts`,
 `src/performance/{selection,score,maturity,metrics}.ts`). Update the ledger on every status change.

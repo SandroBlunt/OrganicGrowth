@@ -22,7 +22,9 @@ globs: *
 6. **Rejection reasons are logged verbatim.** v1 records them and does **not** auto-apply them to
    future suggestions.
 7. **State lives in files, behind a store boundary.** Per Brand under `data/brands/<slug>/`:
-   `brand-profile.yaml`, `seeds.yaml`, `formats/<format>.yaml`, `ideas/<run>/`, and `ledger.json` (the
+   `brand-profile.yaml`, `seeds.yaml`, `formats/<format>.yaml`, `ideas/<format>/<run>/` (legacy
+   pre-Format runs sit at `ideas/<run>/`; a recorded `brief_path`/`spec_path` always wins), and
+   `ledger.json` (the
    global Production Queue is the one exception — `data/queue.json`). Production state lives as
    **per-Recipe Assets** on each Idea, not flat scalars. All reads/writes go through a typed store layer
    so files can later swap for a database (see `docs/adr/0011`, `docs/adr/0014`). Update the Brand's
