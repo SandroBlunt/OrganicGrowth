@@ -1,0 +1,118 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+/**
+ * Documentation-conformance suite for the `write-social-copy` Skill (issue #111; ADR-0012, mirroring
+ * ADR-0018's per-Recipe author Skills). Pins the Skill's promised names/paths/STOP rules so it can
+ * never silently drift from the checker (`injectRequiredParts`/`validateCopy`) or the swappable
+ * `Recipe.copySkill` field it is resolved by.
+ *
+ * Kept OUT of the unit suite (`npm test`'s glob is "src/**\/*.test.ts", which does NOT match
+ * "*.docs-test.ts") — run with `npm run test:docs`. Editing the Skill's prose must never break
+ * `npm test`. Mirrors `produce-news-carousel-skill.docs-test.ts`'s own structure exactly.
+ */
+const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const SKILL_PATH = join(REPO_ROOT, ".claude", "skills", "write-social-copy", "SKILL.md");
+
+describe("write-social-copy Skill — exists, invocable by slug (issue #111 AC2)", () => {
+  it("exists and is readable", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.ok(text.length > 0);
+  });
+
+  it("declares its own slug in the front-matter `name` field", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /^name:\s*write-social-copy\s*$/m);
+  });
+
+  it("carries a description naming the copy step and the thin Producer", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /copy/i);
+    assert.match(text, /Producer/);
+  });
+});
+
+describe("write-social-copy Skill — references the correct in-repo slugs/paths (issue #111 AC2)", () => {
+  it("points at the copy contract + drafting seam", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /copy\/contract\.ts/);
+    assert.match(text, /copy\/draft\.ts/);
+    assert.match(text, /skillDraftCopy/);
+  });
+
+  it("points at the deterministic checker it hands off to", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /copy\/inject\.ts/);
+    assert.match(text, /injectRequiredParts/);
+    assert.match(text, /copy\/validate\.ts/);
+    assert.match(text, /validateCopy/);
+  });
+
+  it("points at the Brand hard-rules reader", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /brand-profile\.ts/);
+    assert.match(text, /loadCopyRules/);
+  });
+
+  it("states it is resolved via the swappable Recipe.copySkill field", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /copySkill/);
+    assert.match(text, /recipe\/registry\.ts/);
+    assert.match(text, /swappable/i);
+  });
+});
+
+describe("write-social-copy Skill — STOP semantics stay true (issue #111)", () => {
+  it("treats a banned word as REJECT-only — STOP, never a silent swap (always-rule 6/9)", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /banned word.{0,40}REJECT-ONLY|REJECT-ONLY.{0,40}banned word/is);
+    assert.match(text, /STOP/);
+    assert.match(text, /never (a )?silent(ly)? swap/i);
+  });
+
+  it("treats a dash tell the same reject-only way (issue #108)", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /dash/i);
+    assert.match(text, /em dash/i);
+    assert.match(text, /en dash/i);
+  });
+});
+
+describe("write-social-copy Skill — sharpens the produced on-slide narrative into the caption (issue #111)", () => {
+  it("states it pulls forward the ACTUAL produced narrative once the media exists, not the brief alone", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /sharpen/i);
+    assert.match(text, /produced on-slide narrative|actual produced narrative/i);
+    assert.match(text, /once the media exists/i);
+  });
+});
+
+describe("write-social-copy Skill — does not run the Space or publish (issue #111 hard rule)", () => {
+  it("states it does not run the Space or drive the canvas", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /do(es)? not run the Space/i);
+    assert.doesNotMatch(text, /spaces_[a-z_]+\(/, "must never itself call a spaces_* tool");
+    assert.doesNotMatch(text, /creations_[a-z_]+\(/, "must never itself call a creations_* tool");
+  });
+
+  it("never publishes (always-rule 1 / ADR-0002)", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /never publish/i);
+  });
+});
+
+describe("write-social-copy Skill — nothing Brand/Format-specific is hardcoded (issue #111)", () => {
+  it("never hardcodes Straw Motion's own pill text, logo reference name, or required CTA", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.doesNotMatch(text, /Unhypped News/, "must not hardcode any one Brand/Format's pill text");
+    assert.doesNotMatch(
+      text,
+      /Straw_Motion_Logo/,
+      "must not hardcode any one Brand/Format's logo reference name",
+    );
+    assert.doesNotMatch(text, /Link in bio!/, "must not hardcode any one Brand's required CTA");
+  });
+});

@@ -80,39 +80,59 @@ Every News Carousel tells the same story shape: something changed, here's proof 
 why it matters, here's what's next. Each of the 7 fixed roles has one job. Follow its formula filled
 in with *this* story's own specifics — never a generic restatement of the role's label.
 
+**Every role's on-slide line — both the `stat_callout` and the `text` — must advance real
+comprehension: state plainly what happened and what it means.** A short, punchy `stat_callout` is
+acceptable only when it is ALSO informative — it must still name a fact a reader could repeat back.
+Never a bare mood/vibe line that carries no fact at all: **"Same week."** and **"You still check."**
+are the anti-pattern to avoid — both read as a mood, not news, and name nothing a reader could repeat
+back. A fixed version of each still names the fact in a few words ("3 launches, one week." / "You
+still check the work.") — informative AND short, never one at the expense of the other.
+
+For each role below, the `stat_callout` names the fact in a handful of words; the `text` states, in
+one plain sentence, what that fact means for the reader. Follow the formula filled in with *this*
+story's own specifics — never a generic restatement of the role's label, and never a mood-only
+substitute for the fact itself.
+
 1. **hook** — Compress the whole "before → now" shift into one sentence, specific enough to repeat
    to a friend after a glance. Real names, real numbers, no hype words ("game-changing,"
    "revolutionary"). This slide previews the whole arc; the next two slides get to slow down and
-   unpack it.
+   unpack it. The `stat_callout` names the shift's size or count in a few words; the `text` spells out
+   what changed and why it matters.
    *"A week ago your AI answered questions. This week OpenAI, Anthropic, and Meta gave it a job."*
 
 2. **then** — State the old assumption or status quo, specific and dated where you can. Give the
-   reader the baseline the next slide's shift is about to break.
-   *"Until last week, an AI assistant could answer a question — it couldn't finish a task on its
-   own."*
+   reader the baseline the next slide's shift is about to break. The `stat_callout` names what the old
+   way could not do; the `text` states that limitation in one plain sentence.
+   *"An AI assistant could answer a question. It could not finish a task on its own."*
 
 3. **shift** — Name the specific, concrete event that broke that assumption: who did what, when.
-   This is the news itself — no hedging ("might," "could").
-   *"OpenAI shipped ChatGPT Work. Anthropic shipped Claude Cowork. Meta shipped Muse Spark — all in
-   the same week."*
+   This is the news itself — no hedging ("might," "could"). The `stat_callout` names the count or the
+   headline fact; the `text` states who did what.
+   *"OpenAI shipped ChatGPT Work. Anthropic shipped Claude Cowork. Meta shipped Muse Spark. All in the
+   same week."*
 
 4. **proof** — One specific, verifiable detail that shows the shift is real, not hype: a real demo,
-   a real number, a real screenshot. This slide exists to answer the skeptic.
+   a real number, a real screenshot. This slide exists to answer the skeptic. The `stat_callout` pulls
+   the one concrete figure; the `text` states what that figure proves.
    *"ChatGPT Work closed out a 12-step to-do list, unattended, in nine minutes."*
 
 5. **different** — Answer "haven't we heard this before?" Name the concrete thing that makes this
    instance actually different from past, similar-sounding claims — never a vague "this time it's
-   real."
-   *"Past 'agent' launches could only browse. This one can actually click 'submit' on a real form."*
+   real." The `stat_callout` names the specific new capability; the `text` states what past attempts
+   could not do that this one can.
+   *"Past 'agent' launches could only browse a page. This one can submit a real form."*
 
 6. **next** — A specific, near-term consequence — what should the reader expect to change in their
-   own work because of this, not a vague prediction.
+   own work because of this, not a vague prediction. The `stat_callout` names the timeframe or scope;
+   the `text` states the concrete expected change.
    *"Expect your own inbox to start getting drafted replies by default within the month."*
 
 7. **cta** — Close by directly asking the reader to follow **Straw Motion** (the Page — "Unhypped
    News" is this series' name, not a separate followable account), anchored to the no-hype promise.
-   Vary the wording per story. (The caption's own required CTA/hashtags are added later, separately,
-   by the copy step — this is just the on-image close line.)
+   The `stat_callout` names the promise in a few words; the `text` (or the close line itself) states
+   plainly what the reader keeps getting if they follow. Vary the wording per story. (The caption's
+   own required CTA/hashtags are added later, separately, by the copy step — this is just the
+   on-image close line.)
    *Variations to draw from:*
    - "Follow Straw Motion. We skip the hype, you get the story."
    - "No hype. No spin. Just what happened. Follow Straw Motion."

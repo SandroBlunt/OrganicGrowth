@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { defaultDraftCopy, type CopyInput } from "./draft.ts";
+import { defaultDraftCopy, skillDraftCopy, type CopyInput } from "./draft.ts";
 import { validateCopy } from "./validate.ts";
 import { scanTextFieldsForDashes } from "../production-spec/dash-safety.ts";
 import type { CopyShape } from "./contract.ts";
@@ -71,5 +71,110 @@ describe("defaultDraftCopy — deterministic, no model call, no I/O, no clock", 
   it("degenerate/minimal input still yields a valid Copy", () => {
     const copy = defaultDraftCopy({ title: "x" }, CHARACTER_EXPLAINER_SHAPE);
     assert.equal(validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES).ok, true);
+  });
+});
+
+/**
+ * `skillDraftCopy` — the `write-social-copy` Skill's deterministic stand-in (issue #111), mirroring
+ * EXACTLY how `defaultDraftCopy` above already stands in for the pre-#111 unguided copy-phase prose.
+ * Its headline difference: when `input.slideNarrative` is supplied (once the media exists, for a
+ * multi-slide Recipe), it sharpens the ACTUAL produced hook/shift/cta beats into the caption, rather
+ * than starting from `title` alone.
+ */
+describe("skillDraftCopy — the write-social-copy Skill's deterministic stand-in (issue #111)", () => {
+  it("is deterministic: same input in, same Copy out", () => {
+    assert.deepEqual(
+      skillDraftCopy(sampleInput(), CHARACTER_EXPLAINER_SHAPE),
+      skillDraftCopy(sampleInput(), CHARACTER_EXPLAINER_SHAPE),
+    );
+  });
+
+  it("always satisfies validateCopy for the SAME shape it was drafted for (no rules configured)", () => {
+    const copy = skillDraftCopy(sampleInput(), CHARACTER_EXPLAINER_SHAPE);
+    const result = validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES);
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+  });
+
+  it("respects a DIFFERENT Recipe's shape — the bounds are the Recipe's own params, not a global 180/1-3", () => {
+    const otherShape: CopyShape = { maxChars: 2200, minEmojis: 0, maxEmojis: 2 };
+    const copy = skillDraftCopy(sampleInput(), otherShape);
+    assert.ok([...copy.caption].length <= 2200);
+    const result = validateCopy(copy, otherShape, NO_RULES);
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+  });
+
+  it("sharpens the ACTUAL produced on-slide narrative into the caption when slideNarrative is supplied", () => {
+    const copy = skillDraftCopy(
+      sampleInput({
+        slideNarrative: [
+          { role: "hook", text: "OpenAI, Anthropic, and Meta all shipped agents this week." },
+          { role: "then", text: "This should never be woven in — not hook, shift, or cta." },
+          { role: "shift", text: "Three rivals moved on the same idea at once." },
+          { role: "cta", text: "Follow Straw Motion for the no hype version." },
+        ],
+      }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+    assert.ok(copy.caption.includes("OpenAI, Anthropic, and Meta all shipped agents this week."));
+    assert.ok(copy.caption.includes("Three rivals moved on the same idea at once."));
+    assert.ok(copy.caption.includes("Follow Straw Motion for the no hype version."));
+    // Proves it drew on the ACTUAL produced narrative, not just the brief's bare title.
+    assert.equal(copy.caption.includes(sampleInput().title), false);
+  });
+
+  it("only weaves the hook/shift/cta beats — a non-hook/shift/cta role never appears verbatim", () => {
+    const copy = skillDraftCopy(
+      sampleInput({
+        slideNarrative: [
+          { role: "hook", text: "The week AI got a job." },
+          { role: "then", text: "UNIQUE_THEN_MARKER should never appear." },
+          { role: "proof", text: "UNIQUE_PROOF_MARKER should never appear." },
+          { role: "cta", text: "Follow Straw Motion." },
+        ],
+      }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+    assert.equal(copy.caption.includes("UNIQUE_THEN_MARKER"), false);
+    assert.equal(copy.caption.includes("UNIQUE_PROOF_MARKER"), false);
+  });
+
+  it("falls back to title/angle/mediaContext cleanly when slideNarrative is absent (a single-media Recipe)", () => {
+    const copy = skillDraftCopy(
+      sampleInput({ angle: "A small home habit fixes your morning energy.", mediaContext: "Sunny the Mug" }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+    assert.ok(copy.caption.includes(sampleInput().title));
+    assert.ok(copy.caption.includes("A small home habit fixes your morning energy."));
+    assert.ok(copy.caption.includes("Sunny the Mug"));
+    assert.equal(validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES).ok, true);
+  });
+
+  it("falls back to title alone when slideNarrative, angle, and mediaContext are all absent", () => {
+    const copy = skillDraftCopy({ title: "x" }, CHARACTER_EXPLAINER_SHAPE);
+    assert.equal(validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES).ok, true);
+  });
+
+  it("never joins its parts with a dash 'tell' (issue #108) — with or without slideNarrative", () => {
+    const withSlides = skillDraftCopy(
+      sampleInput({
+        slideNarrative: [
+          { role: "hook", text: "The week AI got a job." },
+          { role: "shift", text: "Three rivals moved at once." },
+          { role: "cta", text: "Follow Straw Motion." },
+        ],
+        mediaContext: "the 7-slide news carousel",
+      }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+    const withoutSlides = skillDraftCopy(sampleInput({ mediaContext: "Sunny the Mug" }), CHARACTER_EXPLAINER_SHAPE);
+    for (const copy of [withSlides, withoutSlides]) {
+      const scan = scanTextFieldsForDashes([{ field: "caption", text: copy.caption }]);
+      assert.equal(scan.ok, true, JSON.stringify(scan.hits));
+    }
+  });
+
+  it("passes through the Idea's own hashtags unchanged, exactly like defaultDraftCopy", () => {
+    const copy = skillDraftCopy(sampleInput({ hashtags: ["#AInews", "#agentic"] }), CHARACTER_EXPLAINER_SHAPE);
+    assert.deepEqual(copy.hashtags, ["#AInews", "#agentic"]);
   });
 });

@@ -241,6 +241,16 @@ export interface Recipe {
   readonly space: RecipeSpaceTarget;
   readonly specShape: RecipeSpecShape;
   readonly copyShape: RecipeCopyShape;
+  /**
+   * The project Skill slug (`.claude/skills/<slug>/SKILL.md`) the thin Producer loads, via the Skill
+   * tool, to run this Recipe's shared out-of-canvas copy step (ADR-0012) — mirroring how a Recipe's
+   * media-authoring step names its own Skill, but resolved here in the registry rather than hard-coded
+   * in `producer.md`'s own prose (issue #111). Both seeded Recipes below point at the SAME Skill,
+   * `"write-social-copy"` — ADR-0012 already made the copy step ONE shared step, parameterized by
+   * `copyShape`; a future Recipe (or Recipe-specific copywriting need) MAY point this at a different
+   * Skill slug without touching any other Recipe's config or this agent's own prose.
+   */
+  readonly copySkill: string;
   /** This Recipe's canvas's two typed inputs — media slots + prompt node (ADR-0016, issue #81). */
   readonly canvasInputs: RecipeCanvasInputs;
   /**
@@ -452,6 +462,7 @@ const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
     minEmojis: CHARACTER_EXPLAINER_COPY_MIN_EMOJIS,
     maxEmojis: CHARACTER_EXPLAINER_COPY_MAX_EMOJIS,
   },
+  copySkill: "write-social-copy",
   canvasInputs: {
     mediaSlots: {
       "Selected Character": {
@@ -714,6 +725,7 @@ const NEWS_CAROUSEL: Recipe = {
     minEmojis: NEWS_CAROUSEL_COPY_MIN_EMOJIS,
     maxEmojis: NEWS_CAROUSEL_COPY_MAX_EMOJIS,
   },
+  copySkill: "write-social-copy",
   canvasInputs: {
     mediaSlots: {
       // The slot's map key IS the physical canvas node name (a brand-asset slot has no separate
