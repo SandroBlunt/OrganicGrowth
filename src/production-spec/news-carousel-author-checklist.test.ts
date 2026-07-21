@@ -18,6 +18,15 @@ import {
   bannedWordInText,
 } from "./fixtures/news-carousel-author-checklist-specs.ts";
 import { sixSlides, rolesOutOfOrder, textTooLong } from "./fixtures/news-carousel-specs.ts";
+import type { ChecklistItemAudit, PhaseAuditResult } from "../recipe/phase-contract.ts";
+
+/** Select a checklist item by its STABLE id — never by array position, so inserting a new item
+ *  no longer renumbers every assertion below it. */
+function item(result: PhaseAuditResult, id: string): ChecklistItemAudit {
+  const found = result.items.find((i) => i.id === id);
+  assert.ok(found, `checklist item "${id}" must exist`);
+  return found;
+}
 
 describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, runs as CODE (issue #85 AC2)", () => {
   it("a baseline-adherent Spec passes every mechanical item; the agent-judged item is flagged, not failed", () => {
@@ -40,70 +49,70 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
   it("fails the '7 slides, roles in order' item on a short Spec — REFERENCES validateNewsCarouselSpec, does not duplicate it", () => {
     const result = auditNewsCarouselAuthorPhase(sixSlides(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[0]!.ok, false);
+    assert.equal(item(result, "slide-count-role-order").ok, false);
   });
 
   it("fails the same item when roles are out of order", () => {
     const result = auditNewsCarouselAuthorPhase(rolesOutOfOrder(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[0]!.ok, false);
+    assert.equal(item(result, "slide-count-role-order").ok, false);
   });
 
   it("fails the 'text <= 140 chars' item — REFERENCES the SAME validator", () => {
     const result = auditNewsCarouselAuthorPhase(textTooLong(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[1]!.ok, false);
+    assert.equal(item(result, "text-length").ok, false);
   });
 
   it("fails the logo-reference item when the parameterized logo reference name is absent", () => {
     const result = auditNewsCarouselAuthorPhase(missingLogoReference(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[2]!.ok, false);
+    assert.equal(item(result, "logo-reference").ok, false);
     // Every OTHER mechanical item still passes — only this one is isolated by the mutation.
-    assert.equal(result.items[3]!.ok, true);
+    assert.equal(item(result, "pill-text-caps").ok, true);
   });
 
   it("fails the pill-text/caps-guard item when the parameterized pill text is absent", () => {
     const result = auditNewsCarouselAuthorPhase(missingPillText(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[3]!.ok, false);
+    assert.equal(item(result, "pill-text-caps").ok, false);
   });
 
   it("fails the pill-text/caps-guard item when the never-all-caps instruction is absent", () => {
     const result = auditNewsCarouselAuthorPhase(missingCapsGuardrail(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[3]!.ok, false);
+    assert.equal(item(result, "pill-text-caps").ok, false);
   });
 
   it("fails the fixed-baseline-clauses item when one parameterized clause is dropped", () => {
     const result = auditNewsCarouselAuthorPhase(missingFixedClause(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[4]!.ok, false);
+    assert.equal(item(result, "fixed-clauses").ok, false);
   });
 
   it("fails the card-style item when a slide's card_style is not one of the parameterized confirmed styles", () => {
     const result = auditNewsCarouselAuthorPhase(unconfirmedCardStyle(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[6]!.ok, false);
+    assert.equal(item(result, "card-style-stat-callout").ok, false);
   });
 
   it("fails the companies item when a slide names a company its own image_prompt never cites", () => {
     const result = auditNewsCarouselAuthorPhase(companyNotCitedInPrompt(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[7]!.ok, false);
+    assert.equal(item(result, "companies-cited").ok, false);
   });
 
   it("fails the companies item when the name appears only inside a longer word — never a bare substring match", () => {
     const result = auditNewsCarouselAuthorPhase(companyOnlySubstringInPrompt(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
-    assert.equal(result.items[7]!.ok, false);
+    assert.equal(item(result, "companies-cited").ok, false);
   });
 
   it("fails the banned-word item, reject-only, and names the word and field — never rewrites the Spec", () => {
     const spec = bannedWordInText("miracle");
     const result = auditNewsCarouselAuthorPhase(spec, ["miracle"], TEST_BASELINE);
     assert.equal(result.ok, false);
-    const bannedItem = result.items[8]!;
+    const bannedItem = item(result, "banned-words");
     assert.equal(bannedItem.ok, false);
     assert.ok(bannedItem.detail?.includes("miracle"));
     assert.equal("spec" in result, false);
@@ -131,7 +140,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
 
   it("an empty banned-words list always passes the banned-word item", () => {
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
-    assert.equal(result.items[8]!.ok, true);
+    assert.equal(item(result, "banned-words").ok, true);
   });
 
   it("omitting the raw document text skips the baseline-copy-verification item entirely", () => {
@@ -145,16 +154,16 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
       `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE, documentText);
     assert.equal(result.items.length, 10);
-    assert.equal(result.items[9]!.ok, true);
+    assert.equal(item(result, "baseline-doc-verified").ok, true);
   });
 
   it("fails the baseline-copy-verification item when a hand-copied fact isn't actually in the document", () => {
     const documentText = "a document that never mentions the logo name, pill text, or fixed clauses";
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE, documentText);
     assert.equal(result.ok, false);
-    const item = result.items[9]!;
-    assert.equal(item.ok, false);
-    assert.ok(item.detail?.includes(TEST_BASELINE.logoReferenceName));
+    const verifyItem = item(result, "baseline-doc-verified");
+    assert.equal(verifyItem.ok, false);
+    assert.ok(verifyItem.detail?.includes(TEST_BASELINE.logoReferenceName));
   });
 });
 

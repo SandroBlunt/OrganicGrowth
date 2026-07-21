@@ -62,8 +62,9 @@ describe("auditAuthorPhase — generic across ANY wired Recipe, via its OWN spec
   it("fails the character Recipe's author phase for a malformed Spec (2 clips instead of 3) — referencing validate.ts, not duplicating it", () => {
     const result = auditAuthorPhase(characterRecipe, { candidateSpec: twoClips(), bannedWords: [] });
     assert.equal(result.ok, false);
-    assert.equal(result.items[0]!.ok, false);
-    assert.ok(result.items[0]!.detail !== undefined);
+    const specItem = result.items.find((i) => i.id === "spec-shape")!;
+    assert.equal(specItem.ok, false);
+    assert.ok(specItem.detail !== undefined);
   });
 
   it("fails the character Recipe's author phase on a banned word — referencing brand-safety.ts, not duplicating it", () => {
@@ -71,7 +72,7 @@ describe("auditAuthorPhase — generic across ANY wired Recipe, via its OWN spec
     (spec.character_concepts as string[])[0] = "A miracle alarm clock";
     const result = auditAuthorPhase(characterRecipe, { candidateSpec: spec, bannedWords: ["miracle"] });
     assert.equal(result.ok, false);
-    assert.equal(result.items[1]!.ok, false);
+    assert.equal(result.items.find((i) => i.id === "banned-words")!.ok, false);
   });
 
   it("passes the news-carousel Recipe's author phase for a well-formed Spec — the SAME auditor function", () => {
@@ -101,7 +102,7 @@ describe("auditBindMediaPhase — generic across ANY wired Recipe, via its OWN c
   it("fails the character Recipe when its required slot is NOT bound — STOPS the run (ADR-0016)", () => {
     const result = auditBindMediaPhase(characterRecipe, { boundSlotNames: new Set() });
     assert.equal(result.ok, false);
-    assert.ok(result.items[0]!.detail?.includes("STOPS"));
+    assert.ok(result.items.find((i) => i.id === "media-slot:Selected Character")!.detail?.includes("STOPS"));
   });
 
   it("passes the news-carousel Recipe when its required 'Brand_Logo' slot is bound", () => {
