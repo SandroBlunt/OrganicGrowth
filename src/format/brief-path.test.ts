@@ -26,19 +26,22 @@ async function exists(path: string): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
-// The REAL, currently-pending straw-motion Ideas (the exact QA Round 1 D1 repro)
+// The REAL straw-motion 2026-W29 Ideas (the exact QA Round 1 D1 repro)
 // ---------------------------------------------------------------------------
+// Scoped by RUN, never by lifecycle status: the W29 set is frozen history, while statuses keep
+// moving as the pipeline runs (3 of the 7 were accepted+produced in the live smoke tests) — a
+// status-scoped filter here rotted the moment the pipeline did its job.
 
-describe("resolveBriefPathCandidates — the real, pending straw-motion Ideas resolve correctly (QA D1)", () => {
-  it("every one of straw-motion's 7 real suggested Ideas resolves to a Brief that ACTUALLY EXISTS on disk", async () => {
+describe("resolveBriefPathCandidates — the real straw-motion 2026-W29 Ideas resolve correctly (QA D1)", () => {
+  it("every one of straw-motion's 7 real 2026-W29 Ideas resolves to a Brief that ACTUALLY EXISTS on disk, whatever its status today", async () => {
     const raw = JSON.parse(
       await readFile("data/brands/straw-motion/ledger.json", "utf8"),
     ) as { ideas: Array<Record<string, unknown>> };
 
-    const suggested = raw.ideas.filter((i) => i["status"] === "suggested");
-    assert.ok(suggested.length >= 7, "expected at least the 7 real pending 2026-W29 Ideas");
+    const w29 = raw.ideas.filter((i) => i["run"] === "2026-W29");
+    assert.ok(w29.length >= 7, "expected the 7 real 2026-W29 Ideas");
 
-    for (const record of suggested) {
+    for (const record of w29) {
       const idea: SuggestedIdeaRef = {
         id: record["id"] as string,
         run: record["run"] as string,

@@ -24,6 +24,15 @@
         {
           "status": "produced",
           "spec_path": "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.spec.json",
+          "asset_paths": [
+            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/0-hook.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/1-then.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/2-shift.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/3-proof.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/4-different.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/5-next.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/6-cta.png"
+          ],
           "asset_url": "https://pikaso.cdnpk.net/private/production/4918815677/render.png?token=exp=1784592000~hmac=a3bc394d50ef14de25ee930399f7037b16e39fd0789a1fec7d0416cd5e0994c9",
           "produced_at": "2026-07-18T07:58:23.258Z",
           "copy": {
@@ -60,6 +69,15 @@
         {
           "status": "produced",
           "spec_path": "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.spec.json",
+          "asset_paths": [
+            "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.assets/0-hook.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.assets/1-then.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.assets/2-shift.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.assets/3-proof.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.assets/4-different.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.assets/5-next.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-02.news-carousel.assets/6-cta.png"
+          ],
           "asset_url": "https://pikaso.cdnpk.net/private/production/4918896460/render.png?token=exp=1784592000~hmac=7f2ceae92e1311690599ac25b9302ed1dcf3ac917800427fb7e7e3039b3207cd",
           "produced_at": "2026-07-18T08:17:57.665Z",
           "copy": {
@@ -96,6 +114,15 @@
         {
           "status": "produced",
           "spec_path": "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.spec.json",
+          "asset_paths": [
+            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.assets/0-hook.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.assets/1-then.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.assets/2-shift.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.assets/3-proof.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.assets/4-different.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.assets/5-next.png",
+            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.assets/6-cta.png"
+          ],
           "asset_url": "https://pikaso.cdnpk.net/private/production/4918948925/render.png?token=exp=1784592000~hmac=d35c00315cccbace50dfb8c35b37eb3ec9b3ee46323bf1d6860b2cd3927554a7",
           "produced_at": "2026-07-18T08:32:01.246Z",
           "copy": {

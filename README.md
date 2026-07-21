@@ -115,9 +115,10 @@ Scoped per Brand under `data/brands/<slug>/` (the Production Queue is the one br
 | `formats/<format>.yaml` | One per editorial line — voice, trend sources/mode, `default_recipes`, `ideas_per_run` |
 | `assets/<key>.<ext>` | Reusable **Brand Assets** (media) that fill a Recipe's canvas slots (e.g. `brand-logo`) |
 | `baseline-prompts/<format>/<recipe>.md` | A Format's per-Recipe baseline-prompt document (the look) |
-| `ideas/<run>/idea-NN.md` | One Brief per suggested Idea |
-| `ideas/<run>/idea-NN.<recipe>.spec.json` | A chosen Recipe's Production Spec (written when the job is produced) |
-| `ledger.json` | The index: each Idea's **per-Recipe Assets** (Cast/character, Copy, Post URL, Performance, status) |
+| `ideas/<format>/<run>/idea-NN.md` | One Brief per suggested Idea (older runs sit one level up, at `ideas/<run>/` — the ledger's recorded path wins) |
+| `ideas/<format>/<run>/idea-NN.<recipe>.spec.json` | A chosen Recipe's Production Spec (written when the job is produced) |
+| `ideas/…/idea-NN.<recipe>.assets/` | The finished Asset's downloaded media, one file per slide/clip (kept on your disk, not in git) |
+| `ledger.json` | The index: each Idea's **per-Recipe Assets** (Cast/character, Copy, media file paths, Post URL, Performance, status) |
 | `your-data/` | *Optional* Meta Content exports for richer enrichment (git-ignored, never committed) |
 | `data/queue.json` | The production queue, keyed `(brand, idea, recipe)` (brand-agnostic) |
 

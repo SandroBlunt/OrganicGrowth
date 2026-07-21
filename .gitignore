@@ -10,6 +10,10 @@ data/brands/*/your-data/*
 # Legacy/root private Meta exports — never commit anything dropped here.
 data/your-data/
 
+# Produced Asset media (the Save phase's downloaded slides/clips — ~8 MB per carousel). Durable on
+# the Operator's disk beside the Brief/Spec; the ledger's asset_paths point here. Too heavy for git.
+data/brands/*/ideas/**/*.assets/
+
 # Node / TypeScript build
 node_modules/
 dist/
