@@ -173,22 +173,26 @@ export function auditNewsCarouselAuthorPhase(
 
   const items: ChecklistItemAudit[] = [
     {
+      id: "slide-count-role-order",
       description:
         "Exactly 7 slides, in fixed role order hook -> then -> shift -> proof -> different -> next -> cta.",
       kind: "mechanical",
       ok: !hasStructuralCode("slides_count") && !hasStructuralCode("slide_role_order"),
     },
     {
+      id: "text-length",
       description: "Each slide's on-card text is at most 140 chars.",
       kind: "mechanical",
       ok: !hasStructuralCode("slide_text_too_long"),
     },
     {
+      id: "logo-reference",
       description: `Each image_prompt references the logo reference name (${JSON.stringify(baseline.logoReferenceName)}).`,
       kind: "mechanical",
       ok: hasSlides && slides.every((s) => imagePrompt(s).includes(baseline.logoReferenceName)),
     },
     {
+      id: "pill-text-caps",
       description:
         `Each image_prompt contains the pill text (${JSON.stringify(baseline.pillText)}) and its ` +
         "never-all-caps instruction.",
@@ -202,6 +206,7 @@ export function auditNewsCarouselAuthorPhase(
         ),
     },
     {
+      id: "fixed-clauses",
       description:
         "Each image_prompt keeps every other fixed Baseline Prompt clause (logo guardrail, card, " +
         "card-text, closing style line).",
@@ -211,6 +216,7 @@ export function auditNewsCarouselAuthorPhase(
         slides.every((s) => baseline.fixedClauses.every((clause) => imagePrompt(s).includes(clause))),
     },
     {
+      id: "grounded-subject",
       description:
         "Grounded subject — a real product/logo/action, or an intentional photographic scene; never " +
         "an invented UI shown as a real product's own screen.",
@@ -218,6 +224,7 @@ export function auditNewsCarouselAuthorPhase(
       ok: null,
     },
     {
+      id: "card-style-stat-callout",
       description: "card_style is one of the Baseline Prompt's confirmed styles; stat_callout is non-empty.",
       kind: "mechanical",
       ok:
@@ -230,6 +237,7 @@ export function auditNewsCarouselAuthorPhase(
         ),
     },
     {
+      id: "companies-cited",
       description:
         "Every company named in a slide's companies field is cited in that slide's own image_prompt " +
         "(a slide naming no real company skips the logo row entirely).",
@@ -237,6 +245,7 @@ export function auditNewsCarouselAuthorPhase(
       ok: hasSlides && slides.every((s) => companiesCitedInPrompt(s)),
     },
     {
+      id: "banned-words",
       description: "No banned word in any field — reject-only, never a silent swap.",
       kind: "mechanical",
       ok: safety.ok,
@@ -247,6 +256,7 @@ export function auditNewsCarouselAuthorPhase(
   if (baselineDocumentText !== undefined) {
     const verification = verifyBaselineParamsAgainstDocument(baseline, baselineDocumentText);
     items.push({
+      id: "baseline-doc-verified",
       description:
         "The hand-copied baseline facts (logo name, pill text, caps guardrail, fixed clauses) " +
         "actually appear, verbatim, in the Baseline Prompt document just read — catches a stale or " +

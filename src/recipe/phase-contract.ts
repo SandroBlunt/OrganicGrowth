@@ -88,6 +88,13 @@ export function declaresAllPhasesInOrder(phases: readonly PhaseContract[]): bool
 
 /** One checklist item's audit outcome. */
 export interface ChecklistItemAudit {
+  /**
+   * Stable, short kebab-case identifier for THIS check, unique within its audit result (a dynamic
+   * per-slot item namespaces itself, e.g. `media-slot:Brand_Logo`). Tests and tools select items by
+   * `id`, never by array position — positional selection forced a cascade renumbering across files
+   * every time a new item was inserted.
+   */
+  readonly id: string;
   readonly description: string;
   readonly kind: "mechanical" | "agent-judged";
   /**
@@ -143,12 +150,14 @@ export function auditAuthorPhase(recipe: Recipe, input: AuthorPhaseInput): Phase
 
   const items: ChecklistItemAudit[] = [
     {
+      id: "spec-shape",
       description: recipe.specShape.description,
       kind: "mechanical",
       ok: shape.ok,
       ...(shape.ok ? {} : { detail: shape.errors.map((e) => e.message).join("; ") }),
     },
     {
+      id: "banned-words",
       description: "No banned word in any field — reject-only, never a silent swap.",
       kind: "mechanical",
       ok: safety.ok,
@@ -185,6 +194,7 @@ export function auditBindMediaPhase(recipe: Recipe, input: BindMediaPhaseInput):
       const bound = input.boundSlotNames.has(name);
       const ok = slot.required ? bound : true;
       return {
+        id: `media-slot:${name}`,
         description:
           `Media slot "${name}" (${slot.kind}, ${slot.media}, ` +
           `${slot.required ? "required" : "optional"}) has a bound asset before render.`,
@@ -220,6 +230,7 @@ export function auditCopyPhase(recipe: Recipe, input: CopyPhaseInput): PhaseAudi
 
   const items: ChecklistItemAudit[] = [
     {
+      id: "copy-shape",
       description: recipe.copyShape.description,
       kind: "mechanical",
       ok: result.ok,
