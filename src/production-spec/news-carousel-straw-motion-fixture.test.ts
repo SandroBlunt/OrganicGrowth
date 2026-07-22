@@ -59,7 +59,7 @@ describe("the produce-news-carousel Skill's graduated output passes both gates (
       STRAW_MOTION_BASELINE,
     );
     assert.equal(result.ok, true);
-    assert.equal(result.items.length, 10);
+    assert.equal(result.items.length, 11);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);
@@ -121,6 +121,14 @@ describe("STRAW_MOTION_BASELINE's strings are genuinely Straw Motion's own (not 
     assert.ok(
       normalized.includes(STRAW_MOTION_BASELINE.neverAllCapsInstruction),
       "the document must actually contain the never-all-caps instruction STRAW_MOTION_BASELINE claims",
+    );
+    assert.ok(
+      normalized.includes(STRAW_MOTION_BASELINE.logoReferencePhrase),
+      "the document must actually contain the name-free logo reference phrase STRAW_MOTION_BASELINE claims (issue #110)",
+    );
+    assert.ok(
+      normalized.includes(STRAW_MOTION_BASELINE.logoNameGuardrailInstruction),
+      "the document must actually contain the negative-prompt logo guardrail STRAW_MOTION_BASELINE claims (issue #110)",
     );
     for (const clause of STRAW_MOTION_BASELINE.fixedClauses) {
       assert.ok(
@@ -192,5 +200,77 @@ describe("news-carousel.md instructs the four render-fidelity guardrails (issue 
         /A soft dark gradient vignette sits behind it for legibility against the photo, never a hard-edged solid black bar or box\./,
       );
     }
+  });
+});
+
+/**
+ * Pins the negative-prompt logo guardrail + slide-position pill/logo sizing issue #110 adds to the
+ * document (epic #106 items 5, 7), mirroring issue #109's "regular `.test.ts`, not `.docs-test.ts`"
+ * precedent: this reads the SAME real, committed document this file already reads for #83/#85/#109's
+ * own pins, so it runs under `npm test`'s always-on gate.
+ */
+describe("news-carousel.md carries the issue #110 logo negative-prompt guardrail + slide-position pill/logo sizing", () => {
+  it("(AC1) instructs never rendering the logo's reference name/filename as visible on-image text — a negative-prompt guardrail", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /negative-prompt instruction/i);
+    assert.match(normalized, /never render (?:this|its) reference image'?s? name or file name/i);
+    assert.match(normalized, /as visible text anywhere in the image/i);
+  });
+
+  it("(AC1) still instructs the logo rendered unaltered — no redraw/restyle/recolor/reshape (composes with the pre-existing clause, doesn't replace it)", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /render(?:ed)? unaltered/i);
+    assert.match(
+      normalized,
+      /do not change its shape, proportions, or color in any way, and do not restyle it to match the scene/i,
+    );
+  });
+
+  it("(AC3) instructs a smaller pill + logo on every slide after the hook, larger allowed on the hook slide (slide_index 0)", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /scale varies by slide position/i);
+    assert.match(normalized, /hook slide \(slide_index 0\)/i);
+    assert.match(normalized, /no wider than ~⅙ frame width/);
+    assert.match(normalized, /noticeably smaller/i);
+  });
+
+  it("(AC4) the pre-existing logo/pill checklist facts (unaltered logo, never-all-caps pill) are still genuine substrings of the document", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.ok(normalized.includes(STRAW_MOTION_BASELINE.logoReferenceName));
+    assert.ok(normalized.includes(STRAW_MOTION_BASELINE.neverAllCapsInstruction));
+    assert.ok(normalized.includes(STRAW_MOTION_BASELINE.pillText));
+  });
+
+  it("every strawMotionIdeaOneCarouselSpec() slide carries the negative guardrail clause verbatim (the doc/fixture stay in sync, mirroring issue #109's own sync check)", () => {
+    const spec = strawMotionIdeaOneCarouselSpec() as { slides: readonly { image_prompt: string }[] };
+    for (const slide of spec.slides) {
+      assert.ok(slide.image_prompt.includes(STRAW_MOTION_BASELINE.logoNameGuardrailInstruction));
+      assert.ok(slide.image_prompt.includes(STRAW_MOTION_BASELINE.logoReferencePhrase));
+    }
+  });
+
+  it("the committed idea-01 fixture still passes the full author-phase checklist parameterized with the UPDATED STRAW_MOTION_BASELINE (logo-reference + logo-name-not-as-text both ok)", () => {
+    const result = auditNewsCarouselAuthorPhase(strawMotionIdeaOneCarouselSpec(), [], STRAW_MOTION_BASELINE);
+    assert.equal(result.ok, true);
+    const logoReferenceItem = result.items.find((i) => i.id === "logo-reference");
+    const logoNameItem = result.items.find((i) => i.id === "logo-name-not-as-text");
+    assert.equal(logoReferenceItem?.ok, true);
+    assert.equal(logoNameItem?.ok, true);
   });
 });

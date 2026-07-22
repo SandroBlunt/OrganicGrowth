@@ -17,6 +17,12 @@ export const TEST_BASELINE: NewsCarouselBaselineParams = {
   logoReferenceName: "Test_Brand_Logo",
   pillText: "Test Wire",
   neverAllCapsInstruction: "Never render it in all-caps, no matter the surrounding typography.",
+  // Deliberately DIFFERENT wording from Straw Motion's real strings (issue #110) — same reasoning as
+  // every other TEST_BASELINE field: proves the checklist reads these as PARAMETERS, never literals.
+  logoReferencePhrase: "the linked reference image",
+  logoNameGuardrailInstruction:
+    "Never render this asset's identifying name or file name as visible text in the image; it exists " +
+    "only to mark which connected reference to use.",
   fixedClauses: [
     "A vertical viral Instagram news post.",
     "Render the logo exactly as provided in the reference image.",
@@ -31,7 +37,10 @@ export const TEST_BASELINE: NewsCarouselBaselineParams = {
 const TEST_COMPANIES: readonly string[] = ["Acme", "Globex"];
 
 /** Assembles ONE slide's image_prompt carrying EVERY clause `TEST_BASELINE` declares, verbatim, plus a
- *  logo row citing `companies` (omitted entirely when `companies` is empty — issue #102 finding #1). */
+ *  logo row citing `companies` (omitted entirely when `companies` is empty — issue #102 finding #1).
+ *  Carries the logo reference (via `logoReferencePhrase` + the raw name — issue #110) and the negative
+ *  guardrail instruction, so this positive fixture passes the reworked `logo-reference` item AND the
+ *  new `logo-name-not-as-text` item cleanly. */
 function baselineAdherentImagePrompt(role: string, companies: readonly string[]): string {
   const [clause0, clause1, clause2, clause3, clause4] = TEST_BASELINE.fixedClauses;
   const logoRow =
@@ -39,8 +48,9 @@ function baselineAdherentImagePrompt(role: string, companies: readonly string[])
       ? ` Positioned next to the pill are ${companies.length} tiny real product logos (${companies.join(", ")}) in a row.`
       : "";
   return (
-    `${clause0} A grounded photographic scene for the "${role}" beat, with the connected reference ` +
-    `image ${TEST_BASELINE.logoReferenceName} placed along the free edge. ${clause1} Below it, ${clause2} ` +
+    `${clause0} A grounded photographic scene for the "${role}" beat, with ${TEST_BASELINE.logoReferencePhrase} ` +
+    `${TEST_BASELINE.logoReferenceName} placed along the free edge. ${TEST_BASELINE.logoNameGuardrailInstruction} ` +
+    `${clause1} Below it, ${clause2} ` +
     `carries a pill badge reading "${TEST_BASELINE.pillText}". ${TEST_BASELINE.neverAllCapsInstruction}` +
     `${logoRow} All card text is ${clause3}. ${clause4}`
   );
@@ -70,14 +80,67 @@ export function baselineAdherentCarouselSpec(): Record<string, unknown> {
   return { slides };
 }
 
-/** Every slide's image_prompt is missing the logo reference name. */
-export function missingLogoReference(): Record<string, unknown> {
+/**
+ * Every slide's image_prompt has the RAW, underscored logo reference name stripped out (replaced with
+ * a plain, name-free stand-in) — but keeps the Baseline Prompt's own generic reference phrase
+ * (`logoReferencePhrase`, e.g. "the linked reference image") AND the negative guardrail instruction.
+ * Under issue #110's reworked `logo-reference` item, THIS now PASSES: the raw name is no longer
+ * required on its own, as long as the logo is still referenced (via the generic phrase) and the
+ * guardrail is present. Proves AC2/AC5's "a name-free-but-guarded prompt passes the reworked rule".
+ */
+export function logoReferenceNameFreeButGuarded(): Record<string, unknown> {
   const s = clone(baselineAdherentCarouselSpec());
   const slides = s.slides as CarouselSlide[];
   s.slides = slides.map((slide) => ({
     ...slide,
-    image_prompt: slide.image_prompt.split(TEST_BASELINE.logoReferenceName).join("a logo"),
+    image_prompt: slide.image_prompt.split(TEST_BASELINE.logoReferenceName).join("the brand mark"),
   }));
+  return s;
+}
+
+/** Every slide's image_prompt is missing the negative guardrail instruction (the raw name + generic
+ *  phrase both stay) — proves the guardrail is now genuinely REQUIRED, not merely the name (issue #110). */
+export function missingLogoGuardrail(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  s.slides = slides.map((slide) => ({
+    ...slide,
+    image_prompt: slide.image_prompt.split(TEST_BASELINE.logoNameGuardrailInstruction).join(""),
+  }));
+  return s;
+}
+
+/** Every slide's image_prompt has BOTH the raw logo reference name AND the generic reference phrase
+ *  stripped (the guardrail sentence stays) — the logo is not referenced at all, so the `logo-reference`
+ *  item must still correctly fail (issue #110: proves the item isn't vacuously true). */
+export function logoNotReferencedAtAll(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  s.slides = slides.map((slide) => ({
+    ...slide,
+    image_prompt: slide.image_prompt
+      .split(TEST_BASELINE.logoReferenceName)
+      .join("the brand mark")
+      .split(TEST_BASELINE.logoReferencePhrase)
+      .join("a nearby element"),
+  }));
+  return s;
+}
+
+/**
+ * The "hook" slide's image_prompt additionally renders the raw logo reference name QUOTED, as if it
+ * were literal on-image text (mirroring how this same fixture already quotes the pill text) — the
+ * specific anti-pattern issue #110's `logo-name-not-as-text` item flags. Every OTHER aspect of the
+ * prompt stays baseline-adherent (the plain, unquoted reference + guardrail are still present), so
+ * this mutation isolates the new item alone.
+ */
+export function logoReferenceNameRenderedAsText(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[0] = {
+    ...slides[0]!,
+    image_prompt: `${slides[0]!.image_prompt} The pill secondarily displays "${TEST_BASELINE.logoReferenceName}" beneath it.`,
+  };
   return s;
 }
 
