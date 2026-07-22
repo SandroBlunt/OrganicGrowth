@@ -255,3 +255,36 @@ describe("producer.md's Save phase writes the .output/ bundle, never the retired
     assert.match(text, /asset_paths/);
   });
 });
+
+describe("producer.md downloads every paused gate's candidates to a local .cast/ folder (issue #119)", () => {
+  it("names castCandidatesDirFor / downloadCastCandidates and the .cast/ destination folder", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /src\/asset\/cast-candidates\.ts/);
+    assert.match(text, /castCandidatesDirFor/);
+    assert.match(text, /downloadCastCandidates/);
+    assert.match(text, /\.cast\//);
+  });
+
+  it("generalizes to ANY paused leg, never hard-coded to the one wired Recipe's Cast gate", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /DriveOutcome\.kind === "paused"/);
+    assert.match(text, /never hard-coded to one Recipe/);
+  });
+
+  it("states the download happens in the SAME ledger write that records the gate pause", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /SAME write that records the pause/);
+    assert.match(text, /LedgerCastCandidate\.path/);
+  });
+
+  it("states /pick-cast surfaces the local path, falling back to the remote url", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /pick-cast.{0,80}local `path`/s);
+    assert.match(text, /falling back to its `url`/);
+  });
+
+  it("distinguishes the .cast/ folder from .output/ and .spec.json — never the same directory", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /never\s*\n?\s*`\.output` or `\.spec\.json`/);
+  });
+});

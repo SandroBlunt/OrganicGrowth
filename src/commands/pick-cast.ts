@@ -37,6 +37,12 @@
  * Brand is always explicit: `<brand>` is a required first argument. The Brand's ledger path is derived
  * via `resolveBrand(brand).ledger`. The Production Queue is the shared global queue (brand-agnostic,
  * ADR-0006/0008). Omitting `<brand>` is a usage error, never a silent MundoTip fallback (issue #20).
+ *
+ * As of issue #119, a successful pick's output names the picked candidate's own MEDIA reference: its
+ * downloaded LOCAL file when one exists on the ledger (`LedgerCastCandidate.path`,
+ * `src/asset/cast-candidates.ts`) — never only the remote, login-gated, expiring Magnific `url` a
+ * candidate carried on its own before that field existed. A legacy/un-downloaded candidate (no `path`)
+ * still surfaces its `url` exactly as before — `pickedCandidateMedia` never fails the pick over this.
  */
 
 import { fileURLToPath } from "node:url";
@@ -70,6 +76,19 @@ export function selectCharacter(cast: readonly LedgerCastCandidate[], n: number)
     };
   }
   return { ok: true, character: cast[n - 1]!.identifier };
+}
+
+/**
+ * The picked candidate's own media reference to surface to the Operator: its downloaded local file
+ * when one exists (`LedgerCastCandidate.path`, `src/asset/cast-candidates.ts`'s
+ * `downloadCastCandidates` — issue #119), falling back to its remote Magnific `url` for a candidate
+ * recorded before that field existed, or whose download genuinely could not complete (AC5). `n` is
+ * assumed already validated by `selectCharacter` (1-based, in range) — callers only reach here on a
+ * successful selection.
+ */
+function pickedCandidateMedia(cast: readonly LedgerCastCandidate[], n: number): string {
+  const candidate = cast[n - 1]!;
+  return candidate.path ?? candidate.url;
 }
 
 /** Every Asset currently PAUSED at the Cast gate (`in_production`/`pending_gate: "cast"`). Normally at
@@ -191,7 +210,10 @@ export async function pickCastCommand(
     // the truth instead of claiming a fresh render was queued (C23) — the earlier pick still governs.
     return `/pick-cast ${ideaId}: a render is already queued for this Idea — no change; the earlier Character pick stands. [Brand: ${brand}]`;
   }
-  return `/pick-cast ${ideaId}: picked Cast member ${n} — Character ${selected.character}. Resuming production (render queued). [Brand: ${brand}]`;
+  // Issue #119: surface the picked candidate's own media reference — its downloaded local file when
+  // present, never only the remote, login-gated, expiring Magnific URL. AC4/AC5.
+  const media = pickedCandidateMedia(cast, n);
+  return `/pick-cast ${ideaId}: picked Cast member ${n} — Character ${selected.character} (media: ${media}). Resuming production (render queued). [Brand: ${brand}]`;
 }
 
 /**

@@ -118,6 +118,7 @@ Scoped per Brand under `data/brands/<slug>/` (the Production Queue is the one br
 | `ideas/<format>/<run>/idea-NN.md` | One Brief per suggested Idea (older runs sit one level up, at `ideas/<run>/` — the ledger's recorded path wins) |
 | `ideas/<format>/<run>/idea-NN.<recipe>.spec.json` | A chosen Recipe's Production Spec (written when the job is produced) |
 | `ideas/…/idea-NN.<recipe>.output/` | The Asset's self-contained publish + tracking bundle (renamed from `.assets/`) — the downloaded media in post order, `caption.txt` (paste-ready caption + hashtags), and `post.json` (a *generated view* of the ledger — never a second store; kept on your disk, not in git) |
+| `ideas/…/idea-NN.<recipe>.cast/` | A Recipe's rendered gate-candidate images (e.g. the Cast gate's candidates), downloaded locally alongside the ledger's recorded gate pause, so `/pick-cast` can point you at a real file instead of a remote, login-gated link |
 | `ledger.json` | The index: each Idea's **per-Recipe Assets** (Cast/character, Copy, media file paths, Post URL, Performance, status) |
 | `your-data/` | *Optional* Meta Content exports for richer enrichment (git-ignored, never committed) |
 | `data/queue.json` | The production queue, keyed `(brand, idea, recipe)` (brand-agnostic) |
