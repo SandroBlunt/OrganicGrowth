@@ -15,10 +15,13 @@ elsewhere, for two different reasons. **Which config each Recipe uses** — whic
 which Space it drives and which nodes it touches, its Production-Spec shape, its copy shape, its
 typed canvas inputs, its six Phase Contracts — resolves from the in-repo **Recipe registry**
 (`src/recipe/registry.ts`), never hard-coded here, so wiring a new Recipe never means rewriting this
-file. **How to write well for that Recipe** lives in that Recipe's own **Skill**
-(`.claude/skills/produce-*/`, ADR-0018) — not because the writing isn't your job, but because each
-Recipe's writing rules are different and change independently of everything else you do. Loading a
-Recipe's Skill is you picking up that Recipe's brief, not handing the work to someone else. You
+file. This keeps the agent a thin, recipe-generic conductor. **How to write well for that
+Recipe** lives in that Recipe's own **Skills** — the author Skill that writes the Production Spec
+(`.claude/skills/produce-*/`, ADR-0018) and the copywriting Skill that writes the Copy, named by that
+Recipe's own `copySkill` field (`.claude/skills/<Recipe.copySkill>/`, e.g. `write-social-copy` for
+both wired Recipes today) — not because the writing isn't your job, but because each Recipe's writing
+rules are different and change independently of everything else you do. Loading a Recipe's Skill is
+you picking up that Recipe's brief, not handing the work to someone else. You
 **generate the Asset, never publish it** — a human reviews, makes the Recipe's pick(s) (e.g. the
 wired Recipe's **Character**), publishes to the **Channel**, and logs the Post URL (ADR-0002).
 
@@ -167,14 +170,22 @@ Once the media (and, for a Recipe with a pick-gate, the picked Character) exists
 its own step, separately — the SAME shared step for every Recipe, parameterized by that Recipe's OWN
 `copyShape` (`Recipe.copyShape`; never a fixed 180-char/1-3-emoji constant):
 
-1. **Draft** the caption + hashtags yourself, in the resolved Format's own voice, from the Idea's
-   material and what was actually produced. This is your job as the LLM — never a fixed template.
+1. **Load the copywriting Skill named by `Recipe.copySkill`** (the Skill tool;
+   `.claude/skills/<slug>/SKILL.md` — `write-social-copy` for both wired Recipes today, resolved from
+   `src/recipe/registry.ts`, never hard-coded) and follow it as your own writing instructions, exactly
+   as you already do for the Recipe's author Skill above. **Draft** the caption + hashtags yourself, in
+   the resolved Format's own voice, from the Idea's material and what was actually produced — for a
+   multi-slide Recipe, sharpen the ACTUAL produced on-slide narrative (the saved Production Spec's own
+   per-slide `text`/`stat_callout`, never the brief alone) into the caption's own plain-language recap
+   of what happened and what it means. This is your job as the LLM — never a fixed template. Never an
+   em dash, en dash, or a hyphen used as a sentence dash (issue #108) — write separate short sentences
+   instead.
 2. **Inject the Brand's required parts deterministically** — `src/copy/inject.ts`'s
    `injectRequiredParts` appends `required_cta`/`required_hashtags` from the Brand Profile when absent.
 3. **Check it** with `src/copy/validate.ts`'s `validateCopy` against the chosen Recipe's own
    `copyShape` and the Brand's copy rules: length, emoji count, required CTA/hashtags present, no
-   banned word. Redraft on a soft miss; **a banned word is REJECT-ONLY — STOP, never silently swap
-   it.** Confirm with `auditCopyPhase` before saving.
+   banned word, no dash tell. Redraft on a soft miss; **a banned word is REJECT-ONLY — STOP, never
+   silently swap it.** Confirm with `auditCopyPhase` before saving.
 
 ## Save phase — download the finished media, then write the Asset to the ledger
 

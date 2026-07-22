@@ -22,6 +22,7 @@ import assert from "node:assert/strict";
 
 import { validateNewsCarouselSpec } from "./news-carousel-validate.ts";
 import { auditNewsCarouselAuthorPhase } from "./news-carousel-author-checklist.ts";
+import { CAROUSEL_ROLES } from "./news-carousel-contract.ts";
 import {
   STRAW_MOTION_BASELINE,
   strawMotionIdeaOneCarouselSpec,
@@ -272,5 +273,94 @@ describe("news-carousel.md carries the issue #110 logo negative-prompt guardrail
     const logoNameItem = result.items.find((i) => i.id === "logo-name-not-as-text");
     assert.equal(logoReferenceItem?.ok, true);
     assert.equal(logoNameItem?.ok, true);
+  });
+});
+
+/**
+ * Pins the reengineered 7-slide narrative formula issue #111 (epic #106 item 6) adds to the document —
+ * mirroring issue #109/#110's own precedent ("a docs-test in spirit, kept as a REGULAR `.test.ts`
+ * because it reads the SAME real document this file already reads for issues #83/#85/#109/#110's own
+ * pins, so it runs under `npm test`'s always-on gate"). Confined to the "The 7-slide narrative"
+ * section only — the fixed clauses / template / worked Examples this file's other describe blocks
+ * pin are untouched by this change.
+ */
+describe("news-carousel.md's 7-slide narrative formula advances real comprehension, not just mood (issue #111 item 6)", () => {
+  it("states the standing rule: every role's on-slide line must state what happened and what it means", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /must advance real comprehension/i);
+    assert.match(normalized, /state plainly what happened and what it means/i);
+    assert.match(normalized, /acceptable only when it is ALSO informative/i);
+  });
+
+  it("names the mood-only anti-pattern by the issue's own reproduced examples", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.ok(normalized.includes('"Same week."'));
+    assert.ok(normalized.includes('"You still check."'));
+    assert.match(normalized, /name(s)? nothing a reader could repeat back/i);
+  });
+
+  it("keeps the fixed role order unchanged: hook, then, shift, proof, different, next, cta", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    const narrativeSection = normalized.split("The 7-slide narrative")[1] ?? "";
+    const roleOrder = [...CAROUSEL_ROLES];
+    const positions = roleOrder.map((role) => narrativeSection.indexOf(`**${role}**`));
+    assert.ok(
+      positions.every((p) => p >= 0),
+      `every role must be named as a bolded heading in the narrative section: ${JSON.stringify(positions)}`,
+    );
+    for (let i = 1; i < positions.length; i += 1) {
+      assert.ok(
+        positions[i]! > positions[i - 1]!,
+        `role "${roleOrder[i]}" must appear after "${roleOrder[i - 1]}", matching CAROUSEL_ROLES' fixed order`,
+      );
+    }
+  });
+
+  it("splits each role's guidance into what the stat_callout must name vs. what the text must state", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    assert.match(normalized, /the `stat_callout` names/i);
+    assert.match(normalized, /the `text` (spells out|states)/i);
+  });
+
+  it("composes with — never reverts — the pre-existing #108/#109/#110 facts in the same document", async () => {
+    const format = await loadFormat("straw-motion", "unhypped-news");
+    const lookup = await loadBaselinePrompt("straw-motion", format, "news-carousel");
+    assert.ok(lookup.found);
+    const normalized = normalizeBaselineProse(lookup.content);
+
+    // #108 (no-dash rule, card-text clause).
+    assert.match(normalized, /Never an em dash/);
+    // #109 (render-fidelity guardrails).
+    assert.match(normalized, /13-14px equivalent/);
+    // #110 (logo negative-prompt guardrail + slide-position sizing).
+    assert.match(normalized, /negative-prompt instruction/i);
+    assert.match(normalized, /scale varies by slide position/i);
+  });
+
+  it("the graduated Straw Motion fixture is unaffected — this change touches only the narrative section", () => {
+    const spec = strawMotionIdeaOneCarouselSpec() as { slides: readonly { image_prompt: string }[] };
+    for (const slide of spec.slides) {
+      for (const clause of STRAW_MOTION_BASELINE.fixedClauses) {
+        assert.ok(slide.image_prompt.includes(clause));
+      }
+    }
+    const result = auditNewsCarouselAuthorPhase(strawMotionIdeaOneCarouselSpec(), [], STRAW_MOTION_BASELINE);
+    assert.equal(result.ok, true);
   });
 });

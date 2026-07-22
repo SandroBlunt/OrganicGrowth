@@ -144,6 +144,10 @@ describe("The character Recipe declares gates + spec-shape + copy-shape + Space 
     assert.equal(copy.checklist.length, 1);
     assert.equal(copy.checklist[0]!.kind, "mechanical");
   });
+
+  it("declares a copySkill — the Skill slug the copy step loads, resolved from this registry (issue #111)", () => {
+    assert.equal(recipe.copySkill, "write-social-copy");
+  });
 });
 
 describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-shape + Space target (issue #81 AC2)", () => {
@@ -254,5 +258,26 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
         }
       }
     }
+  });
+
+  it("declares a copySkill — the Skill slug the copy step loads, resolved from this registry (issue #111)", () => {
+    assert.equal(recipe.copySkill, "write-social-copy");
+  });
+});
+
+describe("Both wired Recipes' copySkill is a swappable, per-Recipe field (issue #111)", () => {
+  it("both seeded Recipes declare the SAME copySkill today — ADR-0012's one shared copy step, made an explicit, swappable slug", () => {
+    const character = getRecipe("character-explainer-with-cast")!;
+    const carousel = getRecipe("news-carousel")!;
+    assert.equal(character.copySkill, "write-social-copy");
+    assert.equal(carousel.copySkill, "write-social-copy");
+  });
+
+  it("copySkill is independent of gates/specShape/copyShape — the two Recipes differ in all three but share copySkill", () => {
+    const character = getRecipe("character-explainer-with-cast")!;
+    const carousel = getRecipe("news-carousel")!;
+    assert.notDeepEqual(character.gates, carousel.gates);
+    assert.notEqual(character.copyShape.maxChars, carousel.copyShape.maxChars);
+    assert.equal(character.copySkill, carousel.copySkill);
   });
 });

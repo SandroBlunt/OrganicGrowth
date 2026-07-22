@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { composeCopy } from "./compose.ts";
 import { validateCopy } from "./validate.ts";
-import type { CopyInput, CopyDrafter } from "./draft.ts";
+import { skillDraftCopy, type CopyInput, type CopyDrafter } from "./draft.ts";
 import { getRecipe } from "../recipe/registry.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -18,6 +18,10 @@ const NO_RULES_PROFILE = join(HERE, "fixtures", "brand-profile.no-rules.yaml");
  * fake; single-recipe path green").
  */
 const CHARACTER_EXPLAINER_SHAPE = getRecipe("character-explainer-with-cast")!.copyShape;
+
+/** The SECOND wired Recipe's own copy shape (2200 chars / 0-2 emoji) — deliberately different bounds,
+ *  proving `skillDraftCopy` generalizes across both (issue #111 AC4). */
+const NEWS_CAROUSEL_SHAPE = getRecipe("news-carousel")!.copyShape;
 
 function sampleInput(overrides: Partial<CopyInput> = {}): CopyInput {
   return {
@@ -120,5 +124,85 @@ describe("composeCopy — single-recipe path (Character Explainer with Cast), ag
     assert.equal(result.ok, true);
     assert.equal("watermark" in result.copy!, false);
     assert.equal("handle" in result.copy!, false);
+  });
+});
+
+/**
+ * AC4's concrete proof (issue #111): the `write-social-copy` Skill's deterministic stand-in,
+ * `skillDraftCopy`, is a drop-in `CopyDrafter` — composed through the SAME `composeCopy` pipeline,
+ * against BOTH wired Recipes' own `copyShape`s, with the Brand's copy rules (banned words + required
+ * CTA/hashtags) actually configured. Proves the copywriting Skill's output respects Brand copy rules —
+ * required CTA/hashtags present, banned words still rejected, no em dash/en dash/spaced hyphen — for
+ * every wired Recipe, not just the one this file's other tests already cover.
+ */
+describe("composeCopy — the write-social-copy Skill's fake (skillDraftCopy), across BOTH wired Recipes' shapes (issue #111 AC4)", () => {
+  it("composes a valid Copy carrying the injected required CTA/hashtags — Character Explainer's 180/1-3 shape", async () => {
+    const result = await composeCopy(sampleInput(), CHARACTER_EXPLAINER_SHAPE, {
+      brandProfilePath: RULES_PROFILE,
+      drafter: skillDraftCopy,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.ok(result.copy!.caption.includes("Link in bio!"));
+    // injectRequiredHashtags normalizes each appended hashtag to carry a leading "#" (inject.ts) —
+    // the Brand's own YAML declares "tips" without one, so the composed result carries "#tips".
+    assert.deepEqual(result.copy!.hashtags, ["#lifehacks", "#tips"]);
+    assert.equal(
+      validateCopy(result.copy, CHARACTER_EXPLAINER_SHAPE, {
+        requiredCta: "Link in bio!",
+        requiredHashtags: ["#lifehacks", "tips"],
+        bannedWords: ["cure", "miracle", "guaranteed"],
+      }).ok,
+      true,
+    );
+  });
+
+  it("composes a valid Copy carrying the injected required CTA/hashtags — News Carousel's 2200/0-2 shape (different bounds)", async () => {
+    const result = await composeCopy(
+      sampleInput({
+        title: "AI just got a job",
+        slideNarrative: [
+          { role: "hook", text: "OpenAI, Anthropic, and Meta all shipped agents this week." },
+          { role: "shift", text: "Three rivals moved on the same idea at once." },
+          { role: "cta", text: "Follow along as we track how far it gets." },
+        ],
+      }),
+      NEWS_CAROUSEL_SHAPE,
+      { brandProfilePath: RULES_PROFILE, drafter: skillDraftCopy },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.ok(result.copy!.caption.includes("Link in bio!"));
+    assert.deepEqual(result.copy!.hashtags, ["#lifehacks", "#tips"]);
+    // Sharpens the ACTUAL produced narrative — the composed caption carries the real slide beats.
+    assert.ok(result.copy!.caption.includes("OpenAI, Anthropic, and Meta all shipped agents this week."));
+    assert.ok(result.copy!.caption.includes("Follow along as we track how far it gets."));
+  });
+
+  it("REFUSES a skillDraftCopy-drafted Copy containing a banned word — the checker is never bypassed", async () => {
+    const result = await composeCopy(
+      sampleInput({ title: "This miracle trick fixes your mornings" }),
+      CHARACTER_EXPLAINER_SHAPE,
+      { brandProfilePath: RULES_PROFILE, drafter: skillDraftCopy },
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.copy, undefined);
+    assert.ok(result.errors && result.errors.some((e) => e.code === "banned_word" && e.message.includes("miracle")));
+  });
+
+  it("never produces a dash 'tell' in the composed caption (issue #108), across both Recipes' shapes", async () => {
+    for (const shape of [CHARACTER_EXPLAINER_SHAPE, NEWS_CAROUSEL_SHAPE]) {
+      const result = await composeCopy(
+        sampleInput({
+          slideNarrative: [
+            { role: "hook", text: "OpenAI, Anthropic, and Meta all shipped agents this week." },
+            { role: "shift", text: "Three rivals moved on the same idea at once." },
+            { role: "cta", text: "Follow along as we track how far it gets." },
+          ],
+        }),
+        shape,
+        { brandProfilePath: NO_RULES_PROFILE, drafter: skillDraftCopy },
+      );
+      assert.equal(result.ok, true, JSON.stringify(result.errors));
+      assert.doesNotMatch(result.copy!.caption, /—|–|\s-\s/);
+    }
   });
 });
