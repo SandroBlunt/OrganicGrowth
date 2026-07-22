@@ -1,0 +1,35 @@
+{
+  "character_concepts": [
+    "Sage, a friendly rounded AI assistant robot with warm glowing eyes and a soft cloth cape, calm and capable, stepping out of a chat window in two directions at once.",
+    "Chatbox, a small speech-bubble window character, cheerful but boxed-in, only able to answer questions.",
+    "Keyring, an anthropomorphic bouncy key ring that guards logins, discreet and trustworthy, never peeking at the passwords."
+  ],
+  "clips": [
+    {
+      "id": "idea-10-clip-1",
+      "clip_id": 1,
+      "concept_title": "Just a chatbot in a box",
+      "image_prompt": "Pixar-style 3D animation. Sage, a friendly rounded AI assistant robot with warm glowing eyes and a soft cloth cape, sits politely inside a small glowing chat-window box answering a floating question, cozy and boxed-in, the word CHATBOT stamped on the window frame, warm soft lighting, patient contained expression, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
+      "video_prompt": "Slow push-in on Sage inside the little chat window -> he answers a question and waits, hemmed in by the frame -> Voice (soft): we still call these tools chatbots, sit and wait for the next question. -> SFX: a soft message ding, a gentle hum."
+    },
+    {
+      "id": "idea-10-clip-2",
+      "clip_id": 2,
+      "concept_title": "Out the window, both ways",
+      "image_prompt": "Pixar-style 3D animation. Sage the assistant robot steps out of the chat window in two directions at once, one hand reaching into a warm cheerful classroom of happy students, the other turning a bright keyring to log into a glowing account door without peeking at the passwords, dynamic split composition, energetic warm lighting, delighted determined expression, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
+      "video_prompt": "Camera pulls back as Sage stretches out of the window both ways -> one hand lights up a classroom, the other turns a keyring and unlocks an account door -> Voice (bright, amazed): now it teaches a class and logs into your accounts, no peeking at passwords. -> SFX: a bright unlocking click, a cheerful classroom bell."
+    },
+    {
+      "id": "idea-10-clip-3",
+      "clip_id": 3,
+      "concept_title": "Handy, and a bigger trust ask",
+      "image_prompt": "Pixar-style 3D animation. Sage the assistant robot stands proud between a warm classroom on one side and a keyring at a locked account door on the other, the word CHATBOT crossed out above him, a small hand-lettered sign nearby reads convenient and a bigger trust ask, warm balanced lighting, thoughtful honest smile, vibrant family-film color grade, cinematic lighting. Aspect Ratio 9:16.",
+      "video_prompt": "Slow orbit around Sage standing between the classroom and the keyring -> the word chatbot gets crossed out as he taps a small honest sign -> Voice (warm, honest): handy, sure, but an AI that logs in for you is a bigger trust ask. -> SFX: a soft chalk cross-out, a reassuring tone."
+    }
+  ],
+  "thumbnails": [
+    "Pixar-style 3D animation. Extreme close-up of Sage the friendly AI assistant robot with warm glowing eyes and soft cape, a faint classroom and a keyring reflected in his eyes, warm cinematic lighting, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Sage the assistant robot stretching out of a chat window in two directions toward a classroom and a login keyring, dynamic hero angle, energetic rim light, delighted face, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Sage the assistant robot standing between a classroom and a locked account door with the word CHATBOT crossed out above him, cozy bokeh, thoughtful confident smile, vibrant family-film color grade. Aspect Ratio 9:16."
+  ]
+}

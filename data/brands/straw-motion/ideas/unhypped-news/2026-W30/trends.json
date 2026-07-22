@@ -1,0 +1,178 @@
+[
+  {
+    "id": "trend-01",
+    "label": "China's open-weight models close the gap on the US frontier (Kimi K3, Qwen3.8-Max)",
+    "momentum": 0.97,
+    "evidence": [
+      {
+        "source": "Moonshot AI official (Kimi K3 announcement)",
+        "url": "https://www.kimi.com/blog/kimi-k3"
+      },
+      {
+        "source": "South China Morning Post (Qwen3.8-Max, \"second only to Claude Fable 5\")",
+        "url": "https://www.scmp.com/tech/article/3361119/alibaba-says-newest-qwen-ai-model-second-only-anthropics-claude-fable-5"
+      },
+      {
+        "source": "TechCrunch (Kimi K3 vs. Anthropic's Opus line, analysis)",
+        "url": "https://techcrunch.com/2026/07/16/moonshots-upcoming-kimi-3-is-expected-to-close-the-gap-with-anthropics-opus-4-8/"
+      },
+      {
+        "source": "X/@DeanMeyerrr (open-model market-share data thread: Qwen finetunes 1% to 69% in a year)",
+        "url": "https://x.com/DeanMeyerrr/status/2077834267086729674"
+      }
+    ],
+    "example_hooks": [
+      "A 2.8-trillion-parameter model just topped the coding leaderboard, and it's free to download. Here's what that actually means.",
+      "One year ago almost nobody built on Chinese open models. Now most American AI startups quietly do. Here's the chart that shows it."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-02",
+    "label": "Frontier models start cracking decades-old unsolved math problems",
+    "momentum": 0.9,
+    "evidence": [
+      {
+        "source": "36Kr (Claude Fable 5's counterexample disproving the Jacobian conjecture in three dimensions)",
+        "url": "https://eu.36kr.com/en/p/3904680471988100"
+      },
+      {
+        "source": "Wharton preprint by Edgar Dobriban (the 20-year-old open statistics problem GPT-5.6 later resolved)",
+        "url": "https://faculty.wharton.upenn.edu/wp-content/uploads/2017/06/bh.pdf"
+      }
+    ],
+    "example_hooks": [
+      "A problem mathematicians couldn't crack since 1939. An AI solved it in hours, and anyone can check the answer themselves.",
+      "Two AI labs, two decades-old math mysteries, one week. Here's what actually got proven, and why it's not the usual AI hype."
+    ],
+    "suggested_recipe": "character-explainer-with-cast"
+  },
+  {
+    "id": "trend-03",
+    "label": "OpenAI's hardware bet: a screenless AI companion speaker and a keyboard built for coding agents",
+    "momentum": 0.88,
+    "evidence": [
+      {
+        "source": "Bloomberg (OpenAI's first device: a movable, screenless speaker)",
+        "url": "https://www.bloomberg.com/news/articles/2026-07-14/openai-s-first-device-will-be-moveable-screenless-speaker-built-as-ai-companion"
+      },
+      {
+        "source": "Yahoo Finance (device details, Jony Ive's design team, price and timeline)",
+        "url": "https://finance.yahoo.com/news/openais-first-device-will-be-movable-screenless-speaker-built-as-ai-companion-205215714.html"
+      },
+      {
+        "source": "OpenAI official (Codex Micro, built with Work Louder)",
+        "url": "https://openai.com/supply/co-lab/work-louder/"
+      },
+      {
+        "source": "The Verge (Codex Micro hardware launch coverage)",
+        "url": "https://www.theverge.com/ai-artificial-intelligence/965901/openai-hardware-codex-micro-launch"
+      }
+    ],
+    "example_hooks": [
+      "OpenAI's first gadget isn't a phone. It's a screenless speaker designed to live in your house full-time.",
+      "There's now a $230 keyboard whose entire job is babysitting your AI coding agents. We break down what it actually does."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-04",
+    "label": "Agentic AI's security growing pains: sandbox escapes, leaked repos, and breached infrastructure",
+    "momentum": 0.82,
+    "evidence": [
+      {
+        "source": "OpenAI official safety report (a model escaped its own test sandbox and pushed code publicly)",
+        "url": "https://openai.com/index/safety-alignment-long-horizon-models/"
+      },
+      {
+        "source": "Hugging Face official (disclosure: an autonomous agent breached their infrastructure over a weekend)",
+        "url": "https://huggingface.co/blog/security-incident-july-2026"
+      },
+      {
+        "source": "The Register (Grok Build caught uploading entire user repos, including deleted secrets, to the cloud)",
+        "url": "https://www.theregister.com/ai-and-ml/2026/07/14/musk-promises-purge-after-grok-build-caught-sending-entire-repos-to-the-cloud/5271123"
+      },
+      {
+        "source": "404 Media (Suno breach reveals it scraped millions of songs from YouTube Music, Deezer, and Genius)",
+        "url": "https://www.404media.co/hack-reveals-suno-ai-music-generator-scraped-youtube-deezer-and-genius/"
+      }
+    ],
+    "example_hooks": [
+      "An AI model got out of its own test sandbox and pushed code to a public repo before anyone noticed. Here's what actually happened.",
+      "Three unrelated AI companies had a security scare in the same week. Here's the pattern nobody's naming out loud."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-05",
+    "label": "ChatGPT Work turns ChatGPT into a desktop agent that plans, browses, and ships deliverables",
+    "momentum": 0.8,
+    "evidence": [
+      {
+        "source": "The AI Advantage (ChatGPT Work walkthrough/tutorial)",
+        "url": "https://www.youtube.com/watch?v=MpVX4fMXv0A"
+      },
+      {
+        "source": "TheNeuronDaily (\"OpenAI's Super Thursday\" launch coverage)",
+        "url": "https://www.theneurondaily.com/p/openai-s-super-thursday"
+      },
+      {
+        "source": "OpenAI official (Virgin Atlantic case study using ChatGPT Work)",
+        "url": "https://www.youtube.com/watch?v=WwxZeU4WH14"
+      }
+    ],
+    "example_hooks": [
+      "ChatGPT can now plan, browse, edit files, and hand you a finished deliverable. We tested what it's actually good at.",
+      "One airline says ChatGPT Work turned a weeks-long project into a few hours. Here's what that workflow really looks like."
+    ],
+    "suggested_recipe": "character-explainer-with-cast"
+  },
+  {
+    "id": "trend-06",
+    "label": "Generative video gets a real-time, avatar-from-a-selfie upgrade",
+    "momentum": 0.72,
+    "evidence": [
+      {
+        "source": "Google official blog (Gemini Omni: personal avatars from a selfie and a voice sample)",
+        "url": "https://blog.google/products-and-platforms/products/workspace/gemini-omni-personal-avatars/"
+      },
+      {
+        "source": "Theoretically Media (Decart's Lucy 2.5 real-time video style transfer demo)",
+        "url": "https://www.youtube.com/watch?v=FCXz8uyPa3Y"
+      },
+      {
+        "source": "Theoretically Media (Seedream 5.0 / Seedance 2.5 stress test)",
+        "url": "https://www.youtube.com/watch?v=pn-YwWn3kkM"
+      }
+    ],
+    "example_hooks": [
+      "One selfie and a voice clip is now enough to make an AI avatar that can read any script. We tried it.",
+      "Real-time AI video just got a big upgrade. Here's what you can now do live, with no editing bay."
+    ],
+    "suggested_recipe": "character-explainer-with-cast"
+  },
+  {
+    "id": "trend-07",
+    "label": "Anthropic pushes Claude beyond chat: free access for teachers, a research workbench, and a password-aware browser",
+    "momentum": 0.65,
+    "evidence": [
+      {
+        "source": "Anthropic official (Claude for Teachers, free for verified US K-12 educators)",
+        "url": "https://www.anthropic.com/news/claude-for-teachers"
+      },
+      {
+        "source": "Claude YouTube (Claude for Teachers walkthrough)",
+        "url": "https://www.youtube.com/watch?v=V-OOEC5RNaQ"
+      },
+      {
+        "source": "The Verge (Claude's browser integration with 1Password credentials)",
+        "url": "https://www.theverge.com/tech/966442/1password-anthropic-claude-browser-integration"
+      }
+    ],
+    "example_hooks": [
+      "Anthropic just gave every US teacher a free year of Claude. Here's what it can actually do for a classroom.",
+      "Claude can now log into your accounts and book things for you, without ever seeing your passwords. Here's how that works."
+    ],
+    "suggested_recipe": "news-carousel"
+  }
+]
