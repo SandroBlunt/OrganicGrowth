@@ -187,14 +187,15 @@ its own step, separately — the SAME shared step for every Recipe, parameterize
    banned word, no dash tell. Redraft on a soft miss; **a banned word is REJECT-ONLY — STOP, never
    silently swap it.** Confirm with `auditCopyPhase` before saving.
 
-## Save phase — download the finished media, then write the Asset to the ledger
+## Save phase — download the finished media, write the ledger, then refresh the output bundle
 
 **A remote creation URL is not the Asset — it expires, and a human can't review or post from a link
 that stops working (issue #102 finding #3).** Before saving, download every finished creation's real
 bytes to a durable local file: `src/asset/download.ts`'s `downloadAssetFiles(destDir, targets)`, where
-`destDir` is `data/brands/<slug>/ideas/<format>/<run>/idea-NN.<recipe>.assets/` (a sibling of the
-Brief and the Spec) and each target's `filename` identifies its slide/role (e.g. `"0-hook.png"` — for
-a single-media Recipe, just one file, e.g. `"asset.mp4"`). Fetch each creation's URL fresh right
+`destDir` is `src/asset/output-bundle.ts`'s `outputDirFor(ideaId, run, ideasRoot, recipe)` —
+`data/brands/<slug>/ideas/<format>/<run>/idea-NN.<recipe>.output/` (a sibling of the Brief and the
+Spec) — and each target's `filename` identifies its slide/role (e.g. `"0-hook.png"` — for a
+single-media Recipe, just one file, e.g. `"asset.mp4"`). Fetch each creation's URL fresh right
 before downloading it (`fetchCreations`/`fetchAsset` — never a cached or stale URL). For a
 multi-slide Recipe, match each finished creation to its slide by the slide's own unique
 `stat_callout` read off the rendered card — never by the aggregated creation list's position; that
@@ -205,8 +206,22 @@ Save the Asset to the Brand's ledger exactly as ADR-0011 already shapes it: the 
 wired Recipe's `cast`/`character`) — moving that Asset `in_production → produced` (clearing
 `pending_gate`). Set `asset_paths` to the downloaded files' LOCAL paths, in slide order — this is the
 durable record going forward; only fall back to the single, remote `asset_url` field when a download
-genuinely can't be completed. **STOP.** You never publish — a human does, then runs `/log-post`, which
-surfaces the saved Copy verbatim at the Publish gate before they post it.
+genuinely can't be completed.
+
+**The output bundle (issue #112).** The `.output/` directory is the Operator's whole publish + tracking
+kit for this Asset — the downloaded media (above), `caption.txt` (`src/asset/output-bundle.ts`'s
+`writeCaptionText`: the composed Copy's caption + hashtags, paste-ready), and `post.json`, a GENERATED
+VIEW of the ledger's own Asset record, never a second, hand-maintained store (always-rule 7). Write
+`caption.txt` once you have the Copy, then — AFTER the ledger write above — call
+`refreshOutputBundle(brand, ideaId, recipe, { ledgerPath })`: it re-reads the Asset you just saved and
+writes `post.json` from it fresh, so `post.json` can never drift from the ledger. `/log-post` and
+`/track-performance` call the SAME function once they add the post URL and the metrics/score, so
+`post.json` always reflects the ledger's current truth. An Asset produced BEFORE this slice keeps
+whatever `.assets/`-named directory its `asset_paths` already point into — never rename an existing
+directory; `refreshOutputBundle` resolves each Asset's OWN bundle directory from its own recorded
+`asset_paths`, so a legacy `.assets/` Asset keeps getting its `post.json` refreshed right there, in
+place. **STOP.** You never publish — a human does, then runs `/log-post`, which surfaces the saved Copy
+verbatim at the Publish gate before they post it.
 
 ## Guardrails
 - **Brand is explicit.** Only read/write the stated Brand's paths. Restate the Brand at every gate.

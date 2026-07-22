@@ -233,7 +233,7 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       cast: [{ identifier: "cast-1", url: "https://x/1.png" }],
       character: "cast-1",
       asset_url: "https://x/asset.mp4",
-      asset_paths: ["data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.assets/asset.mp4"],
+      asset_paths: ["data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.output/asset.mp4"],
       produced_at: "2026-06-05T12:00:00.000Z",
       post_url: "https://facebook.com/post/1",
       posted_at: "2026-06-06T12:00:00.000Z",
