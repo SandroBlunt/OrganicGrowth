@@ -164,6 +164,22 @@ The seeded *Character Explainer with Cast* Recipe therefore pauses ONCE, at its 
 attributes) — never a bare table of labels. The *News Carousel* Recipe declares zero gates and runs
 straight through, unattended, end-to-end; nothing pauses.
 
+**Download every paused gate's candidates to a local folder before recording the pause (issue #119).** A
+candidate's remote creation URL has the SAME problem the Save phase's own media does: it can need a
+Magnific login and it can expire before the Operator gets to review it. For ANY leg that PAUSES
+(`DriveOutcome.kind === "paused"` — today: the wired Recipe's Cast gate; this generalizes to any Recipe
+with a gated first leg, never hard-coded to one Recipe), download every one of `outcome.candidates`' images via
+`src/asset/cast-candidates.ts`'s `downloadCastCandidates(destDir, candidates)` — the SAME
+`downloadAssetFiles` primitive the Save phase already uses — into `castCandidatesDirFor(ideaId, run,
+ideasRoot, recipe)`'s folder: `data/brands/<slug>/ideas/<format>/<run>/idea-NN.<recipe>.cast/` (a
+sibling of the Brief, the Spec, and the eventual `.output/` bundle, distinctly named — `.cast`, never
+`.output` or `.spec.json` — so it is never mistaken for either). Write the Idea's Asset to the ledger
+with `status: "in_production"`, `pending_gate: "<the gate name>"`, and the DOWNLOADED `cast` candidates
+(each carrying `path` alongside its existing `identifier`/`url` — `LedgerCastCandidate.path`) in the
+SAME write that records the pause — never leave a paused Asset on the ledger with remote-only
+candidates. `/pick-cast`'s own output then names the picked candidate's local `path` when present,
+falling back to its `url` for a legacy/un-downloaded candidate.
+
 ## Copy phase — shared, out-of-canvas, in the Format's own voice (ADR-0012)
 
 Once the media (and, for a Recipe with a pick-gate, the picked Character) exists, compose the Copy as

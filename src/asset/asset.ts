@@ -63,6 +63,15 @@ export type AssetStatus =
 export interface LedgerCastCandidate {
   readonly identifier: string;
   readonly url: string;
+  /**
+   * Durable LOCAL file path for this candidate's downloaded image, produced at the SAME time the
+   * ledger records the gate pause (`src/asset/cast-candidates.ts`'s `downloadCastCandidates`) — mirrors
+   * `LedgerAssetRecord.asset_paths` vs its legacy `asset_url`: a remote candidate URL can need a
+   * Magnific login and can expire before the Operator gets to review it, so the local file is preferred
+   * wherever one exists (issue #119). Absent on a candidate recorded before this field existed, or one
+   * whose download genuinely could not be completed — callers fall back to `url` in that case.
+   */
+  readonly path?: string;
 }
 
 /**
@@ -187,11 +196,21 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-/** Parse one raw Cast candidate. Returns `null` on any malformed shape — never throws. */
+/**
+ * Parse one raw Cast candidate. Requires a non-empty `identifier` and `url`; `path` is included ONLY
+ * when it is itself a non-empty string (never assigned as `undefined` — keeps the result clean under
+ * `exactOptionalPropertyTypes`) — a missing or malformed `path` degrades to an identifier/url-only
+ * candidate rather than dropping the whole candidate (issue #119: a legacy/un-downloaded candidate must
+ * still parse). Returns `null` on any malformed shape — never throws.
+ */
 export function parseCastCandidate(raw: unknown): LedgerCastCandidate | null {
   if (!isObject(raw)) return null;
   if (!nonEmptyString(raw.identifier) || !nonEmptyString(raw.url)) return null;
-  return { identifier: raw.identifier, url: raw.url };
+  return {
+    identifier: raw.identifier,
+    url: raw.url,
+    ...(nonEmptyString(raw.path) ? { path: raw.path } : {}),
+  };
 }
 
 /** Parse a raw Cast-candidate array, dropping malformed entries. Non-array input yields `[]`. */

@@ -48,6 +48,9 @@ Operator means (explicit attribution, always-rules #5).
    never guesses which Recipe's gate the pick resolves.
    A **re-pick** on an Idea whose Character is already set reports "no change; earlier pick stands"
    rather than claiming a fresh render was queued.
+   On a valid pick, the output names the picked candidate's own **downloaded local file** when the
+   Producer already saved one (`data/brands/<slug>/ideas/<format>/<run>/idea-NN.<recipe>.cast/` — issue
+   #119), falling back to its remote Magnific URL for a candidate recorded before that field existed.
 3. The output restates the active Brand: "Brand: `<brand>`" so the Operator can confirm the pick is
    for the correct Brand.
 

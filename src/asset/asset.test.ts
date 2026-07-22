@@ -79,6 +79,35 @@ describe("parseCastCandidate — defensive parse of one Cast candidate", () => {
     assert.equal(parseCastCandidate({ url: "https://x/1.png" }), null);
     assert.equal(parseCastCandidate({ identifier: "", url: "https://x/1.png" }), null);
   });
+
+  // --- issue #119: the optional local `path` field ---
+
+  it("parses a candidate carrying a local download path alongside identifier/url", () => {
+    const c = parseCastCandidate({
+      identifier: "cast-1",
+      url: "https://x/1.png",
+      path: "data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.cast/1-cast-1.png",
+    });
+    assert.deepEqual(c, {
+      identifier: "cast-1",
+      url: "https://x/1.png",
+      path: "data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.cast/1-cast-1.png",
+    });
+  });
+
+  it("a candidate with NO path parses fine and carries no path key at all (AC5, legacy/un-downloaded)", () => {
+    const c = parseCastCandidate({ identifier: "cast-1", url: "https://x/1.png" });
+    assert.ok(c !== null);
+    assert.equal("path" in c!, false, "path must be OMITTED, never present as undefined");
+  });
+
+  it("a malformed path (empty string / non-string) is dropped, never the whole candidate", () => {
+    const withEmptyPath = parseCastCandidate({ identifier: "cast-1", url: "https://x/1.png", path: "" });
+    assert.deepEqual(withEmptyPath, { identifier: "cast-1", url: "https://x/1.png" });
+
+    const withNumericPath = parseCastCandidate({ identifier: "cast-1", url: "https://x/1.png", path: 42 });
+    assert.deepEqual(withNumericPath, { identifier: "cast-1", url: "https://x/1.png" });
+  });
 });
 
 describe("parseCastArray — drops malformed entries, never throws", () => {
@@ -97,6 +126,19 @@ describe("parseCastArray — drops malformed entries, never throws", () => {
   it("returns [] for non-array input", () => {
     assert.deepEqual(parseCastArray(undefined), []);
     assert.deepEqual(parseCastArray("nope"), []);
+  });
+
+  it("preserves each candidate's own local path (present or absent), independently, in order (issue #119)", () => {
+    const raw = [
+      { identifier: "cast-1", url: "https://x/1.png", path: "/tmp/x/1-cast-1.png" },
+      { identifier: "cast-2", url: "https://x/2.png" }, // no local path yet — still valid
+      { identifier: "cast-3", url: "https://x/3.png", path: "/tmp/x/3-cast-3.png" },
+    ];
+    assert.deepEqual(parseCastArray(raw), [
+      { identifier: "cast-1", url: "https://x/1.png", path: "/tmp/x/1-cast-1.png" },
+      { identifier: "cast-2", url: "https://x/2.png" },
+      { identifier: "cast-3", url: "https://x/3.png", path: "/tmp/x/3-cast-3.png" },
+    ]);
   });
 });
 

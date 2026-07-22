@@ -236,6 +236,58 @@ describe("pickCastCommand — persists the pick, clears the gate, and reports ho
   });
 });
 
+// === pickCastCommand — surfaces the picked candidate's local media (issue #119, AC4/AC5/AC6) ==========
+
+describe("pickCastCommand — surfaces the picked candidate's local file, falling back to its remote URL", () => {
+  it("names the picked candidate's downloaded LOCAL path when one is recorded on the ledger (AC4)", async () => {
+    const castWithPaths = [
+      { identifier: "cast-1", url: "https://magnific.example/cast/1.png", path: "/data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.cast/1-cast-1.png" },
+      { identifier: "cast-2", url: "https://magnific.example/cast/2.png", path: "/data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.cast/2-cast-2.png" },
+      { identifier: "cast-3", url: "https://magnific.example/cast/3.png", path: "/data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.cast/3-cast-3.png" },
+    ];
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast: castWithPaths }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(out, /cast-2/);
+      assert.match(
+        out,
+        /idea-01\.character-explainer-with-cast\.cast\/2-cast-2\.png/,
+        "the picked candidate's own LOCAL file path must be surfaced",
+      );
+      // The local file is surfaced, not the remote URL, when a path exists.
+      assert.doesNotMatch(out, /https:\/\/magnific\.example/);
+    });
+  });
+
+  it("falls back to the remote URL exactly as before for a legacy candidate with no local path (AC5)", async () => {
+    // `cast` (module-level fixture) carries NO `path` — models a pre-#119 or un-downloaded candidate.
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const out = await pickCastCommand("mundotip", "idea-A", 3, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(out, /cast-3/);
+      // Falls back to the candidate's own remote URL — the pick still works, never throws (AC5).
+      assert.match(out, /https:\/\/magnific\.example\/cast\/3\.png/);
+    });
+  });
+
+  it("mixed Cast — path-having and path-less candidates each resolve their OWN correct media reference", async () => {
+    const mixedCast = [
+      { identifier: "cast-1", url: "https://magnific.example/cast/1.png" }, // no local path yet
+      { identifier: "cast-2", url: "https://magnific.example/cast/2.png", path: "/tmp/idea-01.character-explainer-with-cast.cast/2-cast-2.png" },
+    ];
+    const seed = { ideas: [{ id: "idea-A", status: "casting", cast: mixedCast }] };
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const pickFirst = await pickCastCommand("mundotip", "idea-A", 1, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(pickFirst, /https:\/\/magnific\.example\/cast\/1\.png/, "candidate 1 has no path — falls back to its URL");
+    });
+
+    await withLedger(seed, async ({ ledgerPath, queuePath }) => {
+      const pickSecond = await pickCastCommand("mundotip", "idea-A", 2, { ledgerPath, queuePath, now: () => PICK_NOW });
+      assert.match(pickSecond, /2-cast-2\.png/, "candidate 2 has a path — surfaces the local file");
+    });
+  });
+});
+
 // === pickCastCommand — refuses to guess when several Assets are simultaneously gated (issue #56) =====
 
 describe("pickCastCommand — never guesses which Recipe's gate the pick resolves", () => {
