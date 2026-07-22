@@ -77,6 +77,17 @@ fixed template.
   supplied material, never invented.
 - **Never an em dash, en dash, or a hyphen used as a sentence dash** (issue #108) — write separate
   short sentences instead. An ordinary hyphenated word (`state-of-the-art`) is unaffected.
+- **Close on a FRESH engagement CTA every time — never a canned, repeated line (Operator QA,
+  2026-07-22).** End the caption by inviting the reader to *comment their thoughts* or *follow for
+  more*, paraphrased in a new, catchy way for THIS story — tie it to the specific topic (a real
+  question they'd want to answer, or a reason to follow that names what they keep getting). Do NOT
+  reuse a fixed, mechanical closer across posts — the boilerplate `"Swipe through the 7-slide
+  breakdown 👉"` (and any near-identical variant) is the exact anti-pattern the Operator flagged as
+  repetitive; it must not appear again. Vary the phrasing, the ask (comment vs. follow), and the emoji
+  (0-2, within `copyShape`) from one Asset to the next, the same way the Baseline Prompt's cta-role
+  close line is varied per story. Examples of the *shape* (write a new one each time, never copy
+  these): "Would you actually put this on your desk? Tell us in the comments." / "Yes or no in the
+  comments: would you let it?" / "Follow Straw Motion for the plain read on every big AI move."
 - Carry the Idea's own hashtags through unchanged into the drafted Copy's `hashtags` — the Brand's
   required hashtags are injected separately, deterministically, in the next step.
 
