@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 import { composeCopy } from "./compose.ts";
 import { validateCopy } from "./validate.ts";
 import { skillDraftCopy, type CopyInput, type CopyDrafter } from "./draft.ts";
+import { newsCarouselSlideNarrative } from "./news-carousel-slide-narrative.ts";
 import { getRecipe } from "../recipe/registry.ts";
+import { CAROUSEL_ROLES, type CarouselSlide } from "../production-spec/news-carousel-contract.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const RULES_PROFILE = join(HERE, "fixtures", "brand-profile.copy-rules.yaml");
@@ -175,6 +177,33 @@ describe("composeCopy — the write-social-copy Skill's fake (skillDraftCopy), a
     // Sharpens the ACTUAL produced narrative — the composed caption carries the real slide beats.
     assert.ok(result.copy!.caption.includes("OpenAI, Anthropic, and Meta all shipped agents this week."));
     assert.ok(result.copy!.caption.includes("Follow along as we track how far it gets."));
+  });
+
+  it("composes a valid Copy through the FULL wiring — a saved News Carousel Spec's companies threaded via newsCarouselSlideNarrative into skillDraftCopy (issue #120)", async () => {
+    const spec = {
+      slides: CAROUSEL_ROLES.map(
+        (role, i): CarouselSlide => ({
+          slide_index: i,
+          role,
+          card_style: "full_width",
+          stat_callout: `Stat ${i + 1}.`,
+          text: `Slide ${i + 1} (${role}) text.`,
+          companies: role === "hook" ? ["OpenAI", "Anthropic"] : [],
+          image_prompt: `Prompt ${i + 1}.`,
+        }),
+      ),
+    };
+
+    const result = await composeCopy(
+      sampleInput({ title: "AI just got a job", slideNarrative: newsCarouselSlideNarrative(spec) }),
+      NEWS_CAROUSEL_SHAPE,
+      { brandProfilePath: NO_RULES_PROFILE, drafter: skillDraftCopy },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    // Companies threaded through unchanged (including the empty arrays on every other slide) never
+    // breaks the deterministic drafter or the downstream checker — the full pipeline stays green.
+    const rules = { requiredCta: null, requiredHashtags: [], bannedWords: [] };
+    assert.equal(validateCopy(result.copy!, NEWS_CAROUSEL_SHAPE, rules).ok, true);
   });
 
   it("REFUSES a skillDraftCopy-drafted Copy containing a banned word — the checker is never bypassed", async () => {

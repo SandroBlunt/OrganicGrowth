@@ -25,12 +25,17 @@ import type { Copy, CopyShape } from "./contract.ts";
  * string (this module carries no dependency on that Recipe-specific contract); `text` is that slide's
  * own on-card supporting line; `statCallout` is its short pulled figure/phrase, when a drafter wants it
  * (issue #111 — lets the copy step sharpen the REAL produced narrative into the caption, instead of
- * re-deriving one from the brief alone).
+ * re-deriving one from the brief alone); `companies` mirrors that same contract's own
+ * `CarouselSlide.companies` — the real companies/products named on THIS slide, or an empty array when
+ * the slide names none (issue #120 — threads the Spec's own, already-verified companies list one step
+ * further downstream, so a drafter can name what the post is actually about instead of re-guessing from
+ * the brief; an empty array contributes nothing — never fabricate a mention that isn't in the data).
  */
 export interface CopySlideBeat {
   readonly role: string;
   readonly text: string;
   readonly statCallout?: string;
+  readonly companies?: readonly string[];
 }
 
 /** The material a copy step drafts from — the Format's voice, the Idea's material, and (composed LATE)
