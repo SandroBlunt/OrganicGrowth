@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,6 +11,7 @@ import {
   main as logPostMain,
 } from "./log-post.ts";
 import { loadIdeaAssets } from "../asset/store.ts";
+import type { PostJson } from "../asset/output-bundle.ts";
 import type { LedgerIdea } from "../ledger/ledger.ts";
 
 const RECIPE = "character-explainer-with-cast";
@@ -263,6 +264,79 @@ describe("logPostCommand — writes post_url/posted_at/status onto the NAMED Rec
     await withLedger(seed, async (ledgerPath) => {
       const out = await logPostCommand("mundotip", "idea-A", RECIPE, FB_URL, POSTED_AT, { ledgerPath });
       assert.match(out, /mundotip/i);
+    });
+  });
+});
+
+// === Output-bundle refresh (issue #112) — logPostCommand refreshes post.json on success only ==========
+
+describe("logPostCommand — refreshes the named Asset's output-bundle post.json (issue #112)", () => {
+  it("a produced Asset with a known local bundle directory gets its post.json refreshed with the new post_url/posted_at", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-log-post-bundle-"));
+    const bundleDir = join(dir, "idea-01.character-explainer-with-cast.output");
+    await mkdir(bundleDir, { recursive: true });
+    const ledgerPath = join(dir, "ledger.json");
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [{ recipe: RECIPE, status: "produced", asset_paths: [join(bundleDir, "asset.mp4")] }],
+        },
+      ],
+    };
+    await writeFile(ledgerPath, JSON.stringify(seed, null, 2) + "\n", "utf8");
+    try {
+      await logPostCommand("mundotip", "idea-A", RECIPE, FB_URL, POSTED_AT, { ledgerPath });
+      const postJson = JSON.parse(await readFile(join(bundleDir, "post.json"), "utf8")) as PostJson;
+      assert.equal(postJson.post_url, FB_URL);
+      assert.equal(postJson.posted_at, POSTED_AT);
+      assert.equal(postJson.recipe, RECIPE);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("with TWO Assets, only the NAMED Recipe's post.json is refreshed — the sibling's is untouched", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-log-post-bundle-"));
+    const namedDir = join(dir, "idea-01.character-explainer-with-cast.output");
+    const otherDir = join(dir, "idea-01.carousel.output");
+    await mkdir(namedDir, { recursive: true });
+    await mkdir(otherDir, { recursive: true });
+    const ledgerPath = join(dir, "ledger.json");
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [
+            { recipe: RECIPE, status: "produced", asset_paths: [join(namedDir, "asset.mp4")] },
+            { recipe: RECIPE_2, status: "produced", asset_paths: [join(otherDir, "asset.mp4")] },
+          ],
+        },
+      ],
+    };
+    await writeFile(ledgerPath, JSON.stringify(seed, null, 2) + "\n", "utf8");
+    try {
+      await logPostCommand("mundotip", "idea-A", RECIPE, FB_URL, POSTED_AT, { ledgerPath });
+      const namedPost = JSON.parse(await readFile(join(namedDir, "post.json"), "utf8")) as PostJson;
+      assert.equal(namedPost.post_url, FB_URL);
+
+      // The sibling Recipe's directory never even got a post.json written into it by THIS call.
+      const otherEntries = await readdir(otherDir);
+      assert.deepEqual(otherEntries, []);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("an Asset with no local bundle directory yet (no asset_paths) never fails the command — the pre-existing message is unchanged", async () => {
+    const seed = { ideas: [{ id: "idea-A", status: "accepted", assets: [{ recipe: RECIPE, status: "produced" }] }] };
+    await withLedger(seed, async (ledgerPath) => {
+      const out = await logPostCommand("mundotip", "idea-A", RECIPE, FB_URL, POSTED_AT, { ledgerPath });
+      assert.match(out, /linked Post/i);
+      const assets = await loadIdeaAssets("idea-A", ledgerPath);
+      assert.equal(assets![0]!.status, "posted");
     });
   });
 });

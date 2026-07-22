@@ -206,3 +206,52 @@ describe("producer.md restores the watermark-@handle step, generically (QA-1, is
     assert.match(text, /ADR-0012/);
   });
 });
+
+describe("producer.md's Save phase writes the .output/ bundle, never the retired .assets/ name (issue #112)", () => {
+  it("names outputDirFor and the .output/ directory as the download destination for a NEW Asset", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /outputDirFor/);
+    assert.match(text, /\.output\//);
+  });
+
+  it("never names the retired .assets/ directory as where a NEW Asset's media is downloaded to", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.doesNotMatch(
+      text,
+      /destDir` is `data\/brands\/<slug>\/ideas\/<format>\/<run>\/idea-NN\.<recipe>\.assets\//,
+      "producer.md must not describe a NEW Asset's download destination as the retired .assets/ name",
+    );
+  });
+
+  it("documents caption.txt and post.json, and that refreshOutputBundle runs AFTER the ledger write", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /writeCaptionText/);
+    assert.match(text, /caption\.txt/);
+    assert.match(text, /refreshOutputBundle/);
+    assert.match(text, /post\.json/);
+    assert.match(text, /AFTER the ledger write/);
+  });
+
+  it("states post.json is a GENERATED VIEW of the ledger, never a second store (always-rule 7)", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /GENERATED\s*\n?\s*VIEW/);
+    assert.match(text, /never (a )?second/i);
+    assert.match(text, /always-rule 7/);
+  });
+
+  it("states the backward-compat rule: an Asset produced before this slice keeps its existing .assets/ directory, never renamed", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /before this slice/i);
+    assert.match(text, /never rename/i);
+    assert.match(text, /\.assets\/.*Asset/s);
+  });
+
+  it("every pre-existing Save-phase pin (issue #102 findings) still holds", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /issue #102 finding #3/);
+    assert.match(text, /issue #102 finding #4/);
+    assert.match(text, /stat_callout/);
+    assert.match(text, /downloadAssetFiles/);
+    assert.match(text, /asset_paths/);
+  });
+});

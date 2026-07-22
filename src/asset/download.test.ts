@@ -33,7 +33,7 @@ function stubFetch(byUrl: Record<string, { readonly ok: boolean; readonly status
 describe("downloadAssetFiles — turns remote creation URLs into durable local files", () => {
   it("downloads every target, in order, into a newly-created destination directory", async () => {
     await withTempDir(async (dir) => {
-      const destDir = join(dir, "idea-01.news-carousel.assets");
+      const destDir = join(dir, "idea-01.news-carousel.output");
       const fetchImpl = stubFetch({
         "https://example.com/hook.png": { ok: true, body: "hook-bytes" },
         "https://example.com/then.png": { ok: true, body: "then-bytes" },

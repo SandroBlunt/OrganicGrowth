@@ -117,7 +117,7 @@ Scoped per Brand under `data/brands/<slug>/` (the Production Queue is the one br
 | `baseline-prompts/<format>/<recipe>.md` | A Format's per-Recipe baseline-prompt document (the look) |
 | `ideas/<format>/<run>/idea-NN.md` | One Brief per suggested Idea (older runs sit one level up, at `ideas/<run>/` — the ledger's recorded path wins) |
 | `ideas/<format>/<run>/idea-NN.<recipe>.spec.json` | A chosen Recipe's Production Spec (written when the job is produced) |
-| `ideas/…/idea-NN.<recipe>.assets/` | The finished Asset's downloaded media, one file per slide/clip (kept on your disk, not in git) |
+| `ideas/…/idea-NN.<recipe>.output/` | The Asset's self-contained publish + tracking bundle (renamed from `.assets/`) — the downloaded media in post order, `caption.txt` (paste-ready caption + hashtags), and `post.json` (a *generated view* of the ledger — never a second store; kept on your disk, not in git) |
 | `ledger.json` | The index: each Idea's **per-Recipe Assets** (Cast/character, Copy, media file paths, Post URL, Performance, status) |
 | `your-data/` | *Optional* Meta Content exports for richer enrichment (git-ignored, never committed) |
 | `data/queue.json` | The production queue, keyed `(brand, idea, recipe)` (brand-agnostic) |
@@ -133,6 +133,10 @@ posted → tracking → scored` (ADR-0011). A human pick is a pause inside `in_p
   Recipe's Asset is scored on its own.
 - **Attribution is explicit:** a Post links to a specific `(Idea, Recipe)` only via the `post_url` you
   log — never inferred.
+- **One bundle folder holds everything to post and track:** an Asset's `.output/` directory carries its
+  media, `caption.txt`, and `post.json` (generated from the ledger — `/log-post`/`/track-performance`
+  keep it refreshed automatically). An Asset produced before this existed keeps its old `.assets/`
+  folder untouched; nothing needs migrating.
 - **Why it produces but never publishes:** [`docs/adr/0002`](./docs/adr/0002-producer-generates-asset-human-publishes.md).
   The Producer drives the Space **attended** ([`0008`](./docs/adr/0008-producer-drives-the-space-attended.md),
   supersedes the old background queue), each Recipe is defined in-repo with its Space media-only

@@ -59,6 +59,9 @@ way to pull real metrics, and MUST match this module's selection/scoring/status/
      Asset's OWN `posted_at` — `src/performance/maturity.ts` — `tracked_at`, `history`) via
      `AssetStore.writeAsset` in `data/brands/<slug>/ledger.json`. A sibling Asset for a DIFFERENT Recipe
      of the same Idea is left untouched by this write.
+   - Also refreshes that SAME Asset's `post.json` (in its `idea-NN.<recipe>.output/` bundle — issue
+     #112) from the ledger via `src/asset/output-bundle.ts`'s `refreshOutputBundle` — a GENERATED view,
+     never a second store; a skipped Asset's `post.json` (if any) is left untouched.
    - **Never fabricates:** an Asset whose platform/actor isn't configured, whose scrape returns nothing
      or errors, or whose `posted_at` is missing/unparseable is SKIPPED and reported — nothing is written
      for it.

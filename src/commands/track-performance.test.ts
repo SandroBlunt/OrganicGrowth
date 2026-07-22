@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { trackPerformanceCommand, main as trackPerformanceMain } from "./track-performance.ts";
 import type { PerformanceScrapePort } from "./track-performance-port.ts";
 import { loadIdeaAssets } from "../asset/store.ts";
+import type { PostJson } from "../asset/output-bundle.ts";
 import { loadBaseline, loadReport } from "../ledger/ledger.ts";
 
 const RECIPE = "character-explainer-with-cast";
@@ -395,6 +396,136 @@ describe("trackPerformanceCommand — an explicit idea-id forces a re-pull, even
       assert.equal(asset.history!.length, 1, "the prior scored reading is kept in history");
     });
   });
+});
+
+// === Output-bundle refresh (issue #112) — trackPerformanceCommand refreshes post.json per Asset ===========
+
+describe("trackPerformanceCommand — refreshes each tracked Asset's output-bundle post.json (issue #112)", () => {
+  it("a tracked Asset with a known local bundle directory gets its post.json refreshed with metrics/score", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-track-performance-bundle-"));
+    const bundleDir = join(dir, "idea-01.character-explainer-with-cast.output");
+    await mkdir(bundleDir, { recursive: true });
+    const ledgerPath = join(dir, "ledger.json");
+    const seedsPath = join(dir, "seeds.yaml");
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [
+            {
+              recipe: RECIPE,
+              status: "posted",
+              post_url: FB_URL,
+              posted_at: "2026-06-18T00:00:00.000Z",
+              asset_paths: [join(bundleDir, "asset.mp4")],
+            },
+          ],
+        },
+      ],
+    };
+    await writeFile(ledgerPath, JSON.stringify(seed, null, 2) + "\n", "utf8");
+    await writeFile(seedsPath, SEEDS_YAML_FACEBOOK_ONLY, "utf8");
+    try {
+      await trackPerformanceCommand("mundotip", undefined, {
+        ledgerPath,
+        seedsPath,
+        now: () => NOW,
+        apify: fakePort({ [FB_URL]: FB_ITEM }),
+      });
+      const postJson = JSON.parse(await readFile(join(bundleDir, "post.json"), "utf8")) as PostJson;
+      assert.deepEqual(postJson.metrics, { shares: 5, comments: 10, reactions: 40, views: 900 });
+      assert.equal(postJson.tracked_at, NOW);
+      assert.ok(typeof postJson.performance_score === "number");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("two tracked Assets on one Idea each refresh their OWN post.json, independently", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-track-performance-bundle-"));
+    const bundleDir1 = join(dir, "idea-01.character-explainer-with-cast.output");
+    const bundleDir2 = join(dir, "idea-01.carousel.output");
+    await mkdir(bundleDir1, { recursive: true });
+    await mkdir(bundleDir2, { recursive: true });
+    const ledgerPath = join(dir, "ledger.json");
+    const seedsPath = join(dir, "seeds.yaml");
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [
+            { recipe: RECIPE, status: "posted", post_url: FB_URL, posted_at: "2026-06-18T00:00:00.000Z", asset_paths: [join(bundleDir1, "asset.mp4")] },
+            { recipe: RECIPE_2, status: "posted", post_url: FB_URL_2, posted_at: "2026-06-18T00:00:00.000Z", asset_paths: [join(bundleDir2, "0.png")] },
+          ],
+        },
+      ],
+      baseline: { shares: 5, comments: 10, reactions: 40, views: 900, updated_at: "2026-06-01T00:00:00.000Z" },
+    };
+    const item2 = { likes: 400, comments: 100, shares: 50, viewsCount: 9000, url: FB_URL_2, time: NOW };
+    await writeFile(ledgerPath, JSON.stringify(seed, null, 2) + "\n", "utf8");
+    await writeFile(seedsPath, SEEDS_YAML_FACEBOOK_ONLY, "utf8");
+    try {
+      await trackPerformanceCommand("mundotip", undefined, {
+        ledgerPath,
+        seedsPath,
+        now: () => NOW,
+        apify: fakePort({ [FB_URL]: FB_ITEM, [FB_URL_2]: item2 }),
+      });
+      const post1 = JSON.parse(await readFile(join(bundleDir1, "post.json"), "utf8")) as PostJson;
+      const post2 = JSON.parse(await readFile(join(bundleDir2, "post.json"), "utf8")) as PostJson;
+      assert.equal(post1.recipe, RECIPE);
+      assert.equal(post2.recipe, RECIPE_2);
+      assert.notDeepEqual(post1.metrics, post2.metrics, "each Recipe's OWN metrics, never the other's");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("a SKIPPED Asset's post.json (if any) is left untouched by this run", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-track-performance-bundle-"));
+    const bundleDir = join(dir, "idea-01.character-explainer-with-cast.output");
+    await mkdir(bundleDir, { recursive: true });
+    const ledgerPath = join(dir, "ledger.json");
+    const seedsPath = join(dir, "seeds.yaml");
+    // A pre-existing post.json this SKIPPED run must not touch (no data returned for this URL).
+    await writeFile(join(bundleDir, "post.json"), '{"sentinel":true}', "utf8");
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [{ recipe: RECIPE, status: "posted", post_url: FB_URL, posted_at: "2026-06-18T00:00:00.000Z", asset_paths: [join(bundleDir, "asset.mp4")] }],
+        },
+      ],
+    };
+    await writeFile(ledgerPath, JSON.stringify(seed, null, 2) + "\n", "utf8");
+    await writeFile(seedsPath, SEEDS_YAML_FACEBOOK_ONLY, "utf8");
+    try {
+      const out = await trackPerformanceCommand("mundotip", undefined, { ledgerPath, seedsPath, now: () => NOW, apify: fakePort({ [FB_URL]: null }) });
+      assert.match(out, /SKIPPED/);
+      const untouched = await readFile(join(bundleDir, "post.json"), "utf8");
+      assert.equal(untouched, '{"sentinel":true}');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("an Asset with no local bundle directory yet (no asset_paths) never fails the run", async () => {
+    const seed = {
+      ideas: [
+        { id: "idea-A", status: "accepted", assets: [{ recipe: RECIPE, status: "posted", post_url: FB_URL, posted_at: "2026-06-18T00:00:00.000Z" }] },
+      ],
+    };
+    await withFixtures(seed, SEEDS_YAML_FACEBOOK_ONLY, async (ledgerPath, seedsPath) => {
+      const out = await trackPerformanceCommand("mundotip", undefined, { ledgerPath, seedsPath, now: () => NOW, apify: fakePort({ [FB_URL]: FB_ITEM }) });
+      assert.match(out, /tracking/);
+      const assets = await loadIdeaAssets("idea-A", ledgerPath);
+      assert.ok(typeof assets![0]!.performance_score === "number");
+    });
+  });
+
 });
 
 // === Brand-routing (resolveBrand) ==========================================================================

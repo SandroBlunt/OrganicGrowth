@@ -14,6 +14,11 @@
  * network in this shell; it never touches the Space and never publishes anything itself (the Operator
  * already published — this command only logs the URL, ADR-0002).
  *
+ * On success it also refreshes that Asset's output-bundle `post.json` (`src/asset/output-bundle.ts`'s
+ * `refreshOutputBundle`, issue #112) — a GENERATED view of the ledger, so it can never drift. This is a
+ * silent side effect: it never changes this command's own returned message, and an Asset with no known
+ * local bundle directory yet (no `asset_paths`) is skipped cleanly, never surfaced as an error.
+ *
  * Brand is always explicit: `<brand>` is a required first argument. The Brand's ledger path is derived
  * via `resolveBrand(brand).ledger`. Omitting `<brand>` is a usage error, never a silent MundoTip
  * fallback (issue #20).
@@ -24,6 +29,7 @@ import { resolve } from "node:path";
 import { loadIdeas, findIdea, type LedgerIdea } from "../ledger/ledger.ts";
 import { findAsset, type AssetStatus, type LedgerAssetRecord } from "../asset/asset.ts";
 import { writeAsset } from "../asset/store.ts";
+import { refreshOutputBundle } from "../asset/output-bundle.ts";
 import { resolveBrand } from "../brand/resolver.ts";
 
 /** Why a `/log-post` attempt was refused. */
@@ -153,6 +159,10 @@ export async function logPostCommand(
     { status: plan.nextStatus, post_url: url, posted_at: resolvedPostedAt },
     { ledgerPath },
   );
+
+  // Refresh the output-bundle post.json from the ledger we just wrote (issue #112) — a silent side
+  // effect; an Asset with no known local bundle directory yet is skipped cleanly (never an error here).
+  await refreshOutputBundle(brand, ideaId, recipe, { ledgerPath });
 
   return `/log-post ${ideaId}: linked Post ◀ Recipe "${recipe}" for Brand ${brand}. Run /track-performance ${brand} once engagement has accrued (give it a few days).`;
 }
