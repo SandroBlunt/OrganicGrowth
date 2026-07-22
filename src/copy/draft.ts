@@ -76,21 +76,32 @@ function emojiTail(count: number): string {
 }
 
 /**
- * The default, deterministic drafter (no model call, no I/O, no clock). Builds a caption from the
- * Idea's title — folding in `mediaContext` when present, so the "composed late, can reference the
- * realised media" story is exercised even without a real model — trimmed to fit `shape.maxChars` and
- * suffixed with exactly `shape.minEmojis` emoji (always within `[minEmojis, maxEmojis]`). Hashtags pass
- * through the Idea's own set unchanged (the Brand's required hashtags are injected separately,
- * `inject.ts`).
+ * Assemble the final `Copy` from an already-built caption `body`: trim the body to fit `shape.maxChars`
+ * (leaving room for the emoji tail), suffix exactly `shape.minEmojis` emoji (always within
+ * `[minEmojis, maxEmojis]`), and pass the Idea's own hashtags through unchanged (the Brand's required
+ * hashtags are injected separately, `inject.ts`). This is the SHARED envelope every deterministic
+ * drafter ends with — it is what guarantees the returned Copy passes `validateCopy` for the SAME
+ * `CopyShape` it was drafted for, so that safety-critical invariant lives in exactly ONE place rather
+ * than being copied into each drafter (issue #111 code review).
  */
-export function defaultDraftCopy(input: CopyInput, shape: CopyShape): Copy {
+function assembleCaption(body: string, input: CopyInput, shape: CopyShape): Copy {
   const tail = emojiTail(shape.minEmojis);
   const room = Math.max(0, shape.maxChars - [...tail].length);
-  // Separate short sentences, never an em dash to join them (issue #108: a dash join is an AI "tell").
-  const body = input.mediaContext ? `${input.title}. ${input.mediaContext}` : input.title;
   const head = [...body].slice(0, room).join("").trimEnd();
   const caption = `${head}${tail}`.trim();
   return { caption, hashtags: [...(input.hashtags ?? [])] };
+}
+
+/**
+ * The default, deterministic drafter (no model call, no I/O, no clock). Builds a caption body from the
+ * Idea's title — folding in `mediaContext` when present, so the "composed late, can reference the
+ * realised media" story is exercised even without a real model — then hands off to `assembleCaption`
+ * for the shared trim/emoji/hashtag envelope.
+ */
+export function defaultDraftCopy(input: CopyInput, shape: CopyShape): Copy {
+  // Separate short sentences, never an em dash to join them (issue #108: a dash join is an AI "tell").
+  const body = input.mediaContext ? `${input.title}. ${input.mediaContext}` : input.title;
+  return assembleCaption(body, input, shape);
 }
 
 /** Find `slideNarrative`'s beat for `role`, or `undefined` when absent — never throws. */
@@ -132,9 +143,6 @@ function joinSentences(parts: readonly (string | undefined)[]): string {
  * short sentence — never an em dash, en dash, or spaced hyphen (issue #108).
  */
 export function skillDraftCopy(input: CopyInput, shape: CopyShape): Copy {
-  const tail = emojiTail(shape.minEmojis);
-  const room = Math.max(0, shape.maxChars - [...tail].length);
-
   const hook = beatByRole(input.slideNarrative, "hook");
   const shift = beatByRole(input.slideNarrative, "shift");
   const cta = beatByRole(input.slideNarrative, "cta");
@@ -144,7 +152,5 @@ export function skillDraftCopy(input: CopyInput, shape: CopyShape): Copy {
       ? joinSentences([hook?.text, shift?.text, input.mediaContext, cta?.text])
       : joinSentences([input.title, input.angle, input.mediaContext]);
 
-  const head = [...body].slice(0, room).join("").trimEnd();
-  const caption = `${head}${tail}`.trim();
-  return { caption, hashtags: [...(input.hashtags ?? [])] };
+  return assembleCaption(body, input, shape);
 }
