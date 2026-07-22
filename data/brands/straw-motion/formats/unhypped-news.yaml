@@ -44,9 +44,9 @@ sources:
 ideas_per_run: 10   # how many Idea briefs to suggest per Run of THIS Format
 
 # Recipe slugs pre-filled at Review for this Format's Ideas (ADR-0009). /review-ideas offers only
-# WIRED Recipes (src/recipe/registry.ts, issue #54) — today's single wired Recipe:
+# WIRED Recipes (src/recipe/registry.ts, issue #54) — Unhypped News's picks are News Carousel:
 default_recipes:
-  - character-explainer-with-cast
+  - news-carousel
 
 # Per-Recipe Baseline Prompt pointers (ADR-0015, CONTEXT.md "Baseline Prompt"): a relative filename,
 # resolved under data/brands/straw-motion/baseline-prompts/unhypped-news/ — never inline YAML. The
