@@ -144,6 +144,60 @@ describe("validateCopy — banned words re-pointed onto the composed Copy (ADR-0
   });
 });
 
+describe("validateCopy — no dash 'tells' in caption or hashtags, reject-only (issue #108)", () => {
+  it("rejects a caption containing an em dash", () => {
+    const copy = { caption: "Same week — new tools ☀️", hashtags: [] };
+    const result = validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "dash_in_copy"), true);
+  });
+
+  it("rejects a caption containing an en dash", () => {
+    const copy = { caption: "Same week – new tools ☀️", hashtags: [] };
+    const result = validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "dash_in_copy"), true);
+  });
+
+  it("rejects a caption containing a hyphen used as a spaced dash", () => {
+    const copy = { caption: "Same week - new tools ☀️", hashtags: [] };
+    const result = validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "dash_in_copy"), true);
+  });
+
+  it("rejects a hashtag containing a dash tell", () => {
+    const copy = { caption: validCopy().caption, hashtags: ["#state—of—the—art"] };
+    const result = validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "dash_in_copy"), true);
+  });
+
+  it("does NOT flag an ordinary hyphenated compound word in the caption", () => {
+    const copy = {
+      caption: "This is a state-of-the-art task-assistant ☀️",
+      hashtags: ["#lifehacks"],
+    };
+    const result = validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES);
+    assert.equal(hasCode(result, "dash_in_copy"), false);
+  });
+
+  it("never rewrites — a dash tell simply fails validation, no 'corrected' Copy is ever returned", () => {
+    const copy = { caption: "Same week — new tools ☀️", hashtags: [] };
+    const result = validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES);
+    assert.equal("copy" in result, false);
+  });
+
+  it("names the exact tell and the field it was found in", () => {
+    const copy = { caption: "Same week — new tools ☀️", hashtags: [] };
+    const result = validateCopy(copy, CHARACTER_EXPLAINER_SHAPE, NO_RULES);
+    const err = result.errors.find((e) => e.code === "dash_in_copy");
+    assert.ok(err);
+    assert.match(err!.message, /caption/);
+    assert.match(err!.message, /—/);
+  });
+});
+
 describe("validateCopy — defensive on non-object / missing caption", () => {
   it("rejects null / non-object input rather than throwing", () => {
     const result = validateCopy(null, CHARACTER_EXPLAINER_SHAPE, NO_RULES);

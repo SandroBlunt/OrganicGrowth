@@ -20,6 +20,16 @@
  * Baseline Prompt's logo reference name, carry its pill text + never-all-caps instruction, keep every
  * other fixed clause, and use one of the confirmed card styles?
  *
+ * --- No dash "tells" in on-card copy (issue #108) ---
+ *
+ * An em dash, an en dash, or a hyphen used as a spaced dash is a well-known AI-writing "tell" that
+ * hurts scannability. This module's `no-dash-tells` item scans only the Baseline Prompt document's own
+ * "Card text" fields — each slide's `stat_callout` and `text` (`dash-safety.ts`'s
+ * `scanTextFieldsForDashes`, reused, never re-implemented) — REJECT-ONLY, exactly like the banned-word
+ * item above. It deliberately does NOT scan `image_prompt`: the Baseline Prompt's own FIXED,
+ * verbatim-required clauses legitimately contain em dashes, and a media instruction fed to the image
+ * model is never itself reader-facing "Copy" (CONTEXT.md "Copy").
+ *
  * --- Parameterized, never hardcoded (issue #85's core ask) ---
  *
  * The #77 prototype hardcoded the pill text (`"Unhypped News"`) and the logo reference name
@@ -41,6 +51,8 @@
 
 import { validateNewsCarouselSpec } from "./news-carousel-validate.ts";
 import { scanNewsCarouselForBannedWords } from "./news-carousel-brand-safety.ts";
+import { scanTextFieldsForDashes } from "./dash-safety.ts";
+import type { TextField } from "./brand-safety.ts";
 import type { ChecklistItemAudit, PhaseAuditResult } from "../recipe/phase-contract.ts";
 
 /** The Format/Brand-specific strings this checklist checks a candidate Spec against — read from the
@@ -145,6 +157,27 @@ function companiesCitedInPrompt(slide: Record<string, unknown>): boolean {
 }
 
 /**
+ * Collect every slide's `stat_callout` + `text` — the Baseline Prompt document's own "Card text"
+ * fields ("Card text: stat callout + supporting line, both set in Inter") — the reader-facing on-card
+ * copy the dash-tell check applies to (issue #108). Deliberately excludes `image_prompt`: the Baseline
+ * Prompt's own FIXED, verbatim-required clauses legitimately contain em dashes, and it is a media
+ * instruction to the image model, never itself reader-facing "Copy" (CONTEXT.md "Copy"). Also excludes
+ * the structural `role`/`card_style` fields — never reader-facing prose.
+ */
+function cardTextFields(slides: readonly Record<string, unknown>[]): TextField[] {
+  const out: TextField[] = [];
+  slides.forEach((slide, i) => {
+    if (typeof slide.stat_callout === "string") {
+      out.push({ field: `slides[${i}].stat_callout`, text: slide.stat_callout });
+    }
+    if (typeof slide.text === "string") {
+      out.push({ field: `slides[${i}].text`, text: slide.text });
+    }
+  });
+  return out;
+}
+
+/**
  * Audit a candidate News Carousel Production Spec against its FULL, graduated author-phase checklist
  * (map #77, issue #85). Runs entirely as CODE — every item is either a mechanical check REFERENCING
  * `validateNewsCarouselSpec`/`scanNewsCarouselForBannedWords` (never duplicated) or a NEW mechanical
@@ -168,6 +201,7 @@ export function auditNewsCarouselAuthorPhase(
   const safety = scanNewsCarouselForBannedWords(candidateSpec, bannedWords);
   const slides = extractSlides(candidateSpec);
   const hasSlides = slides.length > 0;
+  const dashes = scanTextFieldsForDashes(cardTextFields(slides));
 
   const hasStructuralCode = (code: string): boolean => structural.errors.some((e) => e.code === code);
 
@@ -250,6 +284,15 @@ export function auditNewsCarouselAuthorPhase(
       kind: "mechanical",
       ok: safety.ok,
       ...(safety.ok ? {} : { detail: safety.hits.map((h) => `"${h.word}" in ${h.field}`).join("; ") }),
+    },
+    {
+      id: "no-dash-tells",
+      description:
+        "No em dash, en dash, or hyphen used as a sentence dash in any slide's stat_callout/text — " +
+        "reject-only; rewrite as separate short sentences instead.",
+      kind: "mechanical",
+      ok: dashes.ok,
+      ...(dashes.ok ? {} : { detail: dashes.hits.map((h) => `"${h.match}" in ${h.field}`).join("; ") }),
     },
   ];
 

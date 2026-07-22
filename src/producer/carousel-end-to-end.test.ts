@@ -106,7 +106,7 @@ describe("carousel end-to-end — a gate-free News Carousel job runs straight th
   it("copy phase: a valid caption/hashtags pair self-audits ok against this Recipe's OWN copy shape", () => {
     const rules = { requiredCta: null, requiredHashtags: [], bannedWords: [] };
     const copy = {
-      caption: "Three AI giants shipped agentic tools this week — see what changed.",
+      caption: "Three AI giants shipped agentic tools this week. See what changed.",
       hashtags: ["#AI", "#news"],
     };
     const audit = auditCopyPhase(NEWS_CAROUSEL, { candidateCopy: copy, rules });

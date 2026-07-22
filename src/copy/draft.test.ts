@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { defaultDraftCopy, type CopyInput } from "./draft.ts";
 import { validateCopy } from "./validate.ts";
+import { scanTextFieldsForDashes } from "../production-spec/dash-safety.ts";
 import type { CopyShape } from "./contract.ts";
 
 const NO_RULES = { requiredCta: null, requiredHashtags: [], bannedWords: [] };
@@ -46,6 +47,12 @@ describe("defaultDraftCopy — deterministic, no model call, no I/O, no clock", 
   it("folds mediaContext into the caption — copy composed LATE can reference the realised media (ADR-0012)", () => {
     const copy = defaultDraftCopy(sampleInput({ mediaContext: "Sunny the Mug" }), CHARACTER_EXPLAINER_SHAPE);
     assert.ok(copy.caption.includes("Sunny the Mug"));
+  });
+
+  it("never joins title/mediaContext with a dash 'tell' — separate short sentences instead (issue #108)", () => {
+    const copy = defaultDraftCopy(sampleInput({ mediaContext: "Sunny the Mug" }), CHARACTER_EXPLAINER_SHAPE);
+    const scan = scanTextFieldsForDashes([{ field: "caption", text: copy.caption }]);
+    assert.equal(scan.ok, true, JSON.stringify(scan.hits));
   });
 
   it("respects a DIFFERENT Recipe's shape — the bounds are the Recipe's own params, not a global 180/1-3", () => {

@@ -57,8 +57,11 @@ For each slide, decide:
 
 - **text** — the on-slide supporting line, in the Format's voice, at most
   `CAROUSEL_TEXT_MAX_CHARS` (140) characters (the role label itself is never on-slide text and
-  never counts toward the limit).
-- **stat_callout** — a short, bold pulled figure or phrase (e.g. `"3 companies."`).
+  never counts toward the limit). Never an em dash, en dash, or a hyphen used as a sentence dash
+  (" - ", spaces on both sides) — write separate short sentences instead; it is an AI "tell" and
+  hurts scannability. An ordinary hyphenated word (`state-of-the-art`) is fine.
+- **stat_callout** — a short, bold pulled figure or phrase (e.g. `"3 companies."`). Same dash rule as
+  `text` above.
 - **subject** — before writing this, pull the specific facts (names, numbers, claims) straight out
   of the idea's brief for this slide and list them. Build the subject only from those facts plus
   the Baseline Prompt document's new Subject rules: the real product/logo/action (or the real,
@@ -142,6 +145,9 @@ is saved at that path.
 - Every company named in a slide's `companies` field is cited in that same slide's `image_prompt`
   (a slide naming no real company skips the logo row entirely — issue #102 finding #1).
 - No banned word in any field — reject-only, never a silent swap.
+- No em dash, en dash, or hyphen used as a sentence dash in any slide's `stat_callout`/`text` —
+  reject-only; rewrite as separate short sentences instead (issue #108). `image_prompt` is not
+  checked — the Baseline Prompt's own fixed clauses legitimately contain em dashes.
 - When the raw document text is supplied: every hand-copied baseline fact (logo name, pill text,
   caps guardrail, fixed clauses) actually appears, verbatim, in that document (issue #102).
 

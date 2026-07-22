@@ -27,6 +27,11 @@ voice: >-
 required_cta: "" # Optional: set a verbatim CTA if you enforce one (leave blank otherwise)
 required_hashtags: []
 banned_words: []
+# Also a Brand copy rule, but universal (not a per-Brand toggle, so no YAML field here): every
+# Recipe's copy (composed caption/hashtags, plus a News Carousel slide's on-card stat_callout/text)
+# is code-enforced dash-free — no em dash "—", en dash "–", or hyphen used as a sentence dash (" - ")
+# is ever allowed. Reject-only, never a silent swap (issue #108) — see src/copy/validate.ts and
+# src/production-spec/news-carousel-author-checklist.ts.
 brand_safety:
   - No medical or 'cure' claims.
   - No dangerous stunts presented as safe.
