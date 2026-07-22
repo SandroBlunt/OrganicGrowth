@@ -31,6 +31,13 @@
  * name as a caption. The pre-existing "no wider than roughly a third of the frame width" scale is left
  * as-is here (idea-01 is a committed, historical example authored before issue #110's slide-position
  * sizing rule; see this slice's Build Report "Known limits").
+ *
+ * issue #106 update: its "shift" slide now uses the document's "top card, photo below" placement
+ * (`top_card`) instead of repeating `full_width`/`floating_toast` — so this fixture ALSO demonstrates
+ * genuinely varied card placement (3 distinct styles incl. one top-region card), passing the NEW
+ * `placement-variety` checklist item, not just the original 8. This is the fix for the exact pattern
+ * the issue reproduced on the real idea-01 run (all bottom/lower placements, zero top-region cards) —
+ * see `news-carousel-author-checklist.test.ts`'s `allBottomPlacements` fixture for that reproduction.
  */
 
 import { CAROUSEL_ROLES, type CarouselRole, type CarouselSlide } from "../news-carousel-contract.ts";
@@ -78,8 +85,33 @@ const FIXED_CLAUSES = [
     "for the photo, clean flat UI-card typography for the card.",
 ] as const; // a fixed 5-tuple (not a general array) so indexed access below stays non-undefined
 
-/** The document's two confirmed card styles (news-carousel.md, "Card style" bullet). */
-const CONFIRMED_CARD_STYLES: readonly string[] = ["full_width", "floating_toast"];
+/**
+ * The document's own confirmed card styles (news-carousel.md, "Card style" bullet: "all 7 placements
+ * below are confirmed, working options"). This fixture's own `buildImagePrompt` only implements THREE
+ * of the seven (`full_width`, `floating_toast`, `top_card` — enough to prove genuine placement variety
+ * incl. a top-region card, issue #106); the remaining four (`small_badge` and the three `_inset`
+ * variants) are still listed here because `confirmedCardStyles` is the document's own real catalog,
+ * independent of which styles any ONE fixture happens to exercise.
+ */
+const CONFIRMED_CARD_STYLES: readonly string[] = [
+  "full_width",
+  "floating_toast",
+  "top_card",
+  "small_badge",
+  "full_width_inset",
+  "top_card_inset",
+  "small_badge_inset",
+];
+
+/** The document's own "top card, photo below" placement(s) (news-carousel.md Examples variations 3
+ *  and 6) — the ONLY styles that sit in the frame's top region (issue #106). */
+const TOP_REGION_CARD_STYLES: readonly string[] = ["top_card", "top_card_inset"];
+
+/**
+ * The minimum count of DISTINCT `card_style` values idea-01's own carousel is expected to use — the
+ * Format's own call (issue #106), not a literal reproduced from the document's prose.
+ */
+const MIN_DISTINCT_CARD_STYLES = 3;
 
 /** Straw Motion's real `unhypped-news` × `news-carousel` Baseline Prompt, as `auditNewsCarouselAuthorPhase` needs it. */
 export const STRAW_MOTION_BASELINE: NewsCarouselBaselineParams = {
@@ -90,15 +122,21 @@ export const STRAW_MOTION_BASELINE: NewsCarouselBaselineParams = {
   logoNameGuardrailInstruction: LOGO_NAME_GUARDRAIL_INSTRUCTION,
   fixedClauses: FIXED_CLAUSES,
   confirmedCardStyles: CONFIRMED_CARD_STYLES,
+  topRegionCardStyles: TOP_REGION_CARD_STYLES,
+  minDistinctCardStyles: MIN_DISTINCT_CARD_STYLES,
 };
 
 // ---------------------------------------------------------------------------
 // The image-prompt assembler — the Skill's step 2, mirroring the document's reusable template
 // ---------------------------------------------------------------------------
 
-type CardStyle = "full_width" | "floating_toast";
+type CardStyle = "full_width" | "floating_toast" | "top_card";
 
-function photoClause(cardStyle: CardStyle): string {
+/** The two "card sits near/below the bottom of the photo" styles this fixture implements — `top_card`
+ *  inverts the layout (card FIRST, photo below) and is assembled separately in `buildImagePrompt`. */
+type BottomCardStyle = Exclude<CardStyle, "top_card">;
+
+function photoClause(cardStyle: BottomCardStyle): string {
   return cardStyle === "full_width"
     ? "A full frame high quality photograph, cropped to the top ~70% of the frame, that photo " +
         "filling its own region edge to edge with no black margins"
@@ -129,7 +167,7 @@ function insetClause(inset: Inset | null): string {
         "No caption text.";
 }
 
-function cardClause(cardStyle: CardStyle): string {
+function cardClause(cardStyle: BottomCardStyle): string {
   return cardStyle === "full_width"
     ? "Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card " +
         "sitting on top of the image like a native app UI panel, full width, edge to edge."
@@ -171,6 +209,25 @@ function buildImagePrompt(input: {
   readonly text: string;
   readonly inset: Inset | null;
 }): string {
+  if (input.cardStyle === "top_card") {
+    // "Top card, photo below" (news-carousel.md Examples variation 3/6, issue #106's top-region
+    // style): the card (pill + stat + supporting line) comes FIRST, then the photo, with the logo
+    // laid along the photo's OWN free edge below it rather than above it.
+    return [
+      FIXED_CLAUSES[0],
+      "Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the " +
+        "image like a native app UI panel, full width.",
+      pillClause(input.companies),
+      cardTextClause(input.statCallout, input.text),
+      `Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality ` +
+        `photograph of ${input.subject}.`,
+      logoClause(input.logoEdge),
+      insetClause(input.inset),
+      FIXED_CLAUSES[4],
+    ]
+      .filter((clause) => clause.length > 0)
+      .join(" ");
+  }
   return [
     `${FIXED_CLAUSES[0]} ${photoClause(input.cardStyle)}, of ${input.subject}.`,
     logoClause(input.logoEdge),
@@ -229,8 +286,8 @@ const IDEA_01_AUTHORED_SLIDES: readonly AuthoredSlide[] = [
   },
   {
     role: "shift",
-    cardStyle: "full_width",
-    logoEdge: "top",
+    cardStyle: "top_card",
+    logoEdge: "bottom",
     statCallout: "Same week.",
     companies: ["OpenAI", "Anthropic", "Meta"],
     text:

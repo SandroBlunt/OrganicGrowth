@@ -1,12 +1,16 @@
 /**
  * News Carousel author-phase-checklist test fixtures — a Baseline-Prompt-ADHERENT Spec plus focused
- * broken variants (issue #85, graduated from map ticket #77).
+ * broken variants (issue #85, graduated from map ticket #77; placement-variety fixtures added issue
+ * #106).
  *
  * `TEST_BASELINE` is a STAND-IN (Brand x Format) Baseline Prompt's own strings — deliberately
  * DIFFERENT from Straw Motion's real "Unhypped News"/"Brand_Logo" (see `produce-news-carousel`
  * prototype notes) so these tests can never accidentally pass on a hardcoded literal baked into the
  * checked module — proving the checklist genuinely takes them as PARAMETERS (issue #85's core ask),
- * not string literals.
+ * not string literals. Its `confirmedCardStyles` deliberately carries THREE non-top-region names
+ * (`full_width`, `floating_toast`, `small_badge`) plus ONE top-region name (`top_card`), so the
+ * placement-variety fixtures below can isolate "too few distinct placements" from "no top-region
+ * placement" as two independently-triggerable failures (issue #106's own OR-condition).
  */
 
 import { CAROUSEL_ROLES, type CarouselSlide } from "../news-carousel-contract.ts";
@@ -30,7 +34,9 @@ export const TEST_BASELINE: NewsCarouselBaselineParams = {
     "set in Inter font",
     "Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
   ],
-  confirmedCardStyles: ["full_width", "floating_toast"],
+  confirmedCardStyles: ["full_width", "floating_toast", "small_badge", "top_card"],
+  topRegionCardStyles: ["top_card"],
+  minDistinctCardStyles: 3,
 };
 
 /** A stand-in set of companies for the slides that name real ones (the rest name none). */
@@ -61,7 +67,9 @@ function clone(spec: Record<string, unknown>): Record<string, unknown> {
 }
 
 /** A well-formed, BASELINE-ADHERENT News Carousel Spec: every image_prompt carries every
- *  `TEST_BASELINE` clause verbatim (map #77's graduated checklist, issue #85). */
+ *  `TEST_BASELINE` clause verbatim (map #77's graduated checklist, issue #85), and its `card_style`s
+ *  cycle through ALL of `TEST_BASELINE.confirmedCardStyles` — genuinely varied, including the
+ *  top-region style — so it also passes the placement-variety item (issue #106). */
 export function baselineAdherentCarouselSpec(): Record<string, unknown> {
   const slides: CarouselSlide[] = CAROUSEL_ROLES.map((role, i) => {
     // Odd slides name no real company (proving the empty-companies path needs no logo row); even
@@ -70,7 +78,7 @@ export function baselineAdherentCarouselSpec(): Record<string, unknown> {
     return {
       slide_index: i,
       role,
-      card_style: TEST_BASELINE.confirmedCardStyles[i % 2]!,
+      card_style: TEST_BASELINE.confirmedCardStyles[i % TEST_BASELINE.confirmedCardStyles.length]!,
       stat_callout: `Stat ${i + 1}.`,
       text: `Slide ${i + 1} (${role}): a short on-card supporting line.`,
       companies,
@@ -216,5 +224,41 @@ export function dashInText(): Record<string, unknown> {
   const s = clone(baselineAdherentCarouselSpec());
   const slides = s.slides as CarouselSlide[];
   slides[6] = { ...slides[6]!, text: `${slides[6]!.text} — and more.` };
+  return s;
+}
+
+/**
+ * All 7 slides use only BOTTOM-region confirmed styles (never `TEST_BASELINE.topRegionCardStyles`),
+ * cycling through every non-top-region style so the distinct-count sub-check is satisfied — isolating
+ * the "no top-region placement" failure exactly as reproduction-confirmed on straw-motion's idea-01
+ * (issue #106): plenty of distinct bottom placements, zero top-region cards.
+ */
+export function allBottomPlacements(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  const bottomStyles = TEST_BASELINE.confirmedCardStyles.filter(
+    (style) => !TEST_BASELINE.topRegionCardStyles.includes(style),
+  );
+  s.slides = slides.map((slide, i) => ({
+    ...slide,
+    card_style: bottomStyles[i % bottomStyles.length]!,
+  }));
+  return s;
+}
+
+/**
+ * Only 2 distinct `card_style` values across the 7 slides — below `TEST_BASELINE.minDistinctCardStyles`
+ * — even though one of the two IS a top-region style. Isolates the "too few distinct placements"
+ * failure from "no top-region placement" (issue #106's own OR-condition — both clauses must be able to
+ * fail independently).
+ */
+export function tooFewDistinctPlacements(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  const twoStyles = [TEST_BASELINE.confirmedCardStyles[0]!, TEST_BASELINE.topRegionCardStyles[0]!];
+  s.slides = slides.map((slide, i) => ({
+    ...slide,
+    card_style: twoStyles[i % twoStyles.length]!,
+  }));
   return s;
 }

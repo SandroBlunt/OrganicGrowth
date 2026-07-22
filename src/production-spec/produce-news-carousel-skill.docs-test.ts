@@ -137,3 +137,35 @@ describe("produce-news-carousel Skill — nothing Brand/Format-specific is hardc
     assert.match(text, /the document's pill\/eyebrow text/i);
   });
 });
+
+describe("produce-news-carousel Skill — author guidance actively pushes placement spread, subject variety, and real people (issue #106)", () => {
+  it("instructs spreading card_style placements across the vertical range, including a top-region card", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /actively spread placements/i);
+    assert.match(text, /at least one top-region placement/i);
+    assert.match(text, /never leave every card sitting at the bottom/i);
+  });
+
+  it("names the placement-variety checklist item, referencing issue #106", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /placement-variety/);
+    assert.match(text, /#106/);
+  });
+
+  it("instructs varying the subject TYPE slide to slide, not leaning on the same product-UI motif", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /actively vary the subject type/i);
+    assert.match(text, /laptops\/phones showing a product UI/i);
+  });
+
+  it("instructs reaching for the real, named person when a story is clearly theirs, balanced against product shots", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /reach for that real, named person/i);
+    assert.match(text, /balance people-led slides against product-led slides/i);
+  });
+
+  it("lists the NEW placement-variety item alongside the existing author-phase checklist bullets", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /Card placements are spread across the vertical range/i);
+  });
+});

@@ -64,13 +64,21 @@ For each slide, decide:
   `text` above.
 - **subject** — before writing this, pull the specific facts (names, numbers, claims) straight out
   of the idea's brief for this slide and list them. Build the subject only from those facts plus
-  the Baseline Prompt document's new Subject rules: the real product/logo/action (or the real,
-  named person, if the story is clearly theirs) where the slide reports something real; an equally
+  the Baseline Prompt document's Subject rules: the real product/logo/action (or the real, named
+  person, if the story is clearly theirs) where the slide reports something real; an equally
   concrete, specific photographic scene of the reader's world for a feeling, an outcome, or a
-  prediction. Never fall back to something generic.
+  prediction. Never fall back to something generic. **Actively vary the subject TYPE slide to
+  slide** — do not let the whole carousel lean on the same "laptops/phones showing a product UI"
+  motif; mix in real, named people, physical objects, and candid moments. **When a story is
+  clearly one specific person's, reach for that real, named person instead of defaulting to a
+  product screen**, and balance people-led slides against product-led slides across the 7.
 - **card_style** — one of the Baseline Prompt document's confirmed placements (all 7 in its Examples
-  section are confirmed, working options — none are historical-only). Vary it across the carousel's
-  7 slides for visual range; never default to repeating the same one or two placements.
+  section are confirmed, working options — none are historical-only). **Actively spread placements
+  across the vertical range, slide to slide, and include at least one top-region placement (a "top
+  card, photo below" style)** — never default to repeating the same one or two placements, and
+  never leave every card sitting at the bottom/lower-left. The author-phase checklist's
+  `placement-variety` item mechanically rejects too few distinct placements or zero top-region
+  cards (issue #106).
 - **companies** — the real company names this slide's logo row shows, as a plain list (e.g.
   `["OpenAI", "Anthropic"]`) — or `[]` when this slide names no real company. A real field, not a
   fact left only inside the prose (issue #102 finding #1); the count and names may — and should —
@@ -153,6 +161,9 @@ is saved at that path.
   photographic scene; never an invented UI shown as a real product's own screen. *(Agent-judged —
   flagged for review, never auto-failed; ADR-0017.)*
 - `card_style` is one of the document's own confirmed styles; `stat_callout` is non-empty.
+- Card placements are spread across the vertical range and include at least one top-region
+  placement (the document's own "top card, photo below" option) — never all bottom/lower-left
+  (`placement-variety`, issue #106).
 - Every company named in a slide's `companies` field is cited in that same slide's `image_prompt`
   (a slide naming no real company skips the logo row entirely — issue #102 finding #1).
 - No banned word in any field — reject-only, never a silent swap.

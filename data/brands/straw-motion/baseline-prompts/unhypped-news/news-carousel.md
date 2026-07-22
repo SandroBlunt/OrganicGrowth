@@ -32,6 +32,14 @@ still being tested:
   - Guardrail: only ever show a real person doing something plausible and real — never a
     fabricated, harmful, or defamatory situation. The scene must read as a real, newsworthy
     moment, not a staged fabrication.
+  - **Vary the subject TYPE slide to slide.** Do not let every slide default to the same
+    "laptops/phones showing a product UI" motif — across a carousel's 7 slides, mix product
+    screens with real people, physical objects/settings, and candid moments so the sequence
+    doesn't feel same-y.
+  - **Reach for the real, named person when a story is clearly theirs, and balance people against
+    product shots across the carousel.** Do not default to a product screen on every slide just
+    because it is the safer choice — when a named person is the obvious subject, show them (per
+    the guardrail above), and vary which slides use a person vs. a product/UI shot.
 - **Logo:** the connected reference image `Straw_Motion_Logo` (not described in prose), laid
   horizontally along the top edge of the photo, rendered unaltered — no shape/proportion/color
   changes — with a soft dark gradient vignette behind it for legibility, never a hard-edged solid
@@ -66,11 +74,14 @@ still being tested:
   afterthought under the stat callout.
 - **Card style — all 7 placements below are confirmed, working options** (`1`–`7` in the Examples
   below): full-width bottom card, floating "toast" card, top card with photo below, small floating
-  badge, and three circular-inset variants layered on the first three. Pick whichever placement
-  best fits the story, and vary it slide to slide across a carousel — never default to the same one
-  or two placements every time. Every placement — including the top card — fills its own photo
-  region edge to edge, with no black margins or letterboxing at any edge; only the card itself
-  (never the photo) is ever allowed to look inset.
+  badge, and three circular-inset variants layered on the first three. **Actively spread
+  placements across the vertical range, slide to slide — never default to the same one or two
+  placements every time.** Every carousel MUST use at least one **top card, photo below**
+  placement (`3` or `6` in the Examples) alongside its bottom/lower placements — a carousel that
+  sits at the bottom or lower-left on every slide reads as monotone and is not on-brief. Every
+  placement — including the top card — fills its own photo region edge to edge, with no black
+  margins or letterboxing at any edge; only the card itself (never the photo) is ever allowed to
+  look inset.
 
 ---
 

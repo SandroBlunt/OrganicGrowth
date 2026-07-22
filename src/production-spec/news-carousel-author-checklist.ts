@@ -72,6 +72,18 @@
  * abstraction reads or writes it). So the guardrail is authored as an explicit prohibitory CLAUSE inside
  * the `image_prompt` text itself (issue #110's own documented fallback), never a separate canvas
  * parameter.
+ *
+ * --- Placement variety is mechanical too (issue #106) ---
+ *
+ * A produced carousel that reuses only one or two `card_style`s — or never once uses a top-region
+ * placement — reads as monotone even though every OTHER item above passes clean (straw-motion's
+ * idea-01: `full_width`, `floating_toast`, `small_badge`, `full_width_inset`, `floating_toast`,
+ * `small_badge_inset`, `full_width` — 5 distinct values, zero top-region cards, and no existing check
+ * ever looked at the SPREAD of `card_style` across the 7 slides). This is fully computable from the
+ * 7 slides' own `card_style` field, so it is `kind: "mechanical"` (ADR-0017) and participates in the
+ * overall `ok`, exactly like the other new checks above. Which styles count as "top region" and how
+ * many distinct styles count as "varied" are BOTH read from `NewsCarouselBaselineParams` — never a
+ * hardcoded literal (ADR-0015) — mirroring `confirmedCardStyles`'s own precedent.
  */
 
 import { validateNewsCarouselSpec } from "./news-carousel-validate.ts";
@@ -118,6 +130,21 @@ export interface NewsCarouselBaselineParams {
   readonly fixedClauses: readonly string[];
   /** The Baseline Prompt's own confirmed card styles (e.g. `["full_width", "floating_toast"]`). */
   readonly confirmedCardStyles: readonly string[];
+  /**
+   * Which of `confirmedCardStyles` sit in the frame's TOP region (e.g. a "top card, photo below"
+   * placement) — issue #106. Data straight from the Baseline Prompt document, never a hardcoded
+   * literal in the checked module: a different (Brand x Format) names its own top-region style(s). A
+   * carousel using zero of these across its 7 slides fails the `placement-variety` item regardless of
+   * how many OTHER distinct styles it uses.
+   */
+  readonly topRegionCardStyles: readonly string[];
+  /**
+   * The minimum number of DISTINCT `card_style` values the 7 slides must use to count as "spread
+   * across the vertical range" rather than monotone (issue #106). Like `confirmedCardStyles`, this is
+   * the Format's own call, not a literal reproduced from the document's prose — never verbatim-checked
+   * by `verifyBaselineParamsAgainstDocument` (the same exemption `confirmedCardStyles` already has).
+   */
+  readonly minDistinctCardStyles: number;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -138,7 +165,9 @@ export interface BaselineParamsVerification {
  * Checks only the fields meant to be reproduced VERBATIM (ADR-0015): `logoReferenceName`, `pillText`,
  * `neverAllCapsInstruction`, `fixedClauses`. `confirmedCardStyles` is deliberately excluded — those
  * are the Skill's own short names for styles the document describes in prose, not literal substrings
- * of it, so a plain-text search would always (wrongly) fail them.
+ * of it, so a plain-text search would always (wrongly) fail them. `topRegionCardStyles` and
+ * `minDistinctCardStyles` (issue #106) are excluded for the SAME reason: short style names and a
+ * numeric threshold are the Format's own configuration, never literal document prose.
  */
 export function verifyBaselineParamsAgainstDocument(
   params: NewsCarouselBaselineParams,
@@ -247,6 +276,25 @@ function cardTextFields(slides: readonly Record<string, unknown>[]): TextField[]
     }
   });
   return out;
+}
+
+/**
+ * Whether the 7 slides' `card_style` values are spread across the vertical range rather than
+ * monotone (issue #106): at least `baseline.minDistinctCardStyles` DISTINCT values are used, AND at
+ * least one of them is one of `baseline.topRegionCardStyles`. Both clauses are read from the
+ * `NewsCarouselBaselineParams` argument — never a hardcoded literal — so a different (Brand x Format)
+ * can set its own bar and its own notion of "top region" (ADR-0015). Reproduces (and rejects) the
+ * straw-motion idea-01 pattern: plenty of distinct bottom placements, but zero top-region cards.
+ */
+function hasPlacementVariety(
+  slides: readonly Record<string, unknown>[],
+  baseline: NewsCarouselBaselineParams,
+): boolean {
+  if (slides.length === 0) return false;
+  const styles = slides.map((s) => String(s.card_style));
+  const distinctCount = new Set(styles).size;
+  const hasTopRegionCard = styles.some((s) => baseline.topRegionCardStyles.includes(s));
+  return distinctCount >= baseline.minDistinctCardStyles && hasTopRegionCard;
 }
 
 /**
@@ -366,6 +414,15 @@ export function auditNewsCarouselAuthorPhase(
             typeof s.stat_callout === "string" &&
             s.stat_callout.trim().length > 0,
         ),
+    },
+    {
+      id: "placement-variety",
+      description:
+        "Card placements are spread across the vertical range: at least " +
+        `${baseline.minDistinctCardStyles} distinct card_style values across the 7 slides, including ` +
+        `at least one top-region placement (${baseline.topRegionCardStyles.join(", ") || "none declared"}).`,
+      kind: "mechanical",
+      ok: hasPlacementVariety(slides, baseline),
     },
     {
       id: "companies-cited",
