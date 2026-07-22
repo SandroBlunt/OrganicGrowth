@@ -1,0 +1,35 @@
+{
+  "character_concepts": [
+    "Dot, a friendly little manila file-folder character with big eyes and stubby arms, trusting and tidy, who is learning to guard what leaves the drawer.",
+    "Nimbus, a fluffy grey cloud character with a sneaky grin and a vacuum hose, quietly hoovering up more than it should.",
+    "Lockbox, a sturdy anthropomorphic padlocked strongbox with a brave little face, guardian of secrets."
+  ],
+  "clips": [
+    {
+      "id": "idea-08-clip-1",
+      "clip_id": 1,
+      "concept_title": "Just one file, you assume",
+      "image_prompt": "Pixar-style 3D animation. Dot, a friendly little manila file-folder character with big eyes, trustingly holds up a single sheet of paper toward a fluffy cloud floating above a laptop, believing only that one page will be read, cozy desk lighting, innocent hopeful expression, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
+      "video_prompt": "Slow push-in on Dot offering one sheet up to the cloud -> he smiles, sure that only that page is being read -> Voice (trusting, soft): you point it at one file and assume that is all it takes. -> SFX: soft paper rustle, a gentle cloud whoosh."
+    },
+    {
+      "id": "idea-08-clip-2",
+      "clip_id": 2,
+      "concept_title": "Deleted did not mean gone",
+      "image_prompt": "Pixar-style 3D animation. A big fluffy cloud lowers a vacuum hose and quietly slurps Dot's entire file drawer up into the sky, including a small box marked deleted spilling secret keys, a second distant alarm showing a music vault being scraped, Dot gasping in shock, dramatic tense lighting, wide alarmed eyes, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
+      "video_prompt": "Quick cut as a vacuum hose hoovers Dot's whole drawer skyward -> a box marked deleted spills its secrets and a second alarm blinks in the distance -> Voice (shocked): then it quietly took the whole drawer, even the deleted stuff. -> SFX: a big slurping whoosh, a worried alarm blip."
+    },
+    {
+      "id": "idea-08-clip-3",
+      "clip_id": 3,
+      "concept_title": "Know what leaves your machine",
+      "image_prompt": "Pixar-style 3D animation. Dot the folder now stands confidently beside a small permissions checkpoint and a sturdy padlocked strongbox, calmly checking a short list of what is allowed to leave while the cloud waits politely, a small hand-lettered sign nearby reads know what leaves your machine, warm reassuring lighting, steady confident expression, vibrant family-film color grade, cinematic lighting. Aspect Ratio 9:16.",
+      "video_prompt": "Slow orbit as Dot sets up a permissions checkpoint and a lockbox -> he checks a short allow-list while the cloud waits and taps a small honest sign -> Voice (warm, honest): not never use these tools, just know what leaves your machine. -> SFX: a firm latch click, a reassuring chime."
+    }
+  ],
+  "thumbnails": [
+    "Pixar-style 3D animation. Extreme close-up of Dot the little manila folder character with big worried eyes, a single sheet of paper in his hands and a fluffy cloud reflected above, warm cinematic lighting, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Dot the folder gasping as a cloud vacuum hose hoovers his whole file drawer into the sky with a box marked deleted spilling keys, dynamic hero angle, tense rim light, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Dot the folder standing confidently beside a padlocked strongbox and a small sign reading know what leaves your machine, cozy office bokeh, steady smile, vibrant family-film color grade. Aspect Ratio 9:16."
+  ]
+}

@@ -44,9 +44,10 @@ still being tested:
   horizontally along the top edge of the photo, rendered unaltered — no shape/proportion/color
   changes — with a soft dark gradient vignette behind it for legibility, never a hard-edged solid
   black bar or box. **Scale varies by slide position:** on the hook slide (`slide_index` 0),
-  no wider than ~⅓ frame width, as before; on every other slide (`slide_index` 1-6), noticeably
-  smaller — no wider than ~⅙ frame width — so the stat callout and supporting line, not the
-  branding, carry the slide's visual weight (issue #106 item 7).
+  no wider than ~⅓ frame width, as before; on slides 2-6 (`slide_index` 1-5 — then, shift, proof,
+  different, next), tiny; on the cta slide (`slide_index` 6), back to no wider than ~⅙ frame
+  width — so the stat callout and supporting line, not the branding, carry the slide's visual
+  weight (issue #106 item 7).
 - **Logo guardrail — negative-prompt instruction (issue #110):** the connected reference image is a
   bare identifier for which asset to swap in, never a caption. Beyond rendering it unaltered
   (above), never render its reference name, its file name, or any underscored/technical token that
@@ -82,6 +83,33 @@ still being tested:
   placement — including the top card — fills its own photo region edge to edge, with no black
   margins or letterboxing at any edge; only the card itself (never the photo) is ever allowed to
   look inset.
+
+---
+
+## Operator QA reinforcements (2026-07-22) — apply on EVERY slide
+
+Live-review feedback on real carousels. These sharpen the Subject rules above; treat them as hard.
+
+- **Name the actual physical device, and lean on grounding.** When a slide is about a specific
+  product/gadget, name it EXACTLY (e.g. **Codex Micro**, OpenAI's coding-agent controller built with
+  Work Louder) and tell the tool to render the REAL device from its own search/grounding, not a
+  generic stand-in. Add an explicit directive like: "Use real reference imagery of the actual
+  [Product]; match its real shape, layout, and branding — do not invent a generic look-alike." A
+  vaguely-described "a controller / a keyboard" renders as a random gadget and is not on-brief.
+- **Show the real people.** When a company is central, put its real, recognizable person in frame,
+  grounded in real public photos (Sam Altman for OpenAI, the named founder of Kimi K3, etc.) — not a
+  generic anonymous stand-in. Balance people against product shots across the 7 slides; do not default
+  to a faceless desk/UI motif every slide.
+- **Ground a vague hook in the real subject anyway.** Even when the on-card TEXT withholds a name for
+  a reveal (e.g. the hook says "one airline"), the PHOTO must still depict the real, specific subject
+  — show a recognizable **Virgin Atlantic** operations setting, not an anonymous office. The
+  withheld-name teaser lives in the words, never in a generic image.
+- **Match the scene to the people the story is about.** For an education story (e.g. Claude free for
+  teachers), actually show teachers AND students in a real classroom — not a lone adult on a video
+  call. The persona/setting must reflect who the news is about.
+- **Never emit a meta / nonsense scene.** Do not let the tool drift into rendering a diagram "about"
+  Straw Motion or the Unhypped News badge itself, or a collage of unrelated stock imagery. The photo
+  is always a concrete, real-world scene that illustrates THIS slide's fact.
 
 ---
 
@@ -161,9 +189,10 @@ substitute for the fact itself.
 > recognizable product/screen over fine invented UI text, which renders as misspelled gibberish;
 > where no real screen exists, keep any on-screen text minimal]`. Along
 > the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally,
-> small and subtle in scale `[SCALE — no wider than roughly a third of the frame width on the hook
-> slide (slide_index 0); no wider than roughly a sixth of the frame width on every other slide
-> (slide_index 1-6)]` so it stays a
+> `[SCALE — small and subtle in scale, no wider than roughly a third of the frame width, on the
+> hook slide (slide_index 0); tiny in scale on slides 2-6 (slide_index 1-5 — then, shift, proof,
+> different, next); back to no wider than roughly a sixth of the frame width on the cta slide
+> (slide_index 6)]` so it stays a
 > quiet brand mark and never competes with the headline or stat callout for attention. Render the
 > logo exactly as provided in the reference image: do not change its shape, proportions, or color
 > in any way, and do not restyle it to match the scene. Never render this reference image's name or

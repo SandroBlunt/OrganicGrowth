@@ -1,0 +1,35 @@
+{
+  "character_concepts": [
+    "Base, a sturdy friendly green open-weight foundation brick with big expressive eyes and stubby arms: the thing everyone quietly stacks their projects on, humble but proud.",
+    "Percy, an anthropomorphic pie chart character whose green slice swells from a thin sliver to most of the circle, round body, animated eyebrows, showman energy.",
+    "Stax, a cheerful growing tower of stacked app blocks with a face on the top cube, wobbling taller as more blocks pile on, eager and a little giddy."
+  ],
+  "clips": [
+    {
+      "id": "idea-2026-W30-02-clip-1",
+      "clip_id": 1,
+      "concept_title": "A year ago, nobody built on me",
+      "image_prompt": "Pixar-style 3D animation. Base, a sturdy friendly green open-weight foundation brick with big eyes, sits alone and overlooked on a workshop floor while a cheerful crowd of tiny app characters stacks itself onto a shiny distant brand-name brick across the room, soft window light, wistful hopeful expression, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
+      "video_prompt": "Slow dolly across the workshop toward Base -> he watches the crowd build on the other brick and sighs quietly -> Voice (soft): a year ago, almost nobody built on me. -> SFX: distant hammering, a lonely little echo."
+    },
+    {
+      "id": "idea-2026-W30-02-clip-2",
+      "clip_id": 2,
+      "concept_title": "One number flips the story",
+      "image_prompt": "Pixar-style 3D animation. Base the green foundation brick beams as a huge glowing counter behind him races from 1 percent to 69 percent and a happy crowd of tiny startup and app characters clambers on to stack a whole skyline on his shoulders, warm golden light, proud amazed expression, confetti sparkle, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
+      "video_prompt": "Camera cranes up as the tower rises on Base -> the counter spins to 69 percent while builders pile on and a skyline grows from his back -> Voice (rising, delighted): now most of the building happens on me. -> SFX: rising whoosh, cheerful crowd, a triumphant chime."
+    },
+    {
+      "id": "idea-2026-W30-02-clip-3",
+      "clip_id": 3,
+      "concept_title": "A footprint, not a crown",
+      "image_prompt": "Pixar-style 3D animation. Base the green foundation brick stands proud holding up a bustling little city of tools and apps, one arm pointing to a small hand-lettered sign reading footprint not crown, warm sunset glow behind the skyline, humble confident smile, vibrant family-film color grade, cinematic lighting. Aspect Ratio 9:16.",
+      "video_prompt": "Slow pull-back to reveal the whole city resting on Base -> he taps a small honest sign beside him and shrugs modestly -> Voice (warm, honest): a huge footprint, sure, but that is share, not the single best model. -> SFX: gentle city ambience, a soft reassuring tone."
+    }
+  ],
+  "thumbnails": [
+    "Pixar-style 3D animation. Extreme close-up of Base the green open-weight foundation brick grinning proudly, a glowing 69 percent counter reflected in his big eyes, tiny app characters perched on his shoulders, warm cinematic lighting, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Base the green foundation brick flexing as a whole miniature skyline of tools balances on his back, dynamic low hero angle, golden rim light, delighted expression, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Base the green foundation brick pointing to a small hand-lettered sign that reads footprint not crown, cozy workshop bokeh behind him, warm honest smile, vibrant family-film color grade. Aspect Ratio 9:16."
+  ]
+}

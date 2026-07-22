@@ -1,0 +1,35 @@
+{
+  "character_concepts": [
+    "Chalky, a small friendly anthropomorphic piece of white chalk with big eyes, little arms and a dusty smile, who writes glowing math proofs on a blackboard.",
+    "Prooford, an anthropomorphic bright-green checkmark character, springy and proud, who loves stamping the word verified on things.",
+    "Quill, an anthropomorphic old fountain pen with tiny spectacles, scholarly and precise, its nib glinting."
+  ],
+  "clips": [
+    {
+      "id": "idea-2026-W30-03-clip-1",
+      "clip_id": 1,
+      "concept_title": "Stuck for decades",
+      "image_prompt": "Pixar-style 3D animation. Chalky, a small friendly anthropomorphic piece of white chalk with big eyes, stands dwarfed before a towering ancient blackboard where a famous equation sits locked behind a rusty padlock, chalk dust drifting in warm shafts of light, awed determined expression, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
+      "video_prompt": "Slow tilt up the giant blackboard from Chalky to the locked equation -> he cracks his knuckles and steps up to the untouched decades-old problem -> Voice (quiet, brave): people have been stuck on this one for decades. -> SFX: soft dusty echo, a low suspense hum."
+    },
+    {
+      "id": "idea-2026-W30-03-clip-2",
+      "clip_id": 2,
+      "concept_title": "It cracks",
+      "image_prompt": "Pixar-style 3D animation. Chalky the chalk scribbles a glowing chain of proof across the huge blackboard and the rusty padlock on the equation clicks open with a burst of light, a neat counterexample shining in the center, triumphant wide-eyed grin, chalk dust sparkling, warm dramatic lighting, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
+      "video_prompt": "Fast tracking along the board as Chalky writes -> the final line lands, the padlock springs open and the proof glows -> Voice (rising, amazed): and just like that, it cracks. -> SFX: rapid chalk taps, a bright unlocking click, a shimmering chime."
+    },
+    {
+      "id": "idea-2026-W30-03-clip-3",
+      "clip_id": 3,
+      "concept_title": "You can check it yourself",
+      "image_prompt": "Pixar-style 3D animation. Chalky the chalk stands proudly beside his proof while a giant magnifying glass sweeps over each line and every step lights up with a green check, a small hand-lettered sign nearby reads a tool not a mathematician, warm classroom glow, humble satisfied smile, vibrant family-film color grade, cinematic lighting. Aspect Ratio 9:16.",
+      "video_prompt": "Slow push along the proof as a magnifying glass checks each step -> green checks pop line by line while Chalky watches, then he taps a small honest sign -> Voice (warm, honest): the best part, you can check every step yourself. -> SFX: soft ticks, gentle confirming chimes."
+    }
+  ],
+  "thumbnails": [
+    "Pixar-style 3D animation. Extreme close-up of Chalky the chalk beaming, a glowing math proof and an open padlock reflected in his big eyes, chalk dust sparkling around him, warm cinematic lighting, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Chalky the chalk mid-flourish writing a glowing equation on a dark blackboard, dynamic hero angle, dramatic rim light, delighted focused expression, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Chalky the chalk standing beside a row of green checkmarks on a blackboard giving a proud thumbs-up, cozy classroom bokeh, warm glow, friendly face, vibrant family-film color grade. Aspect Ratio 9:16."
+  ]
+}

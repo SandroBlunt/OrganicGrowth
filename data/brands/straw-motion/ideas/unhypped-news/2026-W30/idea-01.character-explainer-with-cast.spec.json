@@ -1,0 +1,35 @@
+{
+  "character_concepts": [
+    "Kip, a small friendly open-weight coding robot: rounded matte-white body, a glowing open-padlock icon on his chest (open weights, free to own), a tiny badge reading K3, big expressive eyes and plucky underdog energy.",
+    "Vault, a stiff chrome rent-by-the-token flagship robot: mirror-polished armor, a coin slot on his chest, a meter on his arm that ticks up, permanently smug expression.",
+    "Bao, a cheerful anthropomorphic download arrow mascot: bouncy green arrow body with stubby arms, a little price tag flipping to zero, springy and eager."
+  ],
+  "clips": [
+    {
+      "id": "idea-2026-W30-01-clip-1",
+      "clip_id": 1,
+      "concept_title": "The old rule: rent the best",
+      "image_prompt": "Pixar-style 3D animation. Kip the small open-weight coding robot stands at the foot of a tall glowing leaderboard staircase in a cozy dim server room, gazing up at expensive locked flagship robots on the pricey top steps behind a coin-operated turnstile, warm rim lighting, hopeful underdog expression, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
+      "video_prompt": "Slow push-in from Kip's feet up to his face -> he looks up the towering pay-to-enter leaderboard and gulps -> Voice (soft, curious): the best coding model always cost a fortune to rent. -> SFX: low server hum, a single coin clink."
+    },
+    {
+      "id": "idea-2026-W30-01-clip-2",
+      "clip_id": 2,
+      "concept_title": "Free download tops the board",
+      "image_prompt": "Pixar-style 3D animation. Kip the open-weight coding robot lights up as a giant zero-dollar free-download tag pops beside him and he leaps several steps up the glowing leaderboard staircase, the open padlock on his chest shining, a confetti burst of tiny download arrows, bright energetic lighting, awe on his face, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
+      "video_prompt": "Quick tilt up following Kip as he jumps -> a free zero-cost tag snaps open and he bounds up past the locked flagship robots -> Voice (delighted, rising): free to download, and it just beat them. -> SFX: bright chime, whoosh, popping confetti."
+    },
+    {
+      "id": "idea-2026-W30-01-clip-3",
+      "clip_id": 3,
+      "concept_title": "Own it on your own machine",
+      "image_prompt": "Pixar-style 3D animation. Kip the open-weight coding robot sits happily on an indie builder's laptop keyboard in a warm home office, no meter ticking anywhere, a small honest asterisk sign floating gently beside him, cozy desk-lamp glow, contented confident expression, warm cinematic lighting, vibrant family-film color grade. Aspect Ratio 9:16.",
+      "video_prompt": "Slow orbit around Kip perched on the laptop -> he settles in to work while a small honest asterisk drifts up beside him -> Voice (warm, honest): now you can run it yourself, just remember a benchmark is not your real code. -> SFX: soft keyboard clicks, gentle lamp buzz."
+    }
+  ],
+  "thumbnails": [
+    "Pixar-style 3D animation. Extreme close-up of Kip the open-weight coding robot beaming, the glowing open-padlock icon on his chest filling the frame with a small K3 badge, a sparkle of tiny download arrows around him, warm cinematic lighting, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Kip the open-weight coding robot triumphantly holding up a giant zero-dollar free tag beside a glowing leaderboard, wide delighted grin, dynamic low hero angle, warm rim lighting, vibrant family-film color grade. Aspect Ratio 9:16.",
+    "Pixar-style 3D animation. Kip the open-weight coding robot perched on a laptop keyboard giving a confident thumbs-up, cozy home-office bokeh behind him, warm desk-lamp glow, expressive friendly face, vibrant family-film color grade. Aspect Ratio 9:16."
+  ]
+}
