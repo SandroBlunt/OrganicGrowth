@@ -18,7 +18,7 @@
  *   5. Write `metrics`/`performance_score`/`tracked_at`/`history`/`status` onto THAT ONE Asset via
  *      `AssetStore.writeAsset` — a sibling Recipe's Asset on the same Idea is never touched (explicit
  *      attribution, always-rules #5). Immediately after, refresh that SAME Asset's output-bundle
- *      `post.json` (`src/asset/output-bundle.ts`'s `refreshOutputBundle`, issue #112) — a GENERATED
+ *      `post.json` (`src/asset/output-bundle.ts`'s `refreshPostJson`, issue #112) — a GENERATED
  *      view of the ledger, so it can never drift; an Asset with no known local bundle directory yet is
  *      skipped cleanly by that function, never surfaced as an error here.
  *   6. Recompute + write the Brand's ONE Channel baseline (`src/performance/metrics.ts`) from every
@@ -55,7 +55,7 @@ import {
   type NormalizedMetrics,
 } from "../apify/normalize-metrics.ts";
 import { writeAsset } from "../asset/store.ts";
-import { refreshOutputBundle } from "../asset/output-bundle.ts";
+import { refreshPostJson } from "../asset/output-bundle.ts";
 import type { AssetMetrics, LedgerAssetRecord } from "../asset/asset.ts";
 import type { PerformanceScrapePort } from "./track-performance-port.ts";
 
@@ -238,7 +238,7 @@ export async function trackPerformanceCommand(
 
     // Refresh THIS Asset's output-bundle post.json from the ledger we just wrote (issue #112) — a
     // silent side effect; an Asset with no known local bundle directory yet is skipped cleanly.
-    await refreshOutputBundle(brand, pickIdeaId, asset.recipe, { ledgerPath });
+    await refreshPostJson(brand, pickIdeaId, asset.recipe, { ledgerPath });
 
     lines.push(
       `${label}: ${maturity} · score=${score.toFixed(2)} · shares=${sample.shares} comments=${sample.comments} ` +

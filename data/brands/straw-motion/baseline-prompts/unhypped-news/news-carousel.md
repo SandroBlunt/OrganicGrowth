@@ -43,7 +43,7 @@ still being tested:
 - **Logo:** the connected reference image `Straw_Motion_Logo` (not described in prose), laid
   horizontally along the top edge of the photo, rendered unaltered — no shape/proportion/color
   changes — with a soft dark gradient vignette behind it for legibility, never a hard-edged solid
-  black bar or filled box. **Scale varies by slide position:** on the hook slide (`slide_index` 0),
+  black bar or box. **Scale varies by slide position:** on the hook slide (`slide_index` 0),
   no wider than ~⅓ frame width, as before; on every other slide (`slide_index` 1-6), noticeably
   smaller — no wider than ~⅙ frame width — so the stat callout and supporting line, not the
   branding, carry the slide's visual weight (issue #106 item 7).

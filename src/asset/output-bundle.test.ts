@@ -14,7 +14,7 @@ import {
   captionText,
   writePostJson,
   writeCaptionText,
-  refreshOutputBundle,
+  refreshPostJson,
   type PostJson,
 } from "./output-bundle.ts";
 import type { LedgerAssetRecord } from "./asset.ts";
@@ -263,7 +263,7 @@ describe("writeCaptionText — writes caption.txt", () => {
 });
 
 // ---------------------------------------------------------------------------
-// refreshOutputBundle — the shell every lifecycle step calls
+// refreshPostJson — the shell every lifecycle step calls
 // ---------------------------------------------------------------------------
 
 async function seedLedger(dir: string, ideas: unknown[]): Promise<string> {
@@ -272,7 +272,7 @@ async function seedLedger(dir: string, ideas: unknown[]): Promise<string> {
   return ledgerPath;
 }
 
-describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; never fabricates", () => {
+describe("refreshPostJson — resolves an Asset's OWN bundle directory; never fabricates", () => {
   it("a NEW Asset's post.json lands inside its .output/ directory (resolved from asset_paths)", async () => {
     await withTempDir(async (dir) => {
       const bundleDir = join(dir, "ideas", "2026-W29", "idea-01.news-carousel.output");
@@ -293,7 +293,7 @@ describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; neve
         },
       ]);
 
-      const result = await refreshOutputBundle("straw-motion", "idea-01", "news-carousel", { ledgerPath });
+      const result = await refreshPostJson("straw-motion", "idea-01", "news-carousel", { ledgerPath });
       assert.equal(result.ok, true);
       if (!result.ok) return;
       assert.equal(result.dir, bundleDir);
@@ -329,7 +329,7 @@ describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; neve
         },
       ]);
 
-      const result = await refreshOutputBundle("straw-motion", "idea-01", "news-carousel", { ledgerPath });
+      const result = await refreshPostJson("straw-motion", "idea-01", "news-carousel", { ledgerPath });
       assert.equal(result.ok, true);
       if (!result.ok) return;
       assert.equal(result.dir, legacyDir, "the bundle dir is the EXISTING .assets/ folder, never a new .output/ one");
@@ -372,11 +372,11 @@ describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; neve
         },
       ]);
 
-      const first = await refreshOutputBundle("straw-motion", "idea-01", "news-carousel", { ledgerPath });
+      const first = await refreshPostJson("straw-motion", "idea-01", "news-carousel", { ledgerPath });
       assert.equal(first.ok, true);
       const firstBytes = await readFile(join(bundleDir, "post.json"), "utf8");
 
-      const second = await refreshOutputBundle("straw-motion", "idea-01", "news-carousel", { ledgerPath });
+      const second = await refreshPostJson("straw-motion", "idea-01", "news-carousel", { ledgerPath });
       assert.equal(second.ok, true);
       const secondBytes = await readFile(join(bundleDir, "post.json"), "utf8");
 
@@ -390,7 +390,7 @@ describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; neve
   it("returns ok:false / unknown-idea and writes nothing for an unknown Idea", async () => {
     await withTempDir(async (dir) => {
       const ledgerPath = await seedLedger(dir, [{ id: "idea-01", status: "accepted", assets: [] }]);
-      const result = await refreshOutputBundle("straw-motion", "idea-ZZZ", "news-carousel", { ledgerPath });
+      const result = await refreshPostJson("straw-motion", "idea-ZZZ", "news-carousel", { ledgerPath });
       assert.deepEqual(result, { ok: false, reason: "unknown-idea" });
     });
   });
@@ -400,7 +400,7 @@ describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; neve
       const ledgerPath = await seedLedger(dir, [
         { id: "idea-01", status: "accepted", assets: [{ recipe: "character-explainer-with-cast", status: "produced" }] },
       ]);
-      const result = await refreshOutputBundle("straw-motion", "idea-01", "news-carousel", { ledgerPath });
+      const result = await refreshPostJson("straw-motion", "idea-01", "news-carousel", { ledgerPath });
       assert.deepEqual(result, { ok: false, reason: "unknown-recipe" });
     });
   });
@@ -410,7 +410,7 @@ describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; neve
       const ledgerPath = await seedLedger(dir, [
         { id: "idea-01", status: "accepted", assets: [{ recipe: "news-carousel", status: "in_production" }] },
       ]);
-      const result = await refreshOutputBundle("straw-motion", "idea-01", "news-carousel", { ledgerPath });
+      const result = await refreshPostJson("straw-motion", "idea-01", "news-carousel", { ledgerPath });
       assert.deepEqual(result, { ok: false, reason: "no-local-media" });
     });
   });
@@ -418,7 +418,7 @@ describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; neve
   it("never throws for any of the skip cases", async () => {
     await withTempDir(async (dir) => {
       const ledgerPath = await seedLedger(dir, []);
-      await assert.doesNotReject(refreshOutputBundle("straw-motion", "idea-ZZZ", "news-carousel", { ledgerPath }));
+      await assert.doesNotReject(refreshPostJson("straw-motion", "idea-ZZZ", "news-carousel", { ledgerPath }));
     });
   });
 });
@@ -428,7 +428,7 @@ describe("refreshOutputBundle — resolves an Asset's OWN bundle directory; neve
 // already decoupled from the Space driver at THIS boundary — downloadAssetFiles only needs URLs).
 // ---------------------------------------------------------------------------
 
-describe("produce-flow composition (AC1) — outputDirFor -> downloadAssetFiles -> writeAsset -> refreshOutputBundle + writeCaptionText", () => {
+describe("produce-flow composition (AC1) — outputDirFor -> downloadAssetFiles -> writeAsset -> refreshPostJson + writeCaptionText", () => {
   it("writes media (in post order) + caption.txt + post.json into the .output/ bundle", async () => {
     await withTempDir(async (dir) => {
       const ideasRoot = join(dir, "ideas");
@@ -469,7 +469,7 @@ describe("produce-flow composition (AC1) — outputDirFor -> downloadAssetFiles 
       await writeCaptionText(outputDir, copy);
 
       // Mirrors the real "Save phase": the ledger write happens BEFORE the bundle refresh, so
-      // refreshOutputBundle always reads the Asset's OWN just-saved truth.
+      // refreshPostJson always reads the Asset's OWN just-saved truth.
       await writeAsset(
         ideaId,
         recipe,
@@ -483,7 +483,7 @@ describe("produce-flow composition (AC1) — outputDirFor -> downloadAssetFiles 
         { ledgerPath },
       );
 
-      const refreshed = await refreshOutputBundle("straw-motion", ideaId, recipe, { ledgerPath });
+      const refreshed = await refreshPostJson("straw-motion", ideaId, recipe, { ledgerPath });
       assert.equal(refreshed.ok, true);
 
       const entries = (await readdir(outputDir)).sort();

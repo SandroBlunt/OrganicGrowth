@@ -15,7 +15,7 @@
  * already published — this command only logs the URL, ADR-0002).
  *
  * On success it also refreshes that Asset's output-bundle `post.json` (`src/asset/output-bundle.ts`'s
- * `refreshOutputBundle`, issue #112) — a GENERATED view of the ledger, so it can never drift. This is a
+ * `refreshPostJson`, issue #112) — a GENERATED view of the ledger, so it can never drift. This is a
  * silent side effect: it never changes this command's own returned message, and an Asset with no known
  * local bundle directory yet (no `asset_paths`) is skipped cleanly, never surfaced as an error.
  *
@@ -29,7 +29,7 @@ import { resolve } from "node:path";
 import { loadIdeas, findIdea, type LedgerIdea } from "../ledger/ledger.ts";
 import { findAsset, type AssetStatus, type LedgerAssetRecord } from "../asset/asset.ts";
 import { writeAsset } from "../asset/store.ts";
-import { refreshOutputBundle } from "../asset/output-bundle.ts";
+import { refreshPostJson } from "../asset/output-bundle.ts";
 import { resolveBrand } from "../brand/resolver.ts";
 
 /** Why a `/log-post` attempt was refused. */
@@ -162,7 +162,7 @@ export async function logPostCommand(
 
   // Refresh the output-bundle post.json from the ledger we just wrote (issue #112) — a silent side
   // effect; an Asset with no known local bundle directory yet is skipped cleanly (never an error here).
-  await refreshOutputBundle(brand, ideaId, recipe, { ledgerPath });
+  await refreshPostJson(brand, ideaId, recipe, { ledgerPath });
 
   return `/log-post ${ideaId}: linked Post ◀ Recipe "${recipe}" for Brand ${brand}. Run /track-performance ${brand} once engagement has accrued (give it a few days).`;
 }

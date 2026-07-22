@@ -38,7 +38,7 @@ one", even when the Idea happens to have exactly one Asset today.
      `produced` Asset to `posted` (an already `posted`/`tracking`/`scored` Asset keeps its own status —
      a re-log only corrects the URL/timestamp, it never regresses progress).
    - Also refreshes that Asset's `post.json` (in its `idea-NN.<recipe>.output/` bundle — issue #112)
-     from the ledger via `src/asset/output-bundle.ts`'s `refreshOutputBundle` — a GENERATED view, never
+     from the ledger via `src/asset/output-bundle.ts`'s `refreshPostJson` — a GENERATED view, never
      a second store; an Asset with no local bundle directory yet is skipped cleanly.
 3. **Confirm:** "Linked Post ◀ Recipe `<recipe>` for Idea `<id>`, Brand `<brand>`. Run
    `/track-performance <brand>` once engagement has accrued (give it a few days)."

@@ -205,7 +205,7 @@ describe("news-carousel.md instructs the four render-fidelity guardrails (issue 
     const normalized = normalizeBaselineProse(lookup.content);
 
     assert.match(normalized, /soft dark gradient vignette/i);
-    assert.match(normalized, /never a hard-edged solid black bar or (?:box|filled box)/i);
+    assert.match(normalized, /never a hard-edged solid black bar or box/i);
   });
 
   it("every strawMotionIdeaOneCarouselSpec() slide still carries the UPDATED vignette clause verbatim (the doc/fixture stay in sync after issue #109's wording change)", () => {
