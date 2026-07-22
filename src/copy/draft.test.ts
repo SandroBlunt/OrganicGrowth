@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { defaultDraftCopy, skillDraftCopy, type CopyInput } from "./draft.ts";
+import { defaultDraftCopy, skillDraftCopy, type CopyInput, type CopySlideBeat } from "./draft.ts";
 import { validateCopy } from "./validate.ts";
 import { scanTextFieldsForDashes } from "../production-spec/dash-safety.ts";
 import type { CopyShape } from "./contract.ts";
@@ -176,5 +176,39 @@ describe("skillDraftCopy — the write-social-copy Skill's deterministic stand-i
   it("passes through the Idea's own hashtags unchanged, exactly like defaultDraftCopy", () => {
     const copy = skillDraftCopy(sampleInput({ hashtags: ["#AInews", "#agentic"] }), CHARACTER_EXPLAINER_SHAPE);
     assert.deepEqual(copy.hashtags, ["#AInews", "#agentic"]);
+  });
+
+  /**
+   * issue #120: a slide's `companies` field is now available on `CopySlideBeat`, mirroring how
+   * `statCallout` is already an optional, additive field on the same type. This is the "mechanical
+   * availability" proof, not a caption-content proof — it demonstrates a beat carrying `companies`
+   * compiles, is accepted, and doesn't alter the drafter's own behavior; NAMING the real companies
+   * naturally in the caption's own words is the `write-social-copy` Skill's own LLM job, agent-judged
+   * like the News Carousel author phase's "grounded subject" checklist item, never a fixed template.
+   */
+  it("accepts a slideNarrative beat carrying companies without changing drafting behavior — the data is available to a real drafter without dictating caption content (issue #120)", () => {
+    const beatsWithCompanies: readonly CopySlideBeat[] = [
+      { role: "hook", text: "OpenAI, Anthropic, and Meta all shipped agents this week.", companies: ["OpenAI", "Anthropic", "Meta"] },
+      { role: "shift", text: "Three rivals moved on the same idea at once.", companies: [] },
+      { role: "cta", text: "Follow Straw Motion for the no hype version." },
+    ];
+    const beatsWithoutCompanies: readonly CopySlideBeat[] = beatsWithCompanies.map(
+      ({ role, text }) => ({ role, text }),
+    );
+
+    const withCompanies = skillDraftCopy(sampleInput({ slideNarrative: beatsWithCompanies }), CHARACTER_EXPLAINER_SHAPE);
+    const withoutCompanies = skillDraftCopy(sampleInput({ slideNarrative: beatsWithoutCompanies }), CHARACTER_EXPLAINER_SHAPE);
+
+    // Purely additive: the deterministic drafter's OWN output is unaffected by companies' presence —
+    // it never dictates a fixed "here are the companies" template (that judgment is the Skill's job).
+    assert.deepEqual(withCompanies, withoutCompanies);
+    assert.equal(validateCopy(withCompanies, CHARACTER_EXPLAINER_SHAPE, NO_RULES).ok, true);
+
+    // The data really was available on the beat passed to the drafter — an empty array is DISTINCT
+    // from an absent field (never collapsed to the same "nothing to say" case at the type level).
+    const shift = beatsWithCompanies.find((b) => b.role === "shift")!;
+    assert.deepEqual(shift.companies, []);
+    const hook = beatsWithCompanies.find((b) => b.role === "hook")!;
+    assert.deepEqual(hook.companies, ["OpenAI", "Anthropic", "Meta"]);
   });
 });

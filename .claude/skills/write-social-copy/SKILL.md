@@ -41,8 +41,11 @@ Producer's own conductor prose.
    session, after the render (and any picked Character) exists, so it can refer to the REAL result
    (ADR-0012). For a single-media Recipe this is free text (`CopyInput.mediaContext`, e.g. the picked
    Character's name). For a multi-slide Recipe (e.g. News Carousel) this is richer: the saved
-   Production Spec's own per-slide `role`/`text`/`stat_callout` (`CopyInput.slideNarrative`, an array
-   of `CopySlideBeat`) — the ACTUAL authored narrative, not a re-guess from the brief.
+   Production Spec's own per-slide `role`/`text`/`stat_callout`/`companies` (`CopyInput.slideNarrative`,
+   an array of `CopySlideBeat`) — the ACTUAL authored narrative, not a re-guess from the brief. A
+   beat's `companies` (issue #120) is that slide's own, already-verified real-companies/products list —
+   the SAME list that drives the rendered slide's own logo row — carried through unchanged, including
+   an empty array when a slide names no real company.
 5. **The chosen Recipe's own copy shape** — `Recipe.copyShape` (`maxChars`/`minEmojis`/`maxEmojis`) —
    never a fixed 180-char/1-3-emoji constant; a different Recipe declares its own bounds.
 
@@ -60,6 +63,15 @@ fixed template.
   narrative" formula sets for the on-slide lines themselves (epic #106 item 6). This is sharpening
   real, already-authored content — never re-deriving a caption from the brief alone, and never
   inventing a fact the produced on-slide narrative doesn't already contain.
+- **Name the real companies/products, grounded in each beat's `companies` list** (issue #120): wherever
+  the Format's voice naturally allows it, name the companies/products a slide's own `companies` field
+  actually records — this is the Production Spec's own, already-verified list, not a re-guess from the
+  brief's prose. A beat whose `companies` is empty or absent contributes NO company/product mention —
+  never invent or re-guess one from the title/angle/mediaContext when the produced narrative doesn't
+  name one. This is the SAME "grounded, never invented" standard the News Carousel author phase's own
+  `companies-cited` checklist item already holds the on-slide `image_prompt` to
+  (`production-spec/news-carousel-author-checklist.ts`) — the caption's own wording is your judgment
+  call as the LLM (never a fixed template); only which companies exist to draw on is fixed by the data.
 - **When no slide narrative is available (a single-media Recipe):** draft from the Idea's `title`,
   `angle`, and `mediaContext` — richer than a bare title-only restatement, still grounded only in the
   supplied material, never invented.
@@ -72,7 +84,11 @@ fixed template.
 `CopyInput`/`CopyShape` this Skill reads, it produces a `Copy` demonstrating exactly this behavior
 (sharpens `slideNarrative`'s hook/shift/cta beats when present; falls back to
 title/angle/mediaContext otherwise; never a dash tell) — the same relationship
-`production-spec/generate.ts`'s deterministic composer has to a Recipe's author Skill.
+`production-spec/generate.ts`'s deterministic composer has to a Recipe's author Skill. It also proves
+each beat's `companies` field is genuinely AVAILABLE to a drafter, mechanically (issue #120) — a
+`slideNarrative` carrying `companies` never changes `skillDraftCopy`'s own deterministic output, since
+naming companies naturally in the caption's wording is YOUR job as the LLM, not something a fixed
+template can prove; only that the data is there to draw from is mechanically checked.
 
 ### 2. Hand off to the deterministic checker — never check your own work by eye
 

@@ -90,6 +90,26 @@ describe("write-social-copy Skill — sharpens the produced on-slide narrative i
   });
 });
 
+describe("write-social-copy Skill — draws on each slide's companies field, grounded, never invented (issue #120)", () => {
+  it("names CopySlideBeat.companies as part of the produced-narrative input", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /companies/);
+    assert.match(text, /CopySlideBeat/);
+  });
+
+  it("instructs naming the real companies/products from that field, grounded in the Spec", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /real companies\/products/i);
+    assert.match(text, /grounded/i);
+  });
+
+  it("states an empty/absent companies field contributes NO mention — never invented or re-guessed", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /companies.{0,20}(is )?empty or absent/i);
+    assert.match(text, /never invent|never fabricat/i);
+  });
+});
+
 describe("write-social-copy Skill — does not run the Space or publish (issue #111 hard rule)", () => {
   it("states it does not run the Space or drive the canvas", async () => {
     const text = await readFile(SKILL_PATH, "utf8");
