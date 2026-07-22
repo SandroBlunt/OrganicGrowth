@@ -13,17 +13,17 @@
  * it is PURE: given the same `(brand, idea, asset)` it always returns the same result, because it reads
  * nothing but its own arguments — no disk, no clock, no hidden state. That purity IS the idempotence
  * guarantee the acceptance criteria ask for: regenerating `post.json` from an unchanged ledger can never
- * drift, because there is no second input it could drift from. `refreshOutputBundle` is the ONE shell
+ * drift, because there is no second input it could drift from. `refreshPostJson` is the ONE shell
  * every lifecycle step (produce, `/log-post`, `/track-performance`) calls to re-run that generator
  * against the ledger's current truth and write the result — never a bespoke write path of its own.
  *
- * **Backward compatible, by construction, with no filesystem migration.** `refreshOutputBundle` never
+ * **Backward compatible, by construction, with no filesystem migration.** `refreshPostJson` never
  * reconstructs a bundle directory from the Idea/run/Recipe by name — it resolves the directory an
  * Asset's OWN `asset_paths` already point into (`dirname` of the first entry). A brand-new Asset's
  * `asset_paths` point into a freshly-computed `.output/` directory (`outputDirFor` is the ONE call site
  * that picks that new name, used at produce time before any `asset_paths` exist yet); an Asset produced
  * before this slice keeps whatever directory it already has — typically an `.assets/`-named one — and
- * `refreshOutputBundle` keeps refreshing `post.json` there, in place. No folder is ever renamed and no
+ * `refreshPostJson` keeps refreshing `post.json` there, in place. No folder is ever renamed and no
  * existing `asset_paths` entry is ever rewritten by this module.
  */
 
@@ -50,7 +50,7 @@ import type { Copy } from "../copy/contract.ts";
  *
  * This is the ONLY function in the codebase that picks the `.output` name — every other function here
  * resolves an EXISTING Asset's bundle directory from its own recorded `asset_paths` instead (see
- * `refreshOutputBundle`), which is what keeps a pre-this-slice Asset's `.assets/`-named folder working
+ * `refreshPostJson`), which is what keeps a pre-this-slice Asset's `.assets/`-named folder working
  * with zero migration.
  */
 export function outputDirFor(ideaId: string, run: string, ideasRoot: string, recipe: string): string {
@@ -153,19 +153,19 @@ export async function writeCaptionText(dir: string, copy: Copy): Promise<string>
 }
 
 // ---------------------------------------------------------------------------
-// Shell: refreshOutputBundle — the ONE call every lifecycle step makes
+// Shell: refreshPostJson — the ONE call every lifecycle step makes
 // ---------------------------------------------------------------------------
 
-/** Options for `refreshOutputBundle` — mirrors `AssetStore`'s `AssetStoreOptions` shape (a required
+/** Options for `refreshPostJson` — mirrors `AssetStore`'s `AssetStoreOptions` shape (a required
  *  ledger path, no ambient default). */
-export interface RefreshOutputBundleOptions {
+export interface RefreshPostJsonOptions {
   readonly ledgerPath: string;
 }
 
-/** Why `refreshOutputBundle` could not refresh anything — it never throws for these; it returns one of
+/** Why `refreshPostJson` could not refresh anything — it never throws for these; it returns one of
  *  these instead, mirroring the codebase's existing never-fabricate posture (`/log-post`'s
  *  `unknown-recipe` refusal, `/track-performance`'s SKIPPED lines). */
-export type RefreshOutputBundleResult =
+export type RefreshPostJsonResult =
   | { readonly ok: true; readonly dir: string; readonly path: string; readonly postJson: PostJson }
   | { readonly ok: false; readonly reason: "unknown-idea" }
   | { readonly ok: false; readonly reason: "unknown-recipe" }
@@ -181,12 +181,12 @@ export type RefreshOutputBundleResult =
  * into) all return `{ ok: false, reason }` and write no file. This is deliberately safe to call after
  * every ledger write that touches an Asset's record — a legacy or not-yet-produced Asset simply skips.
  */
-export async function refreshOutputBundle(
+export async function refreshPostJson(
   brand: string,
   ideaId: string,
   recipe: string,
-  options: RefreshOutputBundleOptions,
-): Promise<RefreshOutputBundleResult> {
+  options: RefreshPostJsonOptions,
+): Promise<RefreshPostJsonResult> {
   const ideas = await loadIdeas(options.ledgerPath, brand);
   const idea = findIdea(ideas, ideaId);
   if (idea === null) return { ok: false, reason: "unknown-idea" };

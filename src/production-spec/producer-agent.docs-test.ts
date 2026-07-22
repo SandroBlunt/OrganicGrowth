@@ -223,11 +223,11 @@ describe("producer.md's Save phase writes the .output/ bundle, never the retired
     );
   });
 
-  it("documents caption.txt and post.json, and that refreshOutputBundle runs AFTER the ledger write", async () => {
+  it("documents caption.txt and post.json, and that refreshPostJson runs AFTER the ledger write", async () => {
     const text = await readFile(PRODUCER_AGENT, "utf8");
     assert.match(text, /writeCaptionText/);
     assert.match(text, /caption\.txt/);
-    assert.match(text, /refreshOutputBundle/);
+    assert.match(text, /refreshPostJson/);
     assert.match(text, /post\.json/);
     assert.match(text, /AFTER the ledger write/);
   });

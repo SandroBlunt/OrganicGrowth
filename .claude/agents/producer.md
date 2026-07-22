@@ -213,12 +213,12 @@ kit for this Asset — the downloaded media (above), `caption.txt` (`src/asset/o
 `writeCaptionText`: the composed Copy's caption + hashtags, paste-ready), and `post.json`, a GENERATED
 VIEW of the ledger's own Asset record, never a second, hand-maintained store (always-rule 7). Write
 `caption.txt` once you have the Copy, then — AFTER the ledger write above — call
-`refreshOutputBundle(brand, ideaId, recipe, { ledgerPath })`: it re-reads the Asset you just saved and
+`refreshPostJson(brand, ideaId, recipe, { ledgerPath })`: it re-reads the Asset you just saved and
 writes `post.json` from it fresh, so `post.json` can never drift from the ledger. `/log-post` and
 `/track-performance` call the SAME function once they add the post URL and the metrics/score, so
 `post.json` always reflects the ledger's current truth. An Asset produced BEFORE this slice keeps
 whatever `.assets/`-named directory its `asset_paths` already point into — never rename an existing
-directory; `refreshOutputBundle` resolves each Asset's OWN bundle directory from its own recorded
+directory; `refreshPostJson` resolves each Asset's OWN bundle directory from its own recorded
 `asset_paths`, so a legacy `.assets/` Asset keeps getting its `post.json` refreshed right there, in
 place. **STOP.** You never publish — a human does, then runs `/log-post`, which surfaces the saved Copy
 verbatim at the Publish gate before they post it.
