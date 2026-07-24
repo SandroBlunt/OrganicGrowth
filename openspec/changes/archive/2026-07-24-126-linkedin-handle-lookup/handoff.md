@@ -181,3 +181,110 @@ Results at handoff time:
 - **CONTEXT.md left untouched**, matching #122's/#125's own precedent of leaving the domain glossary
   alone for a mechanism-only slice that doesn't change vocabulary an Operator thinks in; AC4 explicitly
   allows a store-level comment instead.
+
+---
+
+## QA Verdict — Round 1: PASS
+
+### Suite result
+
+All commands run exactly as specified in the Build Report's "How to run" section, from
+`/Users/CaxtonTaylor/Developer/OrganicGrowth/.claude/worktrees/issue-126-linkedin-handle-lookup`:
+
+- `npm test` (type-checks via `tsc --noEmit`, then runs every `*.test.ts` under Node's built-in test
+  runner): **1549 pass / 0 fail / 0 cancelled / 0 skipped**. Matches the Build Report's claimed count
+  exactly.
+- `npm run test:docs`: **122 pass / 0 fail**. Matches the Build Report's claimed count exactly
+  (unaffected by this slice, as expected — no `.docs-test.ts` added).
+- `npx openspec validate --all --strict`: **31/31 items pass**, including
+  `change/126-linkedin-handle-lookup` explicitly listed as valid.
+- Independently counted new tests: `grep -c "  it("` on the two new test files returns 21
+  (`lookup.test.ts`) + 11 (`store.test.ts`) = **32**, matching the claimed "+32 new tests" exactly
+  (1517 baseline → 1549).
+
+All real, actually-executed, green — no assumed passes.
+
+### Per-criterion results (issue #126 acceptance criteria, verbatim)
+
+| # | Criterion | Result | Proving evidence |
+|---|---|---|---|
+| AC1 | A new lookup file (global or per-Brand) holds company/product name -> LinkedIn handle entries, Operator-maintained | **PASS** | `data/linkedin-handles.yaml` exists, committed, header comment states "HAND-EDITED by the Operator... NOT a live API lookup," gives the Operator two commented-out copy-paste examples. Proven loadable by `store.test.ts`'s `"loads the REAL committed data/linkedin-handles.yaml without throwing"` (ran it directly — passes). |
+| AC2 | A typed store function resolves a name to its handle, or returns `null`/`undefined` when no entry exists (never fabricates) | **PASS** | `resolveHandle(table, name): string \| null` (`src/linkedin-handle/lookup.ts`) and `resolveLinkedInHandle(name, path?): Promise<string \| null>` (`src/linkedin-handle/store.ts`) — read both function bodies directly; no branch ever synthesizes a handle, the only return values are the committed `entry.handle` or `null`. Proven by `lookup.test.ts`'s `"resolveHandle — a found name..."` / `"...an unresolved name returns null, never fabricated"` describe blocks and `store.test.ts`'s equivalents — all pass. |
+| AC3 | Tests cover: a found name, an unresolved name, and an empty lookup file | **PASS** | Found name: `store.test.ts` `"resolves a committed entry to its handle (AC2 — found name)"`, `lookup.test.ts` `"resolveHandle — a found name resolves to its handle (AC2)"` (3 sub-tests). Unresolved name: `store.test.ts` `"returns null for a name with no committed entry (AC2 — unresolved name)"`, `lookup.test.ts` equivalent (3 sub-tests). Empty lookup file: `store.test.ts` covers a missing file, a zero-byte existing file, and a comments-only existing file, each independently (all pass); `lookup.test.ts`'s `"parseLinkedInHandleTable — empty/absent input degrades to the empty table (AC3)"` covers the same at the pure layer for `null`/`undefined`/`{}`/non-object/array. |
+| AC4 | Docs (CONTEXT.md or a store-level comment) note this is Operator-maintained, not a live API lookup | **PASS** | Read `lookup.ts` lines 1–30 and `store.ts` lines 1–20 directly: both top-of-file module doc comments state plainly "Operator-maintained... NOT a live lookup" and "never makes a network request, calls a LinkedIn API, or scrapes anything." `data/linkedin-handles.yaml`'s own header repeats it. AC4 explicitly allows "CONTEXT.md **or** a store-level comment" — the store-level-comment path chosen satisfies the criterion as written; CONTEXT.md is untouched, consistent with the AC's own "or." |
+
+All 4 acceptance criteria: **PASS**.
+
+### Per-scenario results (spec deltas → issue traceability)
+
+`openspec/changes/126-linkedin-handle-lookup/specs/linkedin-handle-lookup/spec.md`, 3 Requirements / 6
+Scenarios:
+
+| Requirement | Scenario | Result | Covering test |
+|---|---|---|---|
+| Global typed lookup resolves name → handle | Committed entry resolves to its handle | **PASS** | `lookup.test.ts` "resolveHandle — a found name resolves to its handle (AC2)"; `store.test.ts` "resolves a committed entry to its handle (AC2 — found name)" |
+| " | No committed entry → `null`, never fabricated | **PASS** | `lookup.test.ts` "resolveHandle — an unresolved name returns null, never fabricated (AC2)"; `store.test.ts` "returns null for a name with no committed entry" |
+| " | Empty lookup (missing file or zero entries) → `null` for any name, no throw | **PASS** | `store.test.ts` "loads a MISSING file as the empty table, never throws" + "loads an EXISTING but zero-byte file..." + "returns null against a missing file, never throws" + "returns null against an existing-but-empty file, never throws" |
+| Defensive parsing — malformed entry dropped, not a table crash | Malformed entry dropped, well-formed entry still resolves | **PASS** | `lookup.test.ts` "drops an entry with a blank handle, keeps the well-formed entry, and warns" (also verified: dropped entry, not-a-string handle, blank name, duplicate-key-first-wins — all pass) |
+| " | File that fails to parse as YAML throws a path-naming error | **PASS** | `store.test.ts` "throws a path-naming error for a file that fails to parse as YAML, never a bare parser exception" — asserts the message matches `/Cannot parse LinkedIn Handle Lookup YAML/` and includes the path |
+| Case-insensitive, whitespace-trimmed matching | Differently-cased/padded query resolves the same handle | **PASS** | `lookup.test.ts` "resolves case-insensitively and whitespace-trimmed" (`"  anthropic  "`, `"ANTHROPIC"` both resolve to the committed `"Anthropic"` entry's handle) |
+
+All 6 Scenarios: **PASS**. Every Scenario traces back to a real acceptance criterion of issue #126 (no
+invented Scenario beyond what the issue and its consumers — ADR-0019, issue #130 — actually ask for).
+
+### Spec-vs-issue faithfulness check (job c)
+
+- **Scope decision (global vs per-Brand) — verified, not silently assumed.** The issue explicitly
+  flagged this as an open question ("confirm this during implementation... document the choice").
+  Checked the developer's citations directly:
+  - `docs/adr/0019-multi-channel-brand-profile-primary-tracked.md` (read in full) does say verbatim:
+    *"LinkedIn `@mention` tagging of other companies/products (`#130`) is resolved through a separate,
+    dedicated lookup (`#126`) — not through this list."* — confirms a single, separate lookup, not a
+    per-Brand extension of the Channel list.
+  - `gh issue view 130` (read in full) does say verbatim: *"resolve each company/product named in the
+    Idea/Spec's structured companies data ... through #126's handle lookup"* — singular "the lookup,"
+    consistent with one global table.
+  - The reasoning given (third-party companies mentioned in news content recur across any Brand, unlike
+    Brand-owned identity data such as `brand-profile.yaml` or Brand Assets) is sound and consistent with
+    `CONTEXT.md`'s existing Brand/Channel model — a real company like Anthropic could plausibly be
+    mentioned by more than one Brand's content, and there is no reason to fork that data per Brand.
+  - The decision is written down in `proposal.md`'s dedicated "Scope decision" section, not just
+    asserted in code comments — satisfies "document the choice."
+  - **Verdict: reasonable, well-sourced, genuinely documented — not a silent assumption.**
+- **No scope creep past the issue.** Verified `src/copy/*` is untouched (`git show 6071b12 --stat`
+  confirms the commit touches only 9 files, all under `src/linkedin-handle/`, `data/`, and
+  `openspec/changes/126-linkedin-handle-lookup/` — zero existing files modified, matching the Build
+  Report's "Modified: none" claim exactly). The issue's own "This slice is resolution only" instruction
+  is honored; no `@mention` insertion logic, no Copy wiring, no enumeration API beyond what AC2 asks for.
+- **No contradiction with CONTEXT.md / ADRs / PRD #1.** This slice adds a new, self-contained store; it
+  does not alter the Brand, Channel, Idea, Asset, or Copy vocabulary. ADR-0014 (typed store boundary,
+  no DB for MVP) and ADR-0016 (Brand Asset precedent) are the cited precedents and the new code's shape
+  genuinely mirrors them (typed store, defensive parsing, missing-file-degrades-gracefully).
+
+### Always-rules + Magnific-fake checks
+
+| Rule | Result | Evidence |
+|---|---|---|
+| Generate-never-publish | **PASS (N/A, upheld)** | No publish-path code touched; `git show 6071b12 --stat` confirms zero files under any publish/producer path changed. |
+| Public-metrics-only | **PASS (N/A, upheld)** | No metrics/Apify code touched. |
+| Relative-not-absolute | **PASS (N/A, upheld)** | No scoring/baseline code touched. |
+| Explicit-attribution | **PASS (N/A, upheld)** | No Post/`post_url`/ledger-attribution code touched. |
+| Ledger-as-source-of-truth | **PASS (N/A, upheld)** | No ledger-write code path touched; `data/brands/*/ledger.json` absent from the commit's file list. |
+| Never-fabricate | **PASS** | Read `resolveHandle`'s full body (`src/linkedin-handle/lookup.ts`): the only two return paths are the committed `entry.handle` (a Map lookup against Operator-authored data) or `null`. No default/fallback/guessed handle anywhere in the diff. |
+| Lookup is genuinely Operator-maintained, not auto-populated | **PASS** | `grep -rn "linkedin-handles\|LinkedInHandle" src/ --include="*.ts" \| grep -v "src/linkedin-handle/"` → **no matches** — no other module in the repo reads, writes, or references this store yet (confirms "resolution only," nothing auto-populates it downstream in this slice). `grep -rn "writeFile\|appendFile" src/linkedin-handle/` → matches only inside `store.test.ts`, writing to `mkdtemp`-created temp fixtures, never to the real `data/linkedin-handles.yaml`. The real file itself is committed with zero entries and a header instructing hand-editing only. |
+| Magnific fake used, no live Space calls | **PASS** | `grep -rn "spaces_\|creations_" src/linkedin-handle/` → **no matches**. This slice has no Space/MCP code at all (correctly not claiming to use the fake — there's nothing to fake), consistent with the issue's own "no live lookup or scraping" instruction. |
+| No live LinkedIn API / network call | **PASS** | `grep -rn "fetch(\|http\.\|https\.\|axios\|XMLHttpRequest" src/linkedin-handle/` → **no matches**. `package.json`/`package-lock.json` diff against the issue's base is empty — no new HTTP/LinkedIn-SDK dependency added. |
+
+### Defect list
+
+None. No defects found in this round.
+
+### Verdict
+
+**PASS.** All 4 acceptance criteria verified against actual code and passing tests (not just the Build
+Report's self-assessment); all 6 spec-delta Scenarios trace to real, passing tests; the global-vs-per-
+Brand scope decision is genuinely documented and cross-checked against ADR-0019 and issue #130, not
+silently assumed; the slice is purely additive (zero existing files modified); the lookup never
+fabricates a handle and is verifiably hand-maintained only; no live Magnific or LinkedIn calls exist
+anywhere in the diff. `openspec validate --strict` and the full test suite (`npm test`, `npm run
+test:docs`) are green, run directly and independently confirmed. Clear to proceed to PR.
