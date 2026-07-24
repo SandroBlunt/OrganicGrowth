@@ -60,6 +60,20 @@ export interface CopyInput {
    * already-produced beats into the caption instead of re-deriving one from the brief alone.
    */
   readonly slideNarrative?: readonly CopySlideBeat[];
+  /**
+   * The real companies/products this Asset concerns, at the WHOLE-Asset grain a single-media Recipe's
+   * Copy step already works at (e.g. the Character Explainer with Cast Recipe's saved Production
+   * Spec's own `companies` field, threaded through by `character-explainer-companies.ts`'s
+   * `characterExplainerCompanies` — issue #125). Mirrors `CopySlideBeat.companies`'s per-slide wiring
+   * for a multi-slide Recipe — the SAME "grounded, never invented" data, just carried at the Asset
+   * grain instead of the beat grain, since this Recipe has no per-slide/per-beat narrative to attach it
+   * to. OPTIONAL and purely additive: every existing caller that omits it is unaffected, and neither
+   * `defaultDraftCopy` nor `skillDraftCopy`'s deterministic output changes because of its presence or
+   * absence — naming companies naturally in the caption's own wording is the `write-social-copy`
+   * Skill's own LLM judgment call. Absent/empty contributes no company/product mention — never
+   * fabricated.
+   */
+  readonly companies?: readonly string[];
 }
 
 /** A drafter turns `CopyInput` + the chosen Recipe's `CopyShape` into a candidate Copy. In production

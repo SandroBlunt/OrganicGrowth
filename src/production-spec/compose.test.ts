@@ -119,6 +119,39 @@ describe("composeSpec — validation gate", () => {
   });
 });
 
+describe("composeSpec — companies threads through the WHOLE pipeline unchanged (issue #125)", () => {
+  it("a Brief naming real companies writes a Spec whose companies list survives to disk", async () => {
+    await withTempDir(async (dir) => {
+      const brief: Brief = { ...acceptedBrief(), companies: ["OpenAI", "Anthropic"] };
+      const result = await composeSpec(brief, {
+        ideasRoot: dir,
+        brandProfilePath: BANNED_PROFILE,
+        recipe: RECIPE,
+      });
+
+      assert.equal(result.written, true);
+      const parsed = JSON.parse(await readFile(result.path, "utf8")) as Record<string, unknown>;
+      assert.deepEqual(parsed.companies, ["OpenAI", "Anthropic"]);
+      assert.equal(validate(parsed).ok, true);
+    });
+  });
+
+  it("a Brief naming no companies writes a Spec with no companies field — never fabricated", async () => {
+    await withTempDir(async (dir) => {
+      const result = await composeSpec(acceptedBrief(), {
+        ideasRoot: dir,
+        brandProfilePath: BANNED_PROFILE,
+        recipe: RECIPE,
+      });
+
+      assert.equal(result.written, true);
+      const parsed = JSON.parse(await readFile(result.path, "utf8")) as Record<string, unknown>;
+      assert.equal("companies" in parsed, false);
+      assert.equal(validate(parsed).ok, true);
+    });
+  });
+});
+
 describe("composeSpec — empty banned list (real profile shape)", () => {
   it("writes the Spec when the brand profile has no banned words", async () => {
     await withTempDir(async (dir) => {

@@ -39,7 +39,8 @@ export type ValidationCode =
   | "clip_shape"
   | "thumbnails_missing"
   | "thumbnails_not_top_level"
-  | "thumbnails_count";
+  | "thumbnails_count"
+  | "companies_shape";
 
 /** One contract violation: a stable `code` plus a human-readable `message`. `code` is plain `string`
  *  (not narrowed to `ValidationCode`) so a DIFFERENT Recipe's validator can produce this same shape
@@ -163,6 +164,22 @@ export function validate(spec: unknown): ValidationResult {
       code: "thumbnails_count",
       message: `thumbnails must be a top-level array of exactly ${REQUIRED_THUMBNAILS} prompts (got ${got}).`,
     });
+  }
+
+  // companies — OPTIONAL (issue #125): when the key is present at all, it must be an array of
+  // non-empty strings (may be empty — a Spec naming no real company). Absent is valid and NOT an
+  // error — never require a Spec to fabricate a company to pass validation.
+  if ("companies" in spec && spec.companies !== undefined) {
+    const companies = spec.companies;
+    if (
+      !Array.isArray(companies) ||
+      !companies.every((c) => typeof c === "string" && c.trim().length > 0)
+    ) {
+      errors.push({
+        code: "companies_shape",
+        message: "companies, when present, must be an array of non-empty strings (may be empty).",
+      });
+    }
   }
 
   return { ok: errors.length === 0, errors };

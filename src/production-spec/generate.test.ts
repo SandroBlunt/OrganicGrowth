@@ -92,6 +92,29 @@ describe("generate — degenerate Briefs still yield a valid Spec", () => {
   });
 });
 
+describe("generate — companies is carried through UNCHANGED from the Brief, never invented (issue #125)", () => {
+  it("a Brief with no companies field yields a Spec with no companies field — absent, never invented", () => {
+    const spec = generate(sampleBrief());
+    assert.equal("companies" in spec, false);
+    assert.equal(validate(spec).ok, true, JSON.stringify(validate(spec).errors));
+  });
+
+  it("a Brief naming real companies yields a Spec whose companies list matches EXACTLY", () => {
+    const brief: Brief = { ...sampleBrief(), companies: ["OpenAI", "Anthropic"] };
+    const spec = generate(brief);
+    assert.deepEqual(spec.companies, ["OpenAI", "Anthropic"]);
+    assert.equal(validate(spec).ok, true, JSON.stringify(validate(spec).errors));
+  });
+
+  it("a Brief with an explicit empty companies array yields a Spec with an explicit empty array (not dropped)", () => {
+    const brief: Brief = { ...sampleBrief(), companies: [] };
+    const spec = generate(brief);
+    assert.equal("companies" in spec, true);
+    assert.deepEqual(spec.companies, []);
+    assert.equal(validate(spec).ok, true, JSON.stringify(validate(spec).errors));
+  });
+});
+
 describe("generate — defaults are brand-safe against a configured banned list", () => {
   it("the generated Spec contains no banned words from a sample list", () => {
     // The generator must not bake in words a brand might ban; assert against a representative list.

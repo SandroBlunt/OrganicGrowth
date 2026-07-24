@@ -211,4 +211,44 @@ describe("skillDraftCopy — the write-social-copy Skill's deterministic stand-i
     const hook = beatsWithCompanies.find((b) => b.role === "hook")!;
     assert.deepEqual(hook.companies, ["OpenAI", "Anthropic", "Meta"]);
   });
+
+  /**
+   * issue #125: `CopyInput.companies` (the WHOLE-Asset-grain sibling of `CopySlideBeat.companies`, for
+   * a single-media Recipe like Character Explainer with Cast) is now available on `CopyInput`. Mirrors
+   * the #120 "mechanical availability" proof above exactly: a `companies` list compiles, is accepted,
+   * and doesn't alter the deterministic drafter's own output — naming the real companies naturally in
+   * the caption's own words stays the `write-social-copy` Skill's own LLM job.
+   */
+  it("accepts a top-level CopyInput.companies list without changing drafting behavior — mirrors CopySlideBeat.companies's availability proof, at the whole-Asset grain (issue #125)", () => {
+    const withCompanies = skillDraftCopy(
+      sampleInput({ mediaContext: "Sunny the Mug", companies: ["OpenAI", "Anthropic"] }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+    const withEmptyCompanies = skillDraftCopy(
+      sampleInput({ mediaContext: "Sunny the Mug", companies: [] }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+    const withoutCompaniesField = skillDraftCopy(
+      sampleInput({ mediaContext: "Sunny the Mug" }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+
+    // Purely additive: the deterministic drafter's OWN output is unaffected by companies' presence,
+    // whether non-empty, explicitly empty, or absent entirely.
+    assert.deepEqual(withCompanies, withoutCompaniesField);
+    assert.deepEqual(withEmptyCompanies, withoutCompaniesField);
+    assert.equal(validateCopy(withCompanies, CHARACTER_EXPLAINER_SHAPE, NO_RULES).ok, true);
+
+    // defaultDraftCopy is unaffected too — companies is Recipe-agnostic on CopyInput, not tied to
+    // whichever drafter reads it.
+    const defaultWith = defaultDraftCopy(
+      sampleInput({ mediaContext: "Sunny the Mug", companies: ["OpenAI"] }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+    const defaultWithout = defaultDraftCopy(
+      sampleInput({ mediaContext: "Sunny the Mug" }),
+      CHARACTER_EXPLAINER_SHAPE,
+    );
+    assert.deepEqual(defaultWith, defaultWithout);
+  });
 });

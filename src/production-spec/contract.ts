@@ -31,6 +31,19 @@
  * step (`src/copy/`), in the shape the chosen **Recipe** declares (`Recipe.copyShape`,
  * `src/recipe/registry.ts`) rather than as a global constant here — a different Recipe can declare
  * different bounds. See `docs/adr/0012-copy-shared-parameterized-out-of-space-step.md`.
+ *
+ * --- companies is OPTIONAL, per-Asset (issue #125) ---
+ *
+ * Mirrors `news-carousel-contract.ts`'s `CarouselSlide.companies` — a structured list of the real
+ * companies/products this Asset concerns, so the Copy step can name them without re-guessing from the
+ * brief's prose (`src/copy/character-explainer-companies.ts` threads it into `CopyInput.companies`).
+ * Unlike the News Carousel Recipe's per-SLIDE field (always present, since every slide is independently
+ * labeled), this Recipe's `companies` lives at the WHOLE-Asset grain, alongside `thumbnails`'s own
+ * precedent for a top-level (not per-clip) field: all 3 clips render one continuous narrative about the
+ * SAME picked Character, so a company/product named anywhere in the Idea belongs to the Asset as a
+ * whole, not to one clip over another. OPTIONAL — a Spec authored before this change, or one whose
+ * Idea names no real company/product, simply omits it; `validate()` never requires it. Empty/absent
+ * SHALL never be treated as an invitation to invent a mention (always-rule 8).
  */
 
 /** Required count of `character_concepts` in a Production Spec. */
@@ -68,4 +81,11 @@ export interface ProductionSpec {
   readonly clips: readonly SpecClip[];
   /** TOP-LEVEL. Exactly 3 image prompts. */
   readonly thumbnails: readonly string[];
+  /**
+   * OPTIONAL, TOP-LEVEL (issue #125). The real companies/products this Asset concerns, e.g.
+   * `["OpenAI", "Anthropic"]` — or an empty array when the Idea names none. Omitted entirely when the
+   * author phase has nothing to record (never invented to satisfy this field; see the module docstring
+   * above for why this sits at the whole-Asset grain, not per-clip).
+   */
+  readonly companies?: readonly string[];
 }
