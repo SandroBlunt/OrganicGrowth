@@ -38,6 +38,12 @@ export interface Brief {
   readonly character_concepts?: readonly string[];
   /** Narrative beats, one per clip; padded/trimmed to exactly 3. */
   readonly beats?: readonly string[];
+  /**
+   * The real companies/products this Idea names, when any (issue #125) — carried through UNCHANGED
+   * onto the generated Spec's own top-level `companies` field, never invented. Omitted when the Brief
+   * names none; an explicit `[]` is also carried through as `[]`, never collapsed to "absent".
+   */
+  readonly companies?: readonly string[];
 }
 
 /** Pad an array to exactly `n` entries using `fill(i)`, or trim to the first `n`. */
@@ -96,5 +102,9 @@ export function generate(brief: Brief): ProductionSpec {
     character_concepts: concepts,
     clips,
     thumbnails,
+    // Carried through UNCHANGED from the Brief when supplied at all — never invented, never dropped
+    // (issue #125). `exactOptionalPropertyTypes` means the key must be omitted entirely, not set to
+    // `undefined`, when the Brief itself has nothing to say.
+    ...(brief.companies !== undefined ? { companies: brief.companies } : {}),
   };
 }

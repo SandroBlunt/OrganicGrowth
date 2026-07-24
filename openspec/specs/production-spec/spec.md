@@ -40,6 +40,16 @@ reusable by a DIFFERENT Recipe's OWN validator (e.g. the News Carousel Recipe's
 `validateNewsCarouselSpec`) with its own error-code vocabulary — `validate()` itself is unaffected and
 continues to only ever produce `ValidationCode` values (a subtype of `string`).
 
+`ProductionSpec` (`src/production-spec/contract.ts`) SHALL additionally carry an OPTIONAL, TOP-LEVEL
+`companies` field, `readonly string[]` — the real companies/products this Asset concerns, mirroring
+`news-carousel-contract.ts`'s per-slide `CarouselSlide.companies` but at the WHOLE-Asset grain, since
+this Recipe's 3 clips render one continuous narrative about the SAME picked Character rather than 7
+independently-labeled slides (issue #125). `validate()` SHALL NOT require this field to be present — a
+Spec authored before this change, or an Idea naming no real company, is still a well-formed Spec. WHEN
+`companies` is present, `validate()` SHALL require it to be an array whose every entry is a non-empty
+string (the array itself MAY be empty), and SHALL reject it, with an identifiable reason (a new
+`ValidationCode`, `"companies_shape"`), otherwise.
+
 #### Scenario: A well-formed Spec is accepted
 
 - **GIVEN** a Production Spec with exactly 3 `character_concepts`, exactly 3 `clips`, and a top-level
@@ -86,6 +96,39 @@ continues to only ever produce `ValidationCode` values (a subtype of `string`).
   inspected against the `ValidationError` type
 - **THEN** they type-check as valid `ValidationError.code` values, proving the shared shape is
   Recipe-agnostic
+
+#### Scenario: A Spec with no companies field at all is accepted (issue #125, backward compatible)
+
+- **GIVEN** an otherwise well-formed Production Spec with no `companies` field
+- **WHEN** `validate(spec)` is called
+- **THEN** it reports `ok: true` — `companies` is never required
+
+#### Scenario: A Spec with a non-empty companies list is accepted
+
+- **GIVEN** an otherwise well-formed Production Spec whose top-level `companies` is
+  `["OpenAI", "Anthropic"]`
+- **WHEN** `validate(spec)` is called
+- **THEN** it reports `ok: true`
+
+#### Scenario: A Spec with an explicit empty companies list is accepted
+
+- **GIVEN** an otherwise well-formed Production Spec whose top-level `companies` is `[]`
+- **WHEN** `validate(spec)` is called
+- **THEN** it reports `ok: true` — an explicit empty list is a valid, passing state, not an error
+
+#### Scenario: A companies field that is present but not an array is rejected
+
+- **GIVEN** an otherwise well-formed Production Spec whose `companies` field is the string `"OpenAI"`
+  (not an array)
+- **WHEN** `validate(spec)` is called
+- **THEN** it reports `ok: false` with an error whose `code` is `"companies_shape"`
+
+#### Scenario: A companies array containing a blank entry is rejected
+
+- **GIVEN** an otherwise well-formed Production Spec whose `companies` array contains a blank/
+  whitespace-only string entry
+- **WHEN** `validate(spec)` is called
+- **THEN** it reports `ok: false` with an error whose `code` is `"companies_shape"`
 
 ### Requirement: Brand-safety hard filter on the Production Spec
 
@@ -144,6 +187,13 @@ Spec file rather than overwriting the first Recipe's. `recipe` SHALL be a requir
 (never defaulted or inferred) to both `specPathFor` and `composeSpec`'s options. The persisted Spec
 SHALL pass `validate()` and the brand-safety filter; a Spec that fails either SHALL NOT be written.
 
+`src/production-spec/generate.ts`'s `Brief` (the deterministic author-phase composer's own input, and
+the Character Explainer Recipe's `produce-character-explainer` Skill's real-world counterpart) SHALL
+carry a matching OPTIONAL `companies` field, `readonly string[]`. WHEN `Brief.companies` is supplied
+(non-empty OR an explicit `[]`), `generate()` SHALL carry it through UNCHANGED onto the generated
+Spec's own top-level `companies` field. WHEN `Brief.companies` is `undefined`, the generated Spec SHALL
+carry NO `companies` field at all (never invented to fill it).
+
 #### Scenario: Composing an accepted Idea writes a valid, Recipe-segmented Spec beside the Brief
 
 - **GIVEN** an accepted Brief for Idea `idea-NN` in run `<run>`, composed for Recipe `<recipe>`
@@ -163,6 +213,21 @@ SHALL pass `validate()` and the brand-safety filter; a Spec that fails either SH
 - **GIVEN** a candidate Spec that fails validation or contains a banned word
 - **WHEN** persistence is attempted
 - **THEN** no `idea-NN.<recipe>.spec.json` is written and the failure is reported
+
+#### Scenario: A Brief naming real companies writes a Spec whose companies list survives to disk (issue #125)
+
+- **GIVEN** an accepted Brief whose `companies` field is `["OpenAI", "Anthropic"]`
+- **WHEN** `composeSpec` composes and persists its Production Spec (Recipe
+  `character-explainer-with-cast`)
+- **THEN** the written Spec's `companies` field, re-read from disk, deep-equals
+  `["OpenAI", "Anthropic"]`
+
+#### Scenario: A Brief naming no companies writes a Spec with no companies field — never fabricated
+
+- **GIVEN** an accepted Brief with no `companies` field at all
+- **WHEN** `composeSpec` composes and persists its Production Spec (Recipe
+  `character-explainer-with-cast`)
+- **THEN** the written Spec, re-read from disk, has no `companies` field at all
 
 ### Requirement: News Carousel Production Spec validation (map ticket #77's decided shape)
 

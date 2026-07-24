@@ -115,3 +115,31 @@ export function nestedThumbnails(): Record<string, unknown> {
   ];
   return s;
 }
+
+/** A well-formed Spec with a non-empty top-level companies list (issue #125). */
+export function specWithCompanies(): Record<string, unknown> {
+  const s = clone(validSpec());
+  s.companies = ["OpenAI", "Anthropic"];
+  return s;
+}
+
+/** A well-formed Spec whose companies list is explicitly empty (the Idea names no real company). */
+export function specWithEmptyCompanies(): Record<string, unknown> {
+  const s = clone(validSpec());
+  s.companies = [];
+  return s;
+}
+
+/** companies present but not an array (contract requires an array, possibly empty). */
+export function companiesNotArray(): Record<string, unknown> {
+  const s = clone(validSpec());
+  s.companies = "OpenAI";
+  return s;
+}
+
+/** companies present as an array but containing a blank entry (contract requires non-empty strings). */
+export function companiesBlankEntry(): Record<string, unknown> {
+  const s = clone(validSpec());
+  s.companies = ["OpenAI", "  "];
+  return s;
+}

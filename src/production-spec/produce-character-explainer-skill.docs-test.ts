@@ -101,6 +101,25 @@ describe("produce-character-explainer Skill — extracted, behaviour-identical (
   });
 });
 
+describe("produce-character-explainer Skill — authors a structured companies/products list, grounded, never invented (issue #125)", () => {
+  it("names the TOP-LEVEL companies field on ProductionSpec", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /TOP-LEVEL.{0,40}companies|companies.{0,40}TOP-LEVEL/is);
+  });
+
+  it("instructs populating it from the Idea brief when real companies/products are named", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /real companies\/products/i);
+    assert.match(text, /Idea brief/i);
+  });
+
+  it("instructs omitting it entirely when the brief names none — never invented", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /omit(ted)? .{0,40}entirely|names none/i);
+    assert.match(text, /never invent/i);
+  });
+});
+
 describe("produce-character-explainer Skill — does not run the Space, pick the Cast, or compose Copy (issue #88)", () => {
   it("states it does not drive the canvas or call any Magnific tool", async () => {
     const text = await readFile(SKILL_PATH, "utf8");

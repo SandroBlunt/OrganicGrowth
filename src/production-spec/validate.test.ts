@@ -10,6 +10,10 @@ import {
   clipMissingVideoPrompt,
   missingThumbnails,
   nestedThumbnails,
+  specWithCompanies,
+  specWithEmptyCompanies,
+  companiesNotArray,
+  companiesBlankEntry,
 } from "./fixtures/specs.ts";
 
 /** Whether the validation result carries an error with the given code. */
@@ -97,6 +101,38 @@ describe("validate — top-level placement", () => {
     const result = validate(nestedThumbnails());
     assert.equal(result.ok, false);
     assert.equal(hasCode(result, "thumbnails_not_top_level"), true);
+  });
+});
+
+describe("validate — companies is OPTIONAL, top-level (issue #125)", () => {
+  it("accepts a well-formed Spec with no companies field at all — absent is valid, never required", () => {
+    const spec = validSpec() as Record<string, unknown>;
+    assert.equal("companies" in spec, false);
+    assert.equal(validate(spec).ok, true);
+  });
+
+  it("accepts a well-formed Spec whose companies list is non-empty", () => {
+    const result = validate(specWithCompanies());
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.errors, []);
+  });
+
+  it("accepts a well-formed Spec whose companies list is explicitly empty", () => {
+    const result = validate(specWithEmptyCompanies());
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.errors, []);
+  });
+
+  it("rejects a Spec whose companies field is present but not an array", () => {
+    const result = validate(companiesNotArray());
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "companies_shape"), true);
+  });
+
+  it("rejects a Spec whose companies array contains a blank entry", () => {
+    const result = validate(companiesBlankEntry());
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "companies_shape"), true);
   });
 });
 

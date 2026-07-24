@@ -110,6 +110,25 @@ describe("write-social-copy Skill — draws on each slide's companies field, gro
   });
 });
 
+describe("write-social-copy Skill — draws on the Character Explainer Recipe's own companies field too, the SAME way it already does for News Carousel (issue #125)", () => {
+  it("names CopyInput.companies and characterExplainerCompanies as part of the produced-narrative input", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /CopyInput\.companies/);
+    assert.match(text, /characterExplainerCompanies/);
+    assert.match(text, /character-explainer-companies\.ts/);
+  });
+
+  it("names the Character Explainer with Cast Recipe alongside its companies wiring", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /Character Explainer with Cast/);
+  });
+
+  it("instructs naming real companies/products from CopyInput.companies too, grounded, at either grain", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /at either grain/i);
+  });
+});
+
 describe("write-social-copy Skill — does not run the Space or publish (issue #111 hard rule)", () => {
   it("states it does not run the Space or drive the canvas", async () => {
     const text = await readFile(SKILL_PATH, "utf8");

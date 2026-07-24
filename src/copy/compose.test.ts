@@ -7,8 +7,10 @@ import { composeCopy } from "./compose.ts";
 import { validateCopy } from "./validate.ts";
 import { skillDraftCopy, type CopyInput, type CopyDrafter } from "./draft.ts";
 import { newsCarouselSlideNarrative } from "./news-carousel-slide-narrative.ts";
+import { characterExplainerCompanies } from "./character-explainer-companies.ts";
 import { getRecipe } from "../recipe/registry.ts";
 import { CAROUSEL_ROLES, type CarouselSlide } from "../production-spec/news-carousel-contract.ts";
+import type { ProductionSpec } from "../production-spec/contract.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const RULES_PROFILE = join(HERE, "fixtures", "brand-profile.copy-rules.yaml");
@@ -204,6 +206,34 @@ describe("composeCopy — the write-social-copy Skill's fake (skillDraftCopy), a
     // breaks the deterministic drafter or the downstream checker — the full pipeline stays green.
     const rules = { requiredCta: null, requiredHashtags: [], bannedWords: [] };
     assert.equal(validateCopy(result.copy!, NEWS_CAROUSEL_SHAPE, rules).ok, true);
+  });
+
+  it("composes a valid Copy through the FULL wiring — a saved Character Explainer Spec's companies threaded via characterExplainerCompanies into skillDraftCopy (issue #125)", async () => {
+    const spec: ProductionSpec = {
+      character_concepts: ["A cheerful anthropomorphic alarm clock"],
+      clips: [
+        {
+          id: "clip-1",
+          clip_id: 1,
+          concept_title: "The groggy wake-up",
+          image_prompt: "Pixar 3D render of the clock at dawn. Aspect Ratio 9:16.",
+          video_prompt: "Slow push-in, it yawns, soft voice says good morning, gentle chime sfx.",
+        },
+      ],
+      thumbnails: ["Pixar 3D close-up of the clock. Aspect Ratio 9:16."],
+      companies: ["OpenAI", "Anthropic"],
+    };
+
+    const result = await composeCopy(
+      sampleInput({ title: "AI just got an alarm clock", companies: characterExplainerCompanies(spec) }),
+      CHARACTER_EXPLAINER_SHAPE,
+      { brandProfilePath: NO_RULES_PROFILE, drafter: skillDraftCopy },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    // Companies threaded through unchanged never breaks the deterministic drafter or the downstream
+    // checker — the full pipeline stays green, mirroring the News Carousel proof above exactly.
+    const rules = { requiredCta: null, requiredHashtags: [], bannedWords: [] };
+    assert.equal(validateCopy(result.copy!, CHARACTER_EXPLAINER_SHAPE, rules).ok, true);
   });
 
   it("REFUSES a skillDraftCopy-drafted Copy containing a banned word — the checker is never bypassed", async () => {

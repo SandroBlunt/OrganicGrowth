@@ -33,8 +33,8 @@ produces is unchanged; only WHERE the procedure lives has moved.
    filter on every field you author. (Copy — caption/hashtags/CTA — is composed later, out of the
    Space, by the Recipe's own shared copy step; not by this Skill; ADR-0012.)
 2. **The Idea brief** — the accepted Idea's title, angle, character concepts (if the Brief supplies
-   any), and narrative beats (`data/brands/<slug>/ideas/<format>/<run>/idea-NN.md`). If the brief
-   cannot be read, **STOP** and report; never invent one.
+   any), narrative beats, and any real companies/products it names (`data/brands/<slug>/ideas/<format>/
+   <run>/idea-NN.md`). If the brief cannot be read, **STOP** and report; never invent one.
 
 ## Steps
 
@@ -61,7 +61,22 @@ when it supplies them), author one `SpecClip`:
 Draft exactly `REQUIRED_THUMBNAILS` (3) TOP-LEVEL image prompts (never nested inside a clip) — vivid
 close-ups of `character_concepts[0]`, each also ending with the exact `ASPECT_RATIO_LINE`.
 
-### 4. Self-audit against the author-phase checklist
+### 4. Author the companies/products list — TOP-LEVEL, OPTIONAL, grounded, never invented (issue #125)
+
+Read the Idea brief again for any REAL companies/products it names (e.g. a competitor Product Feature
+the Reel is reacting to). When it names any, list them, as written, in `ProductionSpec`'s TOP-LEVEL
+`companies` field (`src/production-spec/contract.ts`) — the whole Asset's own companies/products list,
+mirroring `thumbnails`'s own precedent for a top-level, not per-clip, field: all 3 clips render one
+continuous narrative about the SAME picked Character, so a company/product named anywhere in the Idea
+belongs to the Asset as a whole. **When the brief names none, OMIT the field entirely — never invent
+one to fill it, and never restate a generic/unnamed reference as if it were a real company.** This is
+the SAME "grounded, never invented" standard the News Carousel author phase already holds its own
+`companies` field to (`production-spec/news-carousel-author-checklist.ts`'s `companies-cited` item).
+This field carries no image-rendering role on this Recipe (unlike the News Carousel Recipe's per-slide
+logo row) — it exists so the Copy step, run later, can name what the post is actually about
+(`src/copy/character-explainer-companies.ts`).
+
+### 5. Self-audit against the author-phase checklist
 
 Run `src/recipe/phase-contract.ts`'s `auditAuthorPhase(recipe, { candidateSpec, bannedWords })` — for
 this Recipe, `getRecipe("character-explainer-with-cast")` — against your authored Spec, where
@@ -76,14 +91,17 @@ this Recipe, `getRecipe("character-explainer-with-cast")` — against your autho
   it for another word** (always-rule 6/9).
 - **Agent-judged** — each character concept and clip reads as a coherent, on-brief Pixar-3D explainer
   beat for THIS Idea, not merely contract-shaped.
+- **Agent-judged** — when present, `companies` lists only REAL companies/products the Idea brief
+  actually names — never invented, never a generic placeholder (issue #125).
 
 Completion: `auditAuthorPhase(...).ok` is `true`.
 
-### 5. Emit the Production Spec through the spec store
+### 6. Emit the Production Spec through the spec store
 
 Shape the result to `src/production-spec/contract.ts`'s `ProductionSpec`
-(`{ character_concepts, clips, thumbnails }` — no `post_copy` field; media instructions only,
-ADR-0012) and write it via `src/production-spec/store.ts`'s `saveSpec` to the path
+(`{ character_concepts, clips, thumbnails, companies? }` — no `post_copy` field; media instructions
+only, ADR-0012; `companies` OMITTED when step 4 found none) and write it via
+`src/production-spec/store.ts`'s `saveSpec` to the path
 `specPathFor(ideaId, run, ideasRoot, "character-explainer-with-cast")` —
 `data/brands/<slug>/ideas/<format>/<run>/idea-NN.character-explainer-with-cast.spec.json`, sitting
 beside the Brief.
@@ -98,6 +116,9 @@ Completion: the Spec passes `auditAuthorPhase` and is saved at that path.
 - Each character concept and clip reads as a coherent, on-brief Pixar-3D explainer beat for this
   Idea. *(Agent-judged — flagged for review, never auto-failed; ADR-0017.)*
 - No banned word in any field — reject-only, never a silent swap.
+- The TOP-LEVEL `companies` field, when present, lists only real companies/products the Idea brief
+  actually names; omitted entirely when the brief names none — never invented (issue #125).
+  *(Agent-judged — flagged for review, never auto-failed; ADR-0017.)*
 
 ## What this Skill does not do
 
