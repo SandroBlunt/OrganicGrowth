@@ -35,17 +35,27 @@ import { briefShortName } from "../production-spec/store.ts";
 import { loadIdeas, findIdea, type LedgerIdea } from "../ledger/ledger.ts";
 import { findAsset } from "./asset.ts";
 import type { AssetMetrics, LedgerAssetRecord } from "./asset.ts";
-import type { Copy } from "../copy/contract.ts";
+import type { Copy, CopyVariant } from "../copy/contract.ts";
 
 /** Deep-clone a `Copy` (including `variants`, when present) — never shares a reference with the input
  *  (issue #129, mirroring `generatePostJson`'s own purity guarantee: identical inputs always yield
- *  deep-equal, freshly-allocated output). */
+ *  deep-equal, freshly-allocated output). Each variant's `unresolvedMentions` (issue #130) is cloned too,
+ *  when present and non-empty. */
 function cloneCopy(copy: Copy): Copy {
   return {
     caption: copy.caption,
     hashtags: [...copy.hashtags],
     ...(copy.variants !== undefined && copy.variants.length > 0
-      ? { variants: copy.variants.map((v) => ({ platform: v.platform, caption: v.caption, hashtags: [...v.hashtags] })) }
+      ? {
+          variants: copy.variants.map((v) => ({
+            platform: v.platform,
+            caption: v.caption,
+            hashtags: [...v.hashtags],
+            ...(v.unresolvedMentions !== undefined && v.unresolvedMentions.length > 0
+              ? { unresolvedMentions: [...v.unresolvedMentions] }
+              : {}),
+          })),
+        }
       : {}),
   };
 }
@@ -145,12 +155,26 @@ function renderCaptionBlock(caption: string, hashtags: readonly string[]): strin
 }
 
 /**
+ * Render ONE trailing note line naming a variant's unresolved LinkedIn mentions (issue #130) — "for
+ * Operator review" surfaced right where the Operator reads the paste-ready caption before publishing.
+ * Returns `""` (no note at all) when `variant.unresolvedMentions` is absent or empty — BYTE-FOR-BYTE
+ * identical to this module's pre-issue-#130 rendering in that case.
+ */
+function unresolvedMentionsNote(variant: CopyVariant): string {
+  const unresolved = variant.unresolvedMentions;
+  if (unresolved === undefined || unresolved.length === 0) return "";
+  return `[Unresolved ${variant.platform} mentions - no committed handle, review before publishing: ${unresolved.join(", ")}]\n`;
+}
+
+/**
  * Render a Copy as paste-ready text for `caption.txt` (issue #112; per-platform variants added issue
  * #129). When `copy.variants` is absent or empty (today's single-Channel shape — AC1/AC5), this is
  * BYTE-FOR-BYTE unchanged from before: just the one caption block. When a Brand targets more than one
  * Channel, `copy.variants` is present and this instead renders EVERY variant, each headed by an
  * `=== PLATFORM ===` label and separated by a blank line, so the Operator can find and paste the right
- * one per Channel at Publish.
+ * one per Channel at Publish. A variant carrying non-empty `unresolvedMentions` (issue #130) gets one
+ * additional flagged note line, inside its OWN block, naming every unresolved company/product — never
+ * leaking into another variant's block, and never appearing at all when there is nothing unresolved.
  */
 export function captionText(copy: Copy): string {
   const variants = copy.variants;
@@ -158,7 +182,10 @@ export function captionText(copy: Copy): string {
     return renderCaptionBlock(copy.caption, copy.hashtags);
   }
   return variants
-    .map((v) => `=== ${v.platform.toUpperCase()} ===\n${renderCaptionBlock(v.caption, v.hashtags)}`)
+    .map(
+      (v) =>
+        `=== ${v.platform.toUpperCase()} ===\n${renderCaptionBlock(v.caption, v.hashtags)}${unresolvedMentionsNote(v)}`,
+    )
     .join("\n");
 }
 

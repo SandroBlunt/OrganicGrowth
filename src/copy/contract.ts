@@ -30,10 +30,16 @@
 export interface CopyVariant {
   readonly platform: string;
   /** The voice-composed body text, including any injected required CTA line, sized to THIS platform's
-   *  own bounds. */
+   *  own bounds. For a mentions-supporting platform (today: `linkedin` alone), also carries any woven
+   *  `@Name` mentions (issue #130 — `src/copy/linkedin-mentions.ts`'s `weaveLinkedInMentions`). */
   readonly caption: string;
   /** The final hashtag list — the Idea's own hashtags plus any Brand-required ones, deduped. */
   readonly hashtags: readonly string[];
+  /** The plain company/product names issue #126's LinkedIn Handle Lookup had no committed handle for
+   *  (issue #130) — present ONLY when non-empty, flagged for Operator review before publishing. Only
+   *  ever populated on a variant composed for a platform whose `PlatformCopyShape` sets
+   *  `supportsMentions: true` (today: `linkedin` alone); every other variant never carries this field. */
+  readonly unresolvedMentions?: readonly string[];
 }
 
 /** The tailored text that ships with one Asset — caption + hashtags (CONTEXT.md "Copy"). Mentions/CTA

@@ -12,10 +12,13 @@ import { getRecipe } from "../recipe/registry.ts";
 import { CAROUSEL_ROLES, type CarouselSlide } from "../production-spec/news-carousel-contract.ts";
 import type { ProductionSpec } from "../production-spec/contract.ts";
 import { channelsFrom, type Channel } from "../production-spec/brand-profile.ts";
+import type { CopyVariant } from "./contract.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const RULES_PROFILE = join(HERE, "fixtures", "brand-profile.copy-rules.yaml");
 const NO_RULES_PROFILE = join(HERE, "fixtures", "brand-profile.no-rules.yaml");
+/** Resolves ONLY "OpenAI" and "Anthropic" — issue #130's LinkedIn @mention insertion tests. */
+const LINKEDIN_HANDLES = join(HERE, "fixtures", "linkedin-handles.copy-tests.yaml");
 
 /**
  * The SINGLE wired Recipe's own copy shape, read from the real registry — never a hand-rolled shape —
@@ -290,9 +293,9 @@ const STRAW_MOTION_CHANNELS: readonly Channel[] = channelsFrom({
 });
 
 function variantsByPlatform(copy: { readonly variants?: readonly { readonly platform: string }[] }) {
-  const map = new Map<string, { readonly platform: string; readonly caption: string; readonly hashtags: readonly string[] }>();
+  const map = new Map<string, CopyVariant>();
   for (const v of copy.variants ?? []) {
-    map.set(v.platform, v as { readonly platform: string; readonly caption: string; readonly hashtags: readonly string[] });
+    map.set(v.platform, v as CopyVariant);
   }
   return map;
 }
@@ -469,5 +472,102 @@ describe("composeCopyForChannels — AC2: a multi-Channel Brand composes one var
       assert.ok(variant.caption.includes("Link in bio!"), `${variant.platform} must carry the required CTA`);
       assert.deepEqual(variant.hashtags, ["#lifehacks", "#tips"]);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// composeCopyForChannels — LinkedIn @mention insertion (issue #130)
+// ---------------------------------------------------------------------------
+
+describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126's lookup (issue #130)", () => {
+  it("names every Spec-recorded company that resolves as @Name on the LinkedIn variant ONLY", async () => {
+    const result = await composeCopyForChannels(
+      sampleInput({ companies: ["OpenAI", "Anthropic"] }),
+      CHARACTER_EXPLAINER_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const byPlatform = variantsByPlatform(result.copy!);
+    const linkedin = byPlatform.get("linkedin")!;
+    assert.ok(linkedin.caption.includes("@OpenAI"));
+    assert.ok(linkedin.caption.includes("@Anthropic"));
+    assert.equal("unresolvedMentions" in linkedin, false, "every company resolved — no flag field at all");
+
+    // Every OTHER targeted platform is completely unaffected by the identical companies data.
+    for (const platform of ["facebook", "instagram", "x", "tiktok"]) {
+      const variant = byPlatform.get(platform)!;
+      assert.ok(!variant.caption.includes("@OpenAI"), `${platform} must not carry a woven mention`);
+      assert.ok(!variant.caption.includes("@Anthropic"), `${platform} must not carry a woven mention`);
+      assert.equal("unresolvedMentions" in variant, false, `${platform} must never carry unresolvedMentions`);
+    }
+  });
+
+  it("falls back an unresolved company to plain text and flags it — never blocks the caption", async () => {
+    const result = await composeCopyForChannels(
+      sampleInput({ companies: ["OpenAI", "Unknown Startup"] }),
+      CHARACTER_EXPLAINER_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;
+    assert.ok(linkedin.caption.includes("@OpenAI"));
+    assert.ok(linkedin.caption.includes("Unknown Startup"));
+    assert.ok(!linkedin.caption.includes("@Unknown Startup"), "an unresolved name is never @-prefixed");
+    assert.deepEqual(linkedin.unresolvedMentions, ["Unknown Startup"]);
+  });
+
+  it("zero companies produces the exact pre-#130 LinkedIn variant, byte for byte", async () => {
+    const withoutMentionOption = await composeCopyForChannels(
+      sampleInput(),
+      CHARACTER_EXPLAINER_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE },
+    );
+    const withMentionOption = await composeCopyForChannels(
+      sampleInput(),
+      CHARACTER_EXPLAINER_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+    );
+    assert.equal(withoutMentionOption.ok, true, JSON.stringify(withoutMentionOption.errors));
+    assert.deepEqual(withMentionOption, withoutMentionOption);
+    const linkedin = variantsByPlatform(withMentionOption.copy!).get("linkedin")!;
+    assert.ok(!linkedin.caption.includes("Mentions:"));
+    assert.equal("unresolvedMentions" in linkedin, false);
+  });
+
+  it("never mentions a company absent from the Spec's own companies data, even though the fixture lookup would resolve it", async () => {
+    const result = await composeCopyForChannels(
+      sampleInput({ companies: ["OpenAI"] }),
+      CHARACTER_EXPLAINER_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;
+    assert.ok(linkedin.caption.includes("@OpenAI"));
+    // "Anthropic" resolves in the fixture lookup too, but is absent from this Idea's own companies data
+    // — grounded, never invented (mirrors PR #122's rule).
+    assert.ok(!linkedin.caption.includes("Anthropic"));
+  });
+
+  it("threads a News Carousel Spec's per-slide companies through slideNarrative onto the LinkedIn variant", async () => {
+    const result = await composeCopyForChannels(
+      sampleInput({
+        slideNarrative: [
+          { role: "hook", text: "Three AI giants moved this week.", companies: ["OpenAI"] },
+          { role: "shift", text: "Anthropic answered within hours.", companies: ["Anthropic"] },
+        ],
+      }),
+      NEWS_CAROUSEL_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;
+    assert.ok(linkedin.caption.includes("@OpenAI"));
+    assert.ok(linkedin.caption.includes("@Anthropic"));
   });
 });

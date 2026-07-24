@@ -171,11 +171,18 @@ describe("write-social-copy Skill — composes one variant per targeted Channel 
     assert.match(text, /single-Channel\s+Brand's saved Copy carries no.{0,20}variants.{0,20}field/i);
   });
 
-  it("defers LinkedIn @mention resolution to issue #130 — never resolves or inserts a handle here", async () => {
+  it("resolves LinkedIn @mentions via issue #126's lookup, deterministically (issue #130)", async () => {
     const text = await readFile(SKILL_PATH, "utf8");
     assert.match(text, /#130/);
-    assert.match(text, /never (resolve|insert)/i);
+    assert.match(text, /weaveLinkedInMentions/);
+    assert.match(text, /resolveLinkedInHandle/);
     assert.match(text, /linkedin-handle/);
+  });
+
+  it("states an unresolved company/product falls back to plain text, flagged for Operator review", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /unresolvedMentions/);
+    assert.match(text, /flagged.{0,40}Operator review|Operator review/i);
   });
 });
 

@@ -80,10 +80,11 @@ every platform's slot. Tune each variant's tone and length to that platform's ow
 primary Channel keeps writing in the Recipe's own established voice/length; a non-primary platform's
 `maxChars`/`minEmojis`/`maxEmojis` come from `resolveCopyShapeForPlatform`, e.g. LinkedIn reads
 longer-form and more professional with little/no emoji, X is tight and punchy, TikTok is short and
-playful). Do NOT resolve or insert a LinkedIn `@mention` to a real Page handle here — that is issue
-#130's job, built on the separate `src/linkedin-handle/` lookup; a well-formed but unresolved mention
-(or no mention at all) is fine for this slice. When the Brand targets exactly one Channel, this is
-unchanged: draft the one caption exactly as before.
+playful). Naming a company/product naturally in your own prose is fine (it reads better) — but turning
+that into a literal, real `@Name` tag is NOT your call to make: a deterministic step (below) resolves
+which companies/products actually get tagged, from the Spec's own data, never from your prose or your
+own guess at a handle. When the Brand targets exactly one Channel, this is unchanged: draft the one
+caption exactly as before.
 
 - **When `slideNarrative` is available (a multi-slide Recipe, once the media exists):** sharpen the
   ACTUAL produced on-slide narrative — open on the `"hook"` beat, carry the concrete `"shift"` (what
@@ -141,7 +142,20 @@ changes `skillDraftCopy`'s (or `defaultDraftCopy`'s) own output either.
    `injectRequiredParts` appends the required CTA/hashtags from the Brand Profile when absent, and
    dedupes when they're already present. You do not write this step's logic; you call it — once per
    targeted platform.
-2. **Check each variant against ITS OWN platform's bounds:**
+2. **Resolve and weave LinkedIn `@mention`s, for the LinkedIn variant only (issue #130).** For a targeted
+   platform whose `platformCopyShapeFor(platform)?.supportsMentions` is `true` (today: `linkedin`
+   alone), call `src/copy/linkedin-mentions.ts`'s `weaveLinkedInMentions(caption, input,
+   linkedInHandlesPath?)` on that variant's already-injected caption, BEFORE checking it. It gathers
+   every company/product named in the Spec's own structured companies data
+   (`CopyInput.companies`/`CopySlideBeat.companies` — never free prose, never a company you merely
+   mentioned in your own drafted prose), resolves each through issue #126's committed lookup
+   (`src/linkedin-handle/store.ts`'s `resolveLinkedInHandle`), and weaves in the literal text the
+   Operator will select from LinkedIn's own compose-box dropdown when typing: `@Name` (the plain
+   company/product name, never the raw handle slug) for every name that resolves, or the plain name —
+   flagged, via the returned `unresolvedMentions`, for Operator review — for every name that doesn't.
+   Zero companies is a no-op: the caption comes back byte-for-byte unchanged. This is a fully
+   deterministic step you hand off to, never your own hand-written or guessed `@mention`.
+3. **Check each variant against ITS OWN platform's bounds:**
    - the PRIMARY Channel's variant: `src/copy/validate.ts`'s `validateCopy` against the chosen Recipe's
      OWN `copyShape` — exactly as before this slice; the primary Channel NEVER consults
      `platform-shape.ts`'s own bounds table (issue #128 AC3's rule).
@@ -149,19 +163,23 @@ changes `skillDraftCopy`'s (or `defaultDraftCopy`'s) own output either.
      recipe.copyShape, rules)` — resolves that platform's own documented bounds
      (`resolveCopyShapeForPlatform`, falling back to the Recipe's own `copyShape` for a platform
      `platform-shape.ts` doesn't document) and additionally checks LinkedIn's inline `@mention` TEXT
-     SYNTAX only (never a lookup) when the platform is LinkedIn.
+     SYNTAX only (never a lookup — the RESOLUTION already happened in step 2 above) when the platform is
+     LinkedIn. Check the FINAL, mention-woven caption from step 2, not the pre-weave draft.
    - Every check covers: caption length, emoji count, required CTA present, required hashtags present,
      no banned word, and no em dash/en dash/spaced hyphen (issue #108) — in the caption or any hashtag.
    - `src/copy/compose.ts`'s `composeCopyForChannels` is this step's own deterministic, testable proof:
      given the SAME `CopyInput`/`baseShape`/Channel list this Skill reads, it runs exactly this
-     draft → inject → validate sequence per targeted platform and returns a `Copy` carrying every
-     variant, labeled — a single-Channel Brand's result is provably identical to `composeCopy`'s own
-     single-variant output (AC1/AC5).
-3. **Redraft on a soft miss** (e.g. wrong emoji count, over length) and re-check — per platform; a miss
+     draft → inject → weave mentions → validate sequence per targeted platform and returns a `Copy`
+     carrying every variant, labeled, each LinkedIn variant's `unresolvedMentions` (when non-empty) —
+     a single-Channel Brand's result is provably identical to `composeCopy`'s own single-variant output
+     (AC1/AC5).
+4. **Redraft on a soft miss** (e.g. wrong emoji count, over length) and re-check — per platform; a miss
    on ONE platform's variant never silently drops that platform, and never blocks a variant that
    already passed. **A banned word OR a dash tell is REJECT-ONLY — STOP and report; never silently swap
    the offending word or rewrite it for the model.** This mirrors the SAME reject-only contract every
-   Recipe's author-phase banned-word scan already follows (always-rule 6/9).
+   Recipe's author-phase banned-word scan already follows (always-rule 6/9). An unresolved LinkedIn
+   mention is NEVER reject-only — it falls back to plain text and is flagged, but never blocks the
+   caption (issue #130 AC2).
 
 Completion: every targeted platform's variant passes its own check — `validateCopy(...).ok` for the
 primary, `validateCopyForPlatform(...).ok` for each non-primary one (confirmed by `auditCopyPhase`,
@@ -169,7 +187,9 @@ primary, `validateCopyForPlatform(...).ok` for each non-primary one (confirmed b
 the Recipe's own copy-phase contract). Save the composed Copy onto the Asset with `caption`/`hashtags`
 set to the PRIMARY Channel's own variant and, when more than one platform was targeted, `variants`
 carrying the full, platform-labeled set (`src/copy/contract.ts`'s `Copy.variants`) — a single-Channel
-Brand's saved Copy carries no `variants` field at all, unchanged.
+Brand's saved Copy carries no `variants` field at all, unchanged. The LinkedIn variant's own
+`unresolvedMentions` (issue #130), when non-empty, is saved right there on that `CopyVariant` — it flows
+into the output bundle's `caption.txt`, flagged for Operator review, automatically.
 
 ## What this Skill does not do
 
@@ -183,10 +203,16 @@ Brand's saved Copy carries no `variants` field at all, unchanged.
   separate step.
 - It does not set the watermark `@handle` — that is a Space parameter, a Brand-wide value, never part
   of Copy (ADR-0012).
-- It does not resolve a LinkedIn `@mention` to a real Page handle — that is issue #130's job, built on
-  the separate `src/linkedin-handle/` lookup. This Skill's LinkedIn variant is just a normally-composed
-  caption satisfying LinkedIn's own `platform-shape.ts` bounds; any `@mention` it happens to include is
-  checked for well-formed TEXT SYNTAX only (`validateCopyForPlatform`), never resolved or inserted.
+- It does not hand-pick or guess which company/product gets a real `@Name` LinkedIn mention — that
+  decision is issue #130's deterministic `weaveLinkedInMentions` (step 2 above), built on the separate
+  `src/linkedin-handle/` lookup (`resolveLinkedInHandle`). You may name a company/product naturally in
+  your own drafted prose, but you never yourself resolve it to a handle or decide it's "tagged" — the
+  Skill hands off to that step, which is the ONLY place a resolved vs. unresolved company/product is
+  decided, from the Spec's own structured companies data.
+- It can never make a `@mention` a real, clickable LinkedIn tag itself — only a human, picking the name
+  from LinkedIn's own compose-box dropdown at typing time, does that (the confirmed platform
+  constraint). This Skill (and `weaveLinkedInMentions`) can only ever hand the human the exact name to
+  pick.
 - It does not track or publish to any non-primary Channel — composing a platform-tuned variant is not
   the same as OrganicGrowth publishing there itself; publishing every Channel stays 100% manual
   (ADR-0019), and performance tracking stays scoped to the one `primary` Channel (a deliberate future

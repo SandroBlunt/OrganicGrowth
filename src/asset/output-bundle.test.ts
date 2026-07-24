@@ -185,6 +185,34 @@ describe("generatePostJson — the ONE pure ledger->bundle generator", () => {
     });
   });
 
+  it("carries a variant's unresolvedMentions through onto post.json, deep-cloned (issue #130)", () => {
+    const asset: LedgerAssetRecord = {
+      recipe: "character-explainer-with-cast",
+      status: "produced",
+      copy: {
+        caption: "Facebook body.",
+        hashtags: ["#a"],
+        variants: [
+          { platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] },
+          {
+            platform: "linkedin",
+            caption: "LinkedIn body.",
+            hashtags: ["#a"],
+            unresolvedMentions: ["Unknown Startup"],
+          },
+        ],
+      },
+    };
+    const post = generatePostJson(BRAND, IDEA, asset);
+    const linkedin = post.copy!.variants!.find((v) => v.platform === "linkedin")!;
+    assert.deepEqual(linkedin.unresolvedMentions, ["Unknown Startup"]);
+    assert.notEqual(
+      linkedin.unresolvedMentions,
+      asset.copy!.variants![1]!.unresolvedMentions,
+      "never a shared reference with the input Asset's own array",
+    );
+  });
+
   it("AC5 — an Asset's Copy with no `variants` field yields a `copy` with no `variants` key — unchanged shape", () => {
     const asset: LedgerAssetRecord = {
       recipe: "news-carousel",
@@ -293,6 +321,54 @@ describe("captionText — paste-ready caption + hashtags", () => {
     assert.ok(!facebookBlock.includes("#tiktok-only"));
     assert.ok(tiktokBlock.includes("#tiktok-only"));
     assert.ok(!tiktokBlock.includes("#facebook-only"));
+  });
+
+  // ---------------------------------------------------------------------------
+  // Unresolved LinkedIn mentions note — issue #130
+  // ---------------------------------------------------------------------------
+
+  it("flags a variant's unresolved mentions in its OWN block, for Operator review, naming every one", () => {
+    const text = captionText({
+      caption: "Facebook body.",
+      hashtags: ["#a"],
+      variants: [
+        { platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] },
+        {
+          platform: "linkedin",
+          caption: "LinkedIn body.",
+          hashtags: ["#a"],
+          unresolvedMentions: ["Unknown Startup", "Ghost Co"],
+        },
+      ],
+    });
+    const facebookBlock = text.split("=== LINKEDIN ===")[0]!;
+    const linkedinBlock = text.split("=== LINKEDIN ===")[1]!;
+    assert.ok(linkedinBlock.includes("Unknown Startup"));
+    assert.ok(linkedinBlock.includes("Ghost Co"));
+    assert.ok(!facebookBlock.includes("Unknown Startup"), "the note never leaks into another variant's block");
+  });
+
+  it("renders NO note for a variant with unresolvedMentions omitted or empty (byte-identical to before issue #130)", () => {
+    const withOmitted = captionText({
+      caption: "Facebook body.",
+      hashtags: ["#a"],
+      variants: [
+        { platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] },
+        { platform: "linkedin", caption: "LinkedIn body.", hashtags: ["#a", "#b"] },
+      ],
+    });
+    const withEmpty = captionText({
+      caption: "Facebook body.",
+      hashtags: ["#a"],
+      variants: [
+        { platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] },
+        { platform: "linkedin", caption: "LinkedIn body.", hashtags: ["#a", "#b"], unresolvedMentions: [] },
+      ],
+    });
+    const expected =
+      "=== FACEBOOK ===\nFacebook body.\n\n#a\n" + "\n=== LINKEDIN ===\nLinkedIn body.\n\n#a #b\n";
+    assert.equal(withOmitted, expected);
+    assert.equal(withEmpty, expected);
   });
 });
 

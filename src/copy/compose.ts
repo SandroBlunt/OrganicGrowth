@@ -16,7 +16,8 @@
 import { defaultDraftCopy, type CopyDrafter, type CopyInput } from "./draft.ts";
 import { injectRequiredParts } from "./inject.ts";
 import { validateCopy, validateCopyForPlatform, type CopyValidationError } from "./validate.ts";
-import { resolveCopyShapeForPlatform } from "./platform-shape.ts";
+import { platformCopyShapeFor, resolveCopyShapeForPlatform } from "./platform-shape.ts";
+import { weaveLinkedInMentions } from "./linkedin-mentions.ts";
 import { loadCopyRules, type Channel } from "../production-spec/brand-profile.ts";
 import type { Copy, CopyShape, CopyVariant } from "./contract.ts";
 
@@ -27,6 +28,13 @@ export interface ComposeCopyOptions {
   /** Injectable drafter (defaults to `defaultDraftCopy`); tests inject a deterministic FAKE standing
    *  in for the producer's LLM job — never a live model. */
   readonly drafter?: CopyDrafter;
+  /** Path to issue #126's committed LinkedIn Handle Lookup (`data/linkedin-handles.yaml`), resolved for
+   *  every targeted platform whose `PlatformCopyShape` sets `supportsMentions: true` (today: `linkedin`
+   *  alone) — issue #130. Defaults to the real committed file (`DEFAULT_LINKEDIN_HANDLES_PATH`); tests
+   *  point this at an isolated fixture so no test depends on (or is affected by) the shipped
+   *  `data/linkedin-handles.yaml`. Ignored entirely by `composeCopy` and by any platform that doesn't
+   *  support mentions. */
+  readonly linkedInHandlesPath?: string;
 }
 
 /** The outcome of composing a Copy: either a validated, rule-conformant `Copy`, or the specific
@@ -110,11 +118,19 @@ export interface ComposeCopyForChannelsResult {
  * valid set of variants is ever returned — a partially-valid result is never surfaced (mirrors
  * `composeCopy`'s own all-or-nothing contract).
  *
+ * For a platform whose own bounds declare `supportsMentions: true` (today: `linkedin` alone), the
+ * injected caption is additionally run through `weaveLinkedInMentions` (`./linkedin-mentions.ts`, issue
+ * #130) BEFORE validation: every company/product named in `input`'s own structured companies data is
+ * resolved through issue #126's lookup and woven in as `@Name` (resolved) or plain text, flagged via
+ * that variant's `unresolvedMentions` (unresolved) — never blocking the compose. Every other platform is
+ * completely untouched by this step.
+ *
  * @param input    the Idea's material — the SAME material every platform's variant drafts from
  * @param baseShape the chosen Recipe's own copy-shape params (`Recipe.copyShape`)
  * @param channels the Brand's FULL Channel list (`src/production-spec/brand-profile.ts`'s
  *                 `channelsFrom`/`loadChannels`) — every entry's `platform`, not just the primary
- * @param options  the Brand Profile path + an optional injectable drafter
+ * @param options  the Brand Profile path, an optional injectable drafter, and an optional
+ *                 `linkedInHandlesPath` (issue #130)
  */
 export async function composeCopyForChannels(
   input: CopyInput,
@@ -143,15 +159,31 @@ export async function composeCopyForChannels(
     const shape = channel.primary ? baseShape : resolveCopyShapeForPlatform(baseShape, channel.platform);
     const draft = drafter(input, shape);
     const injected = injectRequiredParts(draft, rules);
+
+    // LinkedIn @mention insertion (issue #130) — ONLY for a platform whose own bounds declare
+    // supportsMentions: true (today: linkedin alone). Runs on the ALREADY-injected caption, before
+    // validation, so the syntax checker (validateCopyForPlatform) always checks the FINAL text. Every
+    // other platform's variant is completely untouched by this step.
+    const mentionsSupported = platformCopyShapeFor(channel.platform)?.supportsMentions === true;
+    const woven = mentionsSupported
+      ? await weaveLinkedInMentions(injected.caption, input, options.linkedInHandlesPath)
+      : { caption: injected.caption, unresolvedMentions: [] as readonly string[] };
+    const candidate: Copy = { caption: woven.caption, hashtags: injected.hashtags };
+
     const validation = channel.primary
-      ? validateCopy(injected, shape, rules)
-      : validateCopyForPlatform(injected, channel.platform, baseShape, rules);
+      ? validateCopy(candidate, shape, rules)
+      : validateCopyForPlatform(candidate, channel.platform, baseShape, rules);
 
     if (!validation.ok) {
       failures.push({ platform: channel.platform, errors: validation.errors });
       continue;
     }
-    const variant: CopyVariant = { platform: channel.platform, caption: injected.caption, hashtags: injected.hashtags };
+    const variant: CopyVariant = {
+      platform: channel.platform,
+      caption: candidate.caption,
+      hashtags: candidate.hashtags,
+      ...(woven.unresolvedMentions.length > 0 ? { unresolvedMentions: woven.unresolvedMentions } : {}),
+    };
     variants.push(variant);
     if (channel.primary) primaryVariant = variant;
   }
