@@ -96,6 +96,16 @@ Skill's own checklist and redraft on a miss. Save it via `src/production-spec/st
 `saveSpec`/`specPathFor`, then confirm with `auditAuthorPhase` — a final check on work you already
 own, not the first time you engage with it.
 
+**When a Recipe's Spec carries a `video_prompt` (the wired *Character Explainer with Cast* Recipe's
+clips), check the canvas BEFORE writing it.** You hold the Magnific tools this Skill deliberately does
+not (`spaces_get_nodes`/`spaces_state`) — use them to see which video model the clip generator node is
+actually configured to run (ADR-0007: the Space's own flow owns model selection; you never assume or
+hard-code one). Then, per that Skill's own instructions, load the matching video-prompting Skill (e.g.
+`kling-3-0`, `seedance-2-0`, `veo-3-1`) with the Skill tool and write the `video_prompt` in ITS format —
+never a generic, model-agnostic prompt when the actual configured model has its own Skill in this repo.
+This is authorship craft, same as everything else in this phase — writing a Kling-shaped prompt for a
+Seedance node (or vice versa) wastes the model's own capabilities.
+
 ## Bind phase — fill the Recipe's typed media slots; STOP on anything missing
 
 For every named slot in `Recipe.canvasInputs.mediaSlots`:

@@ -53,8 +53,18 @@ when it supplies them), author one `SpecClip`:
 - **image_prompt** — a Pixar-3D scene of `character_concepts[0]` acting out this beat, warm cinematic
   lighting, ending with the EXACT `ASPECT_RATIO_LINE` (`"Aspect Ratio 9:16."`,
   `src/production-spec/contract.ts`) — never paraphrased, never omitted.
-- **video_prompt** — `[Camera] -> [Action] -> [Voice] -> [SFX]`, sentence case, ~8 seconds: a slow
-  camera move on the character, it acts out the beat, a gentle voice line, soft ambient sfx.
+- **video_prompt** — ~8 seconds, the character acting out this beat with a slow camera move, a gentle
+  voice line, and soft ambient sfx. **Before writing it, find out which video model the canvas's clip
+  generator node is actually configured to use right now** (the Producer inspects the live canvas for
+  this — `spaces_get_nodes`/`spaces_state`, ADR-0007: the Space's own flow owns model selection, never
+  assumed or hard-coded here) and, when a matching video-prompting Skill exists in this repo
+  (`.claude/skills/kling-3-0`, `kling-3-0-omni`, `seedance-2-0`, `veo-3-1`, `happy-horse`,
+  `grok-imagine-1-5`, …), load it with the Skill tool and follow ITS format and conventions — shot
+  structure, camera/motion vocabulary, native-audio/dialogue syntax, the works — to write a
+  production-ready `video_prompt` for that specific model. Only when the configured model has no
+  matching Skill in this repo, fall back to the generic `[Camera] -> [Action] -> [Voice] -> [SFX]`,
+  sentence-case shape. Never write a model-agnostic prompt when a model-specific Skill is available —
+  a generic prompt under-uses what that model can actually do.
 
 ### 3. Author 3 top-level thumbnails
 
