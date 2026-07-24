@@ -143,6 +143,42 @@ describe("write-social-copy Skill — does not run the Space or publish (issue #
   });
 });
 
+describe("write-social-copy Skill — composes one variant per targeted Channel platform (issue #129)", () => {
+  it("names channelsFrom/loadChannels and reading the Brand's FULL Channel list, not just the primary", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /channelsFrom/);
+    assert.match(text, /loadChannels/);
+    assert.match(text, /not just the.{0,20}primary/i);
+    assert.match(text, /ADR-0019/);
+  });
+
+  it("instructs a distinct caption per targeted platform, never one shared caption reused everywhere", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /DISTINCT caption for EACH targeted\s+platform/);
+    assert.match(text, /never one shared caption/);
+  });
+
+  it("names the two checkers: validateCopy for the primary, validateCopyForPlatform for every other targeted platform", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /validateCopyForPlatform/);
+    assert.match(text, /resolveCopyShapeForPlatform/);
+    assert.match(text, /composeCopyForChannels/);
+  });
+
+  it("names Copy.variants and states a single-Channel Brand's Copy carries no variants field, unchanged", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /Copy\.variants/);
+    assert.match(text, /single-Channel\s+Brand's saved Copy carries no.{0,20}variants.{0,20}field/i);
+  });
+
+  it("defers LinkedIn @mention resolution to issue #130 — never resolves or inserts a handle here", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /#130/);
+    assert.match(text, /never (resolve|insert)/i);
+    assert.match(text, /linkedin-handle/);
+  });
+});
+
 describe("write-social-copy Skill — nothing Brand/Format-specific is hardcoded (issue #111)", () => {
   it("never hardcodes Straw Motion's own pill text, logo reference name, or required CTA", async () => {
     const text = await readFile(SKILL_PATH, "utf8");

@@ -196,12 +196,25 @@ its own step, separately — the SAME shared step for every Recipe, parameterize
    of what happened and what it means. This is your job as the LLM — never a fixed template. Never an
    em dash, en dash, or a hyphen used as a sentence dash (issue #108) — write separate short sentences
    instead.
-2. **Inject the Brand's required parts deterministically** — `src/copy/inject.ts`'s
+   - **Read the Brand's FULL Channel list first** (`src/production-spec/brand-profile.ts`'s
+     `loadChannels`, ADR-0019) — every entry's `platform`, not just the primary. When it targets more
+     than one platform (e.g. Straw Motion's facebook/instagram/linkedin/x/tiktok), draft ONE variant per
+     targeted platform from the SAME produced material, each tuned to that platform's own tone/length
+     (issue #129) — never one shared caption reused everywhere. A single-Channel Brand keeps drafting
+     just the one caption, unchanged.
+2. **Inject the Brand's required parts deterministically, into EVERY variant** — `src/copy/inject.ts`'s
    `injectRequiredParts` appends `required_cta`/`required_hashtags` from the Brand Profile when absent.
-3. **Check it** with `src/copy/validate.ts`'s `validateCopy` against the chosen Recipe's own
-   `copyShape` and the Brand's copy rules: length, emoji count, required CTA/hashtags present, no
-   banned word, no dash tell. Redraft on a soft miss; **a banned word is REJECT-ONLY — STOP, never
-   silently swap it.** Confirm with `auditCopyPhase` before saving.
+3. **Check each variant against ITS OWN platform's bounds:** the primary Channel's variant with
+   `src/copy/validate.ts`'s `validateCopy` against the chosen Recipe's own `copyShape` — exactly as
+   before, never `platform-shape.ts`'s own bounds (issue #128 AC3); every other targeted platform's
+   variant with `validateCopyForPlatform(copy, platform, recipe.copyShape, rules)` (also checks
+   LinkedIn's inline `@mention` text syntax, never a lookup — resolving a real handle is issue #130).
+   Every check covers length, emoji count, required CTA/hashtags present, no banned word, no dash tell.
+   Redraft on a soft miss, per platform; **a banned word is REJECT-ONLY — STOP, never silently swap
+   it.** Confirm with `auditCopyPhase` before saving. Save `copy.caption`/`copy.hashtags` as the primary
+   Channel's own variant and, when more than one platform was targeted, `copy.variants` carrying the
+   full, platform-labeled set (`src/copy/contract.ts`'s `Copy.variants`) — see `write-social-copy` for
+   the full mechanics.
 
 ## Save phase — download the finished media, write the ledger, then refresh the output bundle
 
@@ -226,8 +239,10 @@ genuinely can't be completed.
 
 **The output bundle (issue #112).** The `.output/` directory is the Operator's whole publish + tracking
 kit for this Asset — the downloaded media (above), `caption.txt` (`src/asset/output-bundle.ts`'s
-`writeCaptionText`: the composed Copy's caption + hashtags, paste-ready), and `post.json`, a GENERATED
-VIEW of the ledger's own Asset record, never a second, hand-maintained store (always-rule 7). Write
+`writeCaptionText`: the composed Copy's caption + hashtags, paste-ready — when `copy.variants` carries
+more than one targeted platform (issue #129), EVERY variant is rendered there instead, each headed by
+its own `=== PLATFORM ===` label), and `post.json`, a GENERATED VIEW of the ledger's own Asset record,
+never a second, hand-maintained store (always-rule 7). Write
 `caption.txt` once you have the Copy, then — AFTER the ledger write above — call
 `refreshPostJson(brand, ideaId, recipe, { ledgerPath })`: it re-reads the Asset you just saved and
 writes `post.json` from it fresh, so `post.json` can never drift from the ledger. `/log-post` and

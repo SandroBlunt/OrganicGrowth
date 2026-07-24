@@ -3,13 +3,14 @@ name: write-social-copy
 description: >
   Use when the thin Producer runs ANY Recipe's shared, out-of-canvas copy step (ADR-0012) — the
   Skill named by that Recipe's `copySkill` field (`src/recipe/registry.ts`; both wired Recipes name
-  this one today). Composes one Asset's caption + hashtags, in the resolved Format's own voice, from
-  the Brand's hard rules, the Idea's material, and — once the media exists — what was actually
-  produced: for a multi-slide Recipe, the saved Production Spec's own per-slide narrative, sharpened
-  into the caption's plain-language recap. Hands off to the SAME deterministic checker every Copy
-  already goes through (`injectRequiredParts` then `validateCopy`). Does NOT run the Space, pick a
-  gate, or touch the rendered media — the Producer drives the canvas separately, before this Skill
-  ever runs.
+  this one today). Composes one Asset's Copy, in the resolved Format's own voice, from the Brand's
+  hard rules, the Idea's material, and — once the media exists — what was actually produced: for a
+  multi-slide Recipe, the saved Production Spec's own per-slide narrative, sharpened into the
+  caption's plain-language recap. When the Brand targets more than one Channel platform, composes ONE
+  variant per targeted platform (issue #129), each in that platform's own tone/length. Hands off to
+  the SAME deterministic checkers every Copy already goes through (`injectRequiredParts` then
+  `validateCopy`/`validateCopyForPlatform`). Does NOT run the Space, pick a gate, or touch the
+  rendered media — the Producer drives the canvas separately, before this Skill ever runs.
 ---
 
 # Write: social copy
@@ -18,7 +19,10 @@ You compose one **Asset**'s **Copy** — the caption + hashtags a Recipe's share
 step produces (CONTEXT.md "Copy"; ADR-0012) — the copywriting counterpart to a Recipe's own
 media-authoring Skill. Where an author Skill (`produce-news-carousel`, `produce-character-explainer`)
 writes the Production Spec that drives the Space, THIS Skill writes the text that ships ALONGSIDE the
-rendered media once it exists. You **generate, never publish** (always-rule 1; ADR-0002).
+rendered media once it exists. When the Brand targets more than one Channel, you compose ONE Copy
+**variant per targeted platform** (CONTEXT.md "Channel"; ADR-0019, issue #129) — the SAME underlying
+Idea/Spec material, tuned per platform's own tone/length. You **generate, never publish** (always-rule
+1; ADR-0002).
 
 **Swappable, mirroring the per-recipe author Skills.** The thin Producer resolves you by slug from the
 job's Recipe: `getRecipe(job.recipe).copySkill` (`src/recipe/registry.ts`) — never hard-coded in
@@ -55,13 +59,31 @@ Producer's own conductor prose.
    `companies` once, for the whole Asset.
 5. **The chosen Recipe's own copy shape** — `Recipe.copyShape` (`maxChars`/`minEmojis`/`maxEmojis`) —
    never a fixed 180-char/1-3-emoji constant; a different Recipe declares its own bounds.
+6. **The Brand's targeted Channel platforms** (ADR-0019, issue #129) — the Brand Profile's FULL
+   `channel` list, read via `src/production-spec/brand-profile.ts`'s `channelsFrom`/`loadChannels`:
+   every entry's `platform`, not just the one marked `primary`. This is what tells you HOW MANY
+   variants to compose — one per targeted platform, including the primary — and, for each non-primary
+   one, which platform's own bounds (`src/copy/platform-shape.ts`'s `resolveCopyShapeForPlatform`) to
+   write and check it against.
 
 ## Steps
 
-### 1. Draft the caption — sharpen the produced narrative, never a generic restatement of the brief
+### 1. Draft the caption(s) — one per targeted platform, sharpening the produced narrative, never a generic restatement of the brief
 
-Write the caption yourself, in the resolved Format's own voice. This is your job as the LLM — never a
-fixed template.
+Write the caption(s) yourself, in the resolved Format's own voice. This is your job as the LLM — never
+a fixed template.
+
+**When the Brand targets more than one Channel** (its `channel` list has more than one entry — e.g.
+Straw Motion's facebook/instagram/linkedin/x/tiktok), draft a DISTINCT caption for EACH targeted
+platform from the SAME underlying Idea/Spec material below — never one shared caption copy-pasted into
+every platform's slot. Tune each variant's tone and length to that platform's own conventions (the
+primary Channel keeps writing in the Recipe's own established voice/length; a non-primary platform's
+`maxChars`/`minEmojis`/`maxEmojis` come from `resolveCopyShapeForPlatform`, e.g. LinkedIn reads
+longer-form and more professional with little/no emoji, X is tight and punchy, TikTok is short and
+playful). Do NOT resolve or insert a LinkedIn `@mention` to a real Page handle here — that is issue
+#130's job, built on the separate `src/linkedin-handle/` lookup; a well-formed but unresolved mention
+(or no mention at all) is fine for this slice. When the Brand targets exactly one Channel, this is
+unchanged: draft the one caption exactly as before.
 
 - **When `slideNarrative` is available (a multi-slide Recipe, once the media exists):** sharpen the
   ACTUAL produced on-slide narrative — open on the `"hook"` beat, carry the concrete `"shift"` (what
@@ -115,20 +137,39 @@ changes `skillDraftCopy`'s (or `defaultDraftCopy`'s) own output either.
 
 ### 2. Hand off to the deterministic checker — never check your own work by eye
 
-1. **Inject the Brand's required parts deterministically** — `src/copy/inject.ts`'s
+1. **Inject the Brand's required parts deterministically, into EVERY variant** — `src/copy/inject.ts`'s
    `injectRequiredParts` appends the required CTA/hashtags from the Brand Profile when absent, and
-   dedupes when they're already present. You do not write this step's logic; you call it.
-2. **Check the result** with `src/copy/validate.ts`'s `validateCopy` against the chosen Recipe's own
-   `copyShape` and the Brand's copy rules: caption length, emoji count, required CTA present, required
-   hashtags present, no banned word, and no em dash/en dash/spaced hyphen (issue #108) — in the
-   caption or any hashtag.
-3. **Redraft on a soft miss** (e.g. wrong emoji count, over length) and re-check. **A banned word OR a
-   dash tell is REJECT-ONLY — STOP and report; never silently swap the offending word or rewrite it
-   for the model.** This mirrors the SAME reject-only contract every Recipe's author-phase banned-word
-   scan already follows (always-rule 6/9).
+   dedupes when they're already present. You do not write this step's logic; you call it — once per
+   targeted platform.
+2. **Check each variant against ITS OWN platform's bounds:**
+   - the PRIMARY Channel's variant: `src/copy/validate.ts`'s `validateCopy` against the chosen Recipe's
+     OWN `copyShape` — exactly as before this slice; the primary Channel NEVER consults
+     `platform-shape.ts`'s own bounds table (issue #128 AC3's rule).
+   - every OTHER (non-primary) targeted Channel's variant: `validateCopyForPlatform(copy, platform,
+     recipe.copyShape, rules)` — resolves that platform's own documented bounds
+     (`resolveCopyShapeForPlatform`, falling back to the Recipe's own `copyShape` for a platform
+     `platform-shape.ts` doesn't document) and additionally checks LinkedIn's inline `@mention` TEXT
+     SYNTAX only (never a lookup) when the platform is LinkedIn.
+   - Every check covers: caption length, emoji count, required CTA present, required hashtags present,
+     no banned word, and no em dash/en dash/spaced hyphen (issue #108) — in the caption or any hashtag.
+   - `src/copy/compose.ts`'s `composeCopyForChannels` is this step's own deterministic, testable proof:
+     given the SAME `CopyInput`/`baseShape`/Channel list this Skill reads, it runs exactly this
+     draft → inject → validate sequence per targeted platform and returns a `Copy` carrying every
+     variant, labeled — a single-Channel Brand's result is provably identical to `composeCopy`'s own
+     single-variant output (AC1/AC5).
+3. **Redraft on a soft miss** (e.g. wrong emoji count, over length) and re-check — per platform; a miss
+   on ONE platform's variant never silently drops that platform, and never blocks a variant that
+   already passed. **A banned word OR a dash tell is REJECT-ONLY — STOP and report; never silently swap
+   the offending word or rewrite it for the model.** This mirrors the SAME reject-only contract every
+   Recipe's author-phase banned-word scan already follows (always-rule 6/9).
 
-Completion: `validateCopy(...).ok` is `true` (confirmed by `auditCopyPhase`,
-`src/recipe/phase-contract.ts`, the Producer's own phase self-audit).
+Completion: every targeted platform's variant passes its own check — `validateCopy(...).ok` for the
+primary, `validateCopyForPlatform(...).ok` for each non-primary one (confirmed by `auditCopyPhase`,
+`src/recipe/phase-contract.ts`, the Producer's own phase self-audit, run against the primary variant —
+the Recipe's own copy-phase contract). Save the composed Copy onto the Asset with `caption`/`hashtags`
+set to the PRIMARY Channel's own variant and, when more than one platform was targeted, `variants`
+carrying the full, platform-labeled set (`src/copy/contract.ts`'s `Copy.variants`) — a single-Channel
+Brand's saved Copy carries no `variants` field at all, unchanged.
 
 ## What this Skill does not do
 
@@ -142,5 +183,13 @@ Completion: `validateCopy(...).ok` is `true` (confirmed by `auditCopyPhase`,
   separate step.
 - It does not set the watermark `@handle` — that is a Space parameter, a Brand-wide value, never part
   of Copy (ADR-0012).
-- It does not publish anything, ever (always-rule 1; ADR-0002). A human reviews the saved Copy at the
-  Publish gate and posts it.
+- It does not resolve a LinkedIn `@mention` to a real Page handle — that is issue #130's job, built on
+  the separate `src/linkedin-handle/` lookup. This Skill's LinkedIn variant is just a normally-composed
+  caption satisfying LinkedIn's own `platform-shape.ts` bounds; any `@mention` it happens to include is
+  checked for well-formed TEXT SYNTAX only (`validateCopyForPlatform`), never resolved or inserted.
+- It does not track or publish to any non-primary Channel — composing a platform-tuned variant is not
+  the same as OrganicGrowth publishing there itself; publishing every Channel stays 100% manual
+  (ADR-0019), and performance tracking stays scoped to the one `primary` Channel (a deliberate future
+  epic).
+- It does not publish anything, ever (always-rule 1; ADR-0002). A human reviews the saved Copy (every
+  variant, labeled by platform) at the Publish gate and posts each to its own Channel.

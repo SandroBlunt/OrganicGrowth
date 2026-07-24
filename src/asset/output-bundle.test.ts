@@ -161,6 +161,41 @@ describe("generatePostJson — the ONE pure ledger->bundle generator", () => {
     assert.equal(post.copy, null);
   });
 
+  it("AC3 — carries every variant on `copy.variants`, labeled by platform, when the Asset's Copy has them (issue #129)", () => {
+    const asset: LedgerAssetRecord = {
+      recipe: "character-explainer-with-cast",
+      status: "produced",
+      copy: {
+        caption: "Facebook body.",
+        hashtags: ["#a"],
+        variants: [
+          { platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] },
+          { platform: "linkedin", caption: "LinkedIn body.", hashtags: ["#a", "#b"] },
+        ],
+      },
+    };
+    const post = generatePostJson(BRAND, IDEA, asset);
+    assert.deepEqual(post.copy, {
+      caption: "Facebook body.",
+      hashtags: ["#a"],
+      variants: [
+        { platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] },
+        { platform: "linkedin", caption: "LinkedIn body.", hashtags: ["#a", "#b"] },
+      ],
+    });
+  });
+
+  it("AC5 — an Asset's Copy with no `variants` field yields a `copy` with no `variants` key — unchanged shape", () => {
+    const asset: LedgerAssetRecord = {
+      recipe: "news-carousel",
+      status: "produced",
+      copy: { caption: "Hi", hashtags: ["#a"] },
+    };
+    const post = generatePostJson(BRAND, IDEA, asset);
+    assert.deepEqual(post.copy, { caption: "Hi", hashtags: ["#a"] });
+    assert.equal(post.copy !== null && "variants" in post.copy, false);
+  });
+
   it("is PURE — identical inputs always yield deep-equal output, and never mutate the inputs", () => {
     const asset: LedgerAssetRecord = {
       recipe: "news-carousel",
@@ -174,6 +209,23 @@ describe("generatePostJson — the ONE pure ledger->bundle generator", () => {
     assert.deepEqual(first, second);
     assert.notEqual(first, second, "each call returns a FRESH object, never a shared reference");
     assert.deepEqual(JSON.parse(JSON.stringify(asset)), assetSnapshot, "the input Asset is never mutated");
+  });
+
+  it("is PURE for a multi-variant Copy too — never shares the variants array reference", () => {
+    const asset: LedgerAssetRecord = {
+      recipe: "character-explainer-with-cast",
+      status: "produced",
+      copy: {
+        caption: "Facebook body.",
+        hashtags: ["#a"],
+        variants: [{ platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] }],
+      },
+    };
+    const first = generatePostJson(BRAND, IDEA, asset);
+    const second = generatePostJson(BRAND, IDEA, asset);
+    assert.deepEqual(first, second);
+    assert.notEqual(first.copy!.variants, second.copy!.variants);
+    assert.notEqual(first.copy!.variants, asset.copy!.variants, "never a shared reference with the input Asset");
   });
 });
 
@@ -193,6 +245,54 @@ describe("captionText — paste-ready caption + hashtags", () => {
   it("renders just the caption, no dangling blank line, when there are zero hashtags", () => {
     const text = captionText({ caption: "See what changed.", hashtags: [] });
     assert.equal(text, "See what changed.\n");
+  });
+
+  it("AC5 regression: an empty `variants` array renders IDENTICALLY to no `variants` field at all", () => {
+    const text = captionText({
+      caption: "Three AI giants shipped agentic tools this week.",
+      hashtags: ["#AInews", "#tech"],
+      variants: [],
+    });
+    assert.equal(text, "Three AI giants shipped agentic tools this week.\n\n#AInews #tech\n");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Multi-variant rendering — issue #129
+  // ---------------------------------------------------------------------------
+
+  it("renders EVERY variant, each labeled by platform, paste-ready, when `variants` is present", () => {
+    const text = captionText({
+      caption: "Facebook body.",
+      hashtags: ["#a"],
+      variants: [
+        { platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] },
+        { platform: "linkedin", caption: "LinkedIn body.", hashtags: ["#a", "#b"] },
+        { platform: "x", caption: "X body.", hashtags: [] },
+      ],
+    });
+    assert.equal(
+      text,
+      "=== FACEBOOK ===\nFacebook body.\n\n#a\n" +
+        "\n=== LINKEDIN ===\nLinkedIn body.\n\n#a #b\n" +
+        "\n=== X ===\nX body.\n",
+    );
+  });
+
+  it("each variant's own block never leaks another variant's caption/hashtags", () => {
+    const text = captionText({
+      caption: "Facebook body.",
+      hashtags: ["#facebook-only"],
+      variants: [
+        { platform: "facebook", caption: "Facebook body.", hashtags: ["#facebook-only"] },
+        { platform: "tiktok", caption: "TikTok body.", hashtags: ["#tiktok-only"] },
+      ],
+    });
+    const facebookBlock = text.split("=== TIKTOK ===")[0]!;
+    const tiktokBlock = text.split("=== TIKTOK ===")[1]!;
+    assert.ok(facebookBlock.includes("#facebook-only"));
+    assert.ok(!facebookBlock.includes("#tiktok-only"));
+    assert.ok(tiktokBlock.includes("#tiktok-only"));
+    assert.ok(!tiktokBlock.includes("#facebook-only"));
   });
 });
 
@@ -500,6 +600,87 @@ describe("produce-flow composition (AC1) — outputDirFor -> downloadAssetFiles 
 
       const caption = await readFile(join(outputDir, "caption.txt"), "utf8");
       assert.equal(caption, "Three AI giants shipped agentic tools this week.\n\n#AInews #tech\n");
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC3/AC4 — the full produce-flow composition, a multi-Channel Brand's variants (issue #129)
+// ---------------------------------------------------------------------------
+
+describe("produce-flow composition, multi-Channel — the ledger's variants surface in BOTH post.json AND caption.txt, labeled (issue #129)", () => {
+  it("writes every variant into post.json AND renders every variant, labeled, into caption.txt", async () => {
+    await withTempDir(async (dir) => {
+      const ideasRoot = join(dir, "ideas");
+      const ledgerPath = join(dir, "ledger.json");
+      const ideaId = "idea-2026-W30-01";
+      const run = "2026-W30";
+      const recipe = "character-explainer-with-cast";
+
+      await writeFile(
+        ledgerPath,
+        JSON.stringify(
+          { ideas: [{ id: ideaId, status: "accepted", format: "unhypped-news", assets: [{ recipe, status: "in_production" }] }] },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const outputDir = outputDirFor(ideaId, run, ideasRoot, recipe);
+      const fetchImpl = stubFetch({ "https://example.com/reel.mp4": { ok: true, body: "reel-bytes" } });
+      const downloaded = await downloadAssetFiles(
+        outputDir,
+        [{ url: "https://example.com/reel.mp4", filename: "asset.mp4" }],
+        fetchImpl,
+      );
+
+      // The ledger records EVERY variant (always-rule 7 — ledger as source of truth), each labeled by
+      // platform; caption/hashtags at the top mirror the primary (facebook) variant.
+      const copy = {
+        caption: "AI just shipped three new agents this week.",
+        hashtags: ["#AInews"],
+        variants: [
+          { platform: "facebook", caption: "AI just shipped three new agents this week.", hashtags: ["#AInews"] },
+          { platform: "linkedin", caption: "Three agentic AI launches landed this week. Here's the plain read.", hashtags: ["#AInews"] },
+          { platform: "x", caption: "3 AI agents shipped this week.", hashtags: ["#AInews"] },
+        ],
+      };
+      await writeCaptionText(outputDir, copy);
+
+      await writeAsset(
+        ideaId,
+        recipe,
+        {
+          status: "produced",
+          spec_path: join(ideasRoot, run, "idea-01.character-explainer-with-cast.spec.json"),
+          asset_paths: downloaded.map((d) => d.path),
+          produced_at: "2026-07-24T09:10:00.000Z",
+          copy,
+        },
+        { ledgerPath },
+      );
+
+      const refreshed = await refreshPostJson("straw-motion", ideaId, recipe, { ledgerPath });
+      assert.equal(refreshed.ok, true);
+
+      // post.json — the ledger's own variants, unchanged, all present.
+      const postJson = JSON.parse(await readFile(join(outputDir, "post.json"), "utf8")) as PostJson;
+      assert.deepEqual(postJson.copy, copy);
+      assert.equal(postJson.copy!.variants!.length, 3);
+
+      // caption.txt — every variant, labeled by platform, paste-ready.
+      const caption = await readFile(join(outputDir, "caption.txt"), "utf8");
+      assert.equal(
+        caption,
+        "=== FACEBOOK ===\nAI just shipped three new agents this week.\n\n#AInews\n" +
+          "\n=== LINKEDIN ===\nThree agentic AI launches landed this week. Here's the plain read.\n\n#AInews\n" +
+          "\n=== X ===\n3 AI agents shipped this week.\n\n#AInews\n",
+      );
+      // The Operator can find and copy exactly one platform's block, cleanly separated from the others.
+      assert.ok(caption.includes("=== FACEBOOK ==="));
+      assert.ok(caption.includes("=== LINKEDIN ==="));
+      assert.ok(caption.includes("=== X ==="));
     });
   });
 });

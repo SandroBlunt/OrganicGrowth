@@ -119,10 +119,13 @@ _Avoid_: draft, content, creative, Creation (Magnific's own word), post (a Post 
 The tailored text that ships with one **Asset** — caption, hashtags, mentions, CTA. A **Recipe**'s
 **copy step** composes it from the **Format**'s voice, the **Brand**'s hard rules (required CTA / hashtags,
 banned words), and the **Idea**'s material, in the *shape* the Recipe's medium needs (a Reel caption vs a
-carousel's per-card lines). **One per Asset/Post**, and **not** the Space's job — the Space makes media
-only. (The watermark @handle is **not** copy — it is a Space parameter, its value inherited from the
-Brand; ADR-0012.) A single shared, parameterized step produces it; before this change it was a dropped,
-single-line template.
+carousel's per-card lines). **One Copy per Asset**, holding **one variant per targeted Channel platform**
+when the Brand targets more than one (`#129`) — each variant tuned to that platform's own tone/length,
+composed from the SAME underlying material; a Brand with a single Channel still gets exactly the one
+caption it always has. Composing is **not** the Space's job — the Space makes media only. (The watermark
+@handle is **not** copy — it is a Space parameter, its value inherited from the Brand; ADR-0012.) A
+single shared, parameterized step produces it; before this change it was a dropped, single-line
+template.
 _Avoid_: caption (that is only one part), post_copy (the old single throwaway field).
 
 **Space** (Magnific Space; the media engine):
