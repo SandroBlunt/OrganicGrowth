@@ -204,17 +204,24 @@ its own step, separately — the SAME shared step for every Recipe, parameterize
      just the one caption, unchanged.
 2. **Inject the Brand's required parts deterministically, into EVERY variant** — `src/copy/inject.ts`'s
    `injectRequiredParts` appends `required_cta`/`required_hashtags` from the Brand Profile when absent.
-3. **Check each variant against ITS OWN platform's bounds:** the primary Channel's variant with
+3. **Resolve and weave LinkedIn `@mention`s, LinkedIn variant only (issue #130):**
+   `src/copy/linkedin-mentions.ts`'s `weaveLinkedInMentions` resolves every company/product named in the
+   Spec's own structured companies data (`CopyInput.companies`/`CopySlideBeat.companies` — never free
+   prose) through issue #126's lookup (`src/linkedin-handle/store.ts`'s `resolveLinkedInHandle`) and
+   weaves in `@Name` for a resolved handle, or the plain name — flagged via `unresolvedMentions` for
+   Operator review — for one that doesn't resolve. Zero companies is a no-op.
+4. **Check each variant against ITS OWN platform's bounds:** the primary Channel's variant with
    `src/copy/validate.ts`'s `validateCopy` against the chosen Recipe's own `copyShape` — exactly as
    before, never `platform-shape.ts`'s own bounds (issue #128 AC3); every other targeted platform's
    variant with `validateCopyForPlatform(copy, platform, recipe.copyShape, rules)` (also checks
-   LinkedIn's inline `@mention` text syntax, never a lookup — resolving a real handle is issue #130).
+   LinkedIn's inline `@mention` text syntax on the ALREADY-woven caption from step 3 — the resolution
+   itself already happened, this is a syntax check only).
    Every check covers length, emoji count, required CTA/hashtags present, no banned word, no dash tell.
    Redraft on a soft miss, per platform; **a banned word is REJECT-ONLY — STOP, never silently swap
    it.** Confirm with `auditCopyPhase` before saving. Save `copy.caption`/`copy.hashtags` as the primary
    Channel's own variant and, when more than one platform was targeted, `copy.variants` carrying the
-   full, platform-labeled set (`src/copy/contract.ts`'s `Copy.variants`) — see `write-social-copy` for
-   the full mechanics.
+   full, platform-labeled set (`src/copy/contract.ts`'s `Copy.variants`), each LinkedIn variant's own
+   `unresolvedMentions` (when non-empty) included — see `write-social-copy` for the full mechanics.
 
 ## Save phase — download the finished media, write the ledger, then refresh the output bundle
 

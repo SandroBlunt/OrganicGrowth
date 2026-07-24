@@ -1,0 +1,7 @@
+# Fixture LinkedIn Handle Lookup for the Copy step's tests ONLY (`src/copy/compose.test.ts`, issue
+# #130). Mirrors the shape of `data/linkedin-handles.yaml`, read via `src/linkedin-handle/store.ts`.
+# Deliberately resolves ONLY these two names, so a compose test can exercise both a resolved company
+# (@Name woven in) and an unresolved one (plain text, flagged) in the same run.
+
+OpenAI: openai
+Anthropic: anthropic
