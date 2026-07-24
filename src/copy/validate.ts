@@ -21,12 +21,23 @@
  *
  * Every failure is returned as a `{ code, message }`, mirroring `production-spec/validate.ts`, so
  * callers (and tests) can assert the SPECIFIC reason, not just pass/fail.
+ *
+ * `validateCopyForPlatform` (issue #128) is a NEW, ADDITIVE entry point alongside `validateCopy` above
+ * — `validateCopy` itself is UNCHANGED (same signature, same body), so every existing caller
+ * (`compose.ts`, `recipe/phase-contract.ts`'s `auditCopyPhase`, both wired Recipes' own copy step)
+ * keeps behaving exactly as before (AC3: the single-Channel path is byte-for-byte unaffected).
+ * `validateCopyForPlatform` resolves a SPECIFIC platform's own `CopyShape` bounds
+ * (`./platform-shape.ts`'s `resolveCopyShapeForPlatform`) and runs the SAME core checks against it,
+ * plus — only for a platform whose bounds declare `supportsMentions: true` (today: LinkedIn) — a check
+ * that any inline `@mention` in the caption is well-formed TEXT SYNTAX (never a lookup; resolving a
+ * name to a real LinkedIn Page handle is the separate `src/linkedin-handle/` store, issue #126/#130).
  */
 
 import { scanTextFields, type TextField } from "../production-spec/brand-safety.ts";
 import { scanTextFieldsForDashes } from "../production-spec/dash-safety.ts";
 import type { BrandCopyRules } from "../production-spec/brand-profile.ts";
 import type { CopyShape } from "./contract.ts";
+import { platformCopyShapeFor, resolveCopyShapeForPlatform } from "./platform-shape.ts";
 
 /** Stable, machine-checkable identifiers for each Copy contract violation. */
 export type CopyValidationCode =
@@ -38,7 +49,8 @@ export type CopyValidationCode =
   | "required_cta_missing"
   | "required_hashtag_missing"
   | "banned_word"
-  | "dash_in_copy";
+  | "dash_in_copy"
+  | "platform_mention_syntax";
 
 /** One Copy contract violation: a stable `code` plus a human-readable `message`. */
 export interface CopyValidationError {
@@ -181,4 +193,98 @@ export function validateCopy(
   }
 
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Scan `text` for a malformed inline `@Handle` mention (issue #128) — the syntax LinkedIn's compose UI
+ * uses: an `@` immediately followed by a handle, with no space in between. Flags:
+ *   - a "dangling" `@` immediately followed by whitespace or the end of the string (nothing to attach
+ *     to it),
+ *   - a doubled `@@`,
+ *   - a token whose non-punctuation characters aren't a plausible handle (letters, digits, `._-`).
+ * A trailing sentence-punctuation character (`.,!?;:`) right after the handle is stripped before that
+ * last check, so "Congrats to @Anthropic." is not flagged for its own sentence period. An `@` embedded
+ * mid-word (e.g. an email address's `name@example.com`) is left alone — its non-space run after `@`
+ * still reads as a plausible handle-shaped token, so this is a syntax check only, never a semantic one.
+ *
+ * This checks TEXT SHAPE ONLY — it never resolves a name to a real LinkedIn Page handle (that is the
+ * separate `src/linkedin-handle/` lookup, issue #126/#130). Pure, no I/O.
+ */
+export function scanAtHandleMentionSyntax(
+  text: string,
+): { readonly ok: boolean; readonly violations: readonly string[] } {
+  const HANDLE_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/;
+  const violations: string[] = [];
+
+  for (const match of text.matchAll(/@(\S*)/g)) {
+    const raw = match[1] ?? "";
+    if (raw.length === 0) {
+      violations.push("@"); // dangling @ — immediately followed by whitespace or end of string
+      continue;
+    }
+    if (raw.startsWith("@")) {
+      violations.push(`@${raw}`); // doubled @@
+      continue;
+    }
+    const stripped = raw.replace(/[.,!?;:]+$/u, "");
+    if (stripped.length === 0 || !HANDLE_PATTERN.test(stripped)) {
+      violations.push(`@${raw}`);
+    }
+  }
+
+  return { ok: violations.length === 0, violations };
+}
+
+/**
+ * Validate a composed Copy against a SPECIFIC platform's own bounds (issue #128). Resolves `platform`'s
+ * documented `CopyShape` — falling back to `baseShape` (the caller's Recipe's own `copyShape`) for a
+ * platform `./platform-shape.ts` doesn't document — via `resolveCopyShapeForPlatform`, then runs the
+ * SAME core checks `validateCopy` runs against it. When the resolved platform's own bounds declare
+ * `supportsMentions: true` (today: only `linkedin`), it additionally scans the caption for a malformed
+ * inline `@mention` (`scanAtHandleMentionSyntax`), appending a `platform_mention_syntax` error for each
+ * violation found.
+ *
+ * ADDITIVE — `validateCopy` itself is unchanged; every existing caller (`compose.ts`, both wired
+ * Recipes' own copy step) keeps calling it directly with its own single `copyShape`, untouched by this
+ * function (issue #128 AC3).
+ *
+ * @param copy      the candidate composed Copy (untrusted shape — defensively narrowed, mirrors `validateCopy`)
+ * @param platform  the target platform (e.g. `"linkedin"`, `"x"`) — matches a Brand Profile Channel's own `platform`
+ * @param baseShape the caller's own Recipe's `copyShape` — the fallback for a platform not in the table
+ * @param rules     the Brand's copy rules (`production-spec/brand-profile.ts`'s `loadCopyRules`)
+ */
+export function validateCopyForPlatform(
+  copy: unknown,
+  platform: string,
+  baseShape: CopyShape,
+  rules: BrandCopyRules,
+): CopyValidationResult {
+  const shape = resolveCopyShapeForPlatform(baseShape, platform);
+  const base = validateCopy(copy, shape, rules);
+
+  const platformShape = platformCopyShapeFor(platform);
+  if (platformShape === null || !platformShape.supportsMentions) {
+    return base;
+  }
+  if (!isObject(copy) || typeof copy.caption !== "string") {
+    // validateCopy already reported not_an_object/caption_missing above — nothing further to check.
+    return base;
+  }
+
+  const mention = scanAtHandleMentionSyntax(copy.caption);
+  if (mention.ok) {
+    return base;
+  }
+  return {
+    ok: false,
+    errors: [
+      ...base.errors,
+      ...mention.violations.map((v) => ({
+        code: "platform_mention_syntax" as const,
+        message:
+          `caption contains a malformed mention "${v}" for ${platform} — an @mention must be ` +
+          "immediately followed by a handle with no space (LinkedIn's inline mention syntax).",
+      })),
+    ],
+  };
 }
