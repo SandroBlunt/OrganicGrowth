@@ -1,0 +1,19 @@
+# LinkedIn Handle Lookup — Operator-maintained (issue #126, epic #120).
+#
+# Maps a third-party company/product's plain name — as it might appear in an Idea brief or a
+# Production Spec's `companies` field (e.g. "Anthropic", "1Password") — to that company's LinkedIn
+# Page handle (the slug in https://www.linkedin.com/company/<handle>). Read via the typed store
+# `src/linkedin-handle/store.ts` (`resolveLinkedInHandle`).
+#
+# This file is HAND-EDITED by the Operator. It is NOT a live API lookup — OrganicGrowth never queries
+# or scrapes LinkedIn for this data (data-handling rule 2: the only two live/Apify jobs in this repo
+# are trend-scout's peer-Page scrape and performance-tracker's own-post scrape; this lookup is neither).
+# Add an entry once you've confirmed the real handle on LinkedIn itself, e.g.:
+#
+#   Anthropic: anthropic
+#   1Password: 1password
+#
+# A name with no entry here resolves to no handle — never fabricated. Issue #130's downstream LinkedIn
+# Copy variant falls back to plain text and flags it for Operator review when that happens.
+#
+# No entries yet — this repo ships the lookup empty; the Operator populates it over time.
