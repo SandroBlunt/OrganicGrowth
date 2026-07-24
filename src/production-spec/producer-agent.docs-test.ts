@@ -288,3 +288,44 @@ describe("producer.md downloads every paused gate's candidates to a local .cast/
     assert.match(text, /never\s*\n?\s*`\.output` or `\.spec\.json`/);
   });
 });
+
+describe("producer.md's Copy phase composes one variant per targeted Channel platform (issue #129)", () => {
+  it("names reading the Brand's FULL Channel list before drafting, and loadChannels/ADR-0019", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /Brand's FULL Channel list/);
+    assert.match(text, /loadChannels/);
+    assert.match(text, /ADR-0019/);
+    assert.match(text, /not just the primary/);
+  });
+
+  it("states drafting one variant per targeted platform, from the SAME produced material", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /draft ONE variant per\s+targeted platform/);
+    assert.match(text, /SAME produced material/);
+    assert.match(text, /never one shared caption/);
+  });
+
+  it("states the primary Channel checks against the Recipe's own copyShape; every other targeted platform against validateCopyForPlatform", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /validateCopyForPlatform/);
+    assert.match(text, /never `platform-shape\.ts`'s own bounds/);
+  });
+
+  it("states a single-Channel Brand keeps drafting just the one caption, unchanged", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /A single-Channel Brand keeps drafting\s+just the one caption, unchanged/);
+  });
+
+  it("states saving copy.variants for a multi-platform Brand, and the Copy.variants contract field", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /copy\.variants/);
+    assert.match(text, /src\/copy\/contract\.ts/);
+    assert.match(text, /Copy\.variants/);
+  });
+
+  it("states the output bundle's caption.txt labels every variant by platform when more than one is targeted", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /EVERY variant is rendered there/);
+    assert.match(text, /=== PLATFORM ===/);
+  });
+});

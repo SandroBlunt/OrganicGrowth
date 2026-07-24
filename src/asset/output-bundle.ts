@@ -37,6 +37,19 @@ import { findAsset } from "./asset.ts";
 import type { AssetMetrics, LedgerAssetRecord } from "./asset.ts";
 import type { Copy } from "../copy/contract.ts";
 
+/** Deep-clone a `Copy` (including `variants`, when present) — never shares a reference with the input
+ *  (issue #129, mirroring `generatePostJson`'s own purity guarantee: identical inputs always yield
+ *  deep-equal, freshly-allocated output). */
+function cloneCopy(copy: Copy): Copy {
+  return {
+    caption: copy.caption,
+    hashtags: [...copy.hashtags],
+    ...(copy.variants !== undefined && copy.variants.length > 0
+      ? { variants: copy.variants.map((v) => ({ platform: v.platform, caption: v.caption, hashtags: [...v.hashtags] })) }
+      : {}),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // outputDirFor — the ONE place that picks the NEW ".output" name
 // ---------------------------------------------------------------------------
@@ -105,7 +118,7 @@ export function generatePostJson(
     idea_id: idea.id,
     recipe: asset.recipe,
     format: idea.format ?? null,
-    copy: asset.copy !== undefined ? { caption: asset.copy.caption, hashtags: [...asset.copy.hashtags] } : null,
+    copy: asset.copy !== undefined ? cloneCopy(asset.copy) : null,
     media: (asset.asset_paths ?? []).map((p) => basename(p)),
     post_url: asset.post_url ?? null,
     posted_at: asset.posted_at ?? null,
@@ -120,13 +133,33 @@ export function generatePostJson(
 // ---------------------------------------------------------------------------
 
 /**
- * Render a Copy as paste-ready text for `caption.txt`: the caption body, then — when there is at least
- * one hashtag — a blank line and the hashtags space-joined. Never rewrites the caption text itself.
+ * Render ONE caption + hashtag block, paste-ready: the caption body, then — when there is at least one
+ * hashtag — a blank line and the hashtags space-joined. Never rewrites the caption text itself. The
+ * shared rendering both `captionText`'s single-variant path and its per-platform path below use, so the
+ * two can never drift.
+ */
+function renderCaptionBlock(caption: string, hashtags: readonly string[]): string {
+  const body = caption.trimEnd();
+  const hashtagLine = hashtags.join(" ");
+  return hashtagLine.length > 0 ? `${body}\n\n${hashtagLine}\n` : `${body}\n`;
+}
+
+/**
+ * Render a Copy as paste-ready text for `caption.txt` (issue #112; per-platform variants added issue
+ * #129). When `copy.variants` is absent or empty (today's single-Channel shape — AC1/AC5), this is
+ * BYTE-FOR-BYTE unchanged from before: just the one caption block. When a Brand targets more than one
+ * Channel, `copy.variants` is present and this instead renders EVERY variant, each headed by an
+ * `=== PLATFORM ===` label and separated by a blank line, so the Operator can find and paste the right
+ * one per Channel at Publish.
  */
 export function captionText(copy: Copy): string {
-  const body = copy.caption.trimEnd();
-  const hashtagLine = copy.hashtags.join(" ");
-  return hashtagLine.length > 0 ? `${body}\n\n${hashtagLine}\n` : `${body}\n`;
+  const variants = copy.variants;
+  if (variants === undefined || variants.length === 0) {
+    return renderCaptionBlock(copy.caption, copy.hashtags);
+  }
+  return variants
+    .map((v) => `=== ${v.platform.toUpperCase()} ===\n${renderCaptionBlock(v.caption, v.hashtags)}`)
+    .join("\n");
 }
 
 // ---------------------------------------------------------------------------

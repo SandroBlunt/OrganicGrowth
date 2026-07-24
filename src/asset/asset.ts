@@ -30,7 +30,9 @@
  *
  * `copy` is STRUCTURED (`src/copy/contract.ts`'s `Copy` — `{ caption, hashtags }`), not a bare string
  * (ADR-0012, issue #58): the composed Copy step stores its full result here, and the Publish gate
- * surfaces it verbatim.
+ * surfaces it verbatim. When the Brand targets more than one Channel platform, `copy.variants` carries
+ * one platform-labeled variant per targeted Channel (issue #129) — additive; a single-Channel Brand's
+ * `copy` keeps its plain `{ caption, hashtags }` shape, unchanged.
  *
  * `metrics` / `tracked_at` / `history` are the per-Asset Performance fields `/track-performance`
  * writes (issue #84, ADR-0011): the four public Apify metrics behind the stored `performance_score`,
@@ -40,7 +42,7 @@
  * `performance_score`/`history` (always-rules #5).
  */
 
-import type { Copy } from "../copy/contract.ts";
+import type { Copy, CopyVariant } from "../copy/contract.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -260,9 +262,33 @@ export function parseAssetMetricsHistory(raw: unknown): AssetMetricsSnapshot[] {
 }
 
 /**
- * Parse one raw structured Copy (`{ caption, hashtags }` — ADR-0012, issue #58). Returns `null` on any
- * malformed shape (a missing/blank `caption` is required; a missing/non-array `hashtags` degrades to
- * `[]` rather than failing the whole Copy) — never throws.
+ * Parse one raw `CopyVariant` (issue #129) — `{ platform, caption, hashtags }`. Requires a non-empty
+ * `platform` and `caption`; a missing/non-array `hashtags` degrades to `[]`. Returns `null` on any
+ * malformed shape — never throws.
+ */
+export function parseCopyVariant(raw: unknown): CopyVariant | null {
+  if (!isObject(raw)) return null;
+  if (!nonEmptyString(raw.platform) || !nonEmptyString(raw.caption)) return null;
+  const hashtags = Array.isArray(raw.hashtags)
+    ? raw.hashtags.filter((h): h is string => typeof h === "string")
+    : [];
+  return { platform: raw.platform, caption: raw.caption, hashtags };
+}
+
+/** Parse a raw `variants` array, dropping malformed entries. Non-array/absent input yields `[]`
+ *  (issue #129) — mirrors `parseCastArray`. */
+export function parseCopyVariants(raw: unknown): CopyVariant[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(parseCopyVariant).filter((v): v is CopyVariant => v !== null);
+}
+
+/**
+ * Parse one raw structured Copy (`{ caption, hashtags, variants? }` — ADR-0012, issue #58; `variants`
+ * added issue #129). Returns `null` on any malformed shape (a missing/blank `caption` is required; a
+ * missing/non-array `hashtags` degrades to `[]` rather than failing the whole Copy) — never throws.
+ * `variants` is included ONLY when at least one well-formed entry parses — a single-Channel Brand's
+ * Copy (no `variants` key at all, or a garbled one) parses to the SAME plain `{ caption, hashtags }`
+ * shape it always has (AC1/AC5).
  */
 export function parseCopy(raw: unknown): Copy | null {
   if (!isObject(raw)) return null;
@@ -270,7 +296,8 @@ export function parseCopy(raw: unknown): Copy | null {
   const hashtags = Array.isArray(raw.hashtags)
     ? raw.hashtags.filter((h): h is string => typeof h === "string")
     : [];
-  return { caption: raw.caption, hashtags };
+  const variants = parseCopyVariants(raw.variants);
+  return { caption: raw.caption, hashtags, ...(variants.length > 0 ? { variants } : {}) };
 }
 
 /**

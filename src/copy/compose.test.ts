@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { composeCopy } from "./compose.ts";
+import { composeCopy, composeCopyForChannels } from "./compose.ts";
 import { validateCopy } from "./validate.ts";
 import { skillDraftCopy, type CopyInput, type CopyDrafter } from "./draft.ts";
 import { newsCarouselSlideNarrative } from "./news-carousel-slide-narrative.ts";
@@ -11,6 +11,7 @@ import { characterExplainerCompanies } from "./character-explainer-companies.ts"
 import { getRecipe } from "../recipe/registry.ts";
 import { CAROUSEL_ROLES, type CarouselSlide } from "../production-spec/news-carousel-contract.ts";
 import type { ProductionSpec } from "../production-spec/contract.ts";
+import { channelsFrom, type Channel } from "../production-spec/brand-profile.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const RULES_PROFILE = join(HERE, "fixtures", "brand-profile.copy-rules.yaml");
@@ -262,6 +263,211 @@ describe("composeCopy — the write-social-copy Skill's fake (skillDraftCopy), a
       );
       assert.equal(result.ok, true, JSON.stringify(result.errors));
       assert.doesNotMatch(result.copy!.caption, /—|–|\s-\s/);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// composeCopyForChannels — one variant per targeted Channel platform (issue #129)
+// ---------------------------------------------------------------------------
+
+/** A single-Channel Brand's own Channel list — one entry, Facebook, primary (mirrors a fresh/legacy
+ *  single-Channel `brand-profile.yaml`'s post-ADR-0019 list shape). */
+const SINGLE_CHANNEL: readonly Channel[] = channelsFrom({
+  channel: [{ platform: "facebook", url: "https://example.test/page", primary: true }],
+});
+
+/** Straw Motion's OWN real Channel list (ADR-0019's concrete migration target, mirrored from
+ *  `data/brands/straw-motion/brand-profile.yaml`) — five targeted platforms, one primary. */
+const STRAW_MOTION_CHANNELS: readonly Channel[] = channelsFrom({
+  channel: [
+    { platform: "facebook", url: "https://www.facebook.com/profile.php?id=61591885769033", primary: true },
+    { platform: "instagram", url: "" },
+    { platform: "linkedin", url: "" },
+    { platform: "x", url: "" },
+    { platform: "tiktok", url: "" },
+  ],
+});
+
+function variantsByPlatform(copy: { readonly variants?: readonly { readonly platform: string }[] }) {
+  const map = new Map<string, { readonly platform: string; readonly caption: string; readonly hashtags: readonly string[] }>();
+  for (const v of copy.variants ?? []) {
+    map.set(v.platform, v as { readonly platform: string; readonly caption: string; readonly hashtags: readonly string[] });
+  }
+  return map;
+}
+
+describe("composeCopyForChannels — AC1/AC5: a single-Channel Brand's behavior is unchanged", () => {
+  it("is provably IDENTICAL to composeCopy's own result for a Brand with exactly ONE (primary) Channel", async () => {
+    const plain = await composeCopy(sampleInput(), CHARACTER_EXPLAINER_SHAPE, { brandProfilePath: RULES_PROFILE });
+    const perChannel = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, SINGLE_CHANNEL, {
+      brandProfilePath: RULES_PROFILE,
+    });
+    assert.equal(perChannel.ok, true, JSON.stringify(perChannel.errors));
+    assert.deepEqual(perChannel, plain);
+  });
+
+  it("carries NO `variants` field at all for a single-Channel Brand — the exact pre-#129 Copy shape", async () => {
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, SINGLE_CHANNEL, {
+      brandProfilePath: NO_RULES_PROFILE,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.equal("variants" in result.copy!, false);
+    assert.deepEqual(Object.keys(result.copy!).sort(), ["caption", "hashtags"]);
+  });
+
+  it("a Brand with ZERO configured Channels degrades to the same unlabeled compose — never crashes", async () => {
+    const plain = await composeCopy(sampleInput(), CHARACTER_EXPLAINER_SHAPE, { brandProfilePath: NO_RULES_PROFILE });
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, [], {
+      brandProfilePath: NO_RULES_PROFILE,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.deepEqual(result, plain);
+  });
+
+  it("a Brand with ZERO configured Channels still reports a failing draft — never silently succeeds", async () => {
+    const result = await composeCopyForChannels(
+      sampleInput(),
+      CHARACTER_EXPLAINER_SHAPE,
+      [],
+      { brandProfilePath: NO_RULES_PROFILE, drafter: () => ({ caption: "No emoji at all in this caption", hashtags: [] }) },
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.copy, undefined);
+    assert.ok(result.errors && result.errors[0]!.errors.some((e) => e.code === "caption_emoji_count"));
+  });
+});
+
+describe("composeCopyForChannels — AC2: a multi-Channel Brand composes one variant per targeted platform (Straw Motion's own 5-platform list)", () => {
+  it("composes exactly one labeled variant per targeted platform, including the primary", async () => {
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, STRAW_MOTION_CHANNELS, {
+      brandProfilePath: NO_RULES_PROFILE,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    assert.equal(result.copy!.variants!.length, 5);
+    assert.deepEqual(
+      result.copy!.variants!.map((v) => v.platform).sort(),
+      ["facebook", "instagram", "linkedin", "tiktok", "x"],
+    );
+  });
+
+  it("the top-level caption/hashtags mirror the PRIMARY (facebook) Channel's own variant", async () => {
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, STRAW_MOTION_CHANNELS, {
+      brandProfilePath: NO_RULES_PROFILE,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const byPlatform = variantsByPlatform(result.copy!);
+    assert.equal(result.copy!.caption, byPlatform.get("facebook")!.caption);
+    assert.deepEqual(result.copy!.hashtags, byPlatform.get("facebook")!.hashtags);
+  });
+
+  it("the primary Channel's variant uses the Recipe's OWN copyShape (180 chars/1-3 emoji), never platform-shape.ts's own (different) facebook table entry (issue #128 AC3, wired here)", async () => {
+    // A title long enough to overflow the Recipe's own 180-char cap but well within the table's
+    // facebook entry (477 chars) — if the primary wrongly consulted the table, it would NOT truncate
+    // here; because it uses the Recipe's own shape, it must.
+    const longTitle = "Straw Motion breaks down this week's biggest AI story in plain English, no jargon, no hype. ".repeat(3);
+    const result = await composeCopyForChannels(
+      sampleInput({ title: longTitle }),
+      CHARACTER_EXPLAINER_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const facebook = variantsByPlatform(result.copy!).get("facebook")!;
+    assert.ok([...facebook.caption].length <= CHARACTER_EXPLAINER_SHAPE.maxChars);
+    // 1-3 emoji required by the Recipe's OWN shape — proves the table's facebook entry (minEmojis: 0)
+    // was never consulted for the primary.
+    const emojiCount = [...facebook.caption].filter((ch) => /\p{Extended_Pictographic}/u.test(ch)).length;
+    assert.ok(emojiCount >= 1);
+  });
+
+  it("each non-primary variant is validated against ITS OWN documented platform bounds (genuinely different caps)", async () => {
+    // Longer than X's 280-char cap (so X truncates) but well under LinkedIn's 3,000-char cap (so
+    // LinkedIn does not) — makes the two variants' lengths genuinely, provably different.
+    const longTitle = "Straw Motion breaks down this week's biggest AI story in plain English, no jargon, no hype. ".repeat(4);
+    const result = await composeCopyForChannels(
+      sampleInput({ title: longTitle }),
+      CHARACTER_EXPLAINER_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE },
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const byPlatform = variantsByPlatform(result.copy!);
+    assert.ok([...byPlatform.get("x")!.caption].length <= 280);
+    assert.ok([...byPlatform.get("tiktok")!.caption].length <= 150);
+    assert.ok([...byPlatform.get("instagram")!.caption].length <= 2200);
+    assert.ok([...byPlatform.get("linkedin")!.caption].length <= 3000);
+    // X's practical cap is materially tighter than LinkedIn's — the two variants are genuinely
+    // different lengths for the SAME long input, not one shared shape reused everywhere.
+    assert.ok(byPlatform.get("x")!.caption.length < byPlatform.get("linkedin")!.caption.length);
+  });
+
+  it("collects EVERY failing platform's errors, never stops at the first, and never partially applies a Copy", async () => {
+    // Ignores `shape` entirely — the SAME ~300-char, one-emoji caption for every platform. Too long for
+    // the primary's own 180-char cap AND for X (280) AND for TikTok (150); fine for Instagram (2200)
+    // and LinkedIn (3000).
+    const fixedCaption = `${"A".repeat(300)} ☀️`;
+    const fakeDrafter: CopyDrafter = () => ({ caption: fixedCaption, hashtags: [] });
+
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, STRAW_MOTION_CHANNELS, {
+      brandProfilePath: NO_RULES_PROFILE,
+      drafter: fakeDrafter,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.copy, undefined, "a partially-valid set of variants is never surfaced");
+    const failingPlatforms = result.errors!.map((f) => f.platform).sort();
+    assert.deepEqual(failingPlatforms, ["facebook", "tiktok", "x"]);
+    for (const failure of result.errors!) {
+      assert.ok(failure.errors.some((e) => e.code === "caption_length"));
+    }
+  });
+
+  it("flags a malformed LinkedIn @mention on ONLY the LinkedIn variant — other platforms are unaffected by the identical text", async () => {
+    const fakeDrafter: CopyDrafter = () => ({
+      caption: "Congrats to the team @ for shipping this ☀️",
+      hashtags: [],
+    });
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, STRAW_MOTION_CHANNELS, {
+      brandProfilePath: NO_RULES_PROFILE,
+      drafter: fakeDrafter,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.errors!.length, 1);
+    assert.equal(result.errors![0]!.platform, "linkedin");
+    assert.ok(result.errors![0]!.errors.some((e) => e.code === "platform_mention_syntax"));
+  });
+
+  it("an undocumented platform falls back to the Recipe's OWN baseShape — never fabricates a bound", async () => {
+    const channels: readonly Channel[] = channelsFrom({
+      channel: [
+        { platform: "facebook", url: "https://example.test/page", primary: true },
+        { platform: "mastodon", url: "" },
+      ],
+    });
+    const longTitle = "Straw Motion breaks down this week's biggest AI story in plain English, no jargon. ".repeat(3);
+    const input = sampleInput({ title: longTitle });
+
+    const plain = await composeCopy(input, CHARACTER_EXPLAINER_SHAPE, { brandProfilePath: NO_RULES_PROFILE });
+    const result = await composeCopyForChannels(input, CHARACTER_EXPLAINER_SHAPE, channels, {
+      brandProfilePath: NO_RULES_PROFILE,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const mastodon = variantsByPlatform(result.copy!).get("mastodon")!;
+    // Same draft -> inject -> validate pipeline, same fallback shape (baseShape) as composeCopy's own
+    // single-variant path — genuinely the SAME caption, not some fabricated per-platform bound.
+    assert.equal(mastodon.caption, plain.copy!.caption);
+    assert.deepEqual(mastodon.hashtags, plain.copy!.hashtags);
+  });
+
+  it("injects the Brand's required CTA/hashtags into EVERY variant, primary and non-primary alike", async () => {
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, STRAW_MOTION_CHANNELS, {
+      brandProfilePath: RULES_PROFILE,
+      drafter: skillDraftCopy,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    for (const variant of result.copy!.variants!) {
+      assert.ok(variant.caption.includes("Link in bio!"), `${variant.platform} must carry the required CTA`);
+      assert.deepEqual(variant.hashtags, ["#lifehacks", "#tips"]);
     }
   });
 });

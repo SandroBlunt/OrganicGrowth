@@ -12,6 +12,8 @@ import {
   parseCastCandidate,
   parseCastArray,
   parseCopy,
+  parseCopyVariant,
+  parseCopyVariants,
   parseAssetMetrics,
   parseAssetMetricsSnapshot,
   parseAssetMetricsHistory,
@@ -165,6 +167,98 @@ describe("parseCopy — structured Copy, defensive (ADR-0012, issue #58)", () =>
     assert.equal(parseCopy({ caption: "" }), null);
     assert.equal(parseCopy(null), null);
     assert.equal(parseCopy("nope"), null);
+  });
+
+  // -------------------------------------------------------------------------
+  // variants (issue #129) — additive; absent/malformed never breaks the base Copy
+  // -------------------------------------------------------------------------
+
+  it("carries NO `variants` key at all when the raw Copy doesn't have one — AC1/AC5, the pre-#129 shape unchanged", () => {
+    const parsed = parseCopy({ caption: "x", hashtags: ["#a"] });
+    assert.deepEqual(parsed, { caption: "x", hashtags: ["#a"] });
+    assert.equal("variants" in parsed!, false);
+  });
+
+  it("parses well-formed variants, labeled by platform", () => {
+    const raw = {
+      caption: "Facebook body",
+      hashtags: ["#a"],
+      variants: [
+        { platform: "facebook", caption: "Facebook body", hashtags: ["#a"] },
+        { platform: "linkedin", caption: "LinkedIn body", hashtags: ["#a"] },
+      ],
+    };
+    assert.deepEqual(parseCopy(raw), raw);
+  });
+
+  it("drops a malformed variant entry (missing platform/caption) but keeps the well-formed ones", () => {
+    const raw = {
+      caption: "Facebook body",
+      hashtags: [],
+      variants: [
+        { platform: "facebook", caption: "Facebook body", hashtags: [] },
+        { platform: "", caption: "no platform" },
+        { caption: "no platform key" },
+        { platform: "x" }, // missing caption
+        "nope",
+      ],
+    };
+    assert.deepEqual(parseCopy(raw), {
+      caption: "Facebook body",
+      hashtags: [],
+      variants: [{ platform: "facebook", caption: "Facebook body", hashtags: [] }],
+    });
+  });
+
+  it("degrades to the plain shape (no `variants` key) when `variants` is present but every entry is malformed", () => {
+    const parsed = parseCopy({ caption: "x", hashtags: [], variants: ["nope", null, 7] });
+    assert.deepEqual(parsed, { caption: "x", hashtags: [] });
+    assert.equal("variants" in parsed!, false);
+  });
+
+  it("degrades to the plain shape when `variants` is present but not an array", () => {
+    assert.deepEqual(parseCopy({ caption: "x", hashtags: [], variants: "nope" }), { caption: "x", hashtags: [] });
+  });
+});
+
+describe("parseCopyVariant / parseCopyVariants — one platform-labeled Copy variant (issue #129)", () => {
+  it("parses a well-formed variant", () => {
+    const raw = { platform: "linkedin", caption: "Hi there.", hashtags: ["#a", "#b"] };
+    assert.deepEqual(parseCopyVariant(raw), raw);
+  });
+
+  it("defaults hashtags to [] when missing or non-array", () => {
+    assert.deepEqual(parseCopyVariant({ platform: "x", caption: "Hi" }), { platform: "x", caption: "Hi", hashtags: [] });
+    assert.deepEqual(parseCopyVariant({ platform: "x", caption: "Hi", hashtags: "nope" }), {
+      platform: "x",
+      caption: "Hi",
+      hashtags: [],
+    });
+  });
+
+  it("returns null when platform or caption is missing/blank/malformed", () => {
+    assert.equal(parseCopyVariant({ caption: "Hi", hashtags: [] }), null);
+    assert.equal(parseCopyVariant({ platform: "", caption: "Hi" }), null);
+    assert.equal(parseCopyVariant({ platform: "x", caption: "" }), null);
+    assert.equal(parseCopyVariant({ platform: "x" }), null);
+    assert.equal(parseCopyVariant(null), null);
+    assert.equal(parseCopyVariant("nope"), null);
+  });
+
+  it("parseCopyVariants drops malformed entries and yields [] for non-array/absent input", () => {
+    assert.deepEqual(
+      parseCopyVariants([
+        { platform: "facebook", caption: "A", hashtags: [] },
+        { platform: "", caption: "bad" },
+        { platform: "x", caption: "B" },
+      ]),
+      [
+        { platform: "facebook", caption: "A", hashtags: [] },
+        { platform: "x", caption: "B", hashtags: [] },
+      ],
+    );
+    assert.deepEqual(parseCopyVariants(undefined), []);
+    assert.deepEqual(parseCopyVariants("nope"), []);
   });
 });
 
