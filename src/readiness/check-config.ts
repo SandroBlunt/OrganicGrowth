@@ -21,14 +21,22 @@
  *   voice_unset         — advisory/research  — voice is empty or missing
  *   no_valid_seed       — block/research     — seed_pages has fewer than 1 entry
  *   off_niche_seed      — advisory/research  — at least one seed page is flagged off-niche
- *   channel_url_missing — block/publish      — channel.url is missing or empty
+ *   channel_url_missing — block/publish      — the primary Channel entry's url is missing or empty
  *   empty_banned_words  — advisory/research  — banned_words is empty or missing
  *
  * A fully-healthy config yields no findings (empty array).
+ *
+ * Channel (ADR-0019, issue #127): `channel` is a LIST of `{ platform, url?, primary? }` entries —
+ * exactly one carries `primary: true`. `channel_url_missing` is keyed off that ONE primary entry via
+ * `primaryChannelFrom` (`../production-spec/brand-profile.ts`), unchanged from the pre-list
+ * single-Channel behavior. The `channel` field is typed `unknown` below because `BrandProfile` types
+ * an already-YAML-parsed-but-not-yet-validated object; `primaryChannelFrom` is itself defensive
+ * against a missing/malformed/legacy-shaped `channel` value.
  */
 
 import type { Finding } from "./types.ts";
 import { sortFindings } from "./sort.ts";
+import { primaryChannelFrom } from "../production-spec/brand-profile.ts";
 
 // ---------------------------------------------------------------------------
 // Types for the already-parsed config objects
@@ -39,11 +47,13 @@ import { sortFindings } from "./sort.ts";
  * additional fields are tolerated (open object — forward compatible).
  */
 export interface BrandProfile {
-  channel: {
-    name?: string;
-    platform?: string;
-    url?: string;
-  };
+  /**
+   * The Brand's Channel list (ADR-0019, issue #127) — a LIST of `{ platform, url?, primary? }`
+   * entries, exactly one of which carries `primary: true`. Typed `unknown` because this interface
+   * types an already-YAML-parsed-but-unvalidated object; read it via `primaryChannelFrom`
+   * (`../production-spec/brand-profile.ts`), which is defensive against any shape.
+   */
+  channel?: unknown;
   niche?: string;
   language?: string;
   region?: string;
@@ -214,15 +224,16 @@ export function checkConfig(brandProfile: BrandProfile, seeds: Seeds): Finding[]
     });
   }
 
-  // --- Channel URL ---
-  const channelUrl = (brandProfile.channel?.url ?? "").trim();
+  // --- Channel URL (ADR-0019: keyed off the ONE primary Channel entry) ---
+  const primaryChannel = primaryChannelFrom(brandProfile);
+  const channelUrl = (primaryChannel?.url ?? "").trim();
   if (channelUrl === "") {
     findings.push({
       severity: "block",
       phase: "publish",
       code: "channel_url_missing",
       message:
-        "The Brand's Channel URL is not configured. Set channel.url in brand-profile.yaml before attempting to publish or track posts.",
+        "The Brand's primary Channel URL is not configured. Set the primary entry's url in brand-profile.yaml's channel list before attempting to publish or track posts.",
     });
   }
 

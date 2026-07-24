@@ -21,13 +21,16 @@ function findingsWhere(findings: Finding[], pred: Partial<Finding>): Finding[] {
   );
 }
 
+/** The primary Channel entry used by HEALTHY_PROFILE below (ADR-0019, issue #127). */
+const HEALTHY_CHANNEL = {
+  platform: "facebook",
+  url: "https://www.facebook.com/testbrand",
+  primary: true,
+};
+
 /** A fully healthy brand profile — no findings expected. */
 const HEALTHY_PROFILE: BrandProfile = {
-  channel: {
-    name: "TestBrand",
-    platform: "facebook",
-    url: "https://www.facebook.com/testbrand",
-  },
+  channel: [HEALTHY_CHANNEL],
   niche: "Life hacks and household tips",
   language: "es",
   region: "LATAM",
@@ -282,30 +285,40 @@ describe("normalizeSeeds — reads both seed forms defensively (C44/C26)", () =>
 });
 
 describe("checkConfig — missing Channel URL (AC4f)", () => {
-  it("empty channel.url → block on publish (code: channel_url_missing)", () => {
+  it("empty primary channel url → block on publish (code: channel_url_missing)", () => {
     const profile: BrandProfile = {
       ...HEALTHY_PROFILE,
-      channel: { ...HEALTHY_PROFILE.channel, url: "" },
+      channel: [{ ...HEALTHY_CHANNEL, url: "" }],
     };
     const findings = checkConfig(profile, HEALTHY_SEEDS);
     const match = findingsWhere(findings, { severity: "block", phase: "publish", code: "channel_url_missing" });
     assert.equal(match.length, 1, "expected one channel_url_missing block");
   });
 
-  it("missing channel.url field → block on publish (code: channel_url_missing)", () => {
+  it("missing url field on the primary entry → block on publish (code: channel_url_missing)", () => {
     const profile: BrandProfile = {
       ...HEALTHY_PROFILE,
-      channel: { name: "TestBrand", platform: "facebook" } as BrandProfile["channel"],
+      channel: [{ platform: "facebook", primary: true }] as BrandProfile["channel"],
     };
     const findings = checkConfig(profile, HEALTHY_SEEDS);
     const match = findingsWhere(findings, { severity: "block", phase: "publish", code: "channel_url_missing" });
     assert.equal(match.length, 1, "expected channel_url_missing when url field absent");
   });
 
+  it("no entry marked primary → block on publish (code: channel_url_missing) — ADR-0019", () => {
+    const profile: BrandProfile = {
+      ...HEALTHY_PROFILE,
+      channel: [{ platform: "facebook", url: "https://www.facebook.com/testbrand" }] as BrandProfile["channel"],
+    };
+    const findings = checkConfig(profile, HEALTHY_SEEDS);
+    const match = findingsWhere(findings, { severity: "block", phase: "publish", code: "channel_url_missing" });
+    assert.equal(match.length, 1, "expected channel_url_missing when no entry is marked primary");
+  });
+
   it("missing channel block → blocks only publish, not research or production", () => {
     const profile: BrandProfile = {
       ...HEALTHY_PROFILE,
-      channel: { ...HEALTHY_PROFILE.channel, url: "" },
+      channel: [{ ...HEALTHY_CHANNEL, url: "" }],
     };
     const findings = checkConfig(profile, HEALTHY_SEEDS);
     const nonPublishBlocks = findings.filter(
@@ -349,7 +362,7 @@ describe("checkConfig — deterministic ordering (AC5)", () => {
       ...HEALTHY_PROFILE,
       niche: "",
       voice: "",
-      channel: { ...HEALTHY_PROFILE.channel, url: "" },
+      channel: [{ ...HEALTHY_CHANNEL, url: "" }],
       banned_words: [],
     };
     const badSeeds: Seeds = { ...HEALTHY_SEEDS, seed_pages: [] };
@@ -361,7 +374,7 @@ describe("checkConfig — deterministic ordering (AC5)", () => {
   it("findings are ordered: research < production < publish (by phase)", () => {
     const badProfile: BrandProfile = {
       ...HEALTHY_PROFILE,
-      channel: { ...HEALTHY_PROFILE.channel, url: "" }, // publish block
+      channel: [{ ...HEALTHY_CHANNEL, url: "" }], // publish block
       niche: "",  // research advisory
     };
     const findings = checkConfig(badProfile, HEALTHY_SEEDS);
@@ -490,7 +503,7 @@ describe("checkConfig — severity×phase coverage matrix (AC6)", () => {
   it("block × publish reachable: channel_url_missing", () => {
     const profile: BrandProfile = {
       ...HEALTHY_PROFILE,
-      channel: { ...HEALTHY_PROFILE.channel, url: "" },
+      channel: [{ ...HEALTHY_CHANNEL, url: "" }],
     };
     const findings = checkConfig(profile, HEALTHY_SEEDS);
     assert.ok(

@@ -1,10 +1,22 @@
 # Brand Profile template — copy this file to data/brands/<slug>/brand-profile.yaml and fill in.
 # The idea-strategist treats these as hard brand constraints.
 
+# One or more Channels this Brand publishes to (ADR-0019, issue #127). Exactly one entry carries
+# `primary: true` — the Channel performance-tracker, the baseline, readiness checks, and ledger
+# attribution all key off that one entry; `url` is required there, optional/blank on the others until
+# set. No `handle` field — LinkedIn @mention tagging is a separate lookup (issue #126).
 channel:
-  name: Straw Motion
-  platform: facebook
-  url: https://www.facebook.com/profile.php?id=61591885769033
+  - platform: facebook
+    url: https://www.facebook.com/profile.php?id=61591885769033
+    primary: true
+  - platform: instagram
+    url: ""
+  - platform: linkedin
+    url: ""
+  - platform: x
+    url: ""
+  - platform: tiktok
+    url: ""
 
 niche: "Where agentic AI meets generative media: building agents/workflows,
   generative-media workflows, comparing models, AI news, and how the technology

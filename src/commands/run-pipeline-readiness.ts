@@ -21,6 +21,7 @@ import type { Finding } from "../readiness/types.ts";
 import { classify } from "../readiness/classify.ts";
 import { checkConfig, normalizeSeeds, type BrandProfile, type Seeds } from "../readiness/check-config.ts";
 import { sortFindings } from "../readiness/sort.ts";
+import { primaryChannelFrom } from "../production-spec/brand-profile.ts";
 import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
 
 // ---------------------------------------------------------------------------
@@ -81,7 +82,7 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
     brandProfilePath,
     "brand_profile_unparseable",
     "Brand profile",
-    { channel: {} },
+    { channel: [] },
     parseErrors,
   );
   const seeds = await loadConfigFile<Seeds>(
@@ -116,7 +117,8 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
   const seedCount = normalizedSeeds.length;
   const offNicheSeedCount = normalizedSeeds.filter((s) => s.offNiche).length;
   const bannedWordsEmpty = !brandProfile.banned_words || brandProfile.banned_words.length === 0;
-  const channelUrl = (brandProfile.channel?.url ?? "").trim() || null;
+  // ADR-0019 (issue #127): `channel` is a list; key off the ONE primary entry, same as checkConfig.
+  const channelUrl = (primaryChannelFrom(brandProfile)?.url ?? "").trim() || null;
 
   const classifyFindings = classify({
     apifyTokenValid,

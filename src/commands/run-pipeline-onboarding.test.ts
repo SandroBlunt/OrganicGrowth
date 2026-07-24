@@ -86,9 +86,9 @@ async function withEmptyBrandsRoot(
 
 const HEALTHY_PROFILE_YAML = `
 channel:
-  name: TestBrand
-  platform: facebook
-  url: "https://www.facebook.com/testbrand"
+  - platform: facebook
+    url: "https://www.facebook.com/testbrand"
+    primary: true
 niche: "Test niche for testing"
 voice: "Test voice for testing"
 language: en
