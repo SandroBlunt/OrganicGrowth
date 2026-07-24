@@ -1,0 +1,21 @@
+# Fixture brand profile for Channel-list tests ONLY (ADR-0019, issue #127).
+#
+# Mirrors the migrated shape of data/brands/straw-motion/brand-profile.yaml: a multi-Channel list
+# with exactly one primary entry (facebook) and blank-url secondary entries.
+
+channel:
+  - platform: facebook
+    url: "https://www.facebook.com/testbrand"
+    primary: true
+  - platform: instagram
+    url: ""
+  - platform: linkedin
+    url: ""
+
+niche: "Test niche"
+language: en
+
+required_cta: ""
+required_hashtags: []
+banned_words: []
+brand_safety: []

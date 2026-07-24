@@ -5,7 +5,8 @@
  * Brand's own Channel — e.g. Straw Motion's Channel is Facebook, but its recorded competitors are
  * Instagram and YouTube (`data/brands/straw-motion/seeds.yaml`). So the platform used to pick an
  * Apify actor is always derived from the URL itself (`detectPlatformFromUrl`), never assumed from
- * `brand-profile.yaml`'s `channel.platform`.
+ * `brand-profile.yaml`'s `channel` list (ADR-0019, issue #127) — not even the primary entry's
+ * `platform`.
  *
  * Actor slugs live in `seeds.yaml`, nested per platform (data-handling rule 2):
  * `apify.<platform>.trends_actor` / `apify.<platform>.post_actor`. `resolveApifyActor` reads that

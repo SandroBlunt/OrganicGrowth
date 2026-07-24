@@ -1,10 +1,20 @@
 # Who we are. The idea-strategist treats these as hard brand constraints.
 # Fill in the TODOs for your Channel.
 
+# One or more Channels this Brand publishes to (ADR-0019, issue #127). Exactly one entry carries
+# `primary: true` — the Channel performance-tracker, the baseline, readiness checks, and ledger
+# attribution all key off that one entry; `url` is required there, optional/blank on the others until
+# set. No `handle` field — LinkedIn @mention tagging is a separate lookup (issue #126).
 channel:
-  name: MundoTip
-  platform: facebook
-  url: "https://www.facebook.com/profile.php?id=61587243992554"
+  - platform: facebook
+    url: "https://www.facebook.com/profile.php?id=61587243992554"
+    primary: true
+  - platform: instagram
+    url: ""
+  - platform: x
+    url: ""
+  - platform: tiktok
+    url: ""
 
 niche: "Life hacks, household tips & tricks"
 language: es          # content language (Spanish)

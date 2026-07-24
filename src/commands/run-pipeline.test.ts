@@ -65,9 +65,9 @@ function makeApifyFake(opts: { tokenValid?: boolean } = {}): ApifyReadinessPort 
  */
 const HEALTHY_PROFILE_YAML = `
 channel:
-  name: TestBrand
-  platform: facebook
-  url: "https://www.facebook.com/testbrand"
+  - platform: facebook
+    url: "https://www.facebook.com/testbrand"
+    primary: true
 niche: "Test niche for testing"
 voice: "Test voice for testing"
 banned_words: ["bad-word"]
@@ -251,9 +251,9 @@ describe("runPipelineCommand — AC2: Readiness check", () => {
     // Brand with empty banned_words = advisory only
     const profileWithEmptyBannedWords = `
 channel:
-  name: TestBrand
-  platform: facebook
-  url: "https://www.facebook.com/testbrand"
+  - platform: facebook
+    url: "https://www.facebook.com/testbrand"
+    primary: true
 niche: "Test niche"
 voice: "Test voice"
 banned_words: []
@@ -723,9 +723,9 @@ describe("runReadiness — readiness probe orchestrator", () => {
     // Profile with no seed pages — both checkConfig and classify will return no_valid_seed
     const profileNoSeeds = `
 channel:
-  name: TestBrand
-  platform: facebook
-  url: "https://www.facebook.com/testbrand"
+  - platform: facebook
+    url: "https://www.facebook.com/testbrand"
+    primary: true
 niche: "Test niche"
 voice: "Test voice"
 banned_words: ["bad-word"]

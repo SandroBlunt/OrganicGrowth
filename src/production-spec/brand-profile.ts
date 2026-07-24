@@ -17,6 +17,16 @@
  * `watermarkHandleFrom`/`loadWatermarkHandle` (QA-1, issue #88) read `production.watermark_handle` — a
  * DIFFERENT per-Brand parameter than Copy: the thin Producer sets it onto a Recipe's declared
  * `watermarkNode` before the final render, never folding it into the composed Copy (ADR-0012).
+ *
+ * `channelsFrom`/`primaryChannelFrom`/`loadChannels`/`loadPrimaryChannel` (ADR-0019, issue #127) read
+ * the Brand's `channel` field — a LIST of `{ platform, url?, primary? }` entries, exactly one of which
+ * carries `primary: true`. This is a migrate-in-place change with NO back-compat shim for the old
+ * single-object `channel: { name, platform, url }` shape: a `channel` value that is not an array (the
+ * old shape, or anything else malformed) reads as `[]`, same as a missing `channel` key — never
+ * crashes, never silently reinterprets the old shape. The Channel performance-tracker, the baseline,
+ * readiness checks (`src/readiness/check-config.ts`), and ledger attribution all key off the ONE
+ * primary entry `primaryChannelFrom` returns — unchanged machinery from the pre-list single-Channel
+ * behavior (ADR-0019's own scope note; per-Channel tracking for the rest is a deferred future epic).
  */
 
 import { readFile } from "node:fs/promises";
@@ -139,4 +149,76 @@ export function watermarkHandleFrom(raw: unknown): string {
  */
 export async function loadWatermarkHandle(path: string): Promise<string> {
   return watermarkHandleFrom(await readProfile(path));
+}
+
+// --- Channel list (ADR-0019, issue #127) ---------------------------------------------------------
+
+/**
+ * One entry on the Brand Profile's `channel` list. A Brand may publish to several platforms; exactly
+ * one entry carries `primary: true` — the entry the Channel performance-tracker, the baseline,
+ * readiness checks, and ledger attribution key off (unchanged from the pre-list single-Channel
+ * behavior). `url` is required BY CONVENTION on the primary entry (enforced downstream by
+ * `checkConfig`'s `channel_url_missing` finding, not by this reader) and optional/blank on the others
+ * until the Operator supplies it — represented here as `""`, never `null`/`undefined`, so callers
+ * never re-check a sentinel. No `handle` field — LinkedIn `@mention` tagging is a separate lookup
+ * (issue #126).
+ */
+export interface Channel {
+  readonly platform: string;
+  readonly url: string;
+  readonly primary: boolean;
+}
+
+/**
+ * Extract the Brand's Channel list from already-parsed brand-profile data (ADR-0019). Pure and
+ * defensive (data-handling rule 4): `channel` must be an ARRAY — the pre-ADR-0019 single-object shape
+ * (`channel: { name, platform, url }`) is NOT back-compat-parsed (the ADR calls for migrate-in-place
+ * with no shim) and yields `[]`, exactly like a missing/absent `channel` key. Each list entry is then
+ * validated independently: an entry that isn't an object, or whose `platform` is missing, blank, or
+ * non-string, is dropped rather than crashing the whole Run; a malformed/absent `url` defaults to
+ * `""` and a malformed/absent `primary` defaults to `false`.
+ */
+export function channelsFrom(raw: unknown): Channel[] {
+  if (!isObject(raw)) return [];
+  const list = raw.channel;
+  if (!Array.isArray(list)) return [];
+  const out: Channel[] = [];
+  for (const entry of list) {
+    if (!isObject(entry)) continue;
+    const platform = entry.platform;
+    if (typeof platform !== "string" || platform.trim().length === 0) continue;
+    const url = typeof entry.url === "string" ? entry.url.trim() : "";
+    out.push({ platform: platform.trim(), url, primary: entry.primary === true });
+  }
+  return out;
+}
+
+/**
+ * Find the Brand's ONE primary Channel from already-parsed brand-profile data (ADR-0019) — the entry
+ * every existing single-Channel caller (readiness checks, the Channel baseline, ledger attribution)
+ * now reads instead of the old singular `channel.platform`/`channel.url`. Pure and defensive: returns
+ * `null` when no entry is marked `primary: true` (e.g. a fresh, legacy-shaped, or misconfigured
+ * profile) — callers already treat a `null`/blank Channel URL as "not yet configured" (the existing
+ * `channel_url_missing` finding). If more than one entry is (mis)configured `primary: true`, the
+ * first one wins deterministically — never throws, never picks arbitrarily.
+ */
+export function primaryChannelFrom(raw: unknown): Channel | null {
+  const channels = channelsFrom(raw);
+  return channels.find((c) => c.primary) ?? null;
+}
+
+/**
+ * Load the Brand's full Channel list from disk (ADR-0019). A missing file loads as `[]`, mirroring
+ * `channelsFrom`'s defaults.
+ */
+export async function loadChannels(path: string): Promise<Channel[]> {
+  return channelsFrom(await readProfile(path));
+}
+
+/**
+ * Load the Brand's ONE primary Channel from disk (ADR-0019). A missing file, or one with no
+ * `primary: true` entry, loads as `null` — never crashes.
+ */
+export async function loadPrimaryChannel(path: string): Promise<Channel | null> {
+  return primaryChannelFrom(await readProfile(path));
 }

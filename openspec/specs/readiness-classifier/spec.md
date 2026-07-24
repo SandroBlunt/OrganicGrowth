@@ -207,11 +207,17 @@ following conditions:
 - A seed page URL appears off-niche (heuristic: the conductor / config author marks it with a comment
   or the caller passes a hint; the pure function checks a detectable signal) → advisory on `research`
   (code: `off_niche_seed`).
-- `channel.url` missing or empty → block on `publish` (code: `channel_url_missing`).
+- The Brand's ONE primary Channel entry's `url` is missing or empty (ADR-0019, issue #127) → block on
+  `publish` (code: `channel_url_missing`). Per ADR-0019, `brandProfile.channel` is now a LIST of
+  `{ platform, url?, primary? }` entries; `checkConfig` finds the ONE entry marked `primary: true` (via
+  `primaryChannelFrom`, `src/production-spec/brand-profile.ts`) and checks THAT entry's `url`. There is
+  NO back-compat shim for the pre-ADR-0019 single-object `channel: { name, platform, url }` shape — a
+  `channel` value in that old shape (or any other non-array/malformed shape) has no primary entry, which
+  reads exactly like "Channel URL not configured" and still produces this same finding.
 - `banned_words` missing or empty array → advisory on `research` (code: `empty_banned_words`).
 
-A fully-healthy config (all required fields set, no TODOs, ≥1 seed, channel URL present,
-non-empty banned_words) yields no findings.
+A fully-healthy config (all required fields set, no TODOs, ≥1 seed, the primary Channel entry's URL
+present, non-empty banned_words) yields no findings.
 
 #### Scenario: TODO placeholder in niche produces an advisory
 
@@ -241,12 +247,29 @@ non-empty banned_words) yields no findings.
 - **THEN** a finding with `severity: 'block'` and `phase: 'research'` and `code: 'no_valid_seed'`
   is returned
 
-#### Scenario: Missing Channel URL blocks publish
+#### Scenario: Missing primary Channel URL blocks publish
 
-- **GIVEN** a `brandProfile` with `channel.url: ""` (or null/missing) and a valid seeds object
+- **GIVEN** a `brandProfile` with `channel: [{ platform: "facebook", url: "", primary: true }]` (or the
+  primary entry's `url` omitted) and a valid seeds object
 - **WHEN** `checkConfig(brandProfile, seeds)` is called
 - **THEN** a finding with `severity: 'block'` and `phase: 'publish'` and `code: 'channel_url_missing'`
   is returned
+
+#### Scenario: No entry marked primary blocks publish, same as a missing URL
+
+- **GIVEN** a `brandProfile` with `channel: [{ platform: "facebook", url: "https://fb.example/page" }]`
+  — a Channel entry exists with a URL, but none is marked `primary: true` — and a valid seeds object
+- **WHEN** `checkConfig(brandProfile, seeds)` is called
+- **THEN** a finding with `severity: 'block'` and `phase: 'publish'` and `code: 'channel_url_missing'`
+  is returned (there is no primary entry to read a URL from)
+
+#### Scenario: The pre-ADR-0019 single-object channel shape blocks publish — no back-compat shim
+
+- **GIVEN** a `brandProfile` with `channel: { name: "TestBrand", platform: "facebook", url:
+  "https://fb.example/page" }` (the old single-Channel object shape) and a valid seeds object
+- **WHEN** `checkConfig(brandProfile, seeds)` is called
+- **THEN** a finding with `severity: 'block'` and `phase: 'publish'` and `code: 'channel_url_missing'`
+  is returned — the old shape is not reinterpreted as a configured primary Channel
 
 #### Scenario: Empty banned_words is an advisory (never blocks)
 
@@ -257,12 +280,11 @@ non-empty banned_words) yields no findings.
 
 #### Scenario: A fully healthy config produces no findings
 
-- **GIVEN** a `brandProfile` with `niche` set, `voice` set, `channel.url` set, non-empty
-  `banned_words`, and a `seeds` object with at least 1 seed page
+- **GIVEN** a `brandProfile` with `niche` set, `voice` set, `channel` holding one entry marked
+  `primary: true` with a non-empty `url`, non-empty `banned_words`, and a `seeds` object with at least
+  1 seed page
 - **WHEN** `checkConfig(brandProfile, seeds)` is called
 - **THEN** the result is an empty array
-
----
 
 ### Requirement: Findings are grouped/ordered deterministically for display
 
