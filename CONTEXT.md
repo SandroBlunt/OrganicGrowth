@@ -16,17 +16,21 @@ human gate moved from *creation* to *publication* — it was never removed (see 
 ## Language
 
 **Brand** (the tenant; top of the tree):
-One managed identity OrganicGrowth grows — its niche, voice, seed set, history, and the single
-**Channel** it publishes to. The system manages **many Brands**; each owns its own **Brand Profile**,
+One managed identity OrganicGrowth grows — its niche, voice, seed set, history, and the one or more
+**Channels** it publishes to. The system manages **many Brands**; each owns its own **Brand Profile**,
 seeds, **Your Data**, and ledger, and all of a Brand's state lives under its own directory. One Brand →
-one Channel today (1:1). Research and idea generation are **per-Brand**; production (the Magnific Space)
-is the shared part of the system.
+one-or-more Channels (ADR-0019), exactly one of them **primary** (§ Channel). Research and idea
+generation are **per-Brand**; production (the Magnific Space) is the shared part of the system.
 _Avoid_: account, tenant, client.
 
 **Channel** (a Brand's account):
-The single account/Page a **Brand** publishes to and grows (e.g. "MundoTip"), on its platform
-(Facebook today; Instagram or LinkedIn later). Exactly one per Brand — no longer a global singleton.
-The "us" that a Brand's Profile and Relevance describe.
+An account/Page a **Brand** publishes to (e.g. "MundoTip" on Facebook), on its platform. A Brand may
+list several — Straw Motion targets Facebook, Instagram, LinkedIn, X, and TikTok — but exactly one is
+marked **primary**: the Channel performance-tracker, the baseline, and ledger attribution still key off
+of (ADR-0019; per-Channel performance tracking is a deliberate future epic, not built yet). The
+non-primary Channels exist so Copy can be composed with a variant tuned per platform (`#128`/`#129`),
+not because OrganicGrowth tracks or publishes to them itself. The "us" that a Brand's Profile and
+Relevance describe.
 _Avoid_: profile, handle.
 
 **Format** (a Brand's editorial line):
