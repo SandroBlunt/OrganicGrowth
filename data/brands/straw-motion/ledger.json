@@ -239,36 +239,42 @@
           "produced_at": "2026-07-22T11:06:36.800Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-01.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "8vBvOh2IrU",
-              "url": "https://pikaso.cdnpk.net/private/production/4957843292/render.png?token=exp=1785110400~hmac=06325e3d4b702fa598bdf9956fc634b4cc96c9f5c3725bbde4d063995c3eee60"
+              "url": "https://pikaso.cdnpk.net/private/production/4957843292/render.png?token=exp=1785110400~hmac=06325e3d4b702fa598bdf9956fc634b4cc96c9f5c3725bbde4d063995c3eee60",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-01.character-explainer-with-cast.cast/1-8vBvOh2IrU.png"
             },
             {
               "identifier": "tf8fPaomZJ",
-              "url": "https://pikaso.cdnpk.net/private/production/4957842608/render.jpg?token=exp=1785110400~hmac=8023d11c0ef0d66596f118d1a2e9f7f6c91572a7708aae66070bb9e03c3431ce"
+              "url": "https://pikaso.cdnpk.net/private/production/4957842608/render.jpg?token=exp=1785110400~hmac=8023d11c0ef0d66596f118d1a2e9f7f6c91572a7708aae66070bb9e03c3431ce",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-01.character-explainer-with-cast.cast/2-tf8fPaomZJ.jpg"
             },
             {
               "identifier": "5xqxYLzKxe",
-              "url": "https://pikaso.cdnpk.net/private/production/4957843272/render.png?token=exp=1785110400~hmac=a14862a65740528515fa22366cad070a1d26daf257f3c86bf4a5f1ca024b3b9d"
+              "url": "https://pikaso.cdnpk.net/private/production/4957843272/render.png?token=exp=1785110400~hmac=a14862a65740528515fa22366cad070a1d26daf257f3c86bf4a5f1ca024b3b9d",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-01.character-explainer-with-cast.cast/3-5xqxYLzKxe.png"
             },
             {
               "identifier": "jSrSMwfLD0",
-              "url": "https://pikaso.cdnpk.net/private/production/4957842775/render.jpg?token=exp=1785110400~hmac=24d3af45bf93d7ab87492bb08c3b86da93ff62b17a7ee287c82abf288891909e"
+              "url": "https://pikaso.cdnpk.net/private/production/4957842775/render.jpg?token=exp=1785110400~hmac=24d3af45bf93d7ab87492bb08c3b86da93ff62b17a7ee287c82abf288891909e",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-01.character-explainer-with-cast.cast/4-jSrSMwfLD0.jpg"
             },
             {
               "identifier": "UygyBNUwny",
-              "url": "https://pikaso.cdnpk.net/private/production/4957844291/render.png?token=exp=1785110400~hmac=637e9cabce97149ebadc1939058f82af9d1e903f27e738e90a46de2c776039ee"
+              "url": "https://pikaso.cdnpk.net/private/production/4957844291/render.png?token=exp=1785110400~hmac=637e9cabce97149ebadc1939058f82af9d1e903f27e738e90a46de2c776039ee",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-01.character-explainer-with-cast.cast/5-UygyBNUwny.png"
             },
             {
               "identifier": "NZ4ZfnG6D9",
-              "url": "https://pikaso.cdnpk.net/private/production/4957842842/render.jpg?token=exp=1785110400~hmac=f7900368200b9a763b3109c10fb7e840e6003c94ed41dca2cdd297f72fdeab73"
+              "url": "https://pikaso.cdnpk.net/private/production/4957842842/render.jpg?token=exp=1785110400~hmac=f7900368200b9a763b3109c10fb7e840e6003c94ed41dca2cdd297f72fdeab73",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-01.character-explainer-with-cast.cast/6-NZ4ZfnG6D9.jpg"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -316,36 +322,42 @@
           "produced_at": "2026-07-22T11:14:34.501Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-02.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "mCICANEhJQ",
-              "url": "https://www.magnific.com/app/creation/mCICANEhJQ"
+              "url": "https://www.magnific.com/app/creation/mCICANEhJQ",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-02.character-explainer-with-cast.cast/1-mCICANEhJQ.png"
             },
             {
               "identifier": "1sKsBV6r4r",
-              "url": "https://www.magnific.com/app/creation/1sKsBV6r4r"
+              "url": "https://www.magnific.com/app/creation/1sKsBV6r4r",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-02.character-explainer-with-cast.cast/2-1sKsBV6r4r.png"
             },
             {
               "identifier": "brHrpc05Y2",
-              "url": "https://www.magnific.com/app/creation/brHrpc05Y2"
+              "url": "https://www.magnific.com/app/creation/brHrpc05Y2",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-02.character-explainer-with-cast.cast/3-brHrpc05Y2.png"
             },
             {
               "identifier": "Vd0dOSjMMU",
-              "url": "https://www.magnific.com/app/creation/Vd0dOSjMMU"
+              "url": "https://www.magnific.com/app/creation/Vd0dOSjMMU",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-02.character-explainer-with-cast.cast/4-Vd0dOSjMMU.png"
             },
             {
               "identifier": "gJsJvIwSXO",
-              "url": "https://www.magnific.com/app/creation/gJsJvIwSXO"
+              "url": "https://www.magnific.com/app/creation/gJsJvIwSXO",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-02.character-explainer-with-cast.cast/5-gJsJvIwSXO.png"
             },
             {
               "identifier": "kL5LXeH16B",
-              "url": "https://www.magnific.com/app/creation/kL5LXeH16B"
+              "url": "https://www.magnific.com/app/creation/kL5LXeH16B",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-02.character-explainer-with-cast.cast/6-kL5LXeH16B.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -393,36 +405,42 @@
           "produced_at": "2026-07-22T11:22:02.731Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-03.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "YVzVJv8WeC",
-              "url": "https://www.magnific.com/app/creation/YVzVJv8WeC"
+              "url": "https://www.magnific.com/app/creation/YVzVJv8WeC",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-03.character-explainer-with-cast.cast/1-YVzVJv8WeC.png"
             },
             {
               "identifier": "PiOiKTf42C",
-              "url": "https://www.magnific.com/app/creation/PiOiKTf42C"
+              "url": "https://www.magnific.com/app/creation/PiOiKTf42C",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-03.character-explainer-with-cast.cast/2-PiOiKTf42C.png"
             },
             {
               "identifier": "YVzVJftWeC",
-              "url": "https://www.magnific.com/app/creation/YVzVJftWeC"
+              "url": "https://www.magnific.com/app/creation/YVzVJftWeC",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-03.character-explainer-with-cast.cast/3-YVzVJftWeC.png"
             },
             {
               "identifier": "3G6GLB4REY",
-              "url": "https://www.magnific.com/app/creation/3G6GLB4REY"
+              "url": "https://www.magnific.com/app/creation/3G6GLB4REY",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-03.character-explainer-with-cast.cast/4-3G6GLB4REY.png"
             },
             {
               "identifier": "SOlOucZUb8",
-              "url": "https://www.magnific.com/app/creation/SOlOucZUb8"
+              "url": "https://www.magnific.com/app/creation/SOlOucZUb8",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-03.character-explainer-with-cast.cast/5-SOlOucZUb8.png"
             },
             {
               "identifier": "3G6GL8NREY",
-              "url": "https://www.magnific.com/app/creation/3G6GL8NREY"
+              "url": "https://www.magnific.com/app/creation/3G6GL8NREY",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-03.character-explainer-with-cast.cast/6-3G6GL8NREY.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -471,36 +489,42 @@
           "produced_at": "2026-07-22T13:56:28.926Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-04.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "ON7N1iiynm",
-              "url": "https://www.magnific.com/app/creation/ON7N1iiynm"
+              "url": "https://www.magnific.com/app/creation/ON7N1iiynm",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-04.character-explainer-with-cast.cast/1-ON7N1iiynm.png"
             },
             {
               "identifier": "wPSP5N07EI",
-              "url": "https://www.magnific.com/app/creation/wPSP5N07EI"
+              "url": "https://www.magnific.com/app/creation/wPSP5N07EI",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-04.character-explainer-with-cast.cast/2-wPSP5N07EI.png"
             },
             {
               "identifier": "tf8f0uYmZJ",
-              "url": "https://www.magnific.com/app/creation/tf8f0uYmZJ"
+              "url": "https://www.magnific.com/app/creation/tf8f0uYmZJ",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-04.character-explainer-with-cast.cast/3-tf8f0uYmZJ.png"
             },
             {
               "identifier": "PiOixAe42C",
-              "url": "https://www.magnific.com/app/creation/PiOixAe42C"
+              "url": "https://www.magnific.com/app/creation/PiOixAe42C",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-04.character-explainer-with-cast.cast/4-PiOixAe42C.png"
             },
             {
               "identifier": "xg1gCJOjfW",
-              "url": "https://www.magnific.com/app/creation/xg1gCJOjfW"
+              "url": "https://www.magnific.com/app/creation/xg1gCJOjfW",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-04.character-explainer-with-cast.cast/5-xg1gCJOjfW.png"
             },
             {
               "identifier": "xg1gCOfjfW",
-              "url": "https://www.magnific.com/app/creation/xg1gCOfjfW"
+              "url": "https://www.magnific.com/app/creation/xg1gCOfjfW",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-04.character-explainer-with-cast.cast/6-xg1gCOfjfW.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -549,36 +573,42 @@
           "produced_at": "2026-07-22T13:47:25.179Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-05.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "swjwqOUl8e",
-              "url": "https://www.magnific.com/app/creation/swjwqOUl8e"
+              "url": "https://www.magnific.com/app/creation/swjwqOUl8e",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-05.character-explainer-with-cast.cast/1-swjwqOUl8e.png"
             },
             {
               "identifier": "WMnMipycXe",
-              "url": "https://www.magnific.com/app/creation/WMnMipycXe"
+              "url": "https://www.magnific.com/app/creation/WMnMipycXe",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-05.character-explainer-with-cast.cast/2-WMnMipycXe.png"
             },
             {
               "identifier": "wPSP1ic7EI",
-              "url": "https://www.magnific.com/app/creation/wPSP1ic7EI"
+              "url": "https://www.magnific.com/app/creation/wPSP1ic7EI",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-05.character-explainer-with-cast.cast/3-wPSP1ic7EI.png"
             },
             {
               "identifier": "3G6G7WKREY",
-              "url": "https://www.magnific.com/app/creation/3G6G7WKREY"
+              "url": "https://www.magnific.com/app/creation/3G6G7WKREY",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-05.character-explainer-with-cast.cast/4-3G6G7WKREY.png"
             },
             {
               "identifier": "ON7NjARynm",
-              "url": "https://www.magnific.com/app/creation/ON7NjARynm"
+              "url": "https://www.magnific.com/app/creation/ON7NjARynm",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-05.character-explainer-with-cast.cast/5-ON7NjARynm.png"
             },
             {
               "identifier": "dIpIYCFXSL",
-              "url": "https://www.magnific.com/app/creation/dIpIYCFXSL"
+              "url": "https://www.magnific.com/app/creation/dIpIYCFXSL",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-05.character-explainer-with-cast.cast/6-dIpIYCFXSL.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -626,36 +656,42 @@
           "produced_at": "2026-07-22T13:40:30.197Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-06.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "5xqxEOOKxe",
-              "url": "https://www.magnific.com/app/creation/5xqxEOOKxe"
+              "url": "https://www.magnific.com/app/creation/5xqxEOOKxe",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-06.character-explainer-with-cast.cast/1-5xqxEOOKxe.png"
             },
             {
               "identifier": "rlklH9Xxtc",
-              "url": "https://www.magnific.com/app/creation/rlklH9Xxtc"
+              "url": "https://www.magnific.com/app/creation/rlklH9Xxtc",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-06.character-explainer-with-cast.cast/2-rlklH9Xxtc.png"
             },
             {
               "identifier": "LUxU5RiswO",
-              "url": "https://www.magnific.com/app/creation/LUxU5RiswO"
+              "url": "https://www.magnific.com/app/creation/LUxU5RiswO",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-06.character-explainer-with-cast.cast/3-LUxU5RiswO.png"
             },
             {
               "identifier": "wPSPjnD7EI",
-              "url": "https://www.magnific.com/app/creation/wPSPjnD7EI"
+              "url": "https://www.magnific.com/app/creation/wPSPjnD7EI",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-06.character-explainer-with-cast.cast/4-wPSPjnD7EI.png"
             },
             {
               "identifier": "e8D8c5bdqL",
-              "url": "https://www.magnific.com/app/creation/e8D8c5bdqL"
+              "url": "https://www.magnific.com/app/creation/e8D8c5bdqL",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-06.character-explainer-with-cast.cast/5-e8D8c5bdqL.png"
             },
             {
               "identifier": "xg1gqR9jfW",
-              "url": "https://www.magnific.com/app/creation/xg1gqR9jfW"
+              "url": "https://www.magnific.com/app/creation/xg1gqR9jfW",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-06.character-explainer-with-cast.cast/6-xg1gqR9jfW.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -703,36 +739,42 @@
           "produced_at": "2026-07-22T13:40:30.549Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-07.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "kL5LqYZ16B",
-              "url": "https://www.magnific.com/app/creation/kL5LqYZ16B"
+              "url": "https://www.magnific.com/app/creation/kL5LqYZ16B",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-07.character-explainer-with-cast.cast/1-kL5LqYZ16B.png"
             },
             {
               "identifier": "vumuIPTa47",
-              "url": "https://www.magnific.com/app/creation/vumuIPTa47"
+              "url": "https://www.magnific.com/app/creation/vumuIPTa47",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-07.character-explainer-with-cast.cast/2-vumuIPTa47.png"
             },
             {
               "identifier": "74U4g8FJAL",
-              "url": "https://www.magnific.com/app/creation/74U4g8FJAL"
+              "url": "https://www.magnific.com/app/creation/74U4g8FJAL",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-07.character-explainer-with-cast.cast/3-74U4g8FJAL.png"
             },
             {
               "identifier": "MXTXclUDCm",
-              "url": "https://www.magnific.com/app/creation/MXTXclUDCm"
+              "url": "https://www.magnific.com/app/creation/MXTXclUDCm",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-07.character-explainer-with-cast.cast/4-MXTXclUDCm.png"
             },
             {
               "identifier": "y6J6wvJPW9",
-              "url": "https://www.magnific.com/app/creation/y6J6wvJPW9"
+              "url": "https://www.magnific.com/app/creation/y6J6wvJPW9",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-07.character-explainer-with-cast.cast/5-y6J6wvJPW9.png"
             },
             {
               "identifier": "mCICo6DhJQ",
-              "url": "https://www.magnific.com/app/creation/mCICo6DhJQ"
+              "url": "https://www.magnific.com/app/creation/mCICo6DhJQ",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-07.character-explainer-with-cast.cast/6-mCICo6DhJQ.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -781,36 +823,42 @@
           "produced_at": "2026-07-22T13:42:53.954Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-08.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "rlkl1cvxtc",
-              "url": "https://www.magnific.com/app/creation/rlkl1cvxtc"
+              "url": "https://www.magnific.com/app/creation/rlkl1cvxtc",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-08.character-explainer-with-cast.cast/1-rlkl1cvxtc.png"
             },
             {
               "identifier": "Xtetdw1Bfo",
-              "url": "https://www.magnific.com/app/creation/Xtetdw1Bfo"
+              "url": "https://www.magnific.com/app/creation/Xtetdw1Bfo",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-08.character-explainer-with-cast.cast/2-Xtetdw1Bfo.png"
             },
             {
               "identifier": "Kjbj5cpkqp",
-              "url": "https://www.magnific.com/app/creation/Kjbj5cpkqp"
+              "url": "https://www.magnific.com/app/creation/Kjbj5cpkqp",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-08.character-explainer-with-cast.cast/3-Kjbj5cpkqp.png"
             },
             {
               "identifier": "poMoDUAehw",
-              "url": "https://www.magnific.com/app/creation/poMoDUAehw"
+              "url": "https://www.magnific.com/app/creation/poMoDUAehw",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-08.character-explainer-with-cast.cast/4-poMoDUAehw.png"
             },
             {
               "identifier": "SOlOgI2Ub8",
-              "url": "https://www.magnific.com/app/creation/SOlOgI2Ub8"
+              "url": "https://www.magnific.com/app/creation/SOlOgI2Ub8",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-08.character-explainer-with-cast.cast/5-SOlOgI2Ub8.png"
             },
             {
               "identifier": "BmdmX4CoQR",
-              "url": "https://www.magnific.com/app/creation/BmdmX4CoQR"
+              "url": "https://www.magnific.com/app/creation/BmdmX4CoQR",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-08.character-explainer-with-cast.cast/6-BmdmX4CoQR.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -859,36 +907,42 @@
           "produced_at": "2026-07-22T13:45:19.336Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-09.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "LUxwSgqswO",
-              "url": "https://www.magnific.com/app/creation/LUxwSgqswO"
+              "url": "https://www.magnific.com/app/creation/LUxwSgqswO",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-09.character-explainer-with-cast.cast/1-LUxwSgqswO.png"
             },
             {
               "identifier": "brHx1ke5Y2",
-              "url": "https://www.magnific.com/app/creation/brHx1ke5Y2"
+              "url": "https://www.magnific.com/app/creation/brHx1ke5Y2",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-09.character-explainer-with-cast.cast/2-brHx1ke5Y2.png"
             },
             {
               "identifier": "8vBahaFIrU",
-              "url": "https://www.magnific.com/app/creation/8vBahaFIrU"
+              "url": "https://www.magnific.com/app/creation/8vBahaFIrU",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-09.character-explainer-with-cast.cast/3-8vBahaFIrU.png"
             },
             {
               "identifier": "e8DIo80dqL",
-              "url": "https://www.magnific.com/app/creation/e8DIo80dqL"
+              "url": "https://www.magnific.com/app/creation/e8DIo80dqL",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-09.character-explainer-with-cast.cast/4-e8DIo80dqL.png"
             },
             {
               "identifier": "SOlyJ4fUb8",
-              "url": "https://www.magnific.com/app/creation/SOlyJ4fUb8"
+              "url": "https://www.magnific.com/app/creation/SOlyJ4fUb8",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-09.character-explainer-with-cast.cast/5-SOlyJ4fUb8.png"
             },
             {
               "identifier": "3G6zAYmREY",
-              "url": "https://www.magnific.com/app/creation/3G6zAYmREY"
+              "url": "https://www.magnific.com/app/creation/3G6zAYmREY",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-09.character-explainer-with-cast.cast/6-3G6zAYmREY.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
@@ -937,36 +991,42 @@
           "produced_at": "2026-07-22T14:06:11.456Z"
         },
         {
+          "recipe": "character-explainer-with-cast",
           "status": "in_production",
           "pending_gate": "cast",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-10.character-explainer-with-cast.spec.json",
           "cast": [
             {
               "identifier": "3G6zng3REY",
-              "url": "https://www.magnific.com/app/creation/3G6zng3REY"
+              "url": "https://www.magnific.com/app/creation/3G6zng3REY",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-10.character-explainer-with-cast.cast/1-3G6zng3REY.png"
             },
             {
               "identifier": "SOlyPqWUb8",
-              "url": "https://www.magnific.com/app/creation/SOlyPqWUb8"
+              "url": "https://www.magnific.com/app/creation/SOlyPqWUb8",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-10.character-explainer-with-cast.cast/2-SOlyPqWUb8.png"
             },
             {
               "identifier": "WMnDpi8cXe",
-              "url": "https://www.magnific.com/app/creation/WMnDpi8cXe"
+              "url": "https://www.magnific.com/app/creation/WMnDpi8cXe",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-10.character-explainer-with-cast.cast/3-WMnDpi8cXe.png"
             },
             {
               "identifier": "629AGSXiJO",
-              "url": "https://www.magnific.com/app/creation/629AGSXiJO"
+              "url": "https://www.magnific.com/app/creation/629AGSXiJO",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-10.character-explainer-with-cast.cast/4-629AGSXiJO.png"
             },
             {
               "identifier": "xg1SUHejfW",
-              "url": "https://www.magnific.com/app/creation/xg1SUHejfW"
+              "url": "https://www.magnific.com/app/creation/xg1SUHejfW",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-10.character-explainer-with-cast.cast/5-xg1SUHejfW.png"
             },
             {
               "identifier": "LUxw7HBswO",
-              "url": "https://www.magnific.com/app/creation/LUxw7HBswO"
+              "url": "https://www.magnific.com/app/creation/LUxw7HBswO",
+              "path": "data/brands/straw-motion/ideas/unhypped-news/2026-W30/idea-10.character-explainer-with-cast.cast/6-LUxw7HBswO.png"
             }
-          ],
-          "recipe": "character-explainer-with-cast"
+          ]
         }
       ],
       "recipes": [
