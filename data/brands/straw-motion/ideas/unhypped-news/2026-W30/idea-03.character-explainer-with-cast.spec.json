@@ -10,21 +10,21 @@
       "clip_id": 1,
       "concept_title": "Stuck for decades",
       "image_prompt": "Pixar-style 3D animation. Chalky, a small friendly anthropomorphic piece of white chalk with big eyes, stands dwarfed before a towering ancient blackboard where a famous equation sits locked behind a rusty padlock, chalk dust drifting in warm shafts of light, awed determined expression, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
-      "video_prompt": "Slow tilt up the giant blackboard from Chalky to the locked equation -> he cracks his knuckles and steps up to the untouched decades-old problem -> Voice (quiet, brave): people have been stuck on this one for decades. -> SFX: soft dusty echo, a low suspense hum."
+      "video_prompt": "Animate from the first frame. Camera: slow tilt up the giant blackboard from Chalky to the padlocked equation. Motion: Chalky cracks his knuckles and steps up to the untouched problem; chalk dust drifts in the light beams. Audio: quiet brave voice, \"people have been stuck on this one for decades\"; SFX soft dusty echo, a low suspense hum."
     },
     {
       "id": "idea-2026-W30-03-clip-2",
       "clip_id": 2,
       "concept_title": "It cracks",
       "image_prompt": "Pixar-style 3D animation. Chalky the chalk scribbles a glowing chain of proof across the huge blackboard and the rusty padlock on the equation clicks open with a burst of light, a neat counterexample shining in the center, triumphant wide-eyed grin, chalk dust sparkling, warm dramatic lighting, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
-      "video_prompt": "Fast tracking along the board as Chalky writes -> the final line lands, the padlock springs open and the proof glows -> Voice (rising, amazed): and just like that, it cracks. -> SFX: rapid chalk taps, a bright unlocking click, a shimmering chime."
+      "video_prompt": "Animate from the first frame. Camera: fast tracking along the board as Chalky writes. Motion: a glowing proof-chain races across the board and at 5s the rusty padlock springs open, the counterexample flaring bright. Audio: rising amazed voice, \"and just like that, it cracks\"; SFX rapid chalk taps, a bright unlocking click, a shimmering chime."
     },
     {
       "id": "idea-2026-W30-03-clip-3",
       "clip_id": 3,
       "concept_title": "You can check it yourself",
       "image_prompt": "Pixar-style 3D animation. Chalky the chalk stands proudly beside his proof while a giant magnifying glass sweeps over each line and every step lights up with a green check, a small hand-lettered sign nearby reads a tool not a mathematician, warm classroom glow, humble satisfied smile, vibrant family-film color grade, cinematic lighting. Aspect Ratio 9:16.",
-      "video_prompt": "Slow push along the proof as a magnifying glass checks each step -> green checks pop line by line while Chalky watches, then he taps a small honest sign -> Voice (warm, honest): the best part, you can check every step yourself. -> SFX: soft ticks, gentle confirming chimes."
+      "video_prompt": "Animate from the first frame. Camera: slow push along the proof as a giant magnifying glass sweeps each line. Motion: green checks pop line by line, then at 5s Chalky taps the small tool-not-a-mathematician sign. Audio: warm honest voice, \"the best part, you can check every step yourself\"; SFX soft ticks, gentle confirming chimes."
     }
   ],
   "thumbnails": [
