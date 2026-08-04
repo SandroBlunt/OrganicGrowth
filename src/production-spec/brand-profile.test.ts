@@ -13,11 +13,16 @@ import {
   primaryChannelFrom,
   loadChannels,
   loadPrimaryChannel,
+  zohoConfigFrom,
+  loadZohoConfig,
 } from "./brand-profile.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const BANNED_PROFILE = join(HERE, "fixtures", "brand-profile.banned.yaml");
 const CHANNELS_PROFILE = join(HERE, "fixtures", "brand-profile.channels.yaml");
+const ZOHO_PROFILE = join(HERE, "fixtures", "brand-profile.zoho.yaml");
+const STRAW_MOTION_PROFILE = join("data", "brands", "straw-motion", "brand-profile.yaml");
+const MUNDOTIP_PROFILE = join("data", "brands", "mundotip", "brand-profile.yaml");
 
 describe("requiredCtaFrom (defensive) — ADR-0012: bring the dead required_cta rule live", () => {
   it("reads a configured required_cta verbatim", () => {
@@ -249,5 +254,337 @@ describe("loadChannels / loadPrimaryChannel — read the Channel list from a Bra
     // inline literal.
     assert.deepEqual(await loadChannels(BANNED_PROFILE), []);
     assert.equal(await loadPrimaryChannel(BANNED_PROFILE), null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// zohoConfigFrom / loadZohoConfig — Zoho Social Brand config for Schedule Batch (issue #143)
+// ---------------------------------------------------------------------------
+
+describe("zohoConfigFrom (defensive) — issue #143: per-Brand Zoho Social Brand config", () => {
+  it("a Brand with no zoho key gets a clear not-configured result, naming the Brand", () => {
+    const result = zohoConfigFrom({ niche: "whatever" }, "mundotip");
+    assert.equal(result.configured, false);
+    if (!result.configured) {
+      assert.equal(result.brand, "mundotip");
+      assert.equal(result.reason, "not_configured");
+      assert.deepEqual(result.errors, []);
+      assert.match(result.message, /mundotip/);
+      assert.match(result.message, /not configured/i);
+    }
+  });
+
+  it("returns not-configured (never throws) when raw itself isn't an object", () => {
+    const result = zohoConfigFrom(null, "mundotip");
+    assert.equal(result.configured, false);
+    if (!result.configured) assert.equal(result.reason, "not_configured");
+  });
+
+  it("reads a well-formed two-Zoho-Brand config", () => {
+    const result = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            {
+              name: "Main",
+              timezone: "Europe/Berlin",
+              channels: [
+                { platform: "facebook", label: "Facebook" },
+                { platform: "instagram", label: "Instagram" },
+                { platform: "tiktok", label: "TikTok" },
+              ],
+            },
+            {
+              name: "Personal",
+              timezone: "Europe/Berlin",
+              channels: [
+                { platform: "linkedin", label: "LinkedInProfile" },
+                { platform: "x", label: "X" },
+              ],
+            },
+          ],
+        },
+      },
+      "straw-motion",
+    );
+
+    assert.equal(result.configured, true);
+    if (result.configured) {
+      assert.equal(result.brand, "straw-motion");
+      assert.deepEqual(result.zohoBrands, [
+        {
+          name: "Main",
+          timezone: "Europe/Berlin",
+          channels: [
+            { platform: "facebook", label: "Facebook" },
+            { platform: "instagram", label: "Instagram" },
+            { platform: "tiktok", label: "TikTok" },
+          ],
+        },
+        {
+          name: "Personal",
+          timezone: "Europe/Berlin",
+          channels: [
+            { platform: "linkedin", label: "LinkedInProfile" },
+            { platform: "x", label: "X" },
+          ],
+        },
+      ]);
+    }
+  });
+
+  it("defaults a Zoho Social Brand's missing name to '' — not an error", () => {
+    const result = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            {
+              timezone: "Europe/Berlin",
+              channels: [{ platform: "facebook", label: "Facebook" }],
+            },
+          ],
+        },
+      },
+      "straw-motion",
+    );
+    assert.equal(result.configured, true);
+    if (result.configured) {
+      assert.equal(result.zohoBrands[0]?.name, "");
+    }
+  });
+
+  it("trims platform, label, name, and timezone", () => {
+    const result = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            {
+              name: "  Main  ",
+              timezone: "  Europe/Berlin  ",
+              channels: [{ platform: "  facebook  ", label: "  Facebook  " }],
+            },
+          ],
+        },
+      },
+      "straw-motion",
+    );
+    assert.equal(result.configured, true);
+    if (result.configured) {
+      assert.deepEqual(result.zohoBrands, [
+        {
+          name: "Main",
+          timezone: "Europe/Berlin",
+          channels: [{ platform: "facebook", label: "Facebook" }],
+        },
+      ]);
+    }
+  });
+
+  it("a non-object zoho value is malformed, naming the Brand", () => {
+    const result = zohoConfigFrom({ zoho: "nope" }, "straw-motion");
+    assert.equal(result.configured, false);
+    if (!result.configured) {
+      assert.equal(result.reason, "malformed");
+      assert.match(result.message, /straw-motion/);
+      assert.ok(result.errors.length > 0);
+    }
+  });
+
+  it("missing/empty zoho.brands is malformed", () => {
+    const missing = zohoConfigFrom({ zoho: {} }, "straw-motion");
+    const empty = zohoConfigFrom({ zoho: { brands: [] } }, "straw-motion");
+    for (const result of [missing, empty]) {
+      assert.equal(result.configured, false);
+      if (!result.configured) assert.equal(result.reason, "malformed");
+    }
+  });
+
+  it("a missing/blank timezone is malformed and named by index", () => {
+    const result = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            { name: "Main", channels: [{ platform: "facebook", label: "Facebook" }] },
+          ],
+        },
+      },
+      "straw-motion",
+    );
+    assert.equal(result.configured, false);
+    if (!result.configured) {
+      assert.equal(result.reason, "malformed");
+      assert.ok(result.errors.some((e) => e.includes("zoho.brands[0].timezone")));
+    }
+  });
+
+  it("an unrecognized IANA timezone string is malformed", () => {
+    const result = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            {
+              name: "Main",
+              timezone: "Not/AZone",
+              channels: [{ platform: "facebook", label: "Facebook" }],
+            },
+          ],
+        },
+      },
+      "straw-motion",
+    );
+    assert.equal(result.configured, false);
+    if (!result.configured) {
+      assert.equal(result.reason, "malformed");
+      assert.ok(result.errors.some((e) => e.includes("Not/AZone")));
+    }
+  });
+
+  it("missing/empty channels is malformed", () => {
+    const missing = zohoConfigFrom(
+      { zoho: { brands: [{ name: "Main", timezone: "Europe/Berlin" }] } },
+      "straw-motion",
+    );
+    const empty = zohoConfigFrom(
+      { zoho: { brands: [{ name: "Main", timezone: "Europe/Berlin", channels: [] }] } },
+      "straw-motion",
+    );
+    for (const result of [missing, empty]) {
+      assert.equal(result.configured, false);
+      if (!result.configured) assert.equal(result.reason, "malformed");
+    }
+  });
+
+  it("a channel entry missing platform or label is malformed", () => {
+    const noPlatform = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            { name: "Main", timezone: "Europe/Berlin", channels: [{ label: "Facebook" }] },
+          ],
+        },
+      },
+      "straw-motion",
+    );
+    const noLabel = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            { name: "Main", timezone: "Europe/Berlin", channels: [{ platform: "facebook" }] },
+          ],
+        },
+      },
+      "straw-motion",
+    );
+    for (const result of [noPlatform, noLabel]) {
+      assert.equal(result.configured, false);
+      if (!result.configured) assert.equal(result.reason, "malformed");
+    }
+  });
+
+  it("a platform assigned to more than one Zoho Social Brand is malformed, naming the platform", () => {
+    const result = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            {
+              name: "Main",
+              timezone: "Europe/Berlin",
+              channels: [{ platform: "facebook", label: "Facebook" }],
+            },
+            {
+              name: "Duplicate",
+              timezone: "Europe/Berlin",
+              channels: [{ platform: "facebook", label: "Facebook Duplicate" }],
+            },
+          ],
+        },
+      },
+      "straw-motion",
+    );
+    assert.equal(result.configured, false);
+    if (!result.configured) {
+      assert.equal(result.reason, "malformed");
+      assert.ok(result.errors.some((e) => e.includes("facebook")));
+    }
+  });
+
+  it("never a guess: multiple independent problems are ALL reported, not just the first", () => {
+    const result = zohoConfigFrom(
+      {
+        zoho: {
+          brands: [
+            { name: "Main", channels: [] }, // missing timezone AND empty channels
+          ],
+        },
+      },
+      "straw-motion",
+    );
+    assert.equal(result.configured, false);
+    if (!result.configured) {
+      assert.equal(result.reason, "malformed");
+      assert.ok(result.errors.length >= 2);
+    }
+  });
+
+  it("never throws for any malformed shape", () => {
+    for (const raw of [null, undefined, {}, { zoho: null }, { zoho: 7 }, { zoho: { brands: "nope" } }]) {
+      assert.doesNotThrow(() => zohoConfigFrom(raw, "straw-motion"));
+    }
+  });
+});
+
+describe("loadZohoConfig — reads Zoho Social Brand config from a Brand Profile file", () => {
+  it("reads a well-formed fixture", async () => {
+    const result = await loadZohoConfig(ZOHO_PROFILE, "test-brand");
+    assert.equal(result.configured, true);
+    if (result.configured) {
+      assert.equal(result.zohoBrands.length, 2);
+      assert.equal(result.zohoBrands[0]?.timezone, "Europe/Amsterdam");
+    }
+  });
+
+  it("a missing Brand Profile file loads as not-configured, never crashes", async () => {
+    const result = await loadZohoConfig(join(HERE, "fixtures", "nope.yaml"), "ghost-brand");
+    assert.equal(result.configured, false);
+    if (!result.configured) {
+      assert.equal(result.reason, "not_configured");
+      assert.match(result.message, /ghost-brand/);
+    }
+  });
+
+  it("straw-motion's REAL committed brand-profile.yaml carries the real Zoho grouping/labels/clock", async () => {
+    const result = await loadZohoConfig(STRAW_MOTION_PROFILE, "straw-motion");
+    assert.equal(result.configured, true);
+    if (!result.configured) return;
+
+    assert.equal(result.zohoBrands.length, 2);
+    const [main, personal] = result.zohoBrands;
+    assert.ok(main);
+    assert.ok(personal);
+
+    assert.deepEqual(
+      main.channels.map((c) => c.platform),
+      ["facebook", "instagram", "tiktok"],
+    );
+    assert.deepEqual(
+      personal.channels.map((c) => c.platform),
+      ["linkedin", "x"],
+    );
+
+    const linkedinLabel = personal.channels.find((c) => c.platform === "linkedin")?.label;
+    assert.equal(linkedinLabel, "LinkedInProfile"); // NEVER "LinkedIn" — that's a different Channel
+
+    // Both Zoho Brands share the Operator's clock (CEST today).
+    assert.equal(main.timezone, personal.timezone);
+    assert.ok(main.timezone.length > 0);
+  });
+
+  it("mundotip's REAL committed brand-profile.yaml is not configured for Schedule Batch (out of scope)", async () => {
+    const result = await loadZohoConfig(MUNDOTIP_PROFILE, "mundotip");
+    assert.equal(result.configured, false);
+    if (!result.configured) {
+      assert.equal(result.reason, "not_configured");
+      assert.match(result.message, /mundotip/);
+    }
   });
 });
