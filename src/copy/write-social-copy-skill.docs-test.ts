@@ -186,6 +186,24 @@ describe("write-social-copy Skill — composes one variant per targeted Channel 
   });
 });
 
+describe("write-social-copy Skill — X's caption cap covers caption + hashtags together (issue #142)", () => {
+  it("names checkCombinedCaptionHashtagsCap and capIncludesHashtags", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /checkCombinedCaptionHashtagsCap/);
+    assert.match(text, /capIncludesHashtags/);
+  });
+
+  it("states the combined cap applies regardless of whether X is the primary Channel", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /REGARDLESS of whether X is\s+the primary Channel/);
+  });
+
+  it("names the caption_hashtags_length error code", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /caption_hashtags_length/);
+  });
+});
+
 describe("write-social-copy Skill — nothing Brand/Format-specific is hardcoded (issue #111)", () => {
   it("never hardcodes Straw Motion's own pill text, logo reference name, or required CTA", async () => {
     const text = await readFile(SKILL_PATH, "utf8");

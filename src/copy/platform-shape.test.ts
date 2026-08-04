@@ -68,6 +68,14 @@ describe("platformCopyShapeFor — documented, per-platform bounds (issue #128)"
     );
   });
 
+  it("only X declares capIncludesHashtags today (issue #142)", () => {
+    const combined = listPlatformCopyShapes().filter((s) => s.capIncludesHashtags);
+    assert.deepEqual(
+      combined.map((s) => s.platform),
+      ["x"],
+    );
+  });
+
   it("listPlatformCopyShapes returns all six, each with a distinct platform name", () => {
     const all = listPlatformCopyShapes();
     assert.equal(all.length, 6);

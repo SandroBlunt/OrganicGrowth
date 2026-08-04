@@ -167,6 +167,14 @@ changes `skillDraftCopy`'s (or `defaultDraftCopy`'s) own output either.
      LinkedIn. Check the FINAL, mention-woven caption from step 2, not the pre-weave draft.
    - Every check covers: caption length, emoji count, required CTA present, required hashtags present,
      no banned word, and no em dash/en dash/spaced hyphen (issue #108) — in the caption or any hashtag.
+   - **X's caption cap covers the caption AND its hashtags together** (issue #142): X has no separate
+     hashtags field, so its 280-char cap is enforced over `caption + hashtags` combined, via
+     `checkCombinedCaptionHashtagsCap(copy, platform)` — always run for a platform whose
+     `PlatformCopyShape` sets `capIncludesHashtags: true` (today: X alone), REGARDLESS of whether X is
+     the primary Channel or not (the primary Channel's own caption-alone bound above still comes from
+     the Recipe's own `copyShape`, but this combined cap is never skipped because of that). A miss here
+     is a `caption_hashtags_length` error naming the platform and the overage; keep every other
+     platform's own bounds — untouched by this rule.
    - `src/copy/compose.ts`'s `composeCopyForChannels` is this step's own deterministic, testable proof:
      given the SAME `CopyInput`/`baseShape`/Channel list this Skill reads, it runs exactly this
      draft → inject → weave mentions → validate sequence per targeted platform and returns a `Copy`
