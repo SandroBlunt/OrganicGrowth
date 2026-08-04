@@ -402,15 +402,22 @@ The system SHALL provide a brand-agnostic, in-repo table of `PlatformCopyShape` 
 (`src/copy/platform-shape.ts`) for the platforms named in issue #128 — `facebook`, `instagram`,
 `linkedin`, `x`, `tiktok`, `youtube` — each declaring the base `CopyShape` fields (`maxChars`,
 `minEmojis`, `maxEmojis`), a human-readable `description` citing the documented, standard platform
-convention its bounds are based on, and `supportsMentions` (whether that platform's caption text uses a
-typed inline `@Handle` mention, checked by `validateCopyForPlatform` below). `platformCopyShapeFor
-(platform)` SHALL look this table up case- and whitespace-insensitively and SHALL return `null` — never
-a fabricated bound — for a platform this table does not document (rule 8: never fabricate).
-`resolveCopyShapeForPlatform(baseShape, platform)` SHALL "extend" a Recipe's own single `CopyShape`
-(its `copyShape`, `src/recipe/registry.ts`) into a per-platform-aware one: it SHALL return the
-platform's documented bounds when `platformCopyShapeFor` resolves one, and SHALL fall back to the
-caller's own `baseShape`, UNCHANGED, for a platform this table does not document. Both functions SHALL
-be pure — no I/O, no clock, never throw.
+convention its bounds are based on, `supportsMentions` (whether that platform's caption text uses a
+typed inline `@Handle` mention, checked by `validateCopyForPlatform` below), and `capIncludesHashtags`
+(issue #142 — whether that platform's `maxChars` cap applies to `caption` PLUS `hashtags` together
+rather than `caption` alone). `platformCopyShapeFor(platform)` SHALL look this table up case- and
+whitespace-insensitively and SHALL return `null` — never a fabricated bound — for a platform this table
+does not document (rule 8: never fabricate). `resolveCopyShapeForPlatform(baseShape, platform)` SHALL
+"extend" a Recipe's own single `CopyShape` (its `copyShape`, `src/recipe/registry.ts`) into a
+per-platform-aware one: it SHALL return the platform's documented bounds when `platformCopyShapeFor`
+resolves one, and SHALL fall back to the caller's own `baseShape`, UNCHANGED, for a platform this table
+does not document. Both functions SHALL be pure — no I/O, no clock, never throw.
+
+`capIncludesHashtags` SHALL be `true` for exactly ONE documented platform, `x` — X's compose box has no
+separate hashtags field the way Instagram's does, so its 280-char cap covers the whole tweet, caption
+and hashtags together. Every other documented platform (`facebook`, `instagram`, `linkedin`, `tiktok`,
+`youtube`) SHALL declare `capIncludesHashtags: false` — their own `maxChars` continues to apply to
+`caption` alone, exactly as before this field existed.
 
 #### Scenario: Each of the six documented platforms resolves to its own, genuinely different bounds
 
@@ -437,6 +444,12 @@ be pure — no I/O, no clock, never throw.
   `baseShape`)
 - **AND** for the undocumented platform it returns `baseShape`, unchanged
 
+#### Scenario: Only X declares capIncludesHashtags (issue #142)
+
+- **GIVEN** the six platforms this table documents
+- **WHEN** each is inspected for `capIncludesHashtags`
+- **THEN** exactly one — `x` — declares it `true`; every other platform declares it `false`
+
 ### Requirement: validateCopy is unchanged; validateCopyForPlatform is a new, additive entry point
 
 `validateCopy(copy, shape, rules)` (`src/copy/validate.ts`) SHALL remain byte-for-byte unchanged in
@@ -446,11 +459,22 @@ single `CopyShape` exactly as before, so the single-Channel production path is u
 AC3). The system SHALL additionally provide `validateCopyForPlatform(copy, platform, baseShape, rules)`
 — a NEW, additive function that resolves `platform`'s `CopyShape` via `resolveCopyShapeForPlatform`,
 runs the SAME core checks `validateCopy` runs (length, emoji count, required CTA, required hashtags,
-banned words, dash tells) against the resolved shape, and, ONLY when the resolved platform's own
-`PlatformCopyShape` sets `supportsMentions: true` (today: `linkedin` alone), additionally scans the
-caption for a malformed inline `@mention` via `scanAtHandleMentionSyntax`, appending a
-`platform_mention_syntax` error for each violation found. `CopyValidationCode` SHALL gain this new
-member, additively (a union widening — no exhaustive switch over it exists anywhere in the repo).
+banned words, dash tells) against the resolved shape, and additionally runs TWO platform-specific
+checks, each only when the resolved platform's own `PlatformCopyShape` opts into it:
+
+- `capIncludesHashtags: true` (today: `x` alone, issue #142) — `checkCombinedCaptionHashtagsCap(copy,
+  platform)` (`src/copy/validate.ts`), which measures `caption` PLUS a separating space PLUS `hashtags`
+  space-joined against that platform's own `maxChars`, appending a `caption_hashtags_length` error
+  (naming the platform and the exact character overage) when the combined length exceeds it. This check
+  is INDEPENDENT of whichever `CopyShape` governs the caption-alone length/emoji bounds — it always
+  measures against the resolved platform's OWN real `maxChars`, never a Recipe's `baseShape`.
+- `supportsMentions: true` (today: `linkedin` alone) — scans the caption for a malformed inline
+  `@mention` via `scanAtHandleMentionSyntax`, appending a `platform_mention_syntax` error for each
+  violation found.
+
+`CopyValidationCode` SHALL gain `"caption_hashtags_length"` (issue #142) and `"platform_mention_syntax"`
+(issue #128), each additively (a union widening — no exhaustive switch over it exists anywhere in the
+repo).
 
 #### Scenario: The same caption validates differently against two different platforms' bounds
 
@@ -487,6 +511,32 @@ member, additively (a union widening — no exhaustive switch over it exists any
   rules)`, with no platform argument at all
 - **THEN** the result is identical to the pre-#128 behavior: the 180-char bound is enforced exactly as
   before, and `platform-shape.ts`'s own (different) `facebook` table entry is never consulted
+
+#### Scenario: An X variant whose caption + hashtags combined exceeds 280 fails, even though the caption alone fits (issue #142 AC1/AC2)
+
+- **GIVEN** a Copy whose `caption` is exactly 280 characters (within X's own cap on its own) and whose
+  `hashtags` contains one entry long enough to push the combined caption+hashtags length to 318
+  characters — the exact live-failure case named in issue #140/#142
+- **WHEN** `validateCopyForPlatform(copy, "x", baseShape, rules)` is called
+- **THEN** it reports `ok: false` with a `caption_hashtags_length` error naming `"x"` and the overage
+  (`38`, i.e. `318 - 280`)
+- **AND** it does NOT report a `caption_length` error — the caption alone is within X's 280-char cap;
+  the NEW failure is specifically the combined check
+
+#### Scenario: A compliant X variant still passes unchanged (issue #142 AC3)
+
+- **GIVEN** a Copy whose `caption` PLUS `hashtags` combined is well within X's 280-char cap
+- **WHEN** `validateCopyForPlatform(copy, "x", baseShape, rules)` is called
+- **THEN** it reports `ok: true`
+
+#### Scenario: The SAME over-280-combined Copy is unaffected on every other documented platform (issue #142 AC3)
+
+- **GIVEN** the SAME Copy whose `caption` PLUS `hashtags` combined exceeds 280 characters (from the
+  318-character scenario above)
+- **WHEN** `validateCopyForPlatform` is called for `"instagram"`, `"linkedin"`, `"facebook"`, and
+  `"tiktok"` in turn
+- **THEN** none of them ever reports `caption_hashtags_length` — that check only ever fires for a
+  platform whose `PlatformCopyShape` declares `capIncludesHashtags: true` (today: X alone)
 
 ### Requirement: Copy carries an optional per-platform variants field, additive to the single caption/hashtags shape
 
@@ -552,15 +602,29 @@ woven caption SHALL be what that variant is validated against, and its
 `unresolvedMentions` (when non-empty) SHALL be carried onto that platform's `CopyVariant`. Every OTHER
 targeted platform (any platform whose `supportsMentions` is not `true`, including the primary Channel
 when it is not LinkedIn) SHALL be completely unaffected by this step, even when composing the identical
-`CopyInput` companies data. `composeCopy` itself SHALL remain byte-for-byte unchanged (same signature,
-same body) — every existing caller keeps calling it exactly as before. A Brand with NO Channel
-configured at all SHALL degrade to the exact single, unlabeled compose `composeCopy` already performs —
-never crash (data-handling rule 4). A Brand with EXACTLY ONE Channel SHALL produce a result identical to
-calling `composeCopy` directly with the same `baseShape` (AC1/AC5) — UNLESS that one Channel is itself a
-mentions-supporting platform, in which case its own `CopyVariant`-equivalent top-level fields are still
-subject to the mention-weaving step above. Every targeted platform's validation failures SHALL be
-collected (never stopping at the first) and a partially-valid set of variants SHALL NEVER be surfaced —
-only a fully valid `Copy` is ever returned, mirroring `composeCopy`'s own all-or-nothing contract.
+`CopyInput` companies data.
+
+For a platform whose `platformCopyShapeFor(platform)?.capIncludesHashtags` is `true` (today: `x` alone,
+issue #142), `checkCombinedCaptionHashtagsCap` (`src/copy/validate.ts`) SHALL ALSO be checked against
+that variant's final candidate `{ caption, hashtags }` — REGARDLESS of whether that platform is the
+PRIMARY Channel. The non-primary branch already gets this for free through `validateCopyForPlatform`
+above; the PRIMARY-Channel branch, which otherwise only ever calls `validateCopy` against `baseShape`
+(never consulting `platform-shape.ts` at all, per this Requirement's own primary-Channel rule above),
+SHALL additionally call `checkCombinedCaptionHashtagsCap(candidate, channel.platform)` directly and
+merge any resulting error into that Channel's own validation errors. A failure here SHALL be reported as
+a `caption_hashtags_length` error on that platform's `ComposeCopyVariantFailure`, exactly as
+`validateCopyForPlatform` reports it for a non-primary platform.
+
+`composeCopy` itself SHALL remain byte-for-byte unchanged (same signature, same body) — every existing
+caller keeps calling it exactly as before. A Brand with NO Channel configured at all SHALL degrade to
+the exact single, unlabeled compose `composeCopy` already performs — never crash (data-handling rule 4).
+A Brand with EXACTLY ONE Channel SHALL produce a result identical to calling `composeCopy` directly with
+the same `baseShape` (AC1/AC5) — UNLESS that one Channel is itself a mentions-supporting platform, in
+which case its own `CopyVariant`-equivalent top-level fields are still subject to the mention-weaving
+step above, OR is itself a combined-cap platform (issue #142), in which case it is still subject to the
+combined-cap check above. Every targeted platform's validation failures SHALL be collected (never
+stopping at the first) and a partially-valid set of variants SHALL NEVER be surfaced — only a fully
+valid `Copy` is ever returned, mirroring `composeCopy`'s own all-or-nothing contract.
 
 #### Scenario: A single-(primary)-Channel Brand's result is identical to composeCopy's own result
 
@@ -650,6 +714,44 @@ only a fully valid `Copy` is ever returned, mirroring `composeCopy`'s own all-or
 - **THEN** that company's name never appears anywhere in the LinkedIn variant's caption — grounded,
   never invented (mirrors PR #122's rule; always-rule 8)
 
+#### Scenario: A NON-primary X variant fails the combined cap, naming the platform and the 318 combined length (issue #142)
+
+- **GIVEN** the same 5-platform Brand (X non-primary) and a drafter whose fixed caption is exactly 280
+  characters with one hashtag long enough to push caption + hashtags combined to 318
+- **WHEN** `composeCopyForChannels` is called
+- **THEN** the result fails with a `"x"` platform failure carrying a `caption_hashtags_length` error
+  whose message names `318` (the combined length) — no partially-valid Copy is surfaced
+
+#### Scenario: An X variant fails the combined cap even when X is the PRIMARY Channel (issue #142)
+
+- **GIVEN** a Brand configured for exactly ONE Channel, `x`, marked `primary: true`, and a Recipe's own
+  `copyShape` (e.g. 180 chars, 1-3 emoji)
+- **WHEN** `composeCopyForChannels` is called with a drafter whose fixed caption is well within the
+  Recipe's own 180-char cap (so the pre-existing `validateCopy` check passes) but whose hashtags push
+  the combined caption+hashtags length past X's real 280-char cap
+- **THEN** the result fails with exactly one platform failure, `"x"`, carrying a
+  `caption_hashtags_length` error — proving the combined check is never skipped just because X is the
+  primary Channel
+- **AND** that failure does NOT carry a `caption_length` error — the caption alone is well within the
+  primary Recipe's own shape; only the NEW combined check fires
+
+#### Scenario: A compliant X variant still passes unchanged, primary or not (issue #142)
+
+- **GIVEN** an X variant (primary or non-primary) whose caption + hashtags combined is well within 280
+  characters
+- **WHEN** `composeCopyForChannels` is called
+- **THEN** the X variant is composed successfully, exactly as before this capability gained the
+  combined-cap check
+
+#### Scenario: Other platforms' limits are unaffected by the SAME over-280-combined caption/hashtags (issue #142 AC3)
+
+- **GIVEN** the same over-280-combined caption/hashtags from the 318-character scenario above, composed
+  across the 5-platform Brand
+- **WHEN** `composeCopyForChannels` is called
+- **THEN** no platform OTHER than `x` ever reports a `caption_hashtags_length` error — every other
+  platform's own bounds (caption-alone length, emoji count, etc.) are completely unaffected by this
+  capability
+
 ### Requirement: write-social-copy documents composing one Copy variant per targeted platform
 
 `.claude/skills/write-social-copy/SKILL.md` SHALL document reading the Brand's FULL Channel list
@@ -665,7 +767,9 @@ platform was targeted. It SHALL additionally document the LinkedIn mention-resol
 (`src/linkedin-handle/store.ts`'s `resolveLinkedInHandle`) and weaves the literal `@Name` text into the
 LinkedIn variant's caption when resolved, or the plain name — flagged for Operator review — when not; it
 SHALL state this is a deterministic step the Skill hands off to, never the Skill's own hand-written or
-guessed `@mention`.
+guessed `@mention`. It SHALL additionally document X's combined caption+hashtags cap (issue #142):
+naming `checkCombinedCaptionHashtagsCap`/`capIncludesHashtags`/`caption_hashtags_length`, and stating
+this check runs REGARDLESS of whether X is the primary Channel or not.
 
 #### Scenario: The Skill instructs one distinct caption per targeted platform
 
@@ -681,6 +785,13 @@ guessed `@mention`.
 - **THEN** it names `weaveLinkedInMentions`, `resolveLinkedInHandle`, and `linkedin-handle`, states that
   a resolved company/product is woven in as `@Name`, and states that an unresolved one falls back to
   plain text, flagged for Operator review
+
+#### Scenario: The Skill documents X's combined caption+hashtags cap, regardless of primary status (issue #142)
+
+- **GIVEN** `write-social-copy/SKILL.md`
+- **WHEN** it is read
+- **THEN** it names `checkCombinedCaptionHashtagsCap`, `capIncludesHashtags`, and
+  `caption_hashtags_length`, and states this check runs regardless of whether X is the primary Channel
 
 ### Requirement: linkedin-mentions.ts resolves and weaves LinkedIn @mentions from a Recipe's own structured companies data
 

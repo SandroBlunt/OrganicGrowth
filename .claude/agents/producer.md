@@ -217,6 +217,9 @@ its own step, separately — the SAME shared step for every Recipe, parameterize
    LinkedIn's inline `@mention` text syntax on the ALREADY-woven caption from step 3 — the resolution
    itself already happened, this is a syntax check only).
    Every check covers length, emoji count, required CTA/hashtags present, no banned word, no dash tell.
+   **X's cap covers caption + hashtags together** (issue #142, `checkCombinedCaptionHashtagsCap`) —
+   always checked for X, whether it is the primary Channel or not; a miss is `caption_hashtags_length`,
+   naming the platform and the overage.
    Redraft on a soft miss, per platform; **a banned word is REJECT-ONLY — STOP, never silently swap
    it.** Confirm with `auditCopyPhase` before saving. Save `copy.caption`/`copy.hashtags` as the primary
    Channel's own variant and, when more than one platform was targeted, `copy.variants` carrying the

@@ -15,7 +15,12 @@
 
 import { defaultDraftCopy, type CopyDrafter, type CopyInput } from "./draft.ts";
 import { injectRequiredParts } from "./inject.ts";
-import { validateCopy, validateCopyForPlatform, type CopyValidationError } from "./validate.ts";
+import {
+  validateCopy,
+  validateCopyForPlatform,
+  checkCombinedCaptionHashtagsCap,
+  type CopyValidationError,
+} from "./validate.ts";
 import { platformCopyShapeFor, resolveCopyShapeForPlatform } from "./platform-shape.ts";
 import { weaveLinkedInMentions } from "./linkedin-mentions.ts";
 import { loadCopyRules, type Channel } from "../production-spec/brand-profile.ts";
@@ -108,10 +113,13 @@ export interface ComposeCopyForChannelsResult {
  * handling rule 4). A Brand with EXACTLY ONE Channel produces a `Copy` with NO `variants` field at all —
  * byte-for-byte today's one-variant shape (AC1/AC5); this is provably identical to calling `composeCopy`
  * directly with the same `baseShape`, since the sole Channel is (by convention) `primary`, so the same
- * draft -> inject -> validate steps run against the same `baseShape`. A Brand targeting MULTIPLE
- * Channels returns a `Copy` whose top-level `caption`/`hashtags` mirror the PRIMARY Channel's own
- * variant (so every existing single-variant consumer keeps working unmodified) plus `variants` — ONE
- * entry per targeted platform, including the primary, each clearly labeled.
+ * draft -> inject -> validate steps run against the same `baseShape` — UNLESS that one Channel's own
+ * platform declares `capIncludesHashtags: true` (today: X alone, issue #142), in which case its combined
+ * caption+hashtags cap is still checked (see below); `composeCopy` alone has no platform argument and so
+ * can never run that check itself. A Brand targeting MULTIPLE Channels returns a `Copy` whose top-level
+ * `caption`/`hashtags` mirror the PRIMARY Channel's own variant (so every existing single-variant
+ * consumer keeps working unmodified) plus `variants` — ONE entry per targeted platform, including the
+ * primary, each clearly labeled.
  *
  * Every targeted platform's failures are collected (never stops at the first) so a redraft can address
  * all of them at once, mirroring `write-social-copy`'s own "redraft on a soft miss" loop. Only a fully
@@ -124,6 +132,14 @@ export interface ComposeCopyForChannelsResult {
  * resolved through issue #126's lookup and woven in as `@Name` (resolved) or plain text, flagged via
  * that variant's `unresolvedMentions` (unresolved) — never blocking the compose. Every other platform is
  * completely untouched by this step.
+ *
+ * For a platform whose own bounds declare `capIncludesHashtags: true` (today: `x` alone, issue #142),
+ * `checkCombinedCaptionHashtagsCap` (`./validate.ts`) is ALSO run — REGARDLESS of whether that platform
+ * is the primary Channel: the non-primary branch already gets it from `validateCopyForPlatform`; the
+ * primary branch runs it directly here, alongside `validateCopy`'s own caption-alone check, since the
+ * primary Channel's length/emoji bounds otherwise never consult `platform-shape.ts` at all (issue #128
+ * AC3). A failure here is reported as a `caption_hashtags_length` error naming the platform and the
+ * overage, exactly as `validateCopyForPlatform` reports it for a non-primary platform.
  *
  * @param input    the Idea's material — the SAME material every platform's variant drafts from
  * @param baseShape the chosen Recipe's own copy-shape params (`Recipe.copyShape`)
@@ -170,9 +186,20 @@ export async function composeCopyForChannels(
       : { caption: injected.caption, unresolvedMentions: [] as readonly string[] };
     const candidate: Copy = { caption: woven.caption, hashtags: injected.hashtags };
 
-    const validation = channel.primary
+    // The primary Channel keeps using ITS Recipe's own copyShape for length/emoji bounds (issue #128
+    // AC3), never platform-shape.ts's own table — but a platform declaring capIncludesHashtags: true
+    // (today: X alone, issue #142) still gets ITS combined caption+hashtags cap checked, whether it is
+    // the primary Channel or not; validateCopyForPlatform already runs this check for a non-primary one.
+    const baseValidation = channel.primary
       ? validateCopy(candidate, shape, rules)
       : validateCopyForPlatform(candidate, channel.platform, baseShape, rules);
+    const primaryCombinedCapError = channel.primary
+      ? checkCombinedCaptionHashtagsCap(candidate, channel.platform)
+      : null;
+    const validation =
+      primaryCombinedCapError === null
+        ? baseValidation
+        : { ok: false, errors: [...baseValidation.errors, primaryCombinedCapError] };
 
     if (!validation.ok) {
       failures.push({ platform: channel.platform, errors: validation.errors });
