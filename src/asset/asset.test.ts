@@ -260,6 +260,45 @@ describe("parseCopyVariant / parseCopyVariants — one platform-labeled Copy var
     assert.deepEqual(parseCopyVariants(undefined), []);
     assert.deepEqual(parseCopyVariants("nope"), []);
   });
+
+  // issue #141: a variant's unresolved-LinkedIn-mentions note list must survive the ledger round-trip.
+  it("parses a non-empty unresolvedMentions list (issue #141)", () => {
+    const raw = {
+      platform: "linkedin",
+      caption: "Hi there @OpenAI.",
+      hashtags: ["#ai"],
+      unresolvedMentions: ["Unknown Startup", "Ghost Co"],
+    };
+    assert.deepEqual(parseCopyVariant(raw), raw);
+  });
+
+  it("omits unresolvedMentions entirely when absent, empty, or malformed (never a stray [] key)", () => {
+    assert.deepEqual(parseCopyVariant({ platform: "x", caption: "Hi", hashtags: [] }), {
+      platform: "x",
+      caption: "Hi",
+      hashtags: [],
+    });
+    assert.deepEqual(
+      parseCopyVariant({ platform: "x", caption: "Hi", hashtags: [], unresolvedMentions: [] }),
+      { platform: "x", caption: "Hi", hashtags: [] },
+    );
+    assert.deepEqual(
+      parseCopyVariant({ platform: "x", caption: "Hi", hashtags: [], unresolvedMentions: "nope" }),
+      { platform: "x", caption: "Hi", hashtags: [] },
+    );
+  });
+
+  it("drops non-string entries from unresolvedMentions rather than throwing", () => {
+    assert.deepEqual(
+      parseCopyVariant({
+        platform: "linkedin",
+        caption: "Hi",
+        hashtags: [],
+        unresolvedMentions: ["Real Co", 42, null, "Other Co"],
+      }),
+      { platform: "linkedin", caption: "Hi", hashtags: [], unresolvedMentions: ["Real Co", "Other Co"] },
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -371,6 +410,7 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       asset_url: "https://x/asset.mp4",
       asset_paths: ["data/brands/mundotip/ideas/2026-W22/idea-01.character-explainer-with-cast.output/asset.mp4"],
       produced_at: "2026-06-05T12:00:00.000Z",
+      scheduled_at: "2026-06-06T09:06:00.000Z",
       post_url: "https://facebook.com/post/1",
       posted_at: "2026-06-06T12:00:00.000Z",
       performance_score: 0.72,
@@ -398,8 +438,48 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
       metrics: { shares: -1, comments: 1, reactions: 1, views: 1 },
       history: "not-an-array",
       asset_paths: "not-an-array",
+      scheduled_at: 42,
     });
     assert.deepEqual(a, { recipe: "r", status: "produced" });
+  });
+
+  // issue #141: `scheduled_at` (the Schedule Batch export's stamp, issue #140) is an optional,
+  // ISO-8601 Asset field carrying NO lifecycle meaning of its own (ADR-0011 unchanged — no new status).
+  describe("scheduled_at (issue #141)", () => {
+    it("parses a well-formed ISO-8601 scheduled_at", () => {
+      const a = parseAssetRecord({
+        recipe: "carousel",
+        status: "produced",
+        scheduled_at: "2026-08-05T13:23:00.000Z",
+      });
+      assert.deepEqual(a, { recipe: "carousel", status: "produced", scheduled_at: "2026-08-05T13:23:00.000Z" });
+    });
+
+    it("omits scheduled_at when absent", () => {
+      const a = parseAssetRecord({ recipe: "carousel", status: "produced" });
+      assert.deepEqual(a, { recipe: "carousel", status: "produced" });
+      assert.equal(Object.hasOwn(a as object, "scheduled_at"), false);
+    });
+
+    it("drops a malformed scheduled_at (non-string/blank) rather than crashing", () => {
+      assert.deepEqual(
+        parseAssetRecord({ recipe: "carousel", status: "produced", scheduled_at: "" }),
+        { recipe: "carousel", status: "produced" },
+      );
+      assert.deepEqual(
+        parseAssetRecord({ recipe: "carousel", status: "produced", scheduled_at: 12345 }),
+        { recipe: "carousel", status: "produced" },
+      );
+    });
+
+    it("adding scheduled_at does not add a new AssetStatus — the six-stage vocabulary is unchanged", () => {
+      const a = parseAssetRecord({
+        recipe: "carousel",
+        status: "produced",
+        scheduled_at: "2026-08-05T13:23:00.000Z",
+      });
+      assert.equal(a?.status, "produced");
+    });
   });
 
   it("parses metrics/tracked_at/history independently of each other (issue #84)", () => {
