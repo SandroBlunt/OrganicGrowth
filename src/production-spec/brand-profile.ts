@@ -27,6 +27,19 @@
  * readiness checks (`src/readiness/check-config.ts`), and ledger attribution all key off the ONE
  * primary entry `primaryChannelFrom` returns — unchanged machinery from the pre-list single-Channel
  * behavior (ADR-0019's own scope note; per-Channel tracking for the rest is a deferred future epic).
+ *
+ * `zohoConfigFrom`/`loadZohoConfig` (issue #143, PRD #140) read the Brand's OPTIONAL `zoho` field — a
+ * DIFFERENT per-Brand parameter than `channel` above: it groups this Brand's platforms into **Zoho
+ * Social Brands** (Zoho's own container of connected accounts; one OrganicGrowth Brand's Channels can
+ * span several), so the future Schedule Batch export can write one CSV per group, with that
+ * platform's EXACT Zoho channel label (e.g. `"LinkedInProfile"` for a personal profile — never
+ * `"LinkedIn"`, a different, company-Page channel) and the IANA timezone identifier that Zoho Social
+ * Brand's clock is configured to (schedule times for its file are written in that clock). Never
+ * throws: a Brand with no `zoho` key reads as a typed "not configured for Schedule Batch" result
+ * (the expected shape for a Brand that hasn't wired this yet, e.g. MundoTip today); a `zoho` key that
+ * IS present but broken reads as a typed "malformed" result naming every problem found, never a
+ * silent guess. Mirrors `src/format/baseline-prompt.ts`'s `BaselinePromptLookup` never-throwing
+ * discriminated-result convention.
  */
 
 import { readFile } from "node:fs/promises";
@@ -221,4 +234,235 @@ export async function loadChannels(path: string): Promise<Channel[]> {
  */
 export async function loadPrimaryChannel(path: string): Promise<Channel | null> {
   return primaryChannelFrom(await readProfile(path));
+}
+
+// --- Zoho Social Brand config for Schedule Batch (issue #143, PRD #140) -------------------------
+
+/**
+ * One platform's exact Zoho channel label within one **Zoho Social Brand** grouping. `platform`
+ * matches the same free-string values used in `Channel.platform` above (e.g. `"facebook"`,
+ * `"linkedin"`, `"x"`) — this reader does NOT cross-validate it against the Brand's own `channel`
+ * list (a deliberate scope limit; see the module doc). `label` is the EXACT string Zoho's bulk
+ * uploader matches for that platform's connected account and is read and passed through verbatim,
+ * NEVER normalized/guessed/title-cased — e.g. a personal LinkedIn profile is `"LinkedInProfile"`,
+ * a different channel than the company-Page `"LinkedIn"`.
+ */
+export interface ZohoChannelMapping {
+  readonly platform: string;
+  readonly label: string;
+}
+
+/**
+ * One **Zoho Social Brand** — Zoho's own container of connected accounts, distinct from an
+ * OrganicGrowth **Brand**. One OrganicGrowth Brand's Channels can span several of these; each is
+ * meant to become its own CSV file in the (separately built) Schedule Batch export.
+ */
+export interface ZohoSocialBrand {
+  /** A human-readable label for this grouping (e.g. `"Straw Motion"`, `"Straw Motion Personal"`) —
+   *  informational only, never matched against anything in Zoho itself. Defaults to `""` when the
+   *  Operator hasn't set one; a blank name is never treated as a config error. */
+  readonly name: string;
+  /**
+   * The IANA timezone identifier (e.g. `"Europe/Berlin"`) this Zoho Social Brand's clock is
+   * configured to in the Operator's real Zoho account — the clock the (deferred) Schedule Batch
+   * export must write THIS file's schedule times in. An IANA identifier (rather than a fixed UTC
+   * offset) was chosen because it is DST-aware using only the standard library (`Intl.DateTimeFormat`
+   * — no new dependency) and because Zoho's own account settings present timezones by representative
+   * city, which map directly to IANA zone names.
+   */
+  readonly timezone: string;
+  /** This Zoho Social Brand's platform -> label mappings — which OrganicGrowth Channel platforms
+   *  post through this one file, and each one's exact Zoho channel label. Never empty on a
+   *  `configured: true` result (an empty list fails validation as malformed). */
+  readonly channels: readonly ZohoChannelMapping[];
+}
+
+/** A Brand's full Zoho Social Brand config, successfully read and validated. */
+export interface ZohoConfigFound {
+  readonly configured: true;
+  /** The Brand identity this config was read for (as supplied by the caller). */
+  readonly brand: string;
+  readonly zohoBrands: readonly ZohoSocialBrand[];
+}
+
+/** Why a Zoho Social Brand config lookup came back empty. `"not_configured"` is the ordinary,
+ *  expected shape for a Brand that hasn't wired Schedule Batch yet (e.g. MundoTip today) — never an
+ *  error. `"malformed"` means a `zoho` key IS present but is broken in some way; `errors` names every
+ *  problem found (never just the first), so the Brand Profile can be fixed in one pass. */
+export type ZohoConfigNotConfiguredReason = "not_configured" | "malformed";
+
+/** A Zoho Social Brand config lookup that found nothing usable — never a throw, always a clear,
+ *  Brand-naming reason + message (issue #143 AC1/AC3). */
+export interface ZohoConfigNotConfigured {
+  readonly configured: false;
+  readonly brand: string;
+  readonly reason: ZohoConfigNotConfiguredReason;
+  readonly message: string;
+  /** Itemized validation problems. Always `[]` for `reason: "not_configured"`; always non-empty for
+   *  `reason: "malformed"`. */
+  readonly errors: readonly string[];
+}
+
+/** The result of looking up one Brand's Zoho Social Brand config. Never thrown; always one of these
+ *  two typed shapes. */
+export type ZohoConfigLookup = ZohoConfigFound | ZohoConfigNotConfigured;
+
+/** A non-empty, trimmed string, or `null` when `value` isn't a usable non-empty string. Distinct
+ *  from `str()`-style helpers elsewhere in the repo that silently default: the Zoho config validator
+ *  must know WHETHER a field failed, so it can report it, never guess a default in its place. */
+function nonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/** True when `tz` is a timezone identifier `Intl.DateTimeFormat` accepts — the standard-library,
+ *  no-new-dependency IANA timezone database check built into Node's ICU. Used to catch a typo'd Zoho
+ *  Brand clock at read time (a clear, named error) rather than a silent wrong-time schedule export
+ *  later. */
+function isValidIanaTimezone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function zohoConfigMalformed(brand: string, errors: readonly string[]): ZohoConfigNotConfigured {
+  return {
+    configured: false,
+    brand,
+    reason: "malformed",
+    message:
+      `Brand "${brand}"'s "zoho" config in brand-profile.yaml is malformed: ${errors.join("; ")}. ` +
+      `Fix data/brands/${brand}/brand-profile.yaml before running the Schedule Batch export.`,
+    errors,
+  };
+}
+
+/**
+ * Extract a Brand's Zoho Social Brand config from already-parsed brand-profile data (issue #143).
+ * Pure and defensive (data-handling rule 4): NEVER throws, for any input shape.
+ *
+ * The optional top-level `zoho` field's shape is `{ brands: ZohoSocialBrand[] }`, where each entry is
+ * `{ name?, timezone, channels: { platform, label }[] }`. Absence of the `zoho` key entirely is the
+ * ordinary "not configured for Schedule Batch" outcome (`reason: "not_configured"`) — the real,
+ * expected shape for a Brand that hasn't wired this yet (issue #143 AC3; MundoTip stays out of scope
+ * per the parent spec). A `zoho` key that IS present is validated in full and, on ANY problem,
+ * returns `reason: "malformed"` with EVERY problem found in `errors` (never just the first, never a
+ * best-effort partial guess) — including: `zoho`/`zoho.brands`/an entry/its `channels` not being the
+ * right shape; a missing/blank `timezone`; a `timezone` that isn't a recognized IANA identifier; a
+ * missing/blank `platform`/`label`; and the SAME platform appearing under more than one Zoho Social
+ * Brand (each platform must map to exactly one CSV file). `name` is the one optional field — it
+ * defaults to `""` and is never itself a validation problem.
+ *
+ * @param raw   the parsed brand-profile.yaml value (unknown — validated here)
+ * @param brand the Brand identity to name in the returned message (its slug or display name) —
+ *              an explicit, caller-supplied parameter, mirroring `parseFormatFile(raw, slug)`'s
+ *              explicit-identity argument, since parsed profile data alone doesn't carry its own
+ *              Brand's name
+ */
+export function zohoConfigFrom(raw: unknown, brand: string): ZohoConfigLookup {
+  const obj = isObject(raw) ? raw : {};
+  const zohoRaw = obj.zoho;
+
+  if (zohoRaw === undefined) {
+    return {
+      configured: false,
+      brand,
+      reason: "not_configured",
+      message:
+        `Brand "${brand}" has no "zoho" config in its brand-profile.yaml — not configured for ` +
+        "Schedule Batch (expected until the Operator wires this Brand's Zoho Social Brands).",
+      errors: [],
+    };
+  }
+
+  if (!isObject(zohoRaw)) {
+    return zohoConfigMalformed(brand, [`"zoho" must be an object, not ${typeof zohoRaw}`]);
+  }
+
+  const brandsRaw = zohoRaw.brands;
+  if (!Array.isArray(brandsRaw) || brandsRaw.length === 0) {
+    return zohoConfigMalformed(brand, [
+      `"zoho.brands" must be a non-empty array of Zoho Social Brand entries`,
+    ]);
+  }
+
+  const errors: string[] = [];
+  const seenPlatforms = new Set<string>();
+  const zohoBrands: ZohoSocialBrand[] = [];
+
+  brandsRaw.forEach((entryRaw: unknown, index: number) => {
+    const prefix = `zoho.brands[${index}]`;
+    if (!isObject(entryRaw)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+
+    const nameRaw = entryRaw.name;
+    const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+
+    const timezone = nonEmptyString(entryRaw.timezone);
+    if (timezone === null) {
+      errors.push(`${prefix}.timezone must be a non-empty string`);
+    } else if (!isValidIanaTimezone(timezone)) {
+      errors.push(`${prefix}.timezone "${timezone}" is not a recognized IANA timezone`);
+    }
+
+    const channelsRaw = entryRaw.channels;
+    const channels: ZohoChannelMapping[] = [];
+    if (!Array.isArray(channelsRaw) || channelsRaw.length === 0) {
+      errors.push(`${prefix}.channels must be a non-empty array`);
+    } else {
+      channelsRaw.forEach((chRaw: unknown, chIndex: number) => {
+        const chPrefix = `${prefix}.channels[${chIndex}]`;
+        if (!isObject(chRaw)) {
+          errors.push(`${chPrefix} must be an object`);
+          return;
+        }
+        const platform = nonEmptyString(chRaw.platform);
+        if (platform === null) {
+          errors.push(`${chPrefix}.platform must be a non-empty string`);
+          return;
+        }
+        const label = nonEmptyString(chRaw.label);
+        if (label === null) {
+          errors.push(`${chPrefix}.label must be a non-empty string`);
+          return;
+        }
+        if (seenPlatforms.has(platform)) {
+          errors.push(
+            `platform "${platform}" is assigned to more than one Zoho Social Brand — each ` +
+              "platform must map to exactly one CSV file",
+          );
+          return;
+        }
+        seenPlatforms.add(platform);
+        channels.push({ platform, label });
+      });
+    }
+
+    zohoBrands.push({ name, timezone: timezone ?? "", channels });
+  });
+
+  if (errors.length > 0) {
+    return zohoConfigMalformed(brand, errors);
+  }
+
+  return { configured: true, brand, zohoBrands };
+}
+
+/**
+ * Load a Brand's Zoho Social Brand config from disk (issue #143). NEVER throws: mirrors
+ * `zohoConfigFrom`'s never-throwing discriminated-result contract exactly — a missing Brand Profile
+ * file degrades to the SAME `reason: "not_configured"` result an absent `zoho` key in an existing
+ * file gets (both are "nothing configured here"), never a crash.
+ *
+ * @param path  the Brand Profile YAML file's on-disk path
+ * @param brand the Brand identity to name in the returned message (see `zohoConfigFrom`)
+ */
+export async function loadZohoConfig(path: string, brand: string): Promise<ZohoConfigLookup> {
+  return zohoConfigFrom(await readProfile(path), brand);
 }

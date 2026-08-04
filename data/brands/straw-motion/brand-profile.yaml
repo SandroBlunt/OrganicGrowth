@@ -48,3 +48,29 @@ brand_safety:
   - No medical or 'cure' claims.
   - No dangerous stunts presented as safe.
   - No misleading 'miracle' framing.
+
+# Zoho Social Brand config for the Schedule Batch export (issue #143, PRD #140), read via the typed
+# loader `loadZohoConfig`/`zohoConfigFrom` (src/production-spec/brand-profile.ts). One entry per Zoho
+# Social Brand (Zoho's own container of connected accounts) — one CSV file per entry: which platforms
+# post through it, each one's EXACT Zoho channel label, and the IANA timezone that file's schedule
+# times are written in. Real config, live-verified against the Operator's Zoho account 2026-08-04:
+# two Zoho Social Brands, both manually aligned to the Operator's own clock (CEST today).
+zoho:
+  brands:
+    - name: "Straw Motion"
+      timezone: "Europe/Berlin" # CEST today (2026-08-04) — the Operator's own clock
+      channels:
+        - platform: facebook
+          label: Facebook
+        - platform: instagram
+          label: Instagram
+        - platform: tiktok
+          label: TikTok
+    - name: "Straw Motion Personal"
+      timezone: "Europe/Berlin" # aligned to the same clock as the main Zoho Social Brand above
+      channels:
+        - platform: linkedin
+          label: LinkedInProfile # the Operator's PERSONAL profile — NEVER "LinkedIn" (a company Page,
+            # a different connected channel)
+        - platform: x
+          label: X
