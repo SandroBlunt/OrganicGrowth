@@ -18,6 +18,7 @@
     "track-performance": "tsx src/commands/track-performance.ts",
     "report": "tsx src/commands/report.ts",
     "run-pipeline": "tsx src/commands/run-pipeline.ts",
+    "export-schedule": "tsx src/commands/export-schedule.ts",
     "media-host-smoke": "tsx src/media-host/live/smoke.ts"
   },
   "dependencies": {
