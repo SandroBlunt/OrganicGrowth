@@ -27,4 +27,10 @@
 # Copy (`src/copy/linkedin-mentions.ts`) — the other platform keys are available through this same store
 # for a future Copy variant to use, but composing an @mention for them is out of scope here (issue #149).
 #
-# No entries yet — this repo ships the registry empty; the Operator populates it over time.
+# Operator-confirmed 2026-08-04 (verified live in Zoho's composer against the real Pages):
+OpenAI:
+  linkedin: openai
+Anthropic:
+  linkedin: anthropic
+Google:
+  linkedin: google
