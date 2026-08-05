@@ -1,0 +1,28 @@
+# Mention Handle Registry — Operator-maintained, ALL platforms (generalizes linkedin-handles.yaml).
+#
+# Maps a third-party company/product's plain name — as it appears in an Idea brief or a Production
+# Spec's `companies` field — to that company's handle on each platform we compose Copy for. A handle
+# is the @-name / page slug on that platform:
+#
+#   linkedin  → the company-page slug in https://www.linkedin.com/company/<handle>
+#   x         → the @name on x.com (without the @)
+#   instagram → the @name on instagram.com (without the @)
+#   tiktok    → the @name on tiktok.com (without the @)
+#   facebook  → the Page slug in https://www.facebook.com/<handle>
+#
+# Rules (same contract as linkedin-handles.yaml — issue #126):
+# - HAND-EDITED by the Operator only. Never a live API lookup, never scraped.
+# - Add a value ONLY after confirming it on the platform itself. A missing key means "no confirmed
+#   handle" — downstream Copy falls back to the plain company name, never a guessed handle.
+# - This file is brand-agnostic: handles are facts about the mentioned company, not about our Brands.
+#
+# NOTE: code currently reads LinkedIn handles from data/linkedin-handles.yaml via the typed store.
+# Until the migration ticket lands, keep that file's linkedin values in sync with the linkedin keys
+# here (this file is the registry of record; the old file is a code-compatibility mirror).
+
+OpenAI:
+  linkedin: openai   # Operator-confirmed 2026-08-04
+Anthropic:
+  linkedin: anthropic # Operator-confirmed 2026-08-04
+Google:
+  linkedin: google   # Operator-confirmed 2026-08-04

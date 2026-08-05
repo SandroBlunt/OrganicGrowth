@@ -1,5 +1,9 @@
 # LinkedIn Handle Lookup — Operator-maintained (issue #126, epic #120).
 #
+# SUPERSEDED as registry of record by data/mention-handles.yaml (all platforms, one document).
+# Code still reads THIS file until the store-migration ticket lands — keep the two in sync for
+# linkedin values in the meantime.
+#
 # Maps a third-party company/product's plain name — as it might appear in an Idea brief or a
 # Production Spec's `companies` field (e.g. "Anthropic", "1Password") — to that company's LinkedIn
 # Page handle (the slug in https://www.linkedin.com/company/<handle>). Read via the typed store
@@ -16,4 +20,7 @@
 # A name with no entry here resolves to no handle — never fabricated. Issue #130's downstream LinkedIn
 # Copy variant falls back to plain text and flags it for Operator review when that happens.
 #
-# No entries yet — this repo ships the lookup empty; the Operator populates it over time.
+# Operator-confirmed 2026-08-04 (verified live in Zoho's composer against the real Pages):
+OpenAI: openai
+Anthropic: anthropic
+Google: google

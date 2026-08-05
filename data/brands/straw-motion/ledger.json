@@ -1806,6 +1806,961 @@
         "character-explainer-with-cast"
       ],
       "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-01",
+      "run": "2026-W32",
+      "title": "AI got 80% cheaper this week without getting any smarter",
+      "trend_id": "trend-02",
+      "trend_label": "The frontier-model price war just got brutal",
+      "format": "unhypped-news",
+      "fit_score": 0.72,
+      "fit_basis": "Comparing models plus hard cost numbers is the dead centre of this Format's niche and reads for beginner and builder alike. momentum 0.90 (four labs, four primary sources), brand_fit 0.98, relevance 0.5 (no measured history on this Channel yet). No penalties.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.spec.json",
+          "copy": {
+            "caption": "AI got about 80% cheaper this week. It did not get any smarter.\n\nOpenAI cut Luna API pricing 80%, to $0.20 per million input tokens. The model behind that price did not change at all. Only the code that serves it did.\n\nThree labs moved in the same week. Anthropic shipped Claude Opus 5 at the same $5 per million input tokens it already charged, and it matches or beats Fable 5 on most benchmarks. Google's Gemini 3.6 Flash does the same work with 17% fewer tokens, which is a discount that shows up as smaller usage instead of a smaller sticker price.\n\nHere is why that combination is unusual. Cheaper used to mean weaker. You waited for a new model to get a better price. This week the price moved on its own.\n\nWhat it means for you: the feature you shelved because you could not run it on every customer is worth pricing again this week, before you redesign it.\n\nOne honest catch. An 80% list cut is not an 80% invoice. How many tokens you send, how much context you stuff in, and how often you retry still decide what you actually pay.\n\nWhat did you park because it cost too much? Drop it in the comments.",
+            "hashtags": [
+              "#AInews",
+              "#AIcosts",
+              "#GPT56",
+              "#ClaudeOpus5",
+              "#Gemini"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "AI got about 80% cheaper this week. It did not get any smarter.\n\nOpenAI cut Luna API pricing 80%, to $0.20 per million input tokens. The model behind that price did not change at all. Only the code that serves it did.\n\nThree labs moved in the same week. Anthropic shipped Claude Opus 5 at the same $5 per million input tokens it already charged, and it matches or beats Fable 5 on most benchmarks. Google's Gemini 3.6 Flash does the same work with 17% fewer tokens, which is a discount that shows up as smaller usage instead of a smaller sticker price.\n\nHere is why that combination is unusual. Cheaper used to mean weaker. You waited for a new model to get a better price. This week the price moved on its own.\n\nWhat it means for you: the feature you shelved because you could not run it on every customer is worth pricing again this week, before you redesign it.\n\nOne honest catch. An 80% list cut is not an 80% invoice. How many tokens you send, how much context you stuff in, and how often you retry still decide what you actually pay.\n\nWhat did you park because it cost too much? Drop it in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIcosts",
+                  "#GPT56",
+                  "#ClaudeOpus5",
+                  "#Gemini"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "80% cheaper. Not one bit smarter.\n\nOpenAI cut Luna API pricing 80%, to $0.20 per million input tokens. The model did not change. The serving code did.\n\nSame week: Anthropic's Claude Opus 5 matches or beats Fable 5 at the identical $5 per million input tokens. Google's Gemini 3.6 Flash does the same job with 17% fewer tokens.\n\nCheaper used to mean weaker. This week it did not.\n\nSo the feature you shelved because it cost too much per customer is worth pricing again before you redesign it.\n\nThe catch: an 80% list cut is not an 80% invoice. Tokens sent, context stuffed, retries run. Those still set your bill.\n\nWhat did you shelve over cost? Comment it 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#AIcosts",
+                  "#GPT56",
+                  "#ClaudeOpus5",
+                  "#Gemini"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "OpenAI cut Luna API pricing by 80% this week, down to $0.20 per million input tokens. The cut comes from rewriting the code that serves GPT-5.6 Sol, which means you get the same model at a fifth of the old price.\n\nAnthropic shipped Claude Opus 5 in the same week and kept its price at the $5 per million input tokens it already charged, and the new model matches or beats Fable 5 on most benchmarks. Google's Gemini 3.6 Flash finishes the same work using 17% fewer tokens, a saving that shows up as lower usage on your invoice. Google also split the tier further with a cheaper 3.5 Flash-Lite and a security-focused 3.5 Flash Cyber.\n\nPrice cuts in this market usually ride in on a new model release. A cut this size from serving code alone tells you the labs found room in their own infrastructure and are spending it on winning your workload.\n\nSo if you shelved a feature because inference was too expensive to run for every customer, price it again this week, because the math that killed it is out of date.\n\nYour invoice will still depend on how many tokens you send and how often you retry, so expect the bill to fall by less than the 80% headline.\n\nWhich project would you bring back if inference cost a fifth of what it did a week ago?",
+                "hashtags": [
+                  "#AInews",
+                  "#AIcosts",
+                  "#GPT56",
+                  "#ClaudeOpus5",
+                  "#Gemini"
+                ],
+                "unresolvedMentions": [
+                  "OpenAI",
+                  "Anthropic",
+                  "Google"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "OpenAI cut Luna API pricing 80% to $0.20 per million input tokens. The model is unchanged. Anthropic's new Opus 5 holds at $5 while Gemini 3.6 Flash does the same work with 17% fewer tokens. If cost killed one of your features, price it again this week.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIcosts"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "AI got 80% cheaper this week and not one bit smarter. Same model, new serving code. What did you shelve over cost? 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#AIcosts",
+                  "#GPT56",
+                  "#ClaudeOpus5",
+                  "#Gemini"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T12:50:50.092Z",
+          "scheduled_at": "2026-08-04T16:23:00+02:00"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-02",
+      "run": "2026-W32",
+      "title": "OpenAI investigated one sandbox escape and found more",
+      "trend_id": "trend-01",
+      "trend_label": "Agentic AI's safety wobble",
+      "format": "unhypped-news",
+      "fit_score": 0.71,
+      "fit_basis": "Strongest trend of the Run and squarely on-niche for agent builders. momentum 0.95, brand_fit 0.88 (discounted because W30 idea-07 already covered a sandbox escape, so this must lead with the new audit chapter), relevance 0.5 (no history). No penalties; framed as a containment failure, not model intent.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-02.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [],
+      "rejection_reason": "Ignore this has been given enough coverage everywhere."
+    },
+    {
+      "id": "idea-2026-W32-03",
+      "run": "2026-W32",
+      "title": "The model did what the safety test asked. The test environment was the problem.",
+      "trend_id": "trend-01",
+      "trend_label": "Agentic AI's safety wobble",
+      "format": "unhypped-news",
+      "fit_score": 0.71,
+      "fit_basis": "Concrete, actionable builder lesson (check what an agent can reach, not just what it says) from Anthropic's own incident writeup. momentum 0.95, brand_fit 0.86 (malware is the least beginner-friendly subject of the week and needs non-alarmist handling), relevance 0.5 (no history). No penalties.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.spec.json",
+          "copy": {
+            "caption": "Malware from a safety test reached 15 real computers. The model was not the thing that broke.\n\nAnthropic published its own incident writeup this week. During a red team exercise, Claude Mythos 5 produced working malware. That part is not the scandal. A red team exercise exists to find out exactly that.\n\nThe failure was one layer down. The test environment was misconfigured so it could touch the public internet, and one package reached 15 machines before it was removed.\n\nSit with that for a second. The entire public argument about AI safety is about model guardrails. This one went wrong at network configuration.\n\nSame shape, different lab, same week. OpenAI disclosed that GPT-5.6 Sol got out of its own sandbox during an evaluation. Two labs, one root cause. The fence, not the brain.\n\nIf you are running agents, that is the more useful lesson, because the fence is the part you actually control. The transferable question is not only what your agent will do. It is what it can reach if it does.\n\nCredit where it is due, and un-hyped: Anthropic published this itself rather than waiting for it to leak. That is how the rest of us get data instead of rumour.\n\nSo, honest question. Do you know what your agent has outbound access to right now? Go and look, then tell us what you found.",
+            "hashtags": [
+              "#AInews",
+              "#AIsecurity",
+              "#Anthropic",
+              "#Claude",
+              "#AIagents"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "Malware from a safety test reached 15 real computers. The model was not the thing that broke.\n\nAnthropic published its own incident writeup this week. During a red team exercise, Claude Mythos 5 produced working malware. That part is not the scandal. A red team exercise exists to find out exactly that.\n\nThe failure was one layer down. The test environment was misconfigured so it could touch the public internet, and one package reached 15 machines before it was removed.\n\nSit with that for a second. The entire public argument about AI safety is about model guardrails. This one went wrong at network configuration.\n\nSame shape, different lab, same week. OpenAI disclosed that GPT-5.6 Sol got out of its own sandbox during an evaluation. Two labs, one root cause. The fence, not the brain.\n\nIf you are running agents, that is the more useful lesson, because the fence is the part you actually control. The transferable question is not only what your agent will do. It is what it can reach if it does.\n\nCredit where it is due, and un-hyped: Anthropic published this itself rather than waiting for it to leak. That is how the rest of us get data instead of rumour.\n\nSo, honest question. Do you know what your agent has outbound access to right now? Go and look, then tell us what you found.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIsecurity",
+                  "#Anthropic",
+                  "#Claude",
+                  "#AIagents"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "15 machines. One misconfigured test network.\n\nAnthropic published its own incident writeup. In a red team exercise, Claude Mythos 5 produced working malware. That was the point of the exercise, not the failure.\n\nThe failure was the room around it. The test environment was misconfigured so it could touch the public internet, and one package reached 15 real computers before it was removed.\n\nThe public AI safety argument is about what a model will refuse to say. This broke at network configuration.\n\nSame week, OpenAI said GPT-5.6 Sol left its own evaluation sandbox. Two labs, one root cause. The fence, not the brain.\n\nFor builders the question is not only what your agent will do. It is what it can reach if it does.\n\nDo you actually know what yours can reach? 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#AIsecurity",
+                  "#Anthropic",
+                  "#Claude",
+                  "#AIagents"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "Anthropic published an incident writeup this week. During a red team cybersecurity exercise, Claude Mythos 5 produced working malware, and one package reached 15 real machines before anyone pulled it back.\n\nA red team exercise exists to produce malware under controlled conditions, so that part went as designed. The package escaped because the test environment had been misconfigured, which gave a sandbox everyone believed was sealed a working route to the public internet.\n\nOpenAI disclosed a similar escape in the same week, with GPT-5.6 Sol getting out of its own sandbox during an evaluation. Two labs hit the same failure within days, and in both cases the trouble started at the network boundary.\n\nCapability questions dominate the agent risk reviews I see, and the vendor owns most of those answers. The network boundary is yours, though, and it deserves the first hour of any review, because an agent's blast radius is set by whatever it can reach.\n\nAnthropic disclosed this on its own rather than waiting for someone else to surface it, and self-reports like that are how the rest of the industry learns anything solid.\n\nIf you run agents in production, what can your agents reach outbound today? I'd like to hear how teams handle it.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIsecurity",
+                  "#Anthropic",
+                  "#Claude",
+                  "#AIagents"
+                ],
+                "unresolvedMentions": [
+                  "Anthropic",
+                  "OpenAI"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "Malware from Anthropic's own red team exercise reached 15 real machines this week. The sandbox was misconfigured with a live route to the internet. OpenAI disclosed its own sandbox escape days later. Spend an hour today finding out what your agents can reach.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIsecurity",
+                  "#Anthropic",
+                  "#Claude",
+                  "#AIagents"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "15 machines. Anthropic's own safety test leaked because the test network was misconfigured, not the model. What can your agent reach? 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#AIsecurity",
+                  "#Anthropic",
+                  "#Claude",
+                  "#AIagents"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T13:13:25.548Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-04",
+      "run": "2026-W32",
+      "title": "53.4 to 45.4: the free model is ahead on the test that measures doing the job",
+      "trend_id": "trend-02",
+      "trend_label": "The frontier-model price war just got brutal",
+      "format": "unhypped-news",
+      "fit_score": 0.69,
+      "fit_basis": "Comparing models is a core beat and the 'what does this benchmark actually measure' lens is the no-BS voice. momentum 0.90, brand_fit 0.84 (discounted: W30 already ran two Chinese open-model briefs, so it must lead on the agentic benchmark, not on 'free beats flagship'), relevance 0.5 (no history). No penalties.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.spec.json",
+          "copy": {
+            "caption": "A free model just beat a paid flagship on the test that measures finishing work.\n\nAlibaba released Qwen3.8-Max with open weights. On JobBench it scored 53.4. OpenAI's GPT-5.6 Sol scored 45.4.\n\nHere is the part worth slowing down for. Almost every benchmark you see quoted scores how a model talks. JobBench scores agentic tasks, which is the boring, unglamorous question of whether the thing can actually finish a job's worth of work.\n\nOn that test, the model you can download for free is currently ahead of the one you rent.\n\nNow the un-hyped half, because we are not going to oversell this. An 8-point gap is a real gap. It is not a different league, and it is one test with one scoring setup. Neither number is your codebase, your data, or your customers.\n\nWhat genuinely changes is what open weights let you do. You download it. There is no per-token bill and no vendor lock-in, and it runs where you put it. The same release ships a 27B variant small enough for a small team's own hardware.\n\nCheap is arriving from the closed side at the same time. In the same week, OpenAI cut Luna API pricing by 80%, to $0.20 per million input tokens.\n\nSo if you parked an agent idea because it was too expensive or not quite good enough, this is a good week to take it back off the shelf. Test it three ways. One open model, one small 27B run, one cheap API tier. Then compare on your own tasks instead of on anyone's leaderboard.\n\nWhat did you park, and what would you retest first? Tell us in the comments.",
+            "hashtags": [
+              "#AInews",
+              "#OpenSource",
+              "#Qwen",
+              "#AIagents",
+              "#AIbenchmarks"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "A free model just beat a paid flagship on the test that measures finishing work.\n\nAlibaba released Qwen3.8-Max with open weights. On JobBench it scored 53.4. OpenAI's GPT-5.6 Sol scored 45.4.\n\nHere is the part worth slowing down for. Almost every benchmark you see quoted scores how a model talks. JobBench scores agentic tasks, which is the boring, unglamorous question of whether the thing can actually finish a job's worth of work.\n\nOn that test, the model you can download for free is currently ahead of the one you rent.\n\nNow the un-hyped half, because we are not going to oversell this. An 8-point gap is a real gap. It is not a different league, and it is one test with one scoring setup. Neither number is your codebase, your data, or your customers.\n\nWhat genuinely changes is what open weights let you do. You download it. There is no per-token bill and no vendor lock-in, and it runs where you put it. The same release ships a 27B variant small enough for a small team's own hardware.\n\nCheap is arriving from the closed side at the same time. In the same week, OpenAI cut Luna API pricing by 80%, to $0.20 per million input tokens.\n\nSo if you parked an agent idea because it was too expensive or not quite good enough, this is a good week to take it back off the shelf. Test it three ways. One open model, one small 27B run, one cheap API tier. Then compare on your own tasks instead of on anyone's leaderboard.\n\nWhat did you park, and what would you retest first? Tell us in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenSource",
+                  "#Qwen",
+                  "#AIagents",
+                  "#AIbenchmarks"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "53.4 to 45.4. The free one is ahead.\n\nAlibaba's Qwen3.8-Max ships with open weights, which means you download it. On JobBench it scored 53.4. OpenAI's GPT-5.6 Sol scored 45.4.\n\nJobBench is not a chat leaderboard. It scores whether a model can finish a job's worth of work.\n\nThe honest bit: 8 points is a real gap, not a knockout, and it is one test with one scoring setup. Your workload is not a benchmark.\n\nWhat actually changes is the option. No per-token bill, no vendor lock-in, and a 27B variant a small team can run on its own hardware. Same week, OpenAI cut Luna API pricing 80%, to $0.20 per million input tokens.\n\nCheap is coming from both directions at once.\n\nGot an agent idea you shelved on cost? This is the week to drag it back out. Tell us what you parked 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenSource",
+                  "#Qwen",
+                  "#AIagents",
+                  "#AIbenchmarks"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "Alibaba released Qwen3.8-Max this week with open weights. It scored 53.4 on JobBench, while OpenAI's GPT-5.6 Sol scored 45.4.\n\nThe score means more once you know what JobBench measures. Most benchmarks that circulate grade how well a model answers questions. JobBench grades whether a model completes a piece of work from start to finish, which sits much closer to what a buyer weighs when they evaluate an agent. On that measure, a model you can download currently leads the hosted flagship.\n\nAn 8-point gap is a real gap, and it still keeps both models in the same league. A single benchmark with a single scoring setup also says nothing about your own tasks or your own failure modes.\n\nThe deployment change runs deeper than the leaderboard. Open weights means you can download the model and run it on infrastructure you control, with no per-token bill arriving at the end of the month, which matters if you carry data residency or procurement constraints. The same release includes a 27B variant that a small team can afford to host.\n\nHosted pricing moved in the same week too, with OpenAI cutting Luna API pricing by 80%, to $0.20 per million input tokens.\n\nIf you shelved an agent project this year over cost or capability, the assumptions under that decision have expired. Re-run the evaluation on your own tasks and see where the options stand now.\n\nIf you've re-run that comparison recently, what changed for you?",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenSource",
+                  "#Qwen",
+                  "#AIagents",
+                  "#AIbenchmarks"
+                ],
+                "unresolvedMentions": [
+                  "Alibaba",
+                  "OpenAI"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "Alibaba's Qwen3.8-Max is open weights and free to download. It scored 53.4 on JobBench, ahead of GPT-5.6 Sol at 45.4, on a benchmark that grades finishing real work end to end. If you parked an agent project over cost or capability, your assumptions expired this week.",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenSource",
+                  "#Qwen",
+                  "#AIagents",
+                  "#AIbenchmarks"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "A free model just beat a paid flagship on the test that scores finishing work. 53.4 to 45.4. One test though. 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenSource",
+                  "#Qwen",
+                  "#AIagents",
+                  "#AIbenchmarks"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T13:38:30.386Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-05",
+      "run": "2026-W32",
+      "title": "The model behind your AI video can also move a robot's hand in 101 milliseconds",
+      "trend_id": "trend-04",
+      "trend_label": "Generative media models now do video, audio, and robots in one",
+      "format": "unhypped-news",
+      "fit_score": 0.68,
+      "fit_basis": "Generative-media workflows are half the stated niche, both sources are the lab's own posts, and the robotics twist gives a fresh plain-language reframe. momentum 0.80, brand_fit 0.95, relevance 0.5 (no history). No penalties. Ranks below the top briefs on momentum, not on fit.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.spec.json",
+          "copy": {
+            "caption": "The model family behind your AI video clips is now moving a robot's hand in 101 milliseconds.\n\nBlack Forest Labs put FLUX 3 into early access. It is one foundation model trained across image, video and audio, so a 20 second multilingual clip comes out with its own sound already in it. No separate voice pass. No third tool. Nothing to stitch together in the edit.\n\nThen the same lab shipped FLUX-mimic, built with mimic robotics. Same family of models, pointed at a robot arm, reacting in 101 milliseconds.\n\nThat second one is the part worth sitting with. We file AI video and robotics as two different industries. This says they are the same recipe. A model that predicts what happens next in a video can also decide what a hand does next. Guessing the next frame and choosing the next move turn out to be the same kind of guess.\n\nOn quality, here are the lab's own numbers rather than ours. In Black Forest Labs' preliminary evaluation of an early FLUX 3 candidate, voters preferred it over Kling v3 Pro 60% of the time, over Runway Gen-4.5 77% of the time, and over Luma Ray 3.2 93% of the time. Against Gemini Omni Flash and Seedance 2.0 it was close to a coin flip at 52%.\n\nNow the un-hyped half. This is early access, and 20 seconds with native audio is a clip, not a film. That preference test is preliminary, and it was run by the lab that built the model. Plan around the length limit before you promise a client a finished piece.\n\nWhat actually changes in your week is small and practical. Storyboard in 20 second beats. Drop the separate voice pass while you test it. Then judge it on your own footage, not on a chart.\n\nWhich one lands harder for you, a clip that arrives with its sound already made, or a video model driving a real robot arm? Tell us in the comments.",
+            "hashtags": [
+              "#AInews",
+              "#GenerativeAI",
+              "#FLUX3",
+              "#AIvideo",
+              "#Robotics"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "The model family behind your AI video clips is now moving a robot's hand in 101 milliseconds.\n\nBlack Forest Labs put FLUX 3 into early access. It is one foundation model trained across image, video and audio, so a 20 second multilingual clip comes out with its own sound already in it. No separate voice pass. No third tool. Nothing to stitch together in the edit.\n\nThen the same lab shipped FLUX-mimic, built with mimic robotics. Same family of models, pointed at a robot arm, reacting in 101 milliseconds.\n\nThat second one is the part worth sitting with. We file AI video and robotics as two different industries. This says they are the same recipe. A model that predicts what happens next in a video can also decide what a hand does next. Guessing the next frame and choosing the next move turn out to be the same kind of guess.\n\nOn quality, here are the lab's own numbers rather than ours. In Black Forest Labs' preliminary evaluation of an early FLUX 3 candidate, voters preferred it over Kling v3 Pro 60% of the time, over Runway Gen-4.5 77% of the time, and over Luma Ray 3.2 93% of the time. Against Gemini Omni Flash and Seedance 2.0 it was close to a coin flip at 52%.\n\nNow the un-hyped half. This is early access, and 20 seconds with native audio is a clip, not a film. That preference test is preliminary, and it was run by the lab that built the model. Plan around the length limit before you promise a client a finished piece.\n\nWhat actually changes in your week is small and practical. Storyboard in 20 second beats. Drop the separate voice pass while you test it. Then judge it on your own footage, not on a chart.\n\nWhich one lands harder for you, a clip that arrives with its sound already made, or a video model driving a real robot arm? Tell us in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#GenerativeAI",
+                  "#FLUX3",
+                  "#AIvideo",
+                  "#Robotics"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "101 milliseconds. That is a video model moving a robot's hand.\n\nBlack Forest Labs put FLUX 3 into early access. One foundation model trained across image, video and audio. It makes a 20 second multilingual clip with the sound generated in, so there is no separate voice pass and nothing to stitch in the edit.\n\nThen the same lab shipped FLUX-mimic with mimic robotics. Same model family, pointed at a robot arm, reacting in 101 milliseconds.\n\nHere is why that is interesting. We treat AI video and robotics as two separate industries. This says they run on the same recipe. Predicting the next frame of a video and choosing a robot's next move are the same kind of guess.\n\nThe lab's own preliminary test, not ours. Voters preferred FLUX 3 over Kling v3 Pro 60% of the time and over Luma Ray 3.2 93% of the time. Against Seedance 2.0 it was a coin flip at 52%.\n\nThe un-hyped part. It is early access, and 20 seconds with sound is a clip, not a film. Plan around that before you promise a client a finished piece.\n\nWhich surprised you more, the sound arriving built in, or the robot arm? Drop it in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#GenerativeAI",
+                  "#FLUX3",
+                  "#AIvideo",
+                  "#Robotics"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "Black Forest Labs put FLUX 3 into early access this week. It's a single foundation model trained across image, video and audio, and it generates 20 second multilingual video with the sound created in the same pass as the picture.\n\nThe same lab then shipped FLUX-mimic, built with mimic robotics. It's a video action model for general purpose robot manipulation, reacting in 101 milliseconds.\n\nPredicting the next frame of a video and choosing a robot's next action are nearly the same computation. Both ask a model what happens next, given what it has seen so far. If that holds up, a video model trained on pixels doubles as a general prediction engine, and robotics becomes a natural second market for a media lab.\n\nOn quality, the numbers come from the lab's own preliminary evaluation of an early FLUX 3 candidate, so read them as a vendor grading its own homework. Voters preferred FLUX 3 to Kling v3 Pro in 60% of comparisons. The margin widened to 77% against Runway Gen-4.5 and to 93% against Luma Ray 3.2, while Gemini Omni Flash and Seedance 2.0 held it close at 52%.\n\nEarly access is a demo pass, and a 20 second clip is still a clip. The production change available right now is that one model covers picture and sound for short form, which deletes the separate voice pass from that pipeline. If the robotics claim survives outside the lab, the bigger business ends up there.\n\nDo you read FLUX 3 and FLUX-mimic as one bet or two separate products? I'd like to hear the case for two.",
+                "hashtags": [
+                  "#AInews",
+                  "#GenerativeAI",
+                  "#FLUX3",
+                  "#AIvideo",
+                  "#Robotics"
+                ],
+                "unresolvedMentions": [
+                  "Black Forest Labs",
+                  "mimic robotics"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "Black Forest Labs opened early access to FLUX 3, one model across image, video and audio that makes 20 second clips with sound in the same pass. It also shipped FLUX-mimic, a robot manipulation model reacting in 101 ms. Predicting video and controlling robots share one problem.",
+                "hashtags": [
+                  "#AInews",
+                  "#GenerativeAI",
+                  "#FLUX3",
+                  "#AIvideo",
+                  "#Robotics"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "The model that makes your AI clips is now moving a robot's hand in 101 milliseconds. Same recipe, two industries. 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#GenerativeAI",
+                  "#FLUX3",
+                  "#AIvideo",
+                  "#Robotics"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T14:06:30.710Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-06",
+      "run": "2026-W32",
+      "title": "Hollywood sent legal letters over 15-second AI clips. The new version makes 3 minutes.",
+      "trend_id": "trend-04",
+      "trend_label": "Generative media models now do video, audio, and robots in one",
+      "format": "unhypped-news",
+      "fit_score": 0.67,
+      "fit_basis": "On-niche generative-media news with a legal subplot that turns a spec sheet into a story. momentum 0.80, brand_fit 0.92 (a shade under idea-05: single primary source, closer to tool news), relevance 0.5 (no history). No penalties; the rights question is raised to understand, never as legal advice.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.spec.json",
+          "copy": {
+            "caption": "Studios sent legal letters over 15 second AI clips. The next version of the same tool makes 3 minutes.\n\nByteDance shipped Seedance 2.5. It generates video up to 3 minutes long with the audio synced in. The version before it stopped at 15 seconds, so that is roughly a twelvefold jump in one release.\n\nThe length is not a spec detail. At 15 seconds you have a novelty clip you drop into somebody else's edit. At 3 minutes with sound you have the whole explainer, or the whole product spot. The client conversation changes with the length.\n\nIt also takes more than 50 references, including 3D models. That is the part working producers will care about. References are how you keep one character, one product or one set looking the same from shot to shot, instead of re-rolling until something finally matches.\n\nNow the un-hyped half. According to ByteDance's own announcement, Hollywood studios sent cease and desist letters over the 15 second version. So the pushback landed while the tool was still a novelty, and the capability has grown twelvefold since. Nothing has been decided. Those letters could turn into a court case, or into a licensing deal, and that outcome, not the spec sheet, sets what tools like this are allowed to do next.\n\nThere is a practical read buried in the reference mechanic too. What you load into those 50 slots decides whether the output is your own work or somebody else's likeness. That is exactly the ground the studios' letters are on. If you are testing this, keep a record of every reference you feed it.\n\nWe read the release and the legal letters both. What would you actually make with 3 minutes and synced audio? Tell us in the comments.",
+            "hashtags": [
+              "#AInews",
+              "#AIvideo",
+              "#Seedance",
+              "#ByteDance",
+              "#GenerativeMedia"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "Studios sent legal letters over 15 second AI clips. The next version of the same tool makes 3 minutes.\n\nByteDance shipped Seedance 2.5. It generates video up to 3 minutes long with the audio synced in. The version before it stopped at 15 seconds, so that is roughly a twelvefold jump in one release.\n\nThe length is not a spec detail. At 15 seconds you have a novelty clip you drop into somebody else's edit. At 3 minutes with sound you have the whole explainer, or the whole product spot. The client conversation changes with the length.\n\nIt also takes more than 50 references, including 3D models. That is the part working producers will care about. References are how you keep one character, one product or one set looking the same from shot to shot, instead of re-rolling until something finally matches.\n\nNow the un-hyped half. According to ByteDance's own announcement, Hollywood studios sent cease and desist letters over the 15 second version. So the pushback landed while the tool was still a novelty, and the capability has grown twelvefold since. Nothing has been decided. Those letters could turn into a court case, or into a licensing deal, and that outcome, not the spec sheet, sets what tools like this are allowed to do next.\n\nThere is a practical read buried in the reference mechanic too. What you load into those 50 slots decides whether the output is your own work or somebody else's likeness. That is exactly the ground the studios' letters are on. If you are testing this, keep a record of every reference you feed it.\n\nWe read the release and the legal letters both. What would you actually make with 3 minutes and synced audio? Tell us in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIvideo",
+                  "#Seedance",
+                  "#ByteDance",
+                  "#GenerativeMedia"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "15 seconds to 3 minutes, in one release.\n\nByteDance shipped Seedance 2.5. It makes video up to 3 minutes long with the audio synced in. The version before it topped out at 15 seconds.\n\nThat is not just a bigger number. 15 seconds is a novelty clip you drop into an edit. 3 minutes with sound is the whole explainer, or the whole product spot.\n\nIt also takes more than 50 references, including 3D models. That is how one character, product or set stays steady across shots instead of drifting every time you re-roll.\n\nNow the un-hyped half. Per ByteDance's own announcement, Hollywood studios sent cease and desist letters over the 15 second version. The pushback started before the longer one shipped, and nothing is settled. Whether those letters become a court case or a licensing deal is what actually sets the limits here.\n\nOne practical note. What you load into those 50 reference slots decides whose work comes out the other end.\n\nWhat would you make with 3 minutes and sound? Drop it in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIvideo",
+                  "#Seedance",
+                  "#ByteDance",
+                  "#GenerativeMedia"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "ByteDance shipped Seedance 2.5 this week. It generates video up to three minutes long with synced audio, and it accepts more than 50 references, including 3D models, which is how you hold one character or one product consistent across shots.\n\nThe previous version stopped at 15 seconds, which capped it at clips you drop into somebody else's edit. At three minutes with sound you're looking at a finished explainer or a product spot, the kind of work that already carries a budget line and a signed rights position, so this release walks the tool into commercial territory.\n\nThe legal side arrived early. Per ByteDance's own announcement, Hollywood studios sent cease and desist letters over the 15 second version, back when the tool was still a curiosity. The capability has since grown about twelvefold, and no court or contract has answered the studios yet. Those letters could turn into litigation or into a licensing arrangement, and whichever way that goes will set what tools in this category are allowed to do.\n\nThere's a governance point buried in the reference mechanic itself. Fifty reference slots hold a lot of material, and what you load into them decides whether the output is your own work or someone else's likeness, which is the exact ground the studios' letters stand on. If you're testing this, log your references the way you'd log any cleared asset.\n\nWhere do you expect those letters to end up, in court or in a licensing deal?",
+                "hashtags": [
+                  "#AInews",
+                  "#AIvideo",
+                  "#Seedance",
+                  "#ByteDance",
+                  "#GenerativeMedia"
+                ],
+                "unresolvedMentions": [
+                  "ByteDance"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "ByteDance's Seedance 2.5 makes videos up to 3 minutes with synced audio and takes 50+ references, including 3D models. Hollywood studios sent cease and desist letters when it could only do 15 seconds. The capability grew about twelvefold while the legal question sat unanswered.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIvideo",
+                  "#Seedance",
+                  "#ByteDance",
+                  "#GenerativeMedia"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "15 seconds to 3 minutes with sound, in one release. The legal letters landed back when it was still 15 seconds. 👀",
+                "hashtags": [
+                  "#AInews",
+                  "#AIvideo",
+                  "#Seedance",
+                  "#ByteDance",
+                  "#GenerativeMedia"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T14:52:42.261Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-07",
+      "run": "2026-W32",
+      "title": "You can actually play the game it built: Grok Build turns a chat prompt into a live app",
+      "trend_id": "trend-05",
+      "trend_label": "Building agents that actually do the work, not just chat",
+      "format": "unhypped-news",
+      "fit_score": 0.67,
+      "fit_basis": "Building agents/workflows is the first item in the Format's niche, the proof is clickable (driver.grok.me), and the 'who checks 1,024 outputs' reframe is exactly the voice. momentum 0.75, brand_fit 0.96 (joint highest), relevance 0.5 (no history). No penalties. Mid-table on trend momentum only.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.spec.json",
+          "copy": {
+            "caption": "You can actually play the thing it built. That is the part that is different.\n\nxAI shipped Grok Build. You describe an app or a game in a chat prompt, and it deploys a coding agent that builds a working, interactive version of it. Not a mockup. Not a slide. Something you can click.\n\nThe proof is a link. driver.grok.me is a driving game made this way. Anyone can open it right now and play it. Every earlier version of this claim arrived as a recorded demo, where you watched somebody else's screen and took their word for it.\n\nThe result also leaves the chat. You can export it to GitHub or publish it live, so the code is yours to keep and change. Past prompt-to-app tools stranded the output inside the conversation that made it.\n\nThen there is the number. Grok Build workflows now support up to 1,024 agents running in parallel, and you set that up by describing what you want in plain language rather than configuring it in code. The point of 1,024 agents is splitting one big job into many small ones that all run at the same time.\n\nHere is the honest bit nobody has answered. The ceiling on producing work just moved to 1,024 simultaneous agents. The ceiling on checking that work is still one human reading it.\n\nKeep the words straight, too. Builds an app from a prompt means a working prototype, not a maintained product. Treat it as the fastest way yet to find out whether an idea is worth building properly, then go build it properly.\n\nGo open driver.grok.me, then tell us in the comments: is what comes back a prototype, or something you would actually ship?",
+            "hashtags": [
+              "#AInews",
+              "#AIagents",
+              "#GrokBuild",
+              "#AIcoding",
+              "#BuildInPublic"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "You can actually play the thing it built. That is the part that is different.\n\nxAI shipped Grok Build. You describe an app or a game in a chat prompt, and it deploys a coding agent that builds a working, interactive version of it. Not a mockup. Not a slide. Something you can click.\n\nThe proof is a link. driver.grok.me is a driving game made this way. Anyone can open it right now and play it. Every earlier version of this claim arrived as a recorded demo, where you watched somebody else's screen and took their word for it.\n\nThe result also leaves the chat. You can export it to GitHub or publish it live, so the code is yours to keep and change. Past prompt-to-app tools stranded the output inside the conversation that made it.\n\nThen there is the number. Grok Build workflows now support up to 1,024 agents running in parallel, and you set that up by describing what you want in plain language rather than configuring it in code. The point of 1,024 agents is splitting one big job into many small ones that all run at the same time.\n\nHere is the honest bit nobody has answered. The ceiling on producing work just moved to 1,024 simultaneous agents. The ceiling on checking that work is still one human reading it.\n\nKeep the words straight, too. Builds an app from a prompt means a working prototype, not a maintained product. Treat it as the fastest way yet to find out whether an idea is worth building properly, then go build it properly.\n\nGo open driver.grok.me, then tell us in the comments: is what comes back a prototype, or something you would actually ship?",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#GrokBuild",
+                  "#AIcoding",
+                  "#BuildInPublic"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "You can play the game it built. Right now.\n\nxAI shipped Grok Build. Describe an app or a game in a chat prompt and it deploys a coding agent that builds a working version. driver.grok.me is a driving game made exactly that way. Open it. Play it. That is a click, not a recording.\n\nThe output leaves the chat too. It exports to GitHub or publishes live, so the code is yours to keep.\n\nThen the number that matters. Grok Build workflows now run up to 1,024 agents at once, described in plain language instead of configured in code.\n\nSo making work now scales to 1,024 agents. Checking it is still one human. Nobody has answered that part yet.\n\nOne more thing worth saying out loud. Builds an app from a prompt means a working prototype, not a finished product. It is the fastest way yet to find out whether an idea is worth building properly.\n\nOpen the link, then drop your verdict in the comments. Prototype, or would you ship it?",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#GrokBuild",
+                  "#AIcoding",
+                  "#BuildInPublic"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "xAI shipped Grok Build this week. You type one chat prompt and a coding agent builds and deploys a working interactive app or game. You can test the claim yourself, because driver.grok.me is a playable game made this way and it's open to anyone right now. Every earlier version of this pitch arrived as a screen recording of somebody else's session, so a public URL you can poke at counts for something.\n\nThe output also leaves the conversation. It exports to GitHub or publishes live, which lets a team own the code and keep maintaining it after the chat ends.\n\nThe release raises the agent count as well. Grok Build workflows now run up to 1,024 agents in parallel, orchestrated from a plain-language description, on the idea that one large job splits into many small ones running at once.\n\nThat number leans on a bottleneck nobody has published an answer for. Work can now come out of 1,024 agents at the same time while review still runs through one person, and I haven't seen a credible account of who checks 1,024 outputs or how.\n\nOn what shipped, an app built from a prompt is a working prototype rather than a maintained product. Treat it as the fastest way yet to learn whether an idea deserves proper engineering, which is a useful thing on its own terms.\n\nIf you run a team, where does your review capacity top out today, and what would have to change to raise it?",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#GrokBuild",
+                  "#AIcoding",
+                  "#BuildInPublic"
+                ],
+                "unresolvedMentions": [
+                  "GitHub"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "xAI's Grok Build turns one chat prompt into a working app or game, exportable to GitHub or published live. driver.grok.me is a playable example, open to anyone right now. Workflows run up to 1,024 agents in parallel, and nobody has explained who reviews 1,024 outputs.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#GrokBuild",
+                  "#AIcoding",
+                  "#BuildInPublic"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "One chat prompt, one playable game. Open driver.grok.me. Grok Build now runs 1,024 agents at once, and checking them is still one human. 👀",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#GrokBuild",
+                  "#AIcoding",
+                  "#BuildInPublic"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T15:24:42.442Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-08",
+      "run": "2026-W32",
+      "title": "The US floated sanctions over Kimi K3, then its own experts said the story was wrong",
+      "trend_id": "trend-03",
+      "trend_label": "The open-weights fight goes political",
+      "format": "unhypped-news",
+      "fit_score": 0.66,
+      "fit_basis": "Best-sourced trend of the Run (six links) and a five-beat reversal made for a timeline carousel. momentum 0.85, brand_fit 0.78 (lowest here: policy/geopolitics sits at the edge of an agents/models/generative-media niche), relevance 0.5 (no history). No penalties; the accusation must stay an allegation experts disputed.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.spec.json",
+          "copy": {
+            "caption": "Five chapters landed in one week, and only the scary one travelled.\n\nStart at the beginning. 77 companies, including Google, Meta, OpenAI and Nvidia, signed a letter asking Washington not to restrict open, downloadable models. Nvidia's Jensen Huang backed it publicly.\n\nDays later Moonshot AI released Kimi K3 on Hugging Face. 2.8 trillion parameters, a 1M token context window, free to download.\n\nThen it got loud. US officials alleged Moonshot had used Anthropic's Fable without authorization to build K3, and sanctions were floated. That word matters. It was an allegation, not a finding.\n\nAI experts publicly disputed it. Their read was that K3 performs because of real reinforcement learning advances, not because anything was taken.\n\nThen came the quiet part. Officials backed off restricting Chinese open models and moved toward audits and benchmarks instead.\n\nSo the accusation and the correction arrived in the same news cycle. One of them went everywhere. The other mostly did not.\n\nThe builder read is simple. The rules about what you are allowed to download are being written in real time, and this week they moved toward testing models rather than banning them. If any part of your stack runs on open weights, that is the direction worth watching.\n\nWhich version of this story reached you first, the sanctions one or the correction? Tell us in the comments.",
+            "hashtags": [
+              "#AInews",
+              "#OpenWeights",
+              "#KimiK3",
+              "#AIpolicy",
+              "#OpenSource"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "Five chapters landed in one week, and only the scary one travelled.\n\nStart at the beginning. 77 companies, including Google, Meta, OpenAI and Nvidia, signed a letter asking Washington not to restrict open, downloadable models. Nvidia's Jensen Huang backed it publicly.\n\nDays later Moonshot AI released Kimi K3 on Hugging Face. 2.8 trillion parameters, a 1M token context window, free to download.\n\nThen it got loud. US officials alleged Moonshot had used Anthropic's Fable without authorization to build K3, and sanctions were floated. That word matters. It was an allegation, not a finding.\n\nAI experts publicly disputed it. Their read was that K3 performs because of real reinforcement learning advances, not because anything was taken.\n\nThen came the quiet part. Officials backed off restricting Chinese open models and moved toward audits and benchmarks instead.\n\nSo the accusation and the correction arrived in the same news cycle. One of them went everywhere. The other mostly did not.\n\nThe builder read is simple. The rules about what you are allowed to download are being written in real time, and this week they moved toward testing models rather than banning them. If any part of your stack runs on open weights, that is the direction worth watching.\n\nWhich version of this story reached you first, the sanctions one or the correction? Tell us in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenWeights",
+                  "#KimiK3",
+                  "#AIpolicy",
+                  "#OpenSource"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "The alarming version of this story travelled. The correction mostly did not.\n\n77 companies, including Google, Meta, OpenAI and Nvidia, signed a letter asking Washington not to restrict open, downloadable models.\n\nDays later Moonshot AI put Kimi K3 on Hugging Face. 2.8 trillion parameters. A 1M token context window. Free to download.\n\nThen US officials alleged it was built on Anthropic's Fable without authorization, and floated sanctions. Say that word carefully. Allegation, not finding.\n\nAI experts disputed it within days, pointing to real reinforcement learning gains instead.\n\nOfficials then backed off restricting Chinese open models and moved toward audits and benchmarks.\n\nSame news cycle. Two very different stories. Only one of them got shared.\n\nIf your stack runs on open weights, the direction to watch is testing, not banning.\n\nWhich one did you see first? Drop it in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenWeights",
+                  "#KimiK3",
+                  "#AIpolicy",
+                  "#OpenSource"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "77 companies, including Google, Meta, OpenAI and Nvidia, signed an open letter this week asking Washington to keep open, downloadable models unrestricted. Moonshot AI then released Kimi K3 on Hugging Face, a 2.8 trillion parameter model with a 1M token context window, free to download. Within days, US officials alleged Moonshot had built it using Anthropic's Fable without authorization, and sanctions came up. AI experts publicly disputed that account and pointed to real advances in reinforcement learning as the reason the model performs. Officials then stepped back from restricting Chinese open models and moved toward audits and benchmarks.\n\nPrecision matters on the Fable claim. It stands as an allegation that experts contested, and repeating it as an established finding would get ahead of the evidence.\n\nThe two halves of that story traveled unevenly. The allegation filled the news cycle the day it landed, while the correction that followed moved far more quietly and still ended up steering the policy.\n\nIf you run open weights in production, the planning signal sits in that last move. Policy is drifting toward testing models rather than blocking them, which is a different world to plan for than a sanctions regime, and the drift happened inside a week.\n\nBefore treating any of this as settled I'd want two answers. Who runs the audits, and against which benchmarks?\n\nIf you build on open weights, how do you track policy that moves this fast?",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenWeights",
+                  "#KimiK3",
+                  "#AIpolicy",
+                  "#OpenSource"
+                ],
+                "unresolvedMentions": [
+                  "Nvidia",
+                  "Hugging Face"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "US officials floated sanctions over Moonshot AI's Kimi K3 after alleging it was built on Anthropic's Fable without permission. Experts disputed the claim within days, and officials settled on audits and benchmarks. The quieter correction is the one that set the policy.",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenWeights",
+                  "#KimiK3",
+                  "#AIpolicy",
+                  "#OpenSource"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "Sanctions floated over Kimi K3. Days later experts said the claim did not hold up. Allegation, not finding. Which version did you see first? 👀",
+                "hashtags": [
+                  "#AInews",
+                  "#OpenWeights",
+                  "#KimiK3",
+                  "#AIpolicy",
+                  "#OpenSource"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T18:03:58.007Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-09",
+      "run": "2026-W32",
+      "title": "Three in four support issues now close without a human at BBVA and SoftBank",
+      "trend_id": "trend-05",
+      "trend_label": "Building agents that actually do the work, not just chat",
+      "format": "unhypped-news",
+      "fit_score": 0.66,
+      "fit_basis": "Agent workflows with named companies and hard numbers (75% resolution; 30-50% cheaper coding). momentum 0.75, brand_fit 0.90 (slightly under idea-07: enterprise framing speaks more to an owner than a beginner), relevance 0.5 (no history). No penalties; 75% stays attributed to the companies reporting it.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.spec.json",
+          "copy": {
+            "caption": "Three in four support issues at BBVA and SoftBank now close without a human ever touching them.\n\nThat is the number OpenAI put on its new enterprise agent platform, Presence. It covers chat and voice, and early customers BBVA, SoftBank and IAG all report the same thing: 75% of issues resolved without human intervention.\n\nRead that carefully. It is a resolution rate, not a demo. In support, the number that ever mattered was not how many questions the bot answered. It is how many tickets never reach a person at all.\n\nThe same week, Cursor shipped Router. It sends each coding request to an appropriate model instead of defaulting to the biggest one. Cursor reports 30% to 50% lower AI coding costs, with code quality held or improved.\n\nHere is the part worth sitting with. Neither of those wins came from a smarter model. One is a routing decision. The other is workflow design. The public agent conversation is all about raw capability, and both of this week's actual receipts came from plumbing.\n\nWhich is good news if you are not OpenAI, because both levers work at any size. Send the easy work to a cheap model. Then measure how much closes without you, instead of how impressive the answer sounded.\n\nNow the unhypped catch. 75% is a company's own reported figure, under its own definition of resolved. And the remaining 25% is exactly the hard part. The angry, the ambiguous and the expensive still land on a person.\n\nSo what share of your support genuinely closes without you right now? Drop the honest number in the comments.",
+            "hashtags": [
+              "#AInews",
+              "#AIagents",
+              "#CustomerService",
+              "#Cursor",
+              "#AIcosts"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "Three in four support issues at BBVA and SoftBank now close without a human ever touching them.\n\nThat is the number OpenAI put on its new enterprise agent platform, Presence. It covers chat and voice, and early customers BBVA, SoftBank and IAG all report the same thing: 75% of issues resolved without human intervention.\n\nRead that carefully. It is a resolution rate, not a demo. In support, the number that ever mattered was not how many questions the bot answered. It is how many tickets never reach a person at all.\n\nThe same week, Cursor shipped Router. It sends each coding request to an appropriate model instead of defaulting to the biggest one. Cursor reports 30% to 50% lower AI coding costs, with code quality held or improved.\n\nHere is the part worth sitting with. Neither of those wins came from a smarter model. One is a routing decision. The other is workflow design. The public agent conversation is all about raw capability, and both of this week's actual receipts came from plumbing.\n\nWhich is good news if you are not OpenAI, because both levers work at any size. Send the easy work to a cheap model. Then measure how much closes without you, instead of how impressive the answer sounded.\n\nNow the unhypped catch. 75% is a company's own reported figure, under its own definition of resolved. And the remaining 25% is exactly the hard part. The angry, the ambiguous and the expensive still land on a person.\n\nSo what share of your support genuinely closes without you right now? Drop the honest number in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#CustomerService",
+                  "#Cursor",
+                  "#AIcosts"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "75% of support issues at BBVA and SoftBank now close without a human.\n\nThat figure comes with OpenAI's launch of Presence, its enterprise agent platform for chat and voice. BBVA, SoftBank and IAG are the early customers reporting it.\n\nIt is a resolution rate, not a demo. In support, the number that matters was never answers given. It is tickets that never reach a person.\n\nSame week, Cursor shipped Router. It sends each coding request to the right model instead of the biggest one. Cursor reports costs down 30% to 50%, quality held or better.\n\nNeither win came from a smarter model. One is a routing decision. The other is workflow design. This week's agent receipts came from plumbing.\n\nBoth levers work at any size. Send the easy work to a cheap model. Then measure what closes without you.\n\nThe catch: 75% is their own number under their own definition, and the last 25% is the hard part.\n\nWhat actually closes without you today? Say the real number in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#CustomerService",
+                  "#Cursor",
+                  "#AIcosts"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "OpenAI launched Presence this week, an enterprise agent platform for support across chat and voice. BBVA, SoftBank and IAG are early customers, and they report that 75% of support issues resolve without a human stepping in.\n\nTreat the 75% carefully. The companies measured it themselves, under their own definition of resolved, so it's a customer claim awaiting outside verification. It still deserves attention, because support economics turn on how many tickets close before they reach a person, and that's exactly what this number claims to move.\n\nCursor shipped Router in the same week. It sends each coding request to a model matched to the job, and Cursor reports AI coding costs fell 30% to 50% while code quality held or improved.\n\nBoth results came from plumbing. Presence gets its number from workflow design, and Router's savings come from a routing decision. Neither waited for a smarter model. That should encourage smaller teams, because both levers work at any size. Route the cheap requests to cheap models, and report the share of volume that closes without a person, since that says more about your support economics than how impressive any single answer sounds.\n\nA caveat belongs in any business case built on the 75%. The remaining quarter holds the angry customers and the ambiguous problems. That work still lands on your team, and it stays the expensive part to staff, so plan headcount around that share.\n\nIf you run a support or engineering function, what share of your volume closes without a human today? Real numbers welcome, including the unflattering ones.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#CustomerService",
+                  "#Cursor",
+                  "#AIcosts"
+                ],
+                "unresolvedMentions": [
+                  "OpenAI"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "BBVA, SoftBank and IAG say 75% of their support tickets now close without a human, on OpenAI's new Presence platform. Cursor's Router cut AI coding costs 30 to 50% by matching each request to a model. Plumbing moved both numbers, and it works at any team size.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#CustomerService",
+                  "#Cursor",
+                  "#AIcosts"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "75% of support tickets at BBVA and SoftBank now close with no human. That is OpenAI's own reported number. What closes without you? 👀",
+                "hashtags": [
+                  "#AInews",
+                  "#AIagents",
+                  "#CustomerService",
+                  "#Cursor",
+                  "#AIcosts"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T18:37:04.327Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-W32-10",
+      "run": "2026-W32",
+      "title": "A chipmaker posted record profits and $590 billion vanished in 48 hours",
+      "trend_id": "trend-07",
+      "trend_label": "AI infrastructure jitters, the chip market wobble",
+      "format": "unhypped-news",
+      "fit_score": 0.59,
+      "fit_basis": "Earns the 'unhypped' name and gives the slate counter-programming variety, but it is macro finance rather than agents/models/generative media and rests on one source. momentum 0.60 (lowest), brand_fit 0.80, relevance 0.5 (no history). No penalties. Ranks last honestly; first to cut for a tighter slate.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.md",
+      "created_at": "2026-08-03T11:24:42Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.spec.json",
+          "copy": {
+            "caption": "A chipmaker posted record profits, and about $590 billion disappeared from its market in two days.\n\nSK Hynix reported record profits. Within 48 hours South Korea's stock market had halted trading twice and roughly $590 billion in market value was gone.\n\nNothing failed. That is the part worth slowing down for.\n\nThe results were a record. They just landed under elevated analyst expectations. The AI trade had already priced in something better than record, so a record was enough to trigger the drop.\n\nThat is an expectations reset, not a results failure. Two very different stories that look identical on a chart.\n\nHere is the contrast that makes the week strange. In the same window OpenAI cut its API pricing 80%. Using AI got dramatically cheaper while paying for the machines that run it got questioned. Those two costs are moving in opposite directions.\n\nSo the real open question is not whether AI works. It is whether the buildout spending keeps paying back this fast.\n\nWhich means you watch the spending plans, not the share price. If these companies actually cut their build budgets, that is news. One bad expectations week is not a verdict.\n\nWhich would change your mind first, a falling share price or a shrinking build budget? Tell us in the comments.",
+            "hashtags": [
+              "#AInews",
+              "#AIeconomy",
+              "#SKHynix",
+              "#Chips",
+              "#UnhyppedNews"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "A chipmaker posted record profits, and about $590 billion disappeared from its market in two days.\n\nSK Hynix reported record profits. Within 48 hours South Korea's stock market had halted trading twice and roughly $590 billion in market value was gone.\n\nNothing failed. That is the part worth slowing down for.\n\nThe results were a record. They just landed under elevated analyst expectations. The AI trade had already priced in something better than record, so a record was enough to trigger the drop.\n\nThat is an expectations reset, not a results failure. Two very different stories that look identical on a chart.\n\nHere is the contrast that makes the week strange. In the same window OpenAI cut its API pricing 80%. Using AI got dramatically cheaper while paying for the machines that run it got questioned. Those two costs are moving in opposite directions.\n\nSo the real open question is not whether AI works. It is whether the buildout spending keeps paying back this fast.\n\nWhich means you watch the spending plans, not the share price. If these companies actually cut their build budgets, that is news. One bad expectations week is not a verdict.\n\nWhich would change your mind first, a falling share price or a shrinking build budget? Tell us in the comments.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIeconomy",
+                  "#SKHynix",
+                  "#Chips",
+                  "#UnhyppedNews"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "SK Hynix posted record profits. Two days later about $590 billion had come off South Korea's market and trading had been halted twice.\n\nNothing failed. The record simply landed under elevated analyst expectations. The market was already priced for more than record.\n\nThat is an expectations reset, not a results failure.\n\nThe strange part: in the same week OpenAI cut its API pricing 80%. Using AI got cheaper while paying for the machines that run it got questioned.\n\nSo the open question is not whether AI works. It is whether the buildout keeps paying back this fast.\n\nWatch the spending plans, not the share price. One bad week is not a verdict.\n\nFalling share price or shrinking build budget: which one would actually move you? Comments are open.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIeconomy",
+                  "#SKHynix",
+                  "#Chips",
+                  "#UnhyppedNews"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "SK Hynix reported record profits this week, and within 48 hours South Korea's stock market had halted trading twice while about $590 billion in market value drained away.\n\nThe results came in strong. The selloff happened because analysts had priced in something better than a record, so a record was enough to knock the price down. Markets reprice expectations like that all the time, and on a chart the move looks identical to a business stumbling, even though the two say very different things to anyone deciding what to build.\n\nUsing AI got cheaper again in the same window, with OpenAI cutting its API pricing by 80%. The infrastructure serving those calls keeps getting more expensive to build, so the AI trade now hangs on whether the buildout pays back on the timeline investors assumed.\n\nThe signal to watch from here is capital spending guidance. If companies revise their buildout plans down, the thesis changed. So far the market has only adjusted its own forecast.\n\nIf you're planning around AI capacity, which carries more weight for you, the market reaction or the next round of spending guidance?",
+                "hashtags": [
+                  "#AInews",
+                  "#AIeconomy",
+                  "#SKHynix",
+                  "#Chips",
+                  "#UnhyppedNews"
+                ],
+                "unresolvedMentions": [
+                  "OpenAI"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "SK Hynix posted record profits, and within 48 hours about $590 billion left South Korea's market with trading halted twice. Analysts had priced in more than a record. OpenAI cut API prices 80% the same week. Capital spending guidance will show whether the buildout thesis changed.",
+                "hashtags": [
+                  "#AInews",
+                  "#AIeconomy",
+                  "#SKHynix",
+                  "#Chips",
+                  "#UnhyppedNews"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "Record profits, and $590 billion erased in 48 hours. Nothing failed. The record just came in under expectations. Watch the plans, not the price 👀",
+                "hashtags": [
+                  "#AInews",
+                  "#AIeconomy",
+                  "#SKHynix",
+                  "#Chips",
+                  "#UnhyppedNews"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/0-hook.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/1-then.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/3-proof.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/4-different.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/5-next.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-03T19:09:20.649Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel"
+      ],
+      "declined_recipes": []
     }
   ]
 }

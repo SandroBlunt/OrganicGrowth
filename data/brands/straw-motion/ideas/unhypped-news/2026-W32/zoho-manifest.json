@@ -1,0 +1,48 @@
+{
+  "batch": "2026-W32-smoke",
+  "created_at": "2026-08-04T11:07:47.394Z",
+  "bucket": "strawmotion-schedule-media",
+  "csv_files": [
+    "zoho-main.csv",
+    "zoho-linkedin-x.csv"
+  ],
+  "stripped_notes": [
+    "LINKEDIN: [Unresolved linkedin mentions - no committed handle, review before publishing: OpenAI, Anthropic, Google]"
+  ],
+  "ideas": [
+    {
+      "idea": "idea-2026-W32-01",
+      "recipe": "news-carousel",
+      "scheduled_at": "2026-08-04T16:23:00+02:00",
+      "s3_keys": [
+        "straw-motion/2026-W32/idea-01/0-hook.jpg",
+        "straw-motion/2026-W32/idea-01/1-then.jpg",
+        "straw-motion/2026-W32/idea-01/2-shift.jpg",
+        "straw-motion/2026-W32/idea-01/3-proof.jpg",
+        "straw-motion/2026-W32/idea-01/4-different.jpg",
+        "straw-motion/2026-W32/idea-01/5-next.jpg",
+        "straw-motion/2026-W32/idea-01/6-cta.jpg"
+      ],
+      "urls": [
+        "https://strawmotion-schedule-media.s3.amazonaws.com/straw-motion/2026-W32/idea-01/0-hook.jpg",
+        "https://strawmotion-schedule-media.s3.amazonaws.com/straw-motion/2026-W32/idea-01/1-then.jpg",
+        "https://strawmotion-schedule-media.s3.amazonaws.com/straw-motion/2026-W32/idea-01/2-shift.jpg",
+        "https://strawmotion-schedule-media.s3.amazonaws.com/straw-motion/2026-W32/idea-01/3-proof.jpg",
+        "https://strawmotion-schedule-media.s3.amazonaws.com/straw-motion/2026-W32/idea-01/4-different.jpg",
+        "https://strawmotion-schedule-media.s3.amazonaws.com/straw-motion/2026-W32/idea-01/5-next.jpg",
+        "https://strawmotion-schedule-media.s3.amazonaws.com/straw-motion/2026-W32/idea-01/6-cta.jpg"
+      ],
+      "rows": {
+        "zoho-main.csv": [
+          "Facebook",
+          "Instagram",
+          "TikTok"
+        ],
+        "zoho-linkedin-x.csv": [
+          "LinkedInProfile",
+          "X"
+        ]
+      }
+    }
+  ]
+}

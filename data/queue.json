@@ -289,6 +289,78 @@
       "status": "done",
       "enqueued_at": "2026-07-24T13:58:15.222Z",
       "pick": "LUxw7HBswO"
+    },
+    {
+      "idea_id": "idea-2026-W32-01",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.191Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-03",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.199Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-04",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.201Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-05",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.203Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-06",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.205Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-07",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.207Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-08",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.211Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-09",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.215Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-10",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:25:29.702Z"
     }
   ],
   "lock": {
