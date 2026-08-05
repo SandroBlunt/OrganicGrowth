@@ -19,7 +19,7 @@
  *     unchanged; see `validate.ts`'s `validateCopyForPlatform` for the additive checking half).
  *   - Actually composing a DISTINCT caption variant per platform (the `write-social-copy` Skill,
  *     `CopyInput`/`Copy` carrying several variants) is issue #129, not this one.
- *   - Resolving a LinkedIn mention to a real Page handle (`src/linkedin-handle/`) is issue #130 — this
+ *   - Resolving a LinkedIn mention to a real Page handle (`src/mention-handle/`) is issue #130 — this
  *     module (and `validate.ts`'s mention-syntax check) only cares whether a caption's `@mention` TEXT
  *     is well-formed, never whether the name resolves to a real handle.
  *
@@ -36,7 +36,12 @@
  *   - `linkedin`  — LinkedIn's documented post character limit is 3,000 chars; professional tone favors
  *     little/no emoji. LinkedIn's compose UI creates an inline mention by typing `@` directly against
  *     the entity's name (no space) — `supportsMentions: true` turns on `validate.ts`'s syntax check.
- *   - `x`         — X's standard post cap is 280 chars; the tight budget favors sparing emoji use.
+ *   - `x`         — X's standard post cap is 280 chars; the tight budget favors sparing emoji use. X
+ *     counts the WHOLE tweet — caption plus hashtags together — against that 280-char cap (its compose
+ *     box has no separate hashtags field the way Instagram's does), so this is the one platform whose
+ *     `capIncludesHashtags` is `true` (issue #142). A live failure motivated this: a 318-character X
+ *     variant (caption alone within 280, caption + hashtags over) passed composition and was rejected
+ *     only at Zoho's bulk-upload step.
  *   - `tiktok`    — TikTok's API cap is 2,200 chars, but its caption UI truncates the preview around
  *     ~150 chars and its culture favors short, punchy captions — this table uses that practical bound,
  *     not the technical ceiling, with a generous emoji allowance to match TikTok's playful tone.
@@ -68,6 +73,13 @@ export interface PlatformCopyShape extends CopyShape {
   readonly platform: KnownPlatform;
   readonly description: string;
   readonly supportsMentions: boolean;
+  /** Whether THIS platform's `maxChars` cap applies to `caption` alone (`false`, every documented
+   *  platform except X) or to `caption` PLUS `hashtags` together (`true`, X only — issue #142).
+   *  `validate.ts`'s `checkCombinedCaptionHashtagsCap` only runs its combined-length check for a
+   *  platform where this is `true`, REGARDLESS of whether that platform is the Brand's primary Channel
+   *  (a caption-alone length/emoji bound may still come from the Recipe's own `copyShape` for a primary
+   *  Channel — issue #128 AC3 — but this combined cap is never skipped because of that). */
+  readonly capIncludesHashtags: boolean;
 }
 
 const PLATFORM_COPY_SHAPES_TABLE: readonly PlatformCopyShape[] = [
@@ -82,6 +94,7 @@ const PLATFORM_COPY_SHAPES_TABLE: readonly PlatformCopyShape[] = [
     minEmojis: 0,
     maxEmojis: 3,
     supportsMentions: false,
+    capIncludesHashtags: false,
   },
   {
     platform: "instagram",
@@ -93,6 +106,7 @@ const PLATFORM_COPY_SHAPES_TABLE: readonly PlatformCopyShape[] = [
     minEmojis: 0,
     maxEmojis: 2,
     supportsMentions: false,
+    capIncludesHashtags: false,
   },
   {
     platform: "linkedin",
@@ -100,19 +114,25 @@ const PLATFORM_COPY_SHAPES_TABLE: readonly PlatformCopyShape[] = [
       "LinkedIn's documented post character limit is 3,000 chars; professional tone favors little/no " +
       'emoji. LinkedIn\'s compose UI creates an inline mention by typing "@" directly against the ' +
       "entity's name (no space) — resolving that name to a real Page handle is a separate lookup " +
-      "(src/linkedin-handle/, issue #126/#130), not this table's job.",
+      "(src/mention-handle/, issue #126/#130/#149), not this table's job.",
     maxChars: 3000,
     minEmojis: 0,
     maxEmojis: 1,
     supportsMentions: true,
+    capIncludesHashtags: false,
   },
   {
     platform: "x",
-    description: "X's standard post cap is 280 chars; the tight budget favors sparing emoji use.",
+    description:
+      "X's standard post cap is 280 chars; the tight budget favors sparing emoji use. X counts the " +
+      "WHOLE tweet — caption plus hashtags together — against that cap (issue #142): a 318-character " +
+      "live variant (caption alone within 280, caption + hashtags over) passed composition and was " +
+      "rejected only at Zoho's bulk-upload step.",
     maxChars: 280,
     minEmojis: 0,
     maxEmojis: 2,
     supportsMentions: false,
+    capIncludesHashtags: true,
   },
   {
     platform: "tiktok",
@@ -124,6 +144,7 @@ const PLATFORM_COPY_SHAPES_TABLE: readonly PlatformCopyShape[] = [
     minEmojis: 0,
     maxEmojis: 4,
     supportsMentions: false,
+    capIncludesHashtags: false,
   },
   {
     platform: "youtube",
@@ -135,6 +156,7 @@ const PLATFORM_COPY_SHAPES_TABLE: readonly PlatformCopyShape[] = [
     minEmojis: 0,
     maxEmojis: 2,
     supportsMentions: false,
+    capIncludesHashtags: false,
   },
 ];
 

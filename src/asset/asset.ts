@@ -40,6 +40,16 @@
  * until it matures — `.claude/commands/track-performance.md`). Attribution stays keyed on THIS Asset
  * alone — a sibling Recipe's Asset on the same Idea has its own independent `metrics`/
  * `performance_score`/`history` (always-rules #5).
+ *
+ * `scheduled_at` (issue #140/#141) is the Schedule Batch export's stamp on a `produced` Asset once it
+ * is written into a scheduled post — a plain optional timestamp, never a new `AssetStatus` (ADR-0011's
+ * six-stage vocabulary is unchanged). A `CopyVariant`'s `unresolvedMentions` (issue #130) is the
+ * mentions-supporting platform's own list of company/product names issue #126's LinkedIn Handle Lookup
+ * had no committed handle for. `parseAssetRecord`/`parseCopyVariant` parse BOTH fields defensively so
+ * they survive every ledger load -> write -> load cycle (issue #141): before that fix, neither field was
+ * read back by the parser, so a write to any sibling Asset on the same Idea (which re-normalizes the
+ * WHOLE Idea's `assets` array through this module on its way back to disk) silently erased both fields
+ * on every OTHER Asset that Idea carried.
  */
 
 import type { Copy, CopyVariant } from "../copy/contract.ts";
@@ -141,6 +151,15 @@ export interface LedgerAssetRecord {
    */
   readonly asset_paths?: readonly string[];
   readonly produced_at?: string;
+  /**
+   * ISO-8601 timestamp the Schedule Batch export (issue #140/#141) stamps onto a `produced` Asset once
+   * it is written into a scheduled post's CSV row + manifest. Carries NO lifecycle meaning of its own —
+   * ADR-0011's six-stage `AssetStatus` vocabulary is unchanged; a `produced` Asset with `scheduled_at`
+   * set is still `produced` until `/log-post` moves it to `posted`. Optional; absent until the export
+   * runs, or on any Asset the export never touches (e.g. a video Recipe, out of the images-only export's
+   * scope).
+   */
+  readonly scheduled_at?: string;
   readonly post_url?: string;
   readonly posted_at?: string;
   readonly performance_score?: number;
@@ -262,9 +281,14 @@ export function parseAssetMetricsHistory(raw: unknown): AssetMetricsSnapshot[] {
 }
 
 /**
- * Parse one raw `CopyVariant` (issue #129) — `{ platform, caption, hashtags }`. Requires a non-empty
- * `platform` and `caption`; a missing/non-array `hashtags` degrades to `[]`. Returns `null` on any
- * malformed shape — never throws.
+ * Parse one raw `CopyVariant` (issue #129) — `{ platform, caption, hashtags, unresolvedMentions? }`.
+ * Requires a non-empty `platform` and `caption`; a missing/non-array `hashtags` degrades to `[]`.
+ * `unresolvedMentions` (issue #130) is included ONLY when at least one non-empty string survives —
+ * a missing, empty, or non-array raw value degrades to omitted entirely (never a stray `[]` key), so a
+ * non-mentions-supporting platform's variant round-trips exactly as before this field existed (issue
+ * #141: this list must survive every ledger load -> write -> load, which is why it is parsed here at
+ * all — before this fix it was silently dropped on the next write to a sibling Asset on the same Idea).
+ * Returns `null` on any malformed shape — never throws.
  */
 export function parseCopyVariant(raw: unknown): CopyVariant | null {
   if (!isObject(raw)) return null;
@@ -272,7 +296,15 @@ export function parseCopyVariant(raw: unknown): CopyVariant | null {
   const hashtags = Array.isArray(raw.hashtags)
     ? raw.hashtags.filter((h): h is string => typeof h === "string")
     : [];
-  return { platform: raw.platform, caption: raw.caption, hashtags };
+  const unresolvedMentions = Array.isArray(raw.unresolvedMentions)
+    ? raw.unresolvedMentions.filter((m): m is string => nonEmptyString(m))
+    : [];
+  return {
+    platform: raw.platform,
+    caption: raw.caption,
+    hashtags,
+    ...(unresolvedMentions.length > 0 ? { unresolvedMentions } : {}),
+  };
 }
 
 /** Parse a raw `variants` array, dropping malformed entries. Non-array/absent input yields `[]`
@@ -328,6 +360,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
     ...(nonEmptyString(raw.asset_url) ? { asset_url: raw.asset_url } : {}),
     ...(assetPaths.length > 0 ? { asset_paths: assetPaths } : {}),
     ...(nonEmptyString(raw.produced_at) ? { produced_at: raw.produced_at } : {}),
+    ...(nonEmptyString(raw.scheduled_at) ? { scheduled_at: raw.scheduled_at } : {}),
     ...(nonEmptyString(raw.post_url) ? { post_url: raw.post_url } : {}),
     ...(nonEmptyString(raw.posted_at) ? { posted_at: raw.posted_at } : {}),
     ...(isFiniteNumber(raw.performance_score) ? { performance_score: raw.performance_score } : {}),

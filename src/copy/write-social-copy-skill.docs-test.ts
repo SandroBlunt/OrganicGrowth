@@ -176,13 +176,31 @@ describe("write-social-copy Skill — composes one variant per targeted Channel 
     assert.match(text, /#130/);
     assert.match(text, /weaveLinkedInMentions/);
     assert.match(text, /resolveLinkedInHandle/);
-    assert.match(text, /linkedin-handle/);
+    assert.match(text, /mention-handle/);
   });
 
   it("states an unresolved company/product falls back to plain text, flagged for Operator review", async () => {
     const text = await readFile(SKILL_PATH, "utf8");
     assert.match(text, /unresolvedMentions/);
     assert.match(text, /flagged.{0,40}Operator review|Operator review/i);
+  });
+});
+
+describe("write-social-copy Skill — X's caption cap covers caption + hashtags together (issue #142)", () => {
+  it("names checkCombinedCaptionHashtagsCap and capIncludesHashtags", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /checkCombinedCaptionHashtagsCap/);
+    assert.match(text, /capIncludesHashtags/);
+  });
+
+  it("states the combined cap applies regardless of whether X is the primary Channel", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /REGARDLESS of whether X is\s+the primary Channel/);
+  });
+
+  it("names the caption_hashtags_length error code", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /caption_hashtags_length/);
   });
 });
 

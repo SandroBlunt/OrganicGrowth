@@ -1,28 +1,36 @@
-# Mention Handle Registry — Operator-maintained, ALL platforms (generalizes linkedin-handles.yaml).
+# Mention Handle Registry — Operator-maintained, per-company, per-platform (issue #149, epic #120).
 #
-# Maps a third-party company/product's plain name — as it appears in an Idea brief or a Production
-# Spec's `companies` field — to that company's handle on each platform we compose Copy for. A handle
-# is the @-name / page slug on that platform:
+# Supersedes the old, LinkedIn-only data/linkedin-handles.yaml (issue #126). Maps a third-party
+# company/product's plain name — as it might appear in an Idea brief or a Production Spec's `companies`
+# field (e.g. "Anthropic", "1Password") — to that company's handle on one or more platforms. Read via
+# the typed store `src/mention-handle/store.ts` (`resolveMentionHandle`, plus the LinkedIn-only
+# convenience alias `resolveLinkedInHandle` issue #130's Copy step already calls).
 #
-#   linkedin  → the company-page slug in https://www.linkedin.com/company/<handle>
-#   x         → the @name on x.com (without the @)
-#   instagram → the @name on instagram.com (without the @)
-#   tiktok    → the @name on tiktok.com (without the @)
-#   facebook  → the Page slug in https://www.facebook.com/<handle>
+# This file is HAND-EDITED by the Operator. It is NOT a live API lookup — OrganicGrowth never queries or
+# scrapes any platform for this data (data-handling rule 2: the only two live/Apify jobs in this repo are
+# trend-scout's peer-Page scrape and performance-tracker's own-post scrape; this lookup is neither).
 #
-# Rules (same contract as linkedin-handles.yaml — issue #126):
-# - HAND-EDITED by the Operator only. Never a live API lookup, never scraped.
-# - Add a value ONLY after confirming it on the platform itself. A missing key means "no confirmed
-#   handle" — downstream Copy falls back to the plain company name, never a guessed handle.
-# - This file is brand-agnostic: handles are facts about the mentioned company, not about our Brands.
+# Shape: one entry per company, keyed by its plain name; under each, one handle per platform you've
+# actually confirmed. Recognized platform keys: linkedin, x, instagram, tiktok, facebook. Only include
+# the platforms you've confirmed — an omitted platform key for an otherwise-known company resolves to no
+# handle, never a guess. Add an entry once you've confirmed the real handle on that platform itself, e.g.:
 #
-# NOTE: code currently reads LinkedIn handles from data/linkedin-handles.yaml via the typed store.
-# Until the migration ticket lands, keep that file's linkedin values in sync with the linkedin keys
-# here (this file is the registry of record; the old file is a code-compatibility mirror).
-
+#   Anthropic:
+#     linkedin: anthropic
+#     x: AnthropicAI
+#   1Password:
+#     linkedin: 1password
+#
+# A company with no entry here — or a platform with no entry under a known company — resolves to no
+# handle, never fabricated. Issue #130's LinkedIn Copy variant falls back to plain text and flags it for
+# Operator review when that happens; today only the `linkedin` platform is actually woven into composed
+# Copy (`src/copy/linkedin-mentions.ts`) — the other platform keys are available through this same store
+# for a future Copy variant to use, but composing an @mention for them is out of scope here (issue #149).
+#
+# Operator-confirmed 2026-08-04 (verified live in Zoho's composer against the real Pages):
 OpenAI:
-  linkedin: openai   # Operator-confirmed 2026-08-04
+  linkedin: openai
 Anthropic:
-  linkedin: anthropic # Operator-confirmed 2026-08-04
+  linkedin: anthropic
 Google:
-  linkedin: google   # Operator-confirmed 2026-08-04
+  linkedin: google

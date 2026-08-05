@@ -15,7 +15,12 @@
 
 import { defaultDraftCopy, type CopyDrafter, type CopyInput } from "./draft.ts";
 import { injectRequiredParts } from "./inject.ts";
-import { validateCopy, validateCopyForPlatform, type CopyValidationError } from "./validate.ts";
+import {
+  validateCopy,
+  validateCopyForPlatform,
+  checkCombinedCaptionHashtagsCap,
+  type CopyValidationError,
+} from "./validate.ts";
 import { platformCopyShapeFor, resolveCopyShapeForPlatform } from "./platform-shape.ts";
 import { weaveLinkedInMentions } from "./linkedin-mentions.ts";
 import { loadCopyRules, type Channel } from "../production-spec/brand-profile.ts";
@@ -28,13 +33,13 @@ export interface ComposeCopyOptions {
   /** Injectable drafter (defaults to `defaultDraftCopy`); tests inject a deterministic FAKE standing
    *  in for the producer's LLM job — never a live model. */
   readonly drafter?: CopyDrafter;
-  /** Path to issue #126's committed LinkedIn Handle Lookup (`data/linkedin-handles.yaml`), resolved for
-   *  every targeted platform whose `PlatformCopyShape` sets `supportsMentions: true` (today: `linkedin`
-   *  alone) — issue #130. Defaults to the real committed file (`DEFAULT_LINKEDIN_HANDLES_PATH`); tests
-   *  point this at an isolated fixture so no test depends on (or is affected by) the shipped
-   *  `data/linkedin-handles.yaml`. Ignored entirely by `composeCopy` and by any platform that doesn't
-   *  support mentions. */
-  readonly linkedInHandlesPath?: string;
+  /** Path to issue #126's committed Mention Handle Registry — issue #149's platform-keyed
+   *  `data/mention-handles.yaml` — resolved for every targeted platform whose `PlatformCopyShape` sets
+   *  `supportsMentions: true` (today: `linkedin` alone) — issue #130. Defaults to the real committed file
+   *  (`DEFAULT_MENTION_HANDLES_PATH`); tests point this at an isolated fixture so no test depends on (or
+   *  is affected by) the shipped `data/mention-handles.yaml`. Ignored entirely by `composeCopy` and by
+   *  any platform that doesn't support mentions. */
+  readonly mentionHandlesPath?: string;
 }
 
 /** The outcome of composing a Copy: either a validated, rule-conformant `Copy`, or the specific
@@ -108,10 +113,13 @@ export interface ComposeCopyForChannelsResult {
  * handling rule 4). A Brand with EXACTLY ONE Channel produces a `Copy` with NO `variants` field at all —
  * byte-for-byte today's one-variant shape (AC1/AC5); this is provably identical to calling `composeCopy`
  * directly with the same `baseShape`, since the sole Channel is (by convention) `primary`, so the same
- * draft -> inject -> validate steps run against the same `baseShape`. A Brand targeting MULTIPLE
- * Channels returns a `Copy` whose top-level `caption`/`hashtags` mirror the PRIMARY Channel's own
- * variant (so every existing single-variant consumer keeps working unmodified) plus `variants` — ONE
- * entry per targeted platform, including the primary, each clearly labeled.
+ * draft -> inject -> validate steps run against the same `baseShape` — UNLESS that one Channel's own
+ * platform declares `capIncludesHashtags: true` (today: X alone, issue #142), in which case its combined
+ * caption+hashtags cap is still checked (see below); `composeCopy` alone has no platform argument and so
+ * can never run that check itself. A Brand targeting MULTIPLE Channels returns a `Copy` whose top-level
+ * `caption`/`hashtags` mirror the PRIMARY Channel's own variant (so every existing single-variant
+ * consumer keeps working unmodified) plus `variants` — ONE entry per targeted platform, including the
+ * primary, each clearly labeled.
  *
  * Every targeted platform's failures are collected (never stops at the first) so a redraft can address
  * all of them at once, mirroring `write-social-copy`'s own "redraft on a soft miss" loop. Only a fully
@@ -125,12 +133,20 @@ export interface ComposeCopyForChannelsResult {
  * that variant's `unresolvedMentions` (unresolved) — never blocking the compose. Every other platform is
  * completely untouched by this step.
  *
+ * For a platform whose own bounds declare `capIncludesHashtags: true` (today: `x` alone, issue #142),
+ * `checkCombinedCaptionHashtagsCap` (`./validate.ts`) is ALSO run — REGARDLESS of whether that platform
+ * is the primary Channel: the non-primary branch already gets it from `validateCopyForPlatform`; the
+ * primary branch runs it directly here, alongside `validateCopy`'s own caption-alone check, since the
+ * primary Channel's length/emoji bounds otherwise never consult `platform-shape.ts` at all (issue #128
+ * AC3). A failure here is reported as a `caption_hashtags_length` error naming the platform and the
+ * overage, exactly as `validateCopyForPlatform` reports it for a non-primary platform.
+ *
  * @param input    the Idea's material — the SAME material every platform's variant drafts from
  * @param baseShape the chosen Recipe's own copy-shape params (`Recipe.copyShape`)
  * @param channels the Brand's FULL Channel list (`src/production-spec/brand-profile.ts`'s
  *                 `channelsFrom`/`loadChannels`) — every entry's `platform`, not just the primary
  * @param options  the Brand Profile path, an optional injectable drafter, and an optional
- *                 `linkedInHandlesPath` (issue #130)
+ *                 `mentionHandlesPath` (issue #130/#149)
  */
 export async function composeCopyForChannels(
   input: CopyInput,
@@ -166,13 +182,24 @@ export async function composeCopyForChannels(
     // other platform's variant is completely untouched by this step.
     const mentionsSupported = platformCopyShapeFor(channel.platform)?.supportsMentions === true;
     const woven = mentionsSupported
-      ? await weaveLinkedInMentions(injected.caption, input, options.linkedInHandlesPath)
+      ? await weaveLinkedInMentions(injected.caption, input, options.mentionHandlesPath)
       : { caption: injected.caption, unresolvedMentions: [] as readonly string[] };
     const candidate: Copy = { caption: woven.caption, hashtags: injected.hashtags };
 
-    const validation = channel.primary
+    // The primary Channel keeps using ITS Recipe's own copyShape for length/emoji bounds (issue #128
+    // AC3), never platform-shape.ts's own table — but a platform declaring capIncludesHashtags: true
+    // (today: X alone, issue #142) still gets ITS combined caption+hashtags cap checked, whether it is
+    // the primary Channel or not; validateCopyForPlatform already runs this check for a non-primary one.
+    const baseValidation = channel.primary
       ? validateCopy(candidate, shape, rules)
       : validateCopyForPlatform(candidate, channel.platform, baseShape, rules);
+    const primaryCombinedCapError = channel.primary
+      ? checkCombinedCaptionHashtagsCap(candidate, channel.platform)
+      : null;
+    const validation =
+      primaryCombinedCapError === null
+        ? baseValidation
+        : { ok: false, errors: [...baseValidation.errors, primaryCombinedCapError] };
 
     if (!validation.ok) {
       failures.push({ platform: channel.platform, errors: validation.errors });

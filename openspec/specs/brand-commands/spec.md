@@ -7,10 +7,10 @@ TBD - created by archiving change issue-20-brand-scoped-granular-commands. Updat
 
 The system SHALL require a `<brand>` argument as the first positional parameter of every granular
 command that operates on a single Brand's state (`/run-trends`, `/review-ideas`, `/pick-cast`,
-`/log-post`, `/track-performance`, `/report`). These commands SHALL operate only on the named Brand's
-paths (derived via the Brand resolver) and SHALL NOT fall back to any global default Brand when
-`<brand>` is absent. For them an absent `<brand>` SHALL produce a usage error (stderr + non-zero exit
-code), never a silent MundoTip fallback.
+`/log-post`, `/track-performance`, `/report`, `/export-schedule`, `/cleanup-schedule-media`). These
+commands SHALL operate only on the named Brand's paths (derived via the Brand resolver) and SHALL NOT
+fall back to any global default Brand when `<brand>` is absent. For them an absent `<brand>` SHALL
+produce a usage error (stderr + non-zero exit code), never a silent MundoTip fallback.
 
 `/queue` is the deliberate exception: it renders the single, global Production Queue that spans all
 Brands, so its Brand argument is an OPTIONAL filter, not a requirement — omitting it (or passing
@@ -53,6 +53,21 @@ also never falls back to a default Brand; it simply shows all of them.
 - **WHEN** `/pick-cast acme <idea-id> 1` is invoked
 - **THEN** it reads `data/brands/acme/ledger.json` only
 - **AND** `data/brands/mundotip/ledger.json` is not read
+
+#### Scenario: /export-schedule requires all four positional arguments, including an explicit Brand
+
+- **GIVEN** the `/export-schedule` CLI entry invoked with fewer than 4 arguments (brand, format, run,
+  start-date)
+- **WHEN** the CLI entry runs
+- **THEN** it writes a usage message to stderr and sets a non-zero exit code
+- **AND** it does NOT fall back to any default Brand, Format, or Run
+
+#### Scenario: /cleanup-schedule-media requires an explicit Brand argument
+
+- **GIVEN** the `/cleanup-schedule-media` CLI entry invoked with no arguments
+- **WHEN** the CLI entry runs
+- **THEN** it writes a usage message to stderr and sets a non-zero exit code
+- **AND** it does NOT fall back to any default Brand
 
 ### Requirement: No global active-brand pointer file SHALL be written or read
 

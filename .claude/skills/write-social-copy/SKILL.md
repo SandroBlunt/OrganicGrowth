@@ -145,11 +145,13 @@ changes `skillDraftCopy`'s (or `defaultDraftCopy`'s) own output either.
 2. **Resolve and weave LinkedIn `@mention`s, for the LinkedIn variant only (issue #130).** For a targeted
    platform whose `platformCopyShapeFor(platform)?.supportsMentions` is `true` (today: `linkedin`
    alone), call `src/copy/linkedin-mentions.ts`'s `weaveLinkedInMentions(caption, input,
-   linkedInHandlesPath?)` on that variant's already-injected caption, BEFORE checking it. It gathers
+   mentionHandlesPath?)` on that variant's already-injected caption, BEFORE checking it. It gathers
    every company/product named in the Spec's own structured companies data
    (`CopyInput.companies`/`CopySlideBeat.companies` — never free prose, never a company you merely
-   mentioned in your own drafted prose), resolves each through issue #126's committed lookup
-   (`src/linkedin-handle/store.ts`'s `resolveLinkedInHandle`), and weaves in the literal text the
+   mentioned in your own drafted prose), resolves each through issue #126's committed lookup (issue
+   #149's platform-keyed `data/mention-handles.yaml`, via `src/mention-handle/store.ts`'s
+   `resolveLinkedInHandle` — a friendly, LinkedIn-only alias reading that registry's `linkedin` platform
+   key), and weaves in the literal text the
    Operator will select from LinkedIn's own compose-box dropdown when typing: `@Name` (the plain
    company/product name, never the raw handle slug) for every name that resolves, or the plain name —
    flagged, via the returned `unresolvedMentions`, for Operator review — for every name that doesn't.
@@ -167,6 +169,14 @@ changes `skillDraftCopy`'s (or `defaultDraftCopy`'s) own output either.
      LinkedIn. Check the FINAL, mention-woven caption from step 2, not the pre-weave draft.
    - Every check covers: caption length, emoji count, required CTA present, required hashtags present,
      no banned word, and no em dash/en dash/spaced hyphen (issue #108) — in the caption or any hashtag.
+   - **X's caption cap covers the caption AND its hashtags together** (issue #142): X has no separate
+     hashtags field, so its 280-char cap is enforced over `caption + hashtags` combined, via
+     `checkCombinedCaptionHashtagsCap(copy, platform)` — always run for a platform whose
+     `PlatformCopyShape` sets `capIncludesHashtags: true` (today: X alone), REGARDLESS of whether X is
+     the primary Channel or not (the primary Channel's own caption-alone bound above still comes from
+     the Recipe's own `copyShape`, but this combined cap is never skipped because of that). A miss here
+     is a `caption_hashtags_length` error naming the platform and the overage; keep every other
+     platform's own bounds — untouched by this rule.
    - `src/copy/compose.ts`'s `composeCopyForChannels` is this step's own deterministic, testable proof:
      given the SAME `CopyInput`/`baseShape`/Channel list this Skill reads, it runs exactly this
      draft → inject → weave mentions → validate sequence per targeted platform and returns a `Copy`
@@ -205,7 +215,7 @@ into the output bundle's `caption.txt`, flagged for Operator review, automatical
   of Copy (ADR-0012).
 - It does not hand-pick or guess which company/product gets a real `@Name` LinkedIn mention — that
   decision is issue #130's deterministic `weaveLinkedInMentions` (step 2 above), built on the separate
-  `src/linkedin-handle/` lookup (`resolveLinkedInHandle`). You may name a company/product naturally in
+  `src/mention-handle/` lookup (`resolveLinkedInHandle`). You may name a company/product naturally in
   your own drafted prose, but you never yourself resolve it to a handle or decide it's "tagged" — the
   Skill hands off to that step, which is the ONLY place a resolved vs. unresolved company/product is
   decided, from the Spec's own structured companies data.

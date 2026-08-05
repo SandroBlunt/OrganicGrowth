@@ -328,4 +328,10 @@ describe("producer.md's Copy phase composes one variant per targeted Channel pla
     assert.match(text, /EVERY variant is rendered there/);
     assert.match(text, /=== PLATFORM ===/);
   });
+
+  it("states X's cap covers caption plus hashtags together, checked whether X is primary or not (issue #142)", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /checkCombinedCaptionHashtagsCap/);
+    assert.match(text, /caption_hashtags_length/);
+  });
 });

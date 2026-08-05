@@ -1,7 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { validateCopy, type CopyValidationCode, type CopyValidationResult } from "./validate.ts";
+import {
+  validateCopy,
+  validateCopyForPlatform,
+  checkCombinedCaptionHashtagsCap,
+  type CopyValidationCode,
+  type CopyValidationResult,
+} from "./validate.ts";
 import type { CopyShape } from "./contract.ts";
 import type { BrandCopyRules } from "../production-spec/brand-profile.ts";
 
@@ -221,5 +227,104 @@ describe("validateCopy — error reasons are specific", () => {
       assert.equal(typeof err.message, "string");
       assert.ok(err.message.length > 0);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkCombinedCaptionHashtagsCap / validateCopyForPlatform's combined check (issue #142)
+// ---------------------------------------------------------------------------
+
+const NEWS_CAROUSEL_SHAPE: CopyShape = { maxChars: 2200, minEmojis: 0, maxEmojis: 2 };
+
+describe("checkCombinedCaptionHashtagsCap — X's 280-char cap covers caption + hashtags together (issue #142)", () => {
+  it("the 318-character live-failure case: caption alone within 280, combined over — regression test", () => {
+    // Reproduces the exact live failure named in the issue: a 318-character X variant whose caption
+    // ALONE is within the 280-char cap (here: exactly at it), but caption + hashtags combined is not.
+    const caption = "A".repeat(280);
+    const hashtags = [`#${"b".repeat(36)}`]; // 37 chars; " " + 37 = 38; 280 + 38 = 318 combined.
+    const copy = { caption, hashtags };
+
+    // Caption alone passes X's 280-char cap.
+    assert.ok([...caption].length <= 280);
+
+    const err = checkCombinedCaptionHashtagsCap(copy, "x");
+    assert.ok(err, "expected the combined cap to fail");
+    assert.equal(err!.code, "caption_hashtags_length");
+    assert.match(err!.message, /x/);
+    assert.match(err!.message, /318/);
+    assert.match(err!.message, /38/); // named overage: 318 - 280
+  });
+
+  it("names the platform and the overage in the message (AC1)", () => {
+    // caption 280 + " " (1) + hashtag "#cccccccc" (9) = 290 combined -> overage 10.
+    const copy = { caption: "A".repeat(280), hashtags: ["#" + "c".repeat(8)] };
+    const err = checkCombinedCaptionHashtagsCap(copy, "x");
+    assert.ok(err);
+    assert.match(err!.message, /\bx\b/);
+    assert.match(err!.message, /10/); // 290 - 280
+  });
+
+  it("a compliant X variant (combined within 280) passes unchanged", () => {
+    const copy = { caption: "A short, punchy tweet.", hashtags: ["#ai"] };
+    assert.equal(checkCombinedCaptionHashtagsCap(copy, "x"), null);
+  });
+
+  it("caption alone already over 280 is still flagged by the combined check too", () => {
+    const copy = { caption: "A".repeat(300), hashtags: [] };
+    const err = checkCombinedCaptionHashtagsCap(copy, "x");
+    assert.ok(err);
+  });
+
+  it("other platforms' limits are unaffected — the SAME combined length passes for Instagram/LinkedIn (AC3)", () => {
+    const caption = "A".repeat(280);
+    const hashtags = [`#${"b".repeat(36)}`];
+    const copy = { caption, hashtags };
+    assert.equal(checkCombinedCaptionHashtagsCap(copy, "instagram"), null);
+    assert.equal(checkCombinedCaptionHashtagsCap(copy, "linkedin"), null);
+    assert.equal(checkCombinedCaptionHashtagsCap(copy, "facebook"), null);
+    assert.equal(checkCombinedCaptionHashtagsCap(copy, "tiktok"), null);
+  });
+
+  it("returns null for an undocumented platform — never fabricates a bound", () => {
+    const copy = { caption: "A".repeat(400), hashtags: ["#x".repeat(50)] };
+    assert.equal(checkCombinedCaptionHashtagsCap(copy, "mastodon"), null);
+  });
+
+  it("is defensive on a malformed copy value — never throws", () => {
+    assert.equal(checkCombinedCaptionHashtagsCap(null, "x"), null);
+    assert.equal(checkCombinedCaptionHashtagsCap({ hashtags: [] }, "x"), null);
+    assert.equal(checkCombinedCaptionHashtagsCap({ caption: "ok", hashtags: "nope" }, "x"), null);
+  });
+});
+
+describe("validateCopyForPlatform — X's combined cap is wired in (issue #142)", () => {
+  it("fails an X variant whose caption + hashtags combined exceeds 280, even though the caption alone fits", () => {
+    const caption = "A".repeat(280);
+    const hashtags = [`#${"b".repeat(36)}`];
+    const copy = { caption, hashtags };
+
+    const result = validateCopyForPlatform(copy, "x", NEWS_CAROUSEL_SHAPE, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "caption_hashtags_length"), true);
+    // The caption-alone check (against X's own 280-char shape) still passes on its own — proving the
+    // NEW failure is specifically the combined check, not a duplicate of caption_length.
+    assert.equal(hasCode(result, "caption_length"), false);
+  });
+
+  it("a compliant X variant still passes unchanged", () => {
+    const copy = { caption: "A short, punchy tweet about the news.", hashtags: ["#ai", "#news"] };
+    const result = validateCopyForPlatform(copy, "x", NEWS_CAROUSEL_SHAPE, NO_RULES);
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+  });
+
+  it("the SAME over-280-combined Copy still passes for Instagram/LinkedIn — other platforms unaffected (AC3)", () => {
+    const caption = "A".repeat(280);
+    const hashtags = [`#${"b".repeat(36)}`];
+    const copy = { caption, hashtags };
+
+    const instagram = validateCopyForPlatform(copy, "instagram", NEWS_CAROUSEL_SHAPE, NO_RULES);
+    assert.equal(instagram.ok, true, JSON.stringify(instagram.errors));
+    const linkedin = validateCopyForPlatform(copy, "linkedin", NEWS_CAROUSEL_SHAPE, NO_RULES);
+    assert.equal(linkedin.ok, true, JSON.stringify(linkedin.errors));
   });
 });

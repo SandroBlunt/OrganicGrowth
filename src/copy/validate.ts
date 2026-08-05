@@ -30,7 +30,18 @@
  * (`./platform-shape.ts`'s `resolveCopyShapeForPlatform`) and runs the SAME core checks against it,
  * plus — only for a platform whose bounds declare `supportsMentions: true` (today: LinkedIn) — a check
  * that any inline `@mention` in the caption is well-formed TEXT SYNTAX (never a lookup; resolving a
- * name to a real LinkedIn Page handle is the separate `src/linkedin-handle/` store, issue #126/#130).
+ * name to a real LinkedIn Page handle is the separate `src/mention-handle/` store, issue #126/#130/#149).
+ *
+ * `checkCombinedCaptionHashtagsCap` (issue #142) is a SECOND, ADDITIVE check `validateCopyForPlatform`
+ * also runs: for a platform whose `PlatformCopyShape` declares `capIncludesHashtags: true` (today: X
+ * alone), the caption-alone `caption_length` check above is not enough — X's own 280-char cap covers
+ * the caption AND its hashtags together (there is no separate hashtags field in a tweet the way there
+ * is on Instagram). A live failure motivated this: a 318-character X variant (caption alone within 280,
+ * caption + hashtags combined over) passed composition and was rejected only at Zoho's bulk-upload
+ * step. This check is independent of whichever `CopyShape` a caller used for the caption-alone length/
+ * emoji bounds, so it applies to an X variant whether X is composed as the Brand's primary Channel (see
+ * `compose.ts`'s `composeCopyForChannels`, which calls it directly for the primary branch) or as any
+ * other targeted Channel (via `validateCopyForPlatform` below).
  */
 
 import { scanTextFields, type TextField } from "../production-spec/brand-safety.ts";
@@ -50,7 +61,8 @@ export type CopyValidationCode =
   | "required_hashtag_missing"
   | "banned_word"
   | "dash_in_copy"
-  | "platform_mention_syntax";
+  | "platform_mention_syntax"
+  | "caption_hashtags_length";
 
 /** One Copy contract violation: a stable `code` plus a human-readable `message`. */
 export interface CopyValidationError {
@@ -208,7 +220,7 @@ export function validateCopy(
  * still reads as a plausible handle-shaped token, so this is a syntax check only, never a semantic one.
  *
  * This checks TEXT SHAPE ONLY — it never resolves a name to a real LinkedIn Page handle (that is the
- * separate `src/linkedin-handle/` lookup, issue #126/#130). Pure, no I/O.
+ * separate `src/mention-handle/` lookup, issue #126/#130/#149). Pure, no I/O.
  */
 export function scanAtHandleMentionSyntax(
   text: string,
@@ -235,14 +247,66 @@ export function scanAtHandleMentionSyntax(
   return { ok: violations.length === 0, violations };
 }
 
+/** The exact character count `checkCombinedCaptionHashtagsCap` measures: `caption`, then — when at
+ *  least one hashtag is present — a single separating space and the hashtags space-joined. Mirrors how
+ *  a combined-cap platform's own compose box reads the post as one continuous line (there is no
+ *  separate hashtags field the way Instagram's has). */
+function combinedCaptionHashtagsLength(caption: string, hashtags: readonly string[]): number {
+  const hashtagsPart = hashtags.length > 0 ? ` ${hashtags.join(" ")}` : "";
+  return [...`${caption}${hashtagsPart}`].length;
+}
+
+/**
+ * Check ONLY the platform-specific combined caption+hashtags cap (issue #142) — independent of
+ * whichever `CopyShape` a caller used for the caption-alone length/emoji bounds. Applies for a platform
+ * whose documented `PlatformCopyShape` declares `capIncludesHashtags: true` (today: X alone),
+ * REGARDLESS of whether that platform is the Brand's primary Channel — issue #128 AC3 exempts a primary
+ * Channel from `platform-shape.ts`'s own maxChars/minEmojis/maxEmojis bounds, but never from THIS check;
+ * an X post that is unpostable at Zoho's upload step is unpostable whether X is primary or not. Returns
+ * `null` when the platform doesn't declare this cap, when the combined length is within it, or when
+ * `copy` isn't a well-formed `{ caption, hashtags }` shape (`validateCopy`/`validateCopyForPlatform`
+ * already report that separately — this check never duplicates `not_an_object`/`caption_missing`).
+ * Pure, no I/O.
+ *
+ * @param copy     the candidate composed Copy (untrusted shape — defensively narrowed)
+ * @param platform the target platform (e.g. `"x"`) — matches a Brand Profile Channel's own `platform`
+ */
+export function checkCombinedCaptionHashtagsCap(
+  copy: unknown,
+  platform: string,
+): CopyValidationError | null {
+  const platformShape = platformCopyShapeFor(platform);
+  if (platformShape === null || !platformShape.capIncludesHashtags) return null;
+  if (!isObject(copy) || typeof copy.caption !== "string") return null;
+
+  const hashtags = Array.isArray(copy.hashtags)
+    ? copy.hashtags.filter((h): h is string => typeof h === "string")
+    : [];
+  const combined = combinedCaptionHashtagsLength(copy.caption, hashtags);
+  if (combined <= platformShape.maxChars) return null;
+
+  const overage = combined - platformShape.maxChars;
+  return {
+    code: "caption_hashtags_length",
+    message:
+      `caption plus hashtags combined must be at most ${platformShape.maxChars} characters for ` +
+      `${platform} (combined length ${combined}, ${overage} over).`,
+  };
+}
+
 /**
  * Validate a composed Copy against a SPECIFIC platform's own bounds (issue #128). Resolves `platform`'s
  * documented `CopyShape` — falling back to `baseShape` (the caller's Recipe's own `copyShape`) for a
  * platform `./platform-shape.ts` doesn't document — via `resolveCopyShapeForPlatform`, then runs the
- * SAME core checks `validateCopy` runs against it. When the resolved platform's own bounds declare
- * `supportsMentions: true` (today: only `linkedin`), it additionally scans the caption for a malformed
- * inline `@mention` (`scanAtHandleMentionSyntax`), appending a `platform_mention_syntax` error for each
- * violation found.
+ * SAME core checks `validateCopy` runs against it. Additionally runs TWO platform-specific checks, each
+ * only when the resolved platform's own bounds opt into it:
+ *
+ *   - `capIncludesHashtags: true` (today: only `x`, issue #142) — `checkCombinedCaptionHashtagsCap`,
+ *     appending a `caption_hashtags_length` error when the caption+hashtags combined length exceeds
+ *     that platform's cap.
+ *   - `supportsMentions: true` (today: only `linkedin`) — scans the caption for a malformed inline
+ *     `@mention` (`scanAtHandleMentionSyntax`), appending a `platform_mention_syntax` error for each
+ *     violation found.
  *
  * ADDITIVE — `validateCopy` itself is unchanged; every existing caller (`compose.ts`, both wired
  * Recipes' own copy step) keeps calling it directly with its own single `copyShape`, untouched by this
@@ -262,29 +326,26 @@ export function validateCopyForPlatform(
   const shape = resolveCopyShapeForPlatform(baseShape, platform);
   const base = validateCopy(copy, shape, rules);
 
-  const platformShape = platformCopyShapeFor(platform);
-  if (platformShape === null || !platformShape.supportsMentions) {
-    return base;
-  }
-  if (!isObject(copy) || typeof copy.caption !== "string") {
-    // validateCopy already reported not_an_object/caption_missing above — nothing further to check.
-    return base;
+  const errors: CopyValidationError[] = [...base.errors];
+
+  const combinedCapError = checkCombinedCaptionHashtagsCap(copy, platform);
+  if (combinedCapError !== null) {
+    errors.push(combinedCapError);
   }
 
-  const mention = scanAtHandleMentionSyntax(copy.caption);
-  if (mention.ok) {
-    return base;
-  }
-  return {
-    ok: false,
-    errors: [
-      ...base.errors,
-      ...mention.violations.map((v) => ({
-        code: "platform_mention_syntax" as const,
+  const platformShape = platformCopyShapeFor(platform);
+  const mentionsSupported = platformShape !== null && platformShape.supportsMentions;
+  if (mentionsSupported && isObject(copy) && typeof copy.caption === "string") {
+    const mention = scanAtHandleMentionSyntax(copy.caption);
+    for (const v of mention.violations) {
+      errors.push({
+        code: "platform_mention_syntax",
         message:
           `caption contains a malformed mention "${v}" for ${platform} — an @mention must be ` +
           "immediately followed by a handle with no space (LinkedIn's inline mention syntax).",
-      })),
-    ],
-  };
+      });
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
 }

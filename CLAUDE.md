@@ -37,7 +37,7 @@ and are intentionally kept out of this table.*
 |---|---|---|
 | `trend-scout` | Sonnet | Scrapes peer Pages via Apify (or, for a Brand with `curated_sources` in `seeds.yaml`, digests the Operator's own curated public newsletters instead); distills the result into **Trends** |
 | `idea-strategist` | Opus | Turns Trends into ranked, brand-fit **Idea briefs** with a predicted **Fit Score** |
-| `producer` | Opus | Runs each of an accepted Idea's chosen **Recipes** (ADR-0009/0010) — two wired today: **Character Explainer with Cast** (drives its Space to a **Cast**, pauses for the Operator's **Character** pick, then renders) and the zero-gate **News Carousel** (runs straight through): authors that Recipe's **Production Spec** via its Skill, drives its Space, then composes the **Copy** outside the Space — **one Asset per chosen Recipe** |
+| `producer` | Opus | Runs each of an accepted Idea's chosen **Recipes** (ADR-0009/0010) — two wired today: **Character Explainer with Cast** (drives its Space to a **Cast**, pauses for the Operator's **Character** pick, then renders) and the zero-gate **News Carousel** (runs straight through): authors that Recipe's **Production Spec** via its Skill, drives its Space, then composes the **Copy** outside the Space — **one Asset per chosen Recipe**. Once a Run's Assets are produced it also offers the **Schedule Batch** export, running it only after the Operator approves all of that Run's outputs and captions in-conversation (issue #148) |
 | `performance-tracker` | Sonnet | Pulls posts' **public** metrics via Apify; computes **Performance Score**; updates the feedback loop |
 
 ## The OrganicGrowth pipeline (weekly loop)
@@ -87,14 +87,28 @@ it can run itself, and never renders past a gate before the Operator acts.** Gat
    the finished **Asset**. That Asset moves `in_production → produced`. (The generic
    `/pick <brand> <idea-id> <recipe> <gate> <pick>` command resumes ANY wired Recipe's ANY declared gate;
    `/pick-cast` is a friendly, Cast-only alias built on it — ADR-0010.)
-5. 👤 **Gate 3 — Publish.** Operator publishes the Asset to the Channel's platform, then
-   `/log-post <brand> <idea-id> <recipe> <post-url>` links the published **Post** to that **(Idea,
-   Recipe) Asset** (explicit attribution, keyed on the Recipe — never inferred). That Asset moves
-   `produced → posted`.
-6. `/track-performance <brand>` → `performance-tracker` pulls public metrics (Apify) for every posted
+5. **Schedule Batch approval (in-conversation, producer-offered — issue #148).** Once a Run's eligible
+   Assets (today: *News Carousel* — Zoho's bulk path is images-only) are `produced`, the `producer`
+   offers the **Schedule Batch** export and runs it only after the Operator approves, in the SAME
+   conversation, every one of that Run's generated outputs and captions — never unprompted (ADR-0008).
+   This approval is a distinct, in-conversation checkpoint, **not** one of the three formal gates below:
+   it is conversational only, and writes **nothing** to the ledger. Once approved, `/export-schedule
+   <brand> <format> <run> <start-date>` hosts each eligible Asset's slides as JPGs on S3, writes two
+   Zoho-ready CSVs (one per configured **Zoho Social Brand**) plus a manifest, and stamps `scheduled_at`
+   on each exported Asset — its `status` stays `produced` (ADR-0011's lifecycle is unchanged; no new
+   status). A self-cleaning cleanup pass (`/cleanup-schedule-media <brand>`) runs automatically first,
+   removing any previously-hosted media whose schedule is now more than a day past.
+6. 👤 **Gate 3 — Publish.** For a Schedule Batch Asset, the Operator uploads the exported CSVs to Zoho
+   Social and reviews the queued posts there before they go live; for any other Asset (e.g. a Character
+   Explainer Reel) the Operator publishes directly to the Channel's platform. Hosting media and writing
+   files is **not publishing** (ADR-0002) — this is a second, distinct human step from the Schedule
+   Batch approval above. Either way, once live, `/log-post <brand> <idea-id> <recipe> <post-url>` links
+   the published **Post** to that **(Idea, Recipe) Asset** (explicit attribution, keyed on the Recipe —
+   never inferred). That Asset moves `produced → posted`.
+7. `/track-performance <brand>` → `performance-tracker` pulls public metrics (Apify) for every posted
    Asset across every chosen Recipe, computes each one's **Performance Score** (relative to the Channel's
    one baseline), updates `data/brands/<slug>/ledger.json` and **Your Data**. This is the feedback.
-7. `/report <brand>` → pipeline state, the per-Idea Fit Score vs the best measured Performance Score
+8. `/report <brand>` → pipeline state, the per-Idea Fit Score vs the best measured Performance Score
    across that Idea's per-Recipe Posts (an explicit 1:N comparison — ADR-0011), what's feeding back.
 
 **Pipeline rules:** sequential within a Format; the strategist must respect `brand-profile.yaml` and the
@@ -227,7 +241,9 @@ what it is (the brand-fit reasoning behind the prediction). Each Asset carries `
 `spec_path`, the composed `copy` (structured `{ caption, hashtags }`), the wired Recipe's own `cast`/
 `character` fields, `asset_paths` (the downloaded media's durable local file paths, in slide order —
 issue #102; the single remote `asset_url` remains only as a legacy fallback), `produced_at`,
-`post_url`, `posted_at`, `performance_score`, the public
+`scheduled_at` (the **Schedule Batch** export's stamp — issue #140/#141; a plain, optional field that
+carries no lifecycle meaning of its own; `status` stays `produced` until `/log-post`), `post_url`,
+`posted_at`, `performance_score`, the public
 `metrics` (`{ shares, comments, reactions, views }`) behind that score, `tracked_at`, and a small
 `history` of earlier reads (issue #84 — `src/commands/track-performance.ts`,
 `src/performance/{selection,score,maturity,metrics}.ts`). Update the ledger on every status change.
@@ -239,6 +255,10 @@ issue #102; the single remote `asset_url` remains only as a legacy fallback), `p
 - **Meta Content export** (in `data/brands/<slug>/your-data/`) is an *optional* enrichment for Saves /
   Net-follows / watch-through. It is git-ignored — keep it there, never at the pre-migration root
   `data/your-data/`. See [`docs/adr/0001`](./docs/adr/0001-apify-public-metrics-for-performance.md).
+- **S3** hosts a Schedule Batch export's JPGs as public direct links for Zoho Social to fetch (the Media
+  Host port, issue #144). The bucket, its public-`GetObject`-only policy, and its 30-day expiry
+  lifecycle rule are one-time infrastructure setup, not code — already live for straw-motion; see
+  [`docs/schedule-batch-s3-setup.md`](./docs/schedule-batch-s3-setup.md).
 
 ## Rules & Standards
 

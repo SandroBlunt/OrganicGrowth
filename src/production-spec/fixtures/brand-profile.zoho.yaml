@@ -1,0 +1,30 @@
+# Fixture brand profile for Zoho Social Brand config tests ONLY (issue #143).
+#
+# Deliberately DIFFERENT strings than the real data/brands/straw-motion/brand-profile.yaml zoho
+# block, so a test can prove the reader is genuinely parameterized rather than hardcoded — mirrors
+# how brand-profile.channels.yaml stays a distinct fixture from the real migrated Brand Profiles.
+
+zoho:
+  brands:
+    - name: "Test Brand Main"
+      timezone: "Europe/Amsterdam"
+      channels:
+        - platform: facebook
+          label: Facebook
+        - platform: instagram
+          label: Instagram
+    - name: "Test Brand Personal"
+      timezone: "Europe/Amsterdam"
+      channels:
+        - platform: linkedin
+          label: LinkedInProfile
+        - platform: x
+          label: X
+
+niche: "Test niche"
+language: en
+
+required_cta: ""
+required_hashtags: []
+banned_words: []
+brand_safety: []

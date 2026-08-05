@@ -4,17 +4,19 @@
  * Resolves every company/product named in a Recipe's own STRUCTURED companies data (never free prose —
  * `CopyInput.companies`, the Character Explainer with Cast Recipe's whole-Asset grain, issue #125; and
  * `CopySlideBeat.companies`, the News Carousel Recipe's per-slide grain, PR #122) through issue #126's
- * committed LinkedIn Handle Lookup (`src/linkedin-handle/store.ts`'s `resolveLinkedInHandle`), then
- * weaves the result into a drafted LinkedIn caption: the literal `@Name` text (the plain company/product
- * name, never the raw handle slug) for every name the lookup resolves — the exact text the Operator
- * selects from LinkedIn's own compose-box dropdown when typing, since OrganicGrowth can never embed a
- * functioning tag itself (only a human, picking from LinkedIn's own UI at typing time, creates a real
- * one) — and the PLAIN name, flagged as unresolved, for every name it doesn't. Grounded, never invented:
- * only names already present in the Spec's own structured companies data are ever considered (mirrors PR
- * #122's "companies-cited" rule; always-rule 8) — this module never scans a caption's free prose for
- * company names.
+ * committed lookup — issue #149 migrated its data source to the platform-keyed
+ * `src/mention-handle/store.ts`'s `resolveLinkedInHandle` (a friendly, LinkedIn-only alias reading
+ * `data/mention-handles.yaml`'s `linkedin` platform key; this module's own contract is UNCHANGED by that
+ * migration) — then weaves the result into a drafted LinkedIn caption: the literal `@Name` text (the
+ * plain company/product name, never the raw handle slug) for every name the lookup resolves — the exact
+ * text the Operator selects from LinkedIn's own compose-box dropdown when typing, since OrganicGrowth can
+ * never embed a functioning tag itself (only a human, picking from LinkedIn's own UI at typing time,
+ * creates a real one) — and the PLAIN name, flagged as unresolved, for every name it doesn't. Grounded,
+ * never invented: only names already present in the Spec's own structured companies data are ever
+ * considered (mirrors PR #122's "companies-cited" rule; always-rule 8) — this module never scans a
+ * caption's free prose for company names.
  *
- * Split, mirroring `inject.ts`/`../linkedin-handle/store.ts`'s own pure-logic/I-O split:
+ * Split, mirroring `inject.ts`/`../mention-handle/store.ts`'s own pure-logic/I-O split:
  *   - `companiesFromCopyInput`, `buildLinkedInMentionResolutions`, `injectLinkedInMentions`,
  *     `unresolvedMentionNames` are PURE — no I/O, no clock, no network, fully deterministic given their
  *     inputs.
@@ -30,7 +32,7 @@
  * the real `write-social-copy` Skill) happened to write on its own.
  */
 
-import { resolveLinkedInHandle, DEFAULT_LINKEDIN_HANDLES_PATH } from "../linkedin-handle/store.ts";
+import { resolveLinkedInHandle, DEFAULT_MENTION_HANDLES_PATH } from "../mention-handle/store.ts";
 import type { CopyInput } from "./draft.ts";
 
 // ---------------------------------------------------------------------------
@@ -147,15 +149,16 @@ export interface WeaveLinkedInMentionsResult {
 
 /**
  * Resolve every company/product named in `input`'s structured companies data
- * (`companiesFromCopyInput`) against issue #126's committed LinkedIn Handle Lookup, weave the result
- * into `caption` (`injectLinkedInMentions`), and report which names (if any) had no committed handle
- * (`unresolvedMentionNames`). Zero companies short-circuits BEFORE any I/O and returns `caption`
+ * (`companiesFromCopyInput`) against issue #126's committed lookup — issue #149's platform-keyed
+ * `data/mention-handles.yaml`, read via `resolveLinkedInHandle`'s `linkedin`-only alias — weave the
+ * result into `caption` (`injectLinkedInMentions`), and report which names (if any) had no committed
+ * handle (`unresolvedMentionNames`). Zero companies short-circuits BEFORE any I/O and returns `caption`
  * byte-for-byte unchanged.
  */
 export async function weaveLinkedInMentions(
   caption: string,
   input: CopyInput,
-  linkedInHandlesPath: string = DEFAULT_LINKEDIN_HANDLES_PATH,
+  mentionHandlesPath: string = DEFAULT_MENTION_HANDLES_PATH,
 ): Promise<WeaveLinkedInMentionsResult> {
   const companies = companiesFromCopyInput(input);
   if (companies.length === 0) return { caption, unresolvedMentions: [] };
@@ -163,7 +166,7 @@ export async function weaveLinkedInMentions(
   const handles = new Map<string, string | null>();
   await Promise.all(
     companies.map(async (name) => {
-      handles.set(name, await resolveLinkedInHandle(name, linkedInHandlesPath));
+      handles.set(name, await resolveLinkedInHandle(name, mentionHandlesPath));
     }),
   );
 

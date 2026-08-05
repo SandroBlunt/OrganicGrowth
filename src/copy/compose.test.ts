@@ -17,8 +17,9 @@ import type { CopyVariant } from "./contract.ts";
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const RULES_PROFILE = join(HERE, "fixtures", "brand-profile.copy-rules.yaml");
 const NO_RULES_PROFILE = join(HERE, "fixtures", "brand-profile.no-rules.yaml");
-/** Resolves ONLY "OpenAI" and "Anthropic" — issue #130's LinkedIn @mention insertion tests. */
-const LINKEDIN_HANDLES = join(HERE, "fixtures", "linkedin-handles.copy-tests.yaml");
+/** Resolves ONLY "OpenAI" and "Anthropic"'s `linkedin` handles — issue #130's LinkedIn @mention
+ *  insertion tests, against issue #149's platform-keyed registry shape. */
+const MENTION_HANDLES = join(HERE, "fixtures", "mention-handles.copy-tests.yaml");
 
 /**
  * The SINGLE wired Recipe's own copy shape, read from the real registry — never a hand-rolled shape —
@@ -476,6 +477,82 @@ describe("composeCopyForChannels — AC2: a multi-Channel Brand composes one var
 });
 
 // ---------------------------------------------------------------------------
+// composeCopyForChannels — X's 280-char cap covers caption + hashtags together (issue #142)
+// ---------------------------------------------------------------------------
+
+describe("composeCopyForChannels — X's combined caption+hashtags cap (issue #142)", () => {
+  it("fails a NON-primary X variant whose caption + hashtags combined exceeds 280, naming the platform and the overage", async () => {
+    // Caption alone is exactly at X's 280-char cap (passes on its own); the hashtag pushes the
+    // combined total to 318 — the exact live-failure shape named in the issue.
+    const caption = "A".repeat(280);
+    const hashtags = [`#${"b".repeat(36)}`];
+    const result = await composeCopyForChannels(
+      sampleInput(),
+      CHARACTER_EXPLAINER_SHAPE,
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE, drafter: fakeDrafter(caption, hashtags) },
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.copy, undefined, "an unpostable X variant is never surfaced");
+    const xFailure = result.errors!.find((f) => f.platform === "x");
+    assert.ok(xFailure, "expected the X variant to fail");
+    assert.ok(xFailure!.errors.some((e) => e.code === "caption_hashtags_length" && /318/.test(e.message)));
+  });
+
+  it("fails an X variant even when X is the PRIMARY Channel — the combined cap is never skipped for a primary Channel", async () => {
+    const xPrimary: readonly Channel[] = channelsFrom({
+      channel: [{ platform: "x", url: "https://example.test/x", primary: true }],
+    });
+    // Within the Recipe's own 180-char/1-3-emoji primary shape (so the caption-ALONE check passes),
+    // but the hashtag pushes caption + hashtags combined well past X's real 280-char cap.
+    const caption = `${"A".repeat(170)} ☀️`;
+    const hashtags = [`#${"b".repeat(120)}`];
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, xPrimary, {
+      brandProfilePath: NO_RULES_PROFILE,
+      drafter: fakeDrafter(caption, hashtags),
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.copy, undefined);
+    assert.equal(result.errors!.length, 1);
+    assert.equal(result.errors![0]!.platform, "x");
+    assert.ok(result.errors![0]!.errors.some((e) => e.code === "caption_hashtags_length"));
+    // Proves this is specifically the NEW combined check, not the pre-existing caption-alone one —
+    // the caption alone is well within the primary Recipe's own 180-char shape.
+    assert.ok(!result.errors![0]!.errors.some((e) => e.code === "caption_length"));
+  });
+
+  it("a compliant X variant still passes unchanged, primary or not", async () => {
+    const result = await composeCopyForChannels(sampleInput(), CHARACTER_EXPLAINER_SHAPE, STRAW_MOTION_CHANNELS, {
+      brandProfilePath: NO_RULES_PROFILE,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const x = variantsByPlatform(result.copy!).get("x")!;
+    assert.equal("unresolvedMentions" in x, false);
+  });
+
+  it("other platforms' limits are unaffected by the SAME over-280-combined caption/hashtags (AC3)", async () => {
+    const caption = "A".repeat(280);
+    const hashtags = [`#${"b".repeat(36)}`];
+    const result = await composeCopyForChannels(
+      sampleInput(),
+      NEWS_CAROUSEL_SHAPE, // 2200 chars — facebook (primary) and instagram/linkedin comfortably fit
+      STRAW_MOTION_CHANNELS,
+      { brandProfilePath: NO_RULES_PROFILE, drafter: fakeDrafter(caption, hashtags) },
+    );
+    // Only X (combined cap) and TikTok (its own 150-char caption-alone cap) fail — Facebook/Instagram/
+    // LinkedIn's own, materially larger caps swallow this caption fine, and NONE of them ever reports
+    // caption_hashtags_length — that code is X-only.
+    assert.equal(result.ok, false);
+    const failingPlatforms = result.errors!.map((f) => f.platform).sort();
+    assert.deepEqual(failingPlatforms, ["tiktok", "x"]);
+    for (const failure of result.errors!) {
+      if (failure.platform === "x") continue;
+      assert.ok(!failure.errors.some((e) => e.code === "caption_hashtags_length"));
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // composeCopyForChannels — LinkedIn @mention insertion (issue #130)
 // ---------------------------------------------------------------------------
 
@@ -485,7 +562,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       sampleInput({ companies: ["OpenAI", "Anthropic"] }),
       CHARACTER_EXPLAINER_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     const byPlatform = variantsByPlatform(result.copy!);
@@ -508,7 +585,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       sampleInput({ companies: ["OpenAI", "Unknown Startup"] }),
       CHARACTER_EXPLAINER_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;
@@ -529,7 +606,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       sampleInput(),
       CHARACTER_EXPLAINER_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(withoutMentionOption.ok, true, JSON.stringify(withoutMentionOption.errors));
     assert.deepEqual(withMentionOption, withoutMentionOption);
@@ -543,7 +620,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       sampleInput({ companies: ["OpenAI"] }),
       CHARACTER_EXPLAINER_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;
@@ -563,7 +640,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       }),
       NEWS_CAROUSEL_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;

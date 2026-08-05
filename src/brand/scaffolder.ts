@@ -34,7 +34,12 @@ import { slugify } from "./resolver.ts";
  *   channelUrl, bannedWords, requiredCta, requiredHashtags
  */
 export interface BrandInterviewAnswers {
-  /** Brand / Channel display name (used to derive the slug). */
+  /**
+   * Brand display name, used only to derive the Brand's slug (`deriveSlug`). ADR-0019's Channel
+   * entry shape (`{ platform, url?, primary? }`) has no `name` field, so `buildBrandProfile` does
+   * NOT persist this value onto the scaffolded `brand-profile.yaml` anywhere (issue #135) — matching
+   * the two real Brand Profiles migrated by issue #127, neither of which carries a display-name field.
+   */
   readonly name: string;
   /** One-line niche description. */
   readonly niche: string;
@@ -68,13 +73,21 @@ export interface BrandInterviewAnswers {
 // Output types (serialisable shapes)
 // ---------------------------------------------------------------------------
 
+/**
+ * One entry on the scaffolded Brand Profile's `channel` list (ADR-0019). The scaffolder always
+ * creates exactly one — for the single platform the Operator answered onboarding with — so it is
+ * always `primary: true`. There is NO `name`/`handle` field, matching ADR-0019's Channel entry shape
+ * and the two real Brand Profiles migrated by issue #127.
+ */
+export interface BrandProfileChannel {
+  readonly platform: string;
+  readonly url: string;
+  readonly primary: boolean;
+}
+
 /** The YAML-serialisable brand-profile shape produced by `buildBrandProfile`. */
 export interface BrandProfileContent {
-  readonly channel: {
-    readonly name: string;
-    readonly platform: string;
-    readonly url: string;
-  };
+  readonly channel: readonly BrandProfileChannel[];
   readonly niche: string;
   readonly language: string;
   readonly region: string;
@@ -163,6 +176,15 @@ const DEFAULT_BRAND_SAFETY: string[] = [
  * never fabricated content. Only `brand_safety` (the standard safety boilerplate) is set without
  * Operator input.
  *
+ * `channel` follows ADR-0019's Channel-list shape (issue #135): a one-entry list,
+ * `[{ platform, url, primary: true }]`. The scaffolder always creates exactly one Channel — the
+ * single platform the Operator answered onboarding with — so it is always the Brand's primary one.
+ * There is no `name` field on the entry (`answers.name` is used only to derive the Brand's slug
+ * elsewhere in the onboarding flow, never persisted onto the Channel): this output is read by
+ * `channelsFrom`/`primaryChannelFrom` (`src/production-spec/brand-profile.ts`), which expect exactly
+ * this shape and do not back-compat-parse the retired single-object `channel: { name, platform, url
+ * }` shape.
+ *
  * Deliberately does NOT set a `formats` field: `brand-profile.yaml`'s old `formats: [reel]` was the
  * retired MEDIA sense of "format" (ADR-0009) — it no longer belongs on the Brand Profile at all. The
  * Brand's actual editorial **Formats** live as their own files under `formats/` (`FormatStore`,
@@ -173,11 +195,13 @@ const DEFAULT_BRAND_SAFETY: string[] = [
  */
 export function buildBrandProfile(answers: BrandInterviewAnswers): BrandProfileContent {
   return {
-    channel: {
-      name: answers.name,
-      platform: answers.platform,
-      url: answers.channelUrl ?? "",
-    },
+    channel: [
+      {
+        platform: answers.platform,
+        url: answers.channelUrl ?? "",
+        primary: true,
+      },
+    ],
     niche: answers.niche,
     language: answers.language,
     region: answers.region,

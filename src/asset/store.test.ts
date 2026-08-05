@@ -123,6 +123,75 @@ describe("writeAsset — upserts one Recipe's Asset on the target Idea, preservi
     });
   });
 
+  // issue #141: straw-motion's real ledger holds a hand-written `scheduled_at` (Schedule Batch export,
+  // issue #140) and a LinkedIn variant's `unresolvedMentions` note list on one Asset; before this fix
+  // both were silently dropped by the NEXT write to any SIBLING Asset on the same Idea, because
+  // `writeAsset` re-normalizes the whole Idea's `assets[]` through `parseAssetsArray`/`parseAssetRecord`
+  // on its way back to disk, and neither field was read back by the parser.
+  it("a write to a sibling Asset does NOT erase scheduled_at or a Copy variant's unresolvedMentions", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-01",
+          status: "accepted",
+          assets: [
+            {
+              recipe: "carousel",
+              status: "produced",
+              scheduled_at: "2026-08-05T13:23:00.000Z",
+              copy: {
+                caption: "Facebook body.",
+                hashtags: ["#news"],
+                variants: [
+                  { platform: "facebook", caption: "Facebook body.", hashtags: ["#news"] },
+                  {
+                    platform: "linkedin",
+                    caption: "LinkedIn body @OpenAI.",
+                    hashtags: ["#news"],
+                    unresolvedMentions: ["Unknown Startup", "Ghost Co"],
+                  },
+                ],
+              },
+            },
+            { recipe: "character-explainer-with-cast", status: "queued" },
+          ],
+        },
+      ],
+    };
+    await withLedger(seed, async (path) => {
+      // A write to the OTHER (sibling) Asset on the same Idea — never touches the carousel Asset.
+      await writeAsset(
+        "idea-01",
+        "character-explainer-with-cast",
+        { status: "in_production", pending_gate: "cast" },
+        { ledgerPath: path },
+      );
+
+      const after = JSON.parse(await readFile(path, "utf8")) as {
+        ideas: Array<{ id: string; assets: Array<Record<string, unknown>> }>;
+      };
+      const carousel = after.ideas[0]!.assets.find((a) => a.recipe === "carousel")!;
+      assert.equal(carousel.scheduled_at, "2026-08-05T13:23:00.000Z", "scheduled_at must survive the sibling write");
+      const linkedinVariant = (carousel.copy as { variants: Array<Record<string, unknown>> }).variants.find(
+        (v) => v.platform === "linkedin",
+      )!;
+      assert.deepEqual(
+        linkedinVariant.unresolvedMentions,
+        ["Unknown Startup", "Ghost Co"],
+        "the LinkedIn variant's unresolvedMentions must survive the sibling write",
+      );
+
+      // And the fields survive a subsequent READ through loadIdeaAssets, not just the raw JSON on disk.
+      const assets = await loadIdeaAssets("idea-01", path);
+      const carouselAsset = assets!.find((a) => a.recipe === "carousel")!;
+      assert.equal(carouselAsset.scheduled_at, "2026-08-05T13:23:00.000Z");
+      assert.deepEqual(carouselAsset.copy!.variants!.find((v) => v.platform === "linkedin")!.unresolvedMentions, [
+        "Unknown Startup",
+        "Ghost Co",
+      ]);
+    });
+  });
+
   it("normalizes an un-migrated Idea's legacy status/scalars onto assets[] BEFORE upserting", async () => {
     // Writing an Asset onto a not-yet-migrated Idea must not silently drop its legacy production data.
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast: [{ identifier: "c1", url: "https://x/1.png" }] }] };
