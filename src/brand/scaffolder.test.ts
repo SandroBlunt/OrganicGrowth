@@ -18,6 +18,8 @@ import {
   deriveSlug,
   type BrandInterviewAnswers,
 } from "./scaffolder.ts";
+import { channelsFrom, primaryChannelFrom } from "../production-spec/brand-profile.ts";
+import { checkConfig } from "../readiness/check-config.ts";
 
 // ---------------------------------------------------------------------------
 // deriveSlug
@@ -110,20 +112,40 @@ const MINIMAL_ANSWERS: BrandInterviewAnswers = {
   seedPages: ["https://www.facebook.com/peer1"],
 };
 
-describe("buildBrandProfile — maps interview answers to brand-profile shape", () => {
-  it("sets channel.name from answers.name", () => {
+describe("buildBrandProfile — maps interview answers to the ADR-0019 Channel-list shape (issue #135)", () => {
+  it("sets channel to a one-entry array", () => {
     const profile = buildBrandProfile(MINIMAL_ANSWERS);
-    assert.equal(profile.channel.name, "Acme Corp");
+    assert.ok(Array.isArray(profile.channel), "channel must be an array (ADR-0019)");
+    assert.equal(profile.channel.length, 1);
   });
 
-  it("sets channel.platform from answers.platform", () => {
+  it("sets channel[0].platform from answers.platform", () => {
     const profile = buildBrandProfile(MINIMAL_ANSWERS);
-    assert.equal(profile.channel.platform, "facebook");
+    assert.equal(profile.channel[0]?.platform, "facebook");
   });
 
-  it("sets channel.url to empty string when channelUrl is not supplied", () => {
+  it("sets channel[0].url to empty string when channelUrl is not supplied", () => {
     const profile = buildBrandProfile(MINIMAL_ANSWERS);
-    assert.equal(profile.channel.url, "");
+    assert.equal(profile.channel[0]?.url, "");
+  });
+
+  it("sets channel[0].primary to true (the scaffolder always creates exactly one, primary, Channel)", () => {
+    const profile = buildBrandProfile(MINIMAL_ANSWERS);
+    assert.equal(profile.channel[0]?.primary, true);
+  });
+
+  it("does NOT set a name field on the Channel entry (ADR-0019 has no name/handle field)", () => {
+    const profile = buildBrandProfile(MINIMAL_ANSWERS) as unknown as {
+      channel: readonly Record<string, unknown>[];
+    };
+    assert.equal("name" in profile.channel[0]!, false);
+  });
+
+  it("does not carry a name field even when the Operator's typed name differs from the slug", () => {
+    const profile = buildBrandProfile({ ...MINIMAL_ANSWERS, name: "Mundo Tip!" }) as unknown as {
+      channel: readonly Record<string, unknown>[];
+    };
+    assert.equal("name" in profile.channel[0]!, false);
   });
 
   it("sets niche from answers.niche", () => {
@@ -182,9 +204,14 @@ describe("buildBrandProfile — deferred fields when supplied", () => {
     requiredHashtags: ["#HomeImprovement"],
   };
 
-  it("sets channel.url from answers.channelUrl when supplied", () => {
+  it("sets channel[0].url from answers.channelUrl when supplied", () => {
     const profile = buildBrandProfile(fullAnswers);
-    assert.equal(profile.channel.url, "https://www.facebook.com/acmecorp");
+    assert.equal(profile.channel[0]?.url, "https://www.facebook.com/acmecorp");
+  });
+
+  it("keeps channel[0].primary true when channelUrl is supplied", () => {
+    const profile = buildBrandProfile(fullAnswers);
+    assert.equal(profile.channel[0]?.primary, true);
   });
 
   it("sets banned_words from answers.bannedWords when supplied", () => {
@@ -204,10 +231,10 @@ describe("buildBrandProfile — deferred fields when supplied", () => {
 });
 
 describe("buildBrandProfile — never invents brand facts", () => {
-  it("channel.url is empty string (not a placeholder URL) when not supplied", () => {
+  it("channel[0].url is empty string (not a placeholder URL) when not supplied", () => {
     const profile = buildBrandProfile(MINIMAL_ANSWERS);
     // Must not be a fabricated URL like 'https://todo.example.com' or 'TODO'
-    assert.doesNotMatch(profile.channel.url, /TODO|example\.com|http/i);
+    assert.doesNotMatch(profile.channel[0]?.url ?? "", /TODO|example\.com|http/i);
   });
 
   it("niche is exactly the Operator's answer (no elaboration)", () => {
@@ -226,9 +253,8 @@ describe("buildBrandProfile — round-trip through YAML", () => {
     const profile = buildBrandProfile(MINIMAL_ANSWERS);
     const yaml = yamlStringify(profile);
     const parsed = yamlParse(yaml) as typeof profile;
-    assert.equal(parsed.channel.name, profile.channel.name);
-    assert.equal(parsed.channel.platform, profile.channel.platform);
-    assert.equal(parsed.channel.url, profile.channel.url);
+    assert.equal(parsed.channel[0]?.platform, profile.channel[0]?.platform);
+    assert.equal(parsed.channel[0]?.url, profile.channel[0]?.url);
     assert.equal(parsed.niche, profile.niche);
     assert.equal(parsed.voice, profile.voice);
     assert.equal(parsed.language, profile.language);
@@ -242,6 +268,8 @@ describe("buildBrandProfile — round-trip through YAML", () => {
     const parsed = yamlParse(yaml) as typeof profile;
     assert.deepEqual(parsed.banned_words, profile.banned_words);
     assert.deepEqual(parsed.required_hashtags, profile.required_hashtags);
+    assert.equal(parsed.channel.length, profile.channel.length);
+    assert.equal(parsed.channel[0]?.primary, profile.channel[0]?.primary);
   });
 });
 
@@ -341,9 +369,75 @@ describe("buildSeeds — verified Instagram and YouTube actor slugs (issue #48)"
 });
 
 describe("buildBrandProfile — accepts youtube as a platform value (issue #48)", () => {
-  it("sets channel.platform to youtube when answered", () => {
+  it("sets channel[0].platform to youtube when answered", () => {
     const profile = buildBrandProfile({ ...MINIMAL_ANSWERS, platform: "youtube" });
-    assert.equal(profile.channel.platform, "youtube");
+    assert.equal(profile.channel[0]?.platform, "youtube");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildBrandProfile — output proven against the real Channel reader + readiness classifier
+// (issue #135 AC3: catches future drift between the scaffolder's OUTPUT and its consumers)
+// ---------------------------------------------------------------------------
+
+describe("buildBrandProfile — output parses correctly under channelsFrom/primaryChannelFrom (issue #135)", () => {
+  it("channelsFrom reads the scaffolder's output as one Channel entry", () => {
+    const profile = buildBrandProfile({
+      ...MINIMAL_ANSWERS,
+      channelUrl: "https://www.facebook.com/acmecorp",
+    });
+    const channels = channelsFrom(profile);
+    assert.equal(channels.length, 1);
+    assert.equal(channels[0]?.platform, "facebook");
+    assert.equal(channels[0]?.url, "https://www.facebook.com/acmecorp");
+    assert.equal(channels[0]?.primary, true);
+  });
+
+  it("primaryChannelFrom finds the scaffolder's one entry (never null)", () => {
+    const profile = buildBrandProfile({
+      ...MINIMAL_ANSWERS,
+      channelUrl: "https://www.facebook.com/acmecorp",
+    });
+    const primary = primaryChannelFrom(profile);
+    assert.notEqual(primary, null);
+    assert.equal(primary?.platform, "facebook");
+    assert.equal(primary?.url, "https://www.facebook.com/acmecorp");
+  });
+
+  it("primaryChannelFrom still finds the entry even before the Operator supplies a URL", () => {
+    // channelUrl is a DEFERRED field — a freshly scaffolded Brand has it blank until the Operator
+    // fills it in later. The entry must still be recognized as the primary Channel (just with a
+    // blank url), not silently dropped.
+    const profile = buildBrandProfile(MINIMAL_ANSWERS);
+    const primary = primaryChannelFrom(profile);
+    assert.notEqual(primary, null);
+    assert.equal(primary?.url, "");
+  });
+});
+
+describe("buildBrandProfile — output does not falsely block Publish readiness once a URL is supplied (issue #135)", () => {
+  const HEALTHY_SEEDS = { seed_pages: ["https://www.facebook.com/peer1"] };
+
+  it("checkConfig reports no channel_url_missing finding once channelUrl is supplied", () => {
+    const profile = buildBrandProfile({
+      ...MINIMAL_ANSWERS,
+      channelUrl: "https://www.facebook.com/acmecorp",
+    });
+    const findings = checkConfig(profile, HEALTHY_SEEDS);
+    assert.equal(
+      findings.some((f) => f.code === "channel_url_missing"),
+      false,
+      "a scaffolded Brand with a Channel URL must not trip channel_url_missing",
+    );
+  });
+
+  it("checkConfig still reports channel_url_missing when no channelUrl was ever supplied", () => {
+    const profile = buildBrandProfile(MINIMAL_ANSWERS);
+    const findings = checkConfig(profile, HEALTHY_SEEDS);
+    const finding = findings.find((f) => f.code === "channel_url_missing");
+    assert.ok(finding, "a scaffolded Brand with no Channel URL must still trip channel_url_missing");
+    assert.equal(finding?.severity, "block");
+    assert.equal(finding?.phase, "publish");
   });
 });
 
