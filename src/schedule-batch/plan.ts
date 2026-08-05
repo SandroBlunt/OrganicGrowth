@@ -6,9 +6,14 @@
  *
  *   - `validateAssetsForExport` — the PREFLIGHT pass, run before any file is written or any media is
  *     hosted: an eligible Asset with no composed Copy, a Copy missing a variant for one of the
- *     configured Zoho Social Brands' platforms, or a wrong slide count all fail loudly, naming the
- *     Idea — never-fabricate (data-handling rule 4). The caller runs this BEFORE any I/O, so a
- *     malformed batch never partially writes.
+ *     configured Zoho Social Brands' platforms, a wrong slide count, or a targeted platform's own
+ *     variant over its combined caption+hashtags cap (today: X's 280 chars — issue #146) all fail
+ *     loudly, naming the Idea — never-fabricate (data-handling rule 4). The caller runs this BEFORE any
+ *     I/O, so a malformed batch never partially writes. The combined-cap re-check reuses
+ *     `../copy/validate.ts`'s `checkCombinedCaptionHashtagsCap` — the SAME check `composeCopyForChannels`
+ *     already enforces at composition time (issue #142) — as **defense in depth**: composition should
+ *     already have caught an over-cap X variant, but the export re-checks anyway rather than trusting
+ *     upstream state blindly, exactly as the issue asks.
  *   - `buildSchedulePlan` — given already-resolved inputs (the eligible Assets in schedule order, their
  *     parallel `ScheduleSlot`s, and their already-hosted media URLs/keys), assembles the full plan.
  *     PURE: no disk, no clock (every timestamp comes from `slots`/`createdAt`, both caller-supplied).
@@ -19,6 +24,7 @@
  */
 
 import type { Copy, CopyVariant } from "../copy/contract.ts";
+import { checkCombinedCaptionHashtagsCap } from "../copy/validate.ts";
 import type { LedgerAssetRecord } from "../asset/asset.ts";
 import type { ZohoSocialBrand } from "../production-spec/brand-profile.ts";
 import { CAROUSEL_SLIDE_COUNT } from "../production-spec/news-carousel-contract.ts";
@@ -65,10 +71,12 @@ function everyConfiguredPlatform(zohoBrands: readonly ZohoSocialBrand[]): readon
 
 /**
  * Validate every eligible Asset can actually be exported: it must carry a composed Copy, that Copy must
- * carry a variant for EVERY platform any configured Zoho Social Brand targets, and it must have exactly
- * `CAROUSEL_SLIDE_COUNT` downloaded slides. Returns EVERY problem found across EVERY Asset (never just
- * the first) — the caller fails the whole export loudly, before touching the Media Host or writing any
- * file, when this returns a non-empty list. PURE: no I/O.
+ * carry a variant for EVERY platform any configured Zoho Social Brand targets, every one of THOSE
+ * variants must sit within that platform's own combined caption+hashtags cap where one applies (today:
+ * X's 280 chars — issue #146's defense-in-depth re-check of issue #142's composition-time cap), and the
+ * Asset must have exactly `CAROUSEL_SLIDE_COUNT` downloaded slides. Returns EVERY problem found across
+ * EVERY Asset (never just the first) — the caller fails the whole export loudly, before touching the
+ * Media Host or writing any file, when this returns a non-empty list. PURE: no I/O.
  */
 export function validateAssetsForExport(
   eligible: readonly EligibleAsset[],
@@ -82,11 +90,20 @@ export function validateAssetsForExport(
       problems.push({ ideaId, message: `${ideaId}: has no composed Copy at all — cannot export.` });
     } else {
       for (const platform of platforms) {
-        if (findCopyVariant(asset.copy, platform) === null) {
+        const variant = findCopyVariant(asset.copy, platform);
+        if (variant === null) {
           problems.push({
             ideaId,
             message: `${ideaId}: composed Copy has no variant for platform "${platform}" — cannot export.`,
           });
+          continue;
+        }
+        // Defense in depth (issue #146): composition already enforces this (issue #142), but the
+        // export re-checks rather than trusting upstream state — an over-cap X variant must never
+        // reach Zoho, where it would otherwise be silently rejected only at upload time.
+        const capError = checkCombinedCaptionHashtagsCap(variant, platform);
+        if (capError !== null) {
+          problems.push({ ideaId, message: `${ideaId}: ${capError.message}` });
         }
       }
     }
