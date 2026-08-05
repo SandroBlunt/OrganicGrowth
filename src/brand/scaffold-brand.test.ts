@@ -15,6 +15,7 @@ import { parse as yamlParse } from "yaml";
 import { scaffoldBrand, type ScaffoldContent } from "./scaffold-brand.ts";
 import { listBrands } from "./resolver.ts";
 import { buildBrandProfile, buildSeeds, buildEmptyLedger, type BrandInterviewAnswers } from "./scaffolder.ts";
+import { channelsFrom, primaryChannelFrom } from "../production-spec/brand-profile.ts";
 
 // ---------------------------------------------------------------------------
 // Shared test answers and content builder
@@ -451,8 +452,8 @@ describe("scaffoldBrand — Instagram and YouTube seeds carry verified actor slu
     assert.equal(parsed.apify?.youtube?.["post_actor"], "streamers/youtube-scraper");
 
     const profileText = await readFile(join(tmpBrandsRoot, "ytbrand", "brand-profile.yaml"), "utf8");
-    const profile = yamlParse(profileText) as { channel?: { platform?: string } };
-    assert.equal(profile.channel?.platform, "youtube");
+    const profile = yamlParse(profileText) as { channel?: { platform?: string }[] };
+    assert.equal(profile.channel?.[0]?.platform, "youtube");
   });
 });
 
@@ -498,5 +499,31 @@ describe("scaffoldBrand — slug + error-handling boundaries", () => {
         return true;
       },
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// templates/brand-skeleton/brand-profile.yaml — the RAW template file (independent of the
+// scaffolder pipeline) matches the ADR-0019 Channel-list shape (issue #135, AC2)
+// ---------------------------------------------------------------------------
+
+describe("templates/brand-skeleton/brand-profile.yaml — raw template matches the ADR-0019 Channel shape (issue #135)", () => {
+  it("channel is a list with one entry, primary:true, readable by channelsFrom/primaryChannelFrom", async () => {
+    const text = await readFile(join(REAL_TEMPLATE_PATH, "brand-profile.yaml"), "utf8");
+    const raw = yamlParse(text) as unknown;
+
+    const channels = channelsFrom(raw);
+    assert.equal(channels.length, 1, "the raw template must declare exactly one Channel entry");
+    assert.equal(channels[0]?.platform, "facebook");
+    assert.equal(channels[0]?.primary, true);
+
+    const primary = primaryChannelFrom(raw);
+    assert.notEqual(primary, null, "the raw template's entry must be readable as the primary Channel");
+  });
+
+  it("the raw template's channel value is NOT the retired single-object shape", async () => {
+    const text = await readFile(join(REAL_TEMPLATE_PATH, "brand-profile.yaml"), "utf8");
+    const parsed = yamlParse(text) as { channel?: unknown };
+    assert.ok(Array.isArray(parsed.channel), "channel must be an array, not the old single object");
   });
 });

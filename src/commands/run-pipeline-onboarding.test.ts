@@ -500,10 +500,10 @@ describe("onboarding — AC4: Never invents brand facts", () => {
       });
 
       const profileText = await readFile(join(paths.brandsRoot, "emptyurl", "brand-profile.yaml"), "utf8");
-      const parsed = yamlParse(profileText) as { channel?: { url?: string } };
-      // channel.url must be empty or absent — never a fabricated URL
-      const url = parsed.channel?.url ?? "";
-      assert.doesNotMatch(url, /http|TODO|example/i, "channel.url must not be a fabricated URL");
+      const parsed = yamlParse(profileText) as { channel?: { url?: string }[] };
+      // channel[0].url must be empty or absent — never a fabricated URL
+      const url = parsed.channel?.[0]?.url ?? "";
+      assert.doesNotMatch(url, /http|TODO|example/i, "channel[0].url must not be a fabricated URL");
     });
   });
 
@@ -868,8 +868,8 @@ describe("onboarding — AC7: Platform re-ask on empty/unrecognised answer", () 
       assert.ok(s.isDirectory(), "Brand directory must be created when platform 'Facebook' is accepted case-insensitively");
 
       const profileText = await readFile(join(paths.brandsRoot, "casebrand", "brand-profile.yaml"), "utf8");
-      const parsed = yamlParse(profileText) as { channel?: { platform?: string } };
-      assert.equal(parsed.channel?.platform, "facebook", "Platform must be stored as lowercase canonical value");
+      const parsed = yamlParse(profileText) as { channel?: { platform?: string }[] };
+      assert.equal(parsed.channel?.[0]?.platform, "facebook", "Platform must be stored as lowercase canonical value");
     });
   });
 
@@ -892,8 +892,8 @@ describe("onboarding — AC7: Platform re-ask on empty/unrecognised answer", () 
         },
       });
       const profileText = await readFile(join(paths.brandsRoot, "ytbrand", "brand-profile.yaml"), "utf8");
-      const parsed = yamlParse(profileText) as { channel?: { platform?: string } };
-      assert.equal(parsed.channel?.platform, "youtube", "Platform must be stored as 'youtube'");
+      const parsed = yamlParse(profileText) as { channel?: { platform?: string }[] };
+      assert.equal(parsed.channel?.[0]?.platform, "youtube", "Platform must be stored as 'youtube'");
 
       const seedsText = await readFile(join(paths.brandsRoot, "ytbrand", "seeds.yaml"), "utf8");
       const seeds = yamlParse(seedsText) as { apify?: { youtube?: { trends_actor?: string; post_actor?: string } } };
@@ -939,11 +939,14 @@ describe("onboarding — AC7: Platform re-ask on empty/unrecognised answer", () 
 });
 
 // ===========================================================================
-// C22: the typed display name is preserved as channel.name (not collapsed to the slug)
+// Issue #135: the scaffolded Channel entry carries no display-name field (ADR-0019 has no
+// `name`/`handle` field on a Channel entry — only the slug derivation reads the typed name).
+// Supersedes the old "C22: display name preserved as channel.name" behavior, which relied on the
+// retired single-object channel shape.
 // ===========================================================================
 
-describe("onboarding — C22: display name preserved as channel.name", () => {
-  it("keeps the typed display name even when it differs from the derived slug", async () => {
+describe("onboarding — issue #135: the scaffolded Channel entry has no name field", () => {
+  it("the typed display name is used only to derive the slug, never persisted onto the Channel", async () => {
     await withEmptyBrandsRoot(async (paths) => {
       // No-arg mode with no existing Brands → straight into the interview, which asks for a name.
       await runPipelineCommand(undefined as unknown as string, {
@@ -961,14 +964,14 @@ describe("onboarding — C22: display name preserved as channel.name", () => {
         },
       });
 
-      // The directory uses the slug ("mundo-tip") but channel.name must be the verbatim typed name.
+      // The directory uses the slug ("mundo-tip") derived from the typed name "Mundo Tip!"...
       const profileText = await readFile(join(paths.brandsRoot, "mundo-tip", "brand-profile.yaml"), "utf8");
-      const parsed = yamlParse(profileText) as { channel?: { name?: string } };
-      assert.equal(
-        parsed.channel?.name,
-        "Mundo Tip!",
-        "channel.name must be the typed display name, not the derived slug",
-      );
+      const parsed = yamlParse(profileText) as { channel?: Record<string, unknown>[] };
+      // ...but the Channel entry itself (ADR-0019: { platform, url?, primary? }) carries no name field.
+      assert.equal(parsed.channel?.length, 1);
+      assert.equal("name" in (parsed.channel?.[0] ?? {}), false, "the Channel entry must have no name field");
+      assert.equal(parsed.channel?.[0]?.["platform"], "facebook");
+      assert.equal(parsed.channel?.[0]?.["primary"], true);
     });
   });
 });
