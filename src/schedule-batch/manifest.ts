@@ -7,6 +7,13 @@
  * (`idea`, `recipe`, `scheduled_at`, `s3_keys`, `urls`, `rows`) for continuity with that live-verified
  * reference; `stripped_notes` is carried BOTH per-Asset (this Asset's own flagged notes) and flattened
  * at the top level (a quick, whole-batch glance) — issue #145 AC4.
+ *
+ * `cleaned_at` (issue #147, parent #140) is the manifest's own cleanup record: a later cleanup pass
+ * (`src/schedule-batch/cleanup-runner.ts`) reads this file back, deletes an Asset's hosted `s3_keys`
+ * once its `scheduled_at` is more than a day past, and stamps THIS field — never set by `buildManifest`
+ * itself (an export never writes an already-cleaned entry; cleanup owns this field exclusively, via a
+ * direct raw-JSON patch that leaves every other field untouched, mirroring `AssetStore.writeAsset`'s
+ * own merge style).
  */
 
 /** One Asset's manifest entry — the cleanup contract's unit of record. */
@@ -26,6 +33,9 @@ export interface ScheduleManifestAssetEntry {
   /** This Asset's own stripped LinkedIn unresolved-mentions notes (human-readable), if any — issue
    *  #145 AC4: never appears in an exported caption, always appears here. */
   readonly stripped_notes: readonly string[];
+  /** ISO-8601 UTC — when cleanup removed this Asset's hosted `s3_keys`, or absent when not yet cleaned
+   *  (issue #147). Written ONLY by the cleanup runner, never by `buildManifest`. */
+  readonly cleaned_at?: string;
 }
 
 /** The full Schedule Batch manifest — written to `<run folder>/zoho-manifest.json`. */

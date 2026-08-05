@@ -22,8 +22,9 @@ and inspects the queued posts inside Zoho before they go live.
 layer over pure deep modules: `src/schedule-batch/eligibility.ts` (which Assets qualify),
 `src/schedule-batch/select.ts` (reads the run's Ideas), `src/schedule-batch/schedule.ts` (deterministic
 schedule derivation + the >=1h-future guard), `src/schedule-batch/plan.ts` (`validateAssetsForExport` +
-`buildSchedulePlan`), `src/schedule-batch/csv.ts` (the live-verified Zoho CSV dialect), and
-`src/schedule-batch/manifest.ts`. Tests ALWAYS inject a FAKE Media Host
+`buildSchedulePlan`), `src/schedule-batch/csv.ts` (the live-verified Zoho CSV dialect),
+`src/schedule-batch/manifest.ts`, and `src/schedule-batch/cleanup-runner.ts` (the automatic manifest
+cleanup, issue #147, shared with the standalone `/cleanup-schedule-media`). Tests ALWAYS inject a FAKE Media Host
 (`src/media-host/fixtures/fake-media-host.ts`, issue #144) — never live S3, never live Magnific, no
 credits, hermetic build.
 
@@ -31,7 +32,15 @@ credits, hermetic build.
 
 1. **Resolve the Brand.** Slugify `<brand>` and derive its paths via the resolver. State the active
    Brand: "Exporting Schedule Batch for Brand: `<brand>`, Format: `<format>`, Run: `<run>`."
-2. **Run** `npm run export-schedule <brand> <format> <run> <start-date>` (or call
+2. **Runs cleanup FIRST, automatically** (issue #147, parent #140). Before touching this run at all,
+   `runScheduleCleanup` (`src/schedule-batch/cleanup-runner.ts`) scans the WHOLE Brand's Schedule Batch
+   manifest tree — every Run, every Format, not just this one — and deletes any hosted object more than
+   1 day past its `scheduled_at` through the SAME injected Media Host, recording the removal onto each
+   manifest it touches. Media scheduled less than or exactly 1 day ago, or still in the future, is never
+   touched (delete late, never early — whether Zoho fetches media at CSV-upload or posting time is
+   unconfirmed, so this assumes posting time). This same cleanup is also runnable on its own via
+   `/cleanup-schedule-media <brand>`.
+3. **Run** `npm run export-schedule <brand> <format> <run> <start-date>` (or call
    `exportScheduleCommand()` in `src/commands/export-schedule.ts`). It:
    - **Loads** every Idea in `<format>`'s `<run>` from `data/brands/<slug>/ledger.json`
      (`src/schedule-batch/select.ts`).
@@ -67,8 +76,9 @@ credits, hermetic build.
    - **Stamps** `scheduled_at` (ISO-8601) onto each exported Asset via `AssetStore.writeAsset` — the
      Asset's status stays "produced" (ADR-0011's lifecycle is unchanged; `/log-post` is still what
      moves it to `posted`).
-3. **Report:** which files were written and where, a per-Asset summary (day/timestamp in each Zoho
-   Social Brand's own clock, platforms, any stripped notes), and every skipped Asset with its reason.
+4. **Report:** any cleanup that ran (Assets/manifests touched), which files were written and where, a
+   per-Asset summary (day/timestamp in each Zoho Social Brand's own clock, platforms, any stripped
+   notes), and every skipped Asset with its reason.
 
 ## Guardrails
 - **Brand/Format/Run/start-date are all explicit** — every one of the 4 arguments is required; never a

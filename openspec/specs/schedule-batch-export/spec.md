@@ -217,13 +217,18 @@ in the returned summary text.
 
 ### Requirement: The command writes CSVs + a manifest, and stamps scheduled_at without changing status
 
-`exportScheduleCommand` (`src/commands/export-schedule.ts`) SHALL write one CSV file per configured
-Zoho Social Brand grouping plus one `zoho-manifest.json`, all into the run folder (the same directory
-the produced Assets' output bundles already live in), and SHALL stamp `scheduled_at` (ISO-8601) onto
-each exported Asset via `AssetStore.writeAsset`, WITHOUT changing that Asset's `status` (it stays
-`"produced"` — ADR-0011's lifecycle is unchanged). An empty eligibility result SHALL stop with a clear
-message and write NO file. A Brand with no configured Zoho Social Brand config SHALL refuse with a clear
-message and write NO file. Every original slide file (PNG) SHALL remain byte-for-byte unchanged.
+`exportScheduleCommand` (`src/commands/export-schedule.ts`) SHALL, BEFORE doing anything else, run the
+Brand's manifest-driven cleanup (`runScheduleCleanup`, `src/schedule-batch/cleanup-runner.ts`) across the
+WHOLE Brand's Schedule Batch manifest tree (every Run, every Format — not just the one being exported),
+using the SAME injected `MediaHostPort` and clock this export uses for its own hosting. It SHALL then
+write one CSV file per configured Zoho Social Brand grouping plus one `zoho-manifest.json`, all into the
+run folder (the same directory the produced Assets' output bundles already live in), and SHALL stamp
+`scheduled_at` (ISO-8601) onto each exported Asset via `AssetStore.writeAsset`, WITHOUT changing that
+Asset's `status` (it stays `"produced"` — ADR-0011's lifecycle is unchanged). An empty eligibility result
+SHALL stop with a clear message and write NO file (the automatic cleanup step still runs regardless). A
+Brand with no configured Zoho Social Brand config SHALL refuse with a clear message and write NO file.
+Every original slide file (PNG) SHALL remain byte-for-byte unchanged. A freshly-written manifest entry
+SHALL NEVER itself carry `cleaned_at` — that field is written ONLY by cleanup, never by this export.
 
 #### Scenario: A happy-path run writes both CSVs, the manifest, and a readable scheduled_at
 
@@ -266,4 +271,22 @@ message and write NO file. Every original slide file (PNG) SHALL remain byte-for
 - **AND** the already-written CSV file's content is unchanged
 - **AND** the Asset's `scheduled_at` is unchanged
 - **AND** the injected Media Host records no additional calls
+
+#### Scenario: The export runs the Brand's manifest cleanup first, automatically, before touching this run
+
+- **GIVEN** a stale PRIOR run's manifest, elsewhere under the SAME Brand's ideas tree, with an entry
+  scheduled more than 1 day before `now`
+- **WHEN** `exportScheduleCommand` is called for a DIFFERENT run (with the SAME injected Media Host)
+- **THEN** the stale entry's hosted keys are deleted through the injected Media Host BEFORE this run's
+  own export logic runs
+- **AND** the stale manifest's entry is recorded with `cleaned_at`
+- **AND** this run's own export result is unaffected (an empty run still reports "No eligible Assets" as
+  normal)
+
+#### Scenario: The automatic cleanup step never touches a prior run's entry that isn't due
+
+- **GIVEN** a prior run's manifest entry scheduled less than or exactly 1 day before `now`, or in the
+  future
+- **WHEN** `exportScheduleCommand` is called for a different run
+- **THEN** that entry's hosted keys are never deleted, and it never gains `cleaned_at`
 

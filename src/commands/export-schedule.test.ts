@@ -369,6 +369,108 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
     });
   });
 
+  it("runs cleanup FIRST, automatically: a stale prior run's hosted media is removed before this export does anything (issue #147)", async () => {
+    await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+      // A PRIOR run's manifest, sitting elsewhere under this Brand's ideas tree, scheduled more than 1
+      // day before NOW — due for cleanup.
+      const staleRunFolder = join(fx.ideasRoot, "2026-W30");
+      await mkdir(staleRunFolder, { recursive: true });
+      const staleManifest = {
+        batch: "unhypped-news-2026-W30",
+        brand: BRAND,
+        format: FORMAT,
+        run: "2026-W30",
+        created_at: "2026-07-18T00:00:00.000Z",
+        csv_files: ["zoho-main.csv"],
+        stripped_notes: [],
+        ideas: [
+          {
+            idea: "idea-2026-W30-01",
+            recipe: "news-carousel",
+            scheduled_at: "2026-07-20T00:00:00.000Z", // days before NOW — well past the 1-day cutoff
+            s3_keys: ["straw-motion/2026-W30/idea-01/0-hook.jpg"],
+            urls: ["https://fake-media-host.example/straw-motion/2026-W30/idea-01/0-hook.jpg"],
+            rows: {},
+            stripped_notes: [],
+          },
+        ],
+      };
+      await writeFile(
+        join(staleRunFolder, "zoho-manifest.json"),
+        JSON.stringify(staleManifest, null, 2) + "\n",
+        "utf8",
+      );
+
+      await writeLedger(fx.ledgerPath, []); // this run itself has no eligible Assets — isolates the assertion
+
+      const mediaHost = new FakeMediaHost();
+      const output = await exportScheduleCommand(BRAND, FORMAT, RUN, START_DATE, {
+        ledgerPath: fx.ledgerPath,
+        brandProfilePath: fx.brandProfilePath,
+        ideasRoot: fx.ideasRoot,
+        now: () => NOW,
+        mediaHost,
+      });
+
+      assert.match(output, /No eligible Assets/); // this run's own export still ran as normal
+      assert.deepEqual(mediaHost.deleteCalls, ["straw-motion/2026-W30/idea-01/0-hook.jpg"]);
+
+      const reread = JSON.parse(
+        await readFile(join(staleRunFolder, "zoho-manifest.json"), "utf8"),
+      ) as { readonly ideas: readonly { readonly cleaned_at?: string }[] };
+      assert.equal(reread.ideas[0]!.cleaned_at, NOW);
+    });
+  });
+
+  it("auto-cleanup never touches a prior run's manifest entry scheduled less than or exactly 1 day ago, or in the future", async () => {
+    await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+      const otherRunFolder = join(fx.ideasRoot, "2026-W31");
+      await mkdir(otherRunFolder, { recursive: true });
+      const notDueManifest = {
+        batch: "unhypped-news-2026-W31",
+        brand: BRAND,
+        format: FORMAT,
+        run: "2026-W31",
+        created_at: "2026-07-28T00:00:00.000Z",
+        csv_files: ["zoho-main.csv"],
+        stripped_notes: [],
+        ideas: [
+          {
+            idea: "idea-2026-W31-01",
+            recipe: "news-carousel",
+            scheduled_at: "2026-07-31T12:00:00.000Z", // less than 1 day before NOW (2026-08-01T00:00Z)
+            s3_keys: ["straw-motion/2026-W31/idea-01/0-hook.jpg"],
+            urls: ["https://fake-media-host.example/straw-motion/2026-W31/idea-01/0-hook.jpg"],
+            rows: {},
+            stripped_notes: [],
+          },
+        ],
+      };
+      await writeFile(
+        join(otherRunFolder, "zoho-manifest.json"),
+        JSON.stringify(notDueManifest, null, 2) + "\n",
+        "utf8",
+      );
+
+      await writeLedger(fx.ledgerPath, []);
+
+      const mediaHost = new FakeMediaHost();
+      await exportScheduleCommand(BRAND, FORMAT, RUN, START_DATE, {
+        ledgerPath: fx.ledgerPath,
+        brandProfilePath: fx.brandProfilePath,
+        ideasRoot: fx.ideasRoot,
+        now: () => NOW,
+        mediaHost,
+      });
+
+      assert.equal(mediaHost.deleteCalls.length, 0);
+      const reread = JSON.parse(
+        await readFile(join(otherRunFolder, "zoho-manifest.json"), "utf8"),
+      ) as { readonly ideas: readonly { readonly cleaned_at?: string }[] };
+      assert.equal(reread.ideas[0]!.cleaned_at, undefined);
+    });
+  });
+
   it("main() prints a usage error and exits non-zero when any of the 4 arguments is missing", async () => {
     const originalArgv = process.argv;
     const originalExitCode = process.exitCode;
