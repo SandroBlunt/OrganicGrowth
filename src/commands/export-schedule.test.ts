@@ -283,6 +283,119 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
     });
   });
 
+  it("refuses the WHOLE export loudly, writing nothing, hosting nothing, stamping nothing, when eligible Assets fail preflight — a missing slide, no composed Copy, a missing platform variant, and an over-280 X variant (issue #146)", async () => {
+    await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+      const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01"); // missing slide
+      const idea02Paths = await writeOutputBundleSlides(fx.runFolder, "idea-02"); // no composed Copy
+      const idea03Paths = await writeOutputBundleSlides(fx.runFolder, "idea-03"); // missing platform variant
+      const idea04Paths = await writeOutputBundleSlides(fx.runFolder, "idea-04"); // over-280 X variant
+
+      const missingVariantCopy = fullCopy("idea-03");
+      const idea03Copy = {
+        ...missingVariantCopy,
+        variants: missingVariantCopy.variants.filter((v) => v.platform !== "tiktok"),
+      };
+
+      const overCapCopy = fullCopy("idea-04");
+      const idea04Copy = {
+        ...overCapCopy,
+        variants: overCapCopy.variants.map((v) =>
+          v.platform === "x" ? { ...v, caption: "A".repeat(290) } : v,
+        ),
+      };
+
+      await writeLedger(fx.ledgerPath, [
+        {
+          id: "idea-2026-W32-01",
+          title: "Missing a slide",
+          format: FORMAT,
+          run: RUN,
+          status: "accepted",
+          assets: [
+            {
+              recipe: "news-carousel",
+              status: "produced",
+              asset_paths: idea01Paths.slice(0, 3),
+              copy: fullCopy("idea-01"),
+            },
+          ],
+        },
+        {
+          id: "idea-2026-W32-02",
+          title: "No composed Copy",
+          format: FORMAT,
+          run: RUN,
+          status: "accepted",
+          assets: [{ recipe: "news-carousel", status: "produced", asset_paths: idea02Paths }],
+        },
+        {
+          id: "idea-2026-W32-03",
+          title: "Missing a platform variant",
+          format: FORMAT,
+          run: RUN,
+          status: "accepted",
+          assets: [
+            { recipe: "news-carousel", status: "produced", asset_paths: idea03Paths, copy: idea03Copy },
+          ],
+        },
+        {
+          id: "idea-2026-W32-04",
+          title: "Over-280 X variant",
+          format: FORMAT,
+          run: RUN,
+          status: "accepted",
+          assets: [
+            { recipe: "news-carousel", status: "produced", asset_paths: idea04Paths, copy: idea04Copy },
+          ],
+        },
+      ]);
+
+      const mediaHost = new FakeMediaHost();
+      const output = await exportScheduleCommand(BRAND, FORMAT, RUN, START_DATE, {
+        ledgerPath: fx.ledgerPath,
+        brandProfilePath: fx.brandProfilePath,
+        ideasRoot: fx.ideasRoot,
+        now: () => NOW,
+        mediaHost,
+      });
+
+      // --- Every failure mode is named, against the RIGHT Asset ---
+      assert.match(output, /EXPORT REFUSED/);
+      assert.match(output, /idea-2026-W32-01/);
+      assert.match(output, /expected exactly 7 downloaded slides, found 3/);
+      assert.match(output, /idea-2026-W32-02/);
+      assert.match(output, /no composed Copy/);
+      assert.match(output, /idea-2026-W32-03/);
+      assert.match(output, /"tiktok"/);
+      assert.match(output, /idea-2026-W32-04/);
+      assert.match(output, /280/);
+
+      // --- No partial state: only the pre-existing output-bundle dirs, nothing new written ---
+      const entries = (await readdir(fx.runFolder)).sort();
+      assert.deepEqual(entries, [
+        "idea-01.news-carousel.output",
+        "idea-02.news-carousel.output",
+        "idea-03.news-carousel.output",
+        "idea-04.news-carousel.output",
+      ]);
+
+      // --- No media hosted ---
+      assert.equal(mediaHost.convertCalls.length, 0);
+      assert.equal(mediaHost.uploadCalls.length, 0);
+
+      // --- No scheduled_at stamped on any Asset ---
+      for (const ideaId of [
+        "idea-2026-W32-01",
+        "idea-2026-W32-02",
+        "idea-2026-W32-03",
+        "idea-2026-W32-04",
+      ]) {
+        const assets = await loadIdeaAssets(ideaId, fx.ledgerPath);
+        assert.equal(assets![0]!.scheduled_at, undefined);
+      }
+    });
+  });
+
   it("refuses the WHOLE export loudly, writing nothing, when a schedule time is less than 1 hour away", async () => {
     await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
       const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01");
