@@ -1,0 +1,10 @@
+# Fixture Mention Handle Registry for the Copy step's tests ONLY (`src/copy/compose.test.ts`, issue
+# #130/#149). Mirrors the shape of `data/mention-handles.yaml`, read via
+# `src/mention-handle/store.ts`. Deliberately resolves ONLY these two companies' `linkedin` handles, so
+# a compose test can exercise both a resolved company (@Name woven in) and an unresolved one (plain
+# text, flagged) in the same run.
+
+OpenAI:
+  linkedin: openai
+Anthropic:
+  linkedin: anthropic

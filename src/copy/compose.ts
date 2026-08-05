@@ -33,13 +33,13 @@ export interface ComposeCopyOptions {
   /** Injectable drafter (defaults to `defaultDraftCopy`); tests inject a deterministic FAKE standing
    *  in for the producer's LLM job — never a live model. */
   readonly drafter?: CopyDrafter;
-  /** Path to issue #126's committed LinkedIn Handle Lookup (`data/linkedin-handles.yaml`), resolved for
-   *  every targeted platform whose `PlatformCopyShape` sets `supportsMentions: true` (today: `linkedin`
-   *  alone) — issue #130. Defaults to the real committed file (`DEFAULT_LINKEDIN_HANDLES_PATH`); tests
-   *  point this at an isolated fixture so no test depends on (or is affected by) the shipped
-   *  `data/linkedin-handles.yaml`. Ignored entirely by `composeCopy` and by any platform that doesn't
-   *  support mentions. */
-  readonly linkedInHandlesPath?: string;
+  /** Path to issue #126's committed Mention Handle Registry — issue #149's platform-keyed
+   *  `data/mention-handles.yaml` — resolved for every targeted platform whose `PlatformCopyShape` sets
+   *  `supportsMentions: true` (today: `linkedin` alone) — issue #130. Defaults to the real committed file
+   *  (`DEFAULT_MENTION_HANDLES_PATH`); tests point this at an isolated fixture so no test depends on (or
+   *  is affected by) the shipped `data/mention-handles.yaml`. Ignored entirely by `composeCopy` and by
+   *  any platform that doesn't support mentions. */
+  readonly mentionHandlesPath?: string;
 }
 
 /** The outcome of composing a Copy: either a validated, rule-conformant `Copy`, or the specific
@@ -146,7 +146,7 @@ export interface ComposeCopyForChannelsResult {
  * @param channels the Brand's FULL Channel list (`src/production-spec/brand-profile.ts`'s
  *                 `channelsFrom`/`loadChannels`) — every entry's `platform`, not just the primary
  * @param options  the Brand Profile path, an optional injectable drafter, and an optional
- *                 `linkedInHandlesPath` (issue #130)
+ *                 `mentionHandlesPath` (issue #130/#149)
  */
 export async function composeCopyForChannels(
   input: CopyInput,
@@ -182,7 +182,7 @@ export async function composeCopyForChannels(
     // other platform's variant is completely untouched by this step.
     const mentionsSupported = platformCopyShapeFor(channel.platform)?.supportsMentions === true;
     const woven = mentionsSupported
-      ? await weaveLinkedInMentions(injected.caption, input, options.linkedInHandlesPath)
+      ? await weaveLinkedInMentions(injected.caption, input, options.mentionHandlesPath)
       : { caption: injected.caption, unresolvedMentions: [] as readonly string[] };
     const candidate: Copy = { caption: woven.caption, hashtags: injected.hashtags };
 

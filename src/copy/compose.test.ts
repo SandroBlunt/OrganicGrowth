@@ -17,8 +17,9 @@ import type { CopyVariant } from "./contract.ts";
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const RULES_PROFILE = join(HERE, "fixtures", "brand-profile.copy-rules.yaml");
 const NO_RULES_PROFILE = join(HERE, "fixtures", "brand-profile.no-rules.yaml");
-/** Resolves ONLY "OpenAI" and "Anthropic" — issue #130's LinkedIn @mention insertion tests. */
-const LINKEDIN_HANDLES = join(HERE, "fixtures", "linkedin-handles.copy-tests.yaml");
+/** Resolves ONLY "OpenAI" and "Anthropic"'s `linkedin` handles — issue #130's LinkedIn @mention
+ *  insertion tests, against issue #149's platform-keyed registry shape. */
+const MENTION_HANDLES = join(HERE, "fixtures", "mention-handles.copy-tests.yaml");
 
 /**
  * The SINGLE wired Recipe's own copy shape, read from the real registry — never a hand-rolled shape —
@@ -561,7 +562,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       sampleInput({ companies: ["OpenAI", "Anthropic"] }),
       CHARACTER_EXPLAINER_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     const byPlatform = variantsByPlatform(result.copy!);
@@ -584,7 +585,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       sampleInput({ companies: ["OpenAI", "Unknown Startup"] }),
       CHARACTER_EXPLAINER_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;
@@ -605,7 +606,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       sampleInput(),
       CHARACTER_EXPLAINER_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(withoutMentionOption.ok, true, JSON.stringify(withoutMentionOption.errors));
     assert.deepEqual(withMentionOption, withoutMentionOption);
@@ -619,7 +620,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       sampleInput({ companies: ["OpenAI"] }),
       CHARACTER_EXPLAINER_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;
@@ -639,7 +640,7 @@ describe("composeCopyForChannels — LinkedIn @mention insertion via issue #126'
       }),
       NEWS_CAROUSEL_SHAPE,
       STRAW_MOTION_CHANNELS,
-      { brandProfilePath: NO_RULES_PROFILE, linkedInHandlesPath: LINKEDIN_HANDLES },
+      { brandProfilePath: NO_RULES_PROFILE, mentionHandlesPath: MENTION_HANDLES },
     );
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     const linkedin = variantsByPlatform(result.copy!).get("linkedin")!;

@@ -19,7 +19,7 @@
  *     unchanged; see `validate.ts`'s `validateCopyForPlatform` for the additive checking half).
  *   - Actually composing a DISTINCT caption variant per platform (the `write-social-copy` Skill,
  *     `CopyInput`/`Copy` carrying several variants) is issue #129, not this one.
- *   - Resolving a LinkedIn mention to a real Page handle (`src/linkedin-handle/`) is issue #130 — this
+ *   - Resolving a LinkedIn mention to a real Page handle (`src/mention-handle/`) is issue #130 — this
  *     module (and `validate.ts`'s mention-syntax check) only cares whether a caption's `@mention` TEXT
  *     is well-formed, never whether the name resolves to a real handle.
  *
@@ -114,7 +114,7 @@ const PLATFORM_COPY_SHAPES_TABLE: readonly PlatformCopyShape[] = [
       "LinkedIn's documented post character limit is 3,000 chars; professional tone favors little/no " +
       'emoji. LinkedIn\'s compose UI creates an inline mention by typing "@" directly against the ' +
       "entity's name (no space) — resolving that name to a real Page handle is a separate lookup " +
-      "(src/linkedin-handle/, issue #126/#130), not this table's job.",
+      "(src/mention-handle/, issue #126/#130/#149), not this table's job.",
     maxChars: 3000,
     minEmojis: 0,
     maxEmojis: 1,
