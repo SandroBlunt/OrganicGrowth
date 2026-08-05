@@ -127,6 +127,23 @@ describe("validateAssetsForExport — preflight, never fabricates (issue #145)",
     assert.ok(problems.some((p) => p.ideaId === "idea-01"));
     assert.ok(problems.some((p) => p.ideaId === "idea-02"));
   });
+
+  it("flags an X variant over the combined caption+hashtags 280-char cap, naming the Idea (issue #146 defense in depth)", () => {
+    const overCapCopy: Copy = {
+      ...DEFAULT_COPY,
+      variants: DEFAULT_COPY.variants!.map((v) =>
+        v.platform === "x" ? { ...v, caption: "A".repeat(290) } : v,
+      ),
+    };
+    const eligible: EligibleAsset[] = [
+      { ideaId: "idea-04", title: "T", asset: makeAsset({ copy: overCapCopy }) },
+    ];
+    const problems = validateAssetsForExport(eligible, ZOHO_BRANDS);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0]!.message, /idea-04/);
+    assert.match(problems[0]!.message, /280/);
+    assert.match(problems[0]!.message, /x/);
+  });
 });
 
 describe("buildSchedulePlan — pure assembly of CSVs + manifest + summary + ledger stamps (issue #145)", () => {
