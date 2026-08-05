@@ -3,8 +3,9 @@
  *
  * All Space/network-independent — this slice has no Magnific Space or MCP code at all (pure Copy-
  * composition + a plain-file lookup), so the Magnific fake is not exercised here; nothing to fake for
- * it. `weaveLinkedInMentions`'s own async shell is tested against temp-dir `linkedin-handles.yaml`
- * fixtures, mirroring `src/linkedin-handle/store.test.ts`'s own isolation pattern.
+ * it. `weaveLinkedInMentions`'s own async shell is tested against temp-dir `mention-handles.yaml`
+ * fixtures (issue #149's platform-keyed shape), mirroring `src/mention-handle/store.test.ts`'s own
+ * isolation pattern.
  */
 
 import { describe, it } from "node:test";
@@ -210,8 +211,8 @@ describe("unresolvedMentionNames — exactly the unresolved plain names, in orde
 describe("weaveLinkedInMentions — resolves against the real committed lookup file, weaves, reports unresolved", () => {
   it("weaves @Name for a resolved company and plain text for an unresolved one, reporting the unresolved name", async () => {
     await withTempDir(async (dir) => {
-      const path = join(dir, "linkedin-handles.yaml");
-      await writeFile(path, "OpenAI: openai\n", "utf8");
+      const path = join(dir, "mention-handles.yaml");
+      await writeFile(path, "OpenAI:\n  linkedin: openai\n", "utf8");
       const input: CopyInput = { title: "AI news", companies: ["OpenAI", "Unknown Startup"] };
       const result = await weaveLinkedInMentions(
         "AI just shipped three new agents this week.",
@@ -227,8 +228,8 @@ describe("weaveLinkedInMentions — resolves against the real committed lookup f
 
   it("weaves @Name for every company when all resolve, unresolvedMentions is empty", async () => {
     await withTempDir(async (dir) => {
-      const path = join(dir, "linkedin-handles.yaml");
-      await writeFile(path, "OpenAI: openai\nAnthropic: anthropic\n", "utf8");
+      const path = join(dir, "mention-handles.yaml");
+      await writeFile(path, "OpenAI:\n  linkedin: openai\nAnthropic:\n  linkedin: anthropic\n", "utf8");
       const input: CopyInput = { title: "AI news", companies: ["OpenAI", "Anthropic"] };
       const result = await weaveLinkedInMentions("AI just shipped three new agents this week.", input, path);
       assert.ok(result.caption.includes("@OpenAI"));
@@ -247,8 +248,8 @@ describe("weaveLinkedInMentions — resolves against the real committed lookup f
 
   it("never mentions a company absent from the Spec's own companies data, even if the lookup would resolve it", async () => {
     await withTempDir(async (dir) => {
-      const path = join(dir, "linkedin-handles.yaml");
-      await writeFile(path, "OpenAI: openai\nAnthropic: anthropic\n", "utf8");
+      const path = join(dir, "mention-handles.yaml");
+      await writeFile(path, "OpenAI:\n  linkedin: openai\nAnthropic:\n  linkedin: anthropic\n", "utf8");
       const input: CopyInput = { title: "AI news", companies: ["OpenAI"] };
       const caption = "AI just shipped three new agents this week.";
       const result = await weaveLinkedInMentions(caption, input, path);
@@ -257,7 +258,7 @@ describe("weaveLinkedInMentions — resolves against the real committed lookup f
     });
   });
 
-  it("defaults to DEFAULT_LINKEDIN_HANDLES_PATH when no path is given and there are companies to resolve", async () => {
+  it("defaults to DEFAULT_MENTION_HANDLES_PATH when no path is given and there are companies to resolve", async () => {
     // Just proves it never throws against the real committed file (mirrors store.test.ts's own guarantee).
     const input: CopyInput = { title: "AI news", companies: ["Some Company Nobody Has Committed"] };
     await assert.doesNotReject(() => weaveLinkedInMentions("A caption.", input));

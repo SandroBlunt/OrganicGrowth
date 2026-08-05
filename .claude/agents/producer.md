@@ -207,8 +207,9 @@ its own step, separately — the SAME shared step for every Recipe, parameterize
 3. **Resolve and weave LinkedIn `@mention`s, LinkedIn variant only (issue #130):**
    `src/copy/linkedin-mentions.ts`'s `weaveLinkedInMentions` resolves every company/product named in the
    Spec's own structured companies data (`CopyInput.companies`/`CopySlideBeat.companies` — never free
-   prose) through issue #126's lookup (`src/linkedin-handle/store.ts`'s `resolveLinkedInHandle`) and
-   weaves in `@Name` for a resolved handle, or the plain name — flagged via `unresolvedMentions` for
+   prose) through issue #126's lookup (issue #149's platform-keyed `data/mention-handles.yaml`, via
+   `src/mention-handle/store.ts`'s `resolveLinkedInHandle`) and weaves in `@Name` for a resolved handle,
+   or the plain name — flagged via `unresolvedMentions` for
    Operator review — for one that doesn't resolve. Zero companies is a no-op.
 4. **Check each variant against ITS OWN platform's bounds:** the primary Channel's variant with
    `src/copy/validate.ts`'s `validateCopy` against the chosen Recipe's own `copyShape` — exactly as

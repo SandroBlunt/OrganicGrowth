@@ -597,12 +597,12 @@ For a platform whose `platformCopyShapeFor(platform)?.supportsMentions` is `true
 alone), AFTER `injectRequiredParts` and BEFORE that variant is validated, `weaveLinkedInMentions`
 (`src/copy/linkedin-mentions.ts`, issue #130) SHALL run against the injected caption, resolving every
 company/product in `input`'s own structured companies data (never free prose) through issue #126's
-lookup at `options.linkedInHandlesPath` (defaulting to `DEFAULT_LINKEDIN_HANDLES_PATH`). The resulting
-woven caption SHALL be what that variant is validated against, and its
-`unresolvedMentions` (when non-empty) SHALL be carried onto that platform's `CopyVariant`. Every OTHER
-targeted platform (any platform whose `supportsMentions` is not `true`, including the primary Channel
-when it is not LinkedIn) SHALL be completely unaffected by this step, even when composing the identical
-`CopyInput` companies data.
+lookup — issue #149's platform-keyed `data/mention-handles.yaml` — at `options.mentionHandlesPath`
+(defaulting to `DEFAULT_MENTION_HANDLES_PATH`). The resulting woven caption SHALL be what that variant
+is validated against, and its `unresolvedMentions` (when non-empty) SHALL be carried onto that
+platform's `CopyVariant`. Every OTHER targeted platform (any platform whose `supportsMentions` is not
+`true`, including the primary Channel when it is not LinkedIn) SHALL be completely unaffected by this
+step, even when composing the identical `CopyInput` companies data.
 
 For a platform whose `platformCopyShapeFor(platform)?.capIncludesHashtags` is `true` (today: `x` alone,
 issue #142), `checkCombinedCaptionHashtagsCap` (`src/copy/validate.ts`) SHALL ALSO be checked against
@@ -685,7 +685,7 @@ valid `Copy` is ever returned, mirroring `composeCopy`'s own all-or-nothing cont
 #### Scenario: Every Spec-recorded company that resolves is named as @Name on the LinkedIn variant
 
 - **GIVEN** a `CopyInput` whose `companies` names two companies, both resolving to a committed handle in
-  the LinkedIn Handle Lookup at `options.linkedInHandlesPath`
+  the Mention Handle Registry at `options.mentionHandlesPath`
 - **WHEN** `composeCopyForChannels` is called across the 5-platform Brand
 - **THEN** the LinkedIn variant's caption contains `@Name` for both companies, and its `CopyVariant`
   carries no `unresolvedMentions` field
@@ -708,7 +708,7 @@ valid `Copy` is ever returned, mirroring `composeCopy`'s own all-or-nothing cont
 
 #### Scenario: A company absent from the Spec's own companies data is never mentioned, even if the lookup would resolve it
 
-- **GIVEN** a LinkedIn Handle Lookup with a committed entry for a company NOT present anywhere in the
+- **GIVEN** a Mention Handle Registry with a committed entry for a company NOT present anywhere in the
   `CopyInput`'s `companies`/`slideNarrative` data
 - **WHEN** `composeCopyForChannels` is called
 - **THEN** that company's name never appears anywhere in the LinkedIn variant's caption — grounded,
@@ -764,12 +764,13 @@ saved Copy carries `variants` (`src/copy/contract.ts`'s `Copy.variants`) only wh
 platform was targeted. It SHALL additionally document the LinkedIn mention-resolution step (issue
 #130): for each company/product named in the Spec's own structured companies data, `weaveLinkedInMentions`
 (`src/copy/linkedin-mentions.ts`) resolves a handle via issue #126's lookup
-(`src/linkedin-handle/store.ts`'s `resolveLinkedInHandle`) and weaves the literal `@Name` text into the
-LinkedIn variant's caption when resolved, or the plain name — flagged for Operator review — when not; it
-SHALL state this is a deterministic step the Skill hands off to, never the Skill's own hand-written or
-guessed `@mention`. It SHALL additionally document X's combined caption+hashtags cap (issue #142):
-naming `checkCombinedCaptionHashtagsCap`/`capIncludesHashtags`/`caption_hashtags_length`, and stating
-this check runs REGARDLESS of whether X is the primary Channel or not.
+(`src/mention-handle/store.ts`'s `resolveLinkedInHandle` — issue #149's platform-keyed data source) and
+weaves the literal `@Name` text into the LinkedIn variant's caption when resolved, or the plain name —
+flagged for Operator review — when not; it SHALL state this is a deterministic step the Skill hands off
+to, never the Skill's own hand-written or guessed `@mention`. It SHALL additionally document X's
+combined caption+hashtags cap (issue #142): naming
+`checkCombinedCaptionHashtagsCap`/`capIncludesHashtags`/`caption_hashtags_length`, and stating this
+check runs REGARDLESS of whether X is the primary Channel or not.
 
 #### Scenario: The Skill instructs one distinct caption per targeted platform
 
@@ -782,7 +783,7 @@ this check runs REGARDLESS of whether X is the primary Channel or not.
 
 - **GIVEN** `write-social-copy/SKILL.md`
 - **WHEN** it is read
-- **THEN** it names `weaveLinkedInMentions`, `resolveLinkedInHandle`, and `linkedin-handle`, states that
+- **THEN** it names `weaveLinkedInMentions`, `resolveLinkedInHandle`, and `mention-handle`, states that
   a resolved company/product is woven in as `@Name`, and states that an unresolved one falls back to
   plain text, flagged for Operator review
 
@@ -799,9 +800,10 @@ The system SHALL provide `src/copy/linkedin-mentions.ts`, a pure deep module (mi
 `src/copy/inject.ts`'s pure-logic shape) plus one thin async shell, resolving every company/product
 named in a Recipe's own STRUCTURED companies data — `CopyInput.companies` (the Character Explainer with
 Cast Recipe's whole-Asset grain, issue #125) and every `CopySlideBeat.companies` beat (the News Carousel
-Recipe's per-slide grain, PR #122) — through issue #126's committed LinkedIn Handle Lookup
-(`src/linkedin-handle/store.ts`'s `resolveLinkedInHandle`), and weaving the literal text the Operator
-would select from LinkedIn's own compose-box dropdown into the caption.
+Recipe's per-slide grain, PR #122) — through issue #126's committed lookup — issue #149's platform-keyed
+`data/mention-handles.yaml`, via `src/mention-handle/store.ts`'s `resolveLinkedInHandle` (a friendly,
+LinkedIn-only alias) — and weaving the literal text the Operator would select from LinkedIn's own
+compose-box dropdown into the caption.
 
 `companiesFromCopyInput(input)` SHALL gather every name from `input.companies` and every
 `input.slideNarrative[].companies` beat, in that order, deduped case-insensitively (the first-seen
@@ -825,9 +827,9 @@ nothing to mention.
 `unresolvedMentionNames(resolutions)` SHALL return the plain `name` of every resolution whose `resolved`
 is `false`, in order — the Operator-review flag list, never silently dropped.
 
-`weaveLinkedInMentions(caption, input, linkedInHandlesPath?)` SHALL be the thin async shell:
+`weaveLinkedInMentions(caption, input, mentionHandlesPath?)` SHALL be the thin async shell:
 `companiesFromCopyInput(input)`, resolve each via `resolveLinkedInHandle` (issue #126, defaulting to
-`DEFAULT_LINKEDIN_HANDLES_PATH` when `linkedInHandlesPath` is omitted), weave the result into `caption`,
+`DEFAULT_MENTION_HANDLES_PATH` when `mentionHandlesPath` is omitted), weave the result into `caption`,
 and return `{ caption, unresolvedMentions }`. Zero companies SHALL short-circuit BEFORE any file I/O and
 return `caption` byte-for-byte unchanged.
 
@@ -858,9 +860,9 @@ return `caption` byte-for-byte unchanged.
 - **THEN** zero resolutions returns the caption completely unchanged; the already-present resolution is
   NOT duplicated; the absent resolution's mention text is appended to the caption
 
-#### Scenario: weaveLinkedInMentions resolves, weaves, and reports unresolved names against the real lookup file
+#### Scenario: weaveLinkedInMentions resolves, weaves, and reports unresolved names against the real registry file
 
-- **GIVEN** a committed `linkedin-handles.yaml` resolving one of two companies named in a `CopyInput`
+- **GIVEN** a committed `mention-handles.yaml` resolving one of two companies named in a `CopyInput`
 - **WHEN** `weaveLinkedInMentions(caption, input, path)` is called
 - **THEN** the returned caption contains `@Name` for the resolved company and the plain name for the
   unresolved one, and `unresolvedMentions` contains exactly the unresolved company's name

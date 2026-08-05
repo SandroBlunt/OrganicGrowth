@@ -176,7 +176,7 @@ describe("write-social-copy Skill — composes one variant per targeted Channel 
     assert.match(text, /#130/);
     assert.match(text, /weaveLinkedInMentions/);
     assert.match(text, /resolveLinkedInHandle/);
-    assert.match(text, /linkedin-handle/);
+    assert.match(text, /mention-handle/);
   });
 
   it("states an unresolved company/product falls back to plain text, flagged for Operator review", async () => {

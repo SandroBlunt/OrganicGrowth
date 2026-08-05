@@ -30,7 +30,7 @@
  * (`./platform-shape.ts`'s `resolveCopyShapeForPlatform`) and runs the SAME core checks against it,
  * plus — only for a platform whose bounds declare `supportsMentions: true` (today: LinkedIn) — a check
  * that any inline `@mention` in the caption is well-formed TEXT SYNTAX (never a lookup; resolving a
- * name to a real LinkedIn Page handle is the separate `src/linkedin-handle/` store, issue #126/#130).
+ * name to a real LinkedIn Page handle is the separate `src/mention-handle/` store, issue #126/#130/#149).
  *
  * `checkCombinedCaptionHashtagsCap` (issue #142) is a SECOND, ADDITIVE check `validateCopyForPlatform`
  * also runs: for a platform whose `PlatformCopyShape` declares `capIncludesHashtags: true` (today: X
@@ -220,7 +220,7 @@ export function validateCopy(
  * still reads as a plausible handle-shaped token, so this is a syntax check only, never a semantic one.
  *
  * This checks TEXT SHAPE ONLY — it never resolves a name to a real LinkedIn Page handle (that is the
- * separate `src/linkedin-handle/` lookup, issue #126/#130). Pure, no I/O.
+ * separate `src/mention-handle/` lookup, issue #126/#130/#149). Pure, no I/O.
  */
 export function scanAtHandleMentionSyntax(
   text: string,
