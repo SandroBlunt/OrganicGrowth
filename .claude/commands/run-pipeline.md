@@ -62,8 +62,22 @@ how you invoke it selects the Brand:
      gate). After you pick, the `producer` renders the Asset in the same session — pinning the pick,
      running the remaining media steps, composing the Copy out-of-Space — moving that Asset to `produced`.
 
+   - **Schedule Batch approval (in-conversation, before Gate 3 — issue #148).** Once a Run's eligible
+     Assets (today: *News Carousel* — Zoho's bulk path is images-only) are produced, the `producer`
+     offers the **Schedule Batch** export and runs it only after you approve, in this SAME conversation,
+     every one of that Run's generated outputs and captions — never unprompted. This is a distinct
+     checkpoint, **not** one of the three formal gates: it is conversational only and writes nothing to
+     the ledger. Only once you approve does `/export-schedule <brand> <format> <run> <start-date>` host
+     each Asset's slides on S3, write the Zoho-ready CSVs + manifest, and stamp `scheduled_at` — the
+     Asset's `status` stays `produced` (ADR-0011 unchanged). A self-cleaning cleanup pass runs first,
+     automatically.
+
    - **Gate 3 — Publish.** Presents the produced Assets, their composed Copy verbatim, and waits for you
-     to publish and log the Post URL with `/log-post <brand> <idea-id> <recipe> <facebook-url>` (Recipe-
+     to publish. For a Schedule Batch Asset, publishing means uploading the exported CSVs to Zoho Social
+     and reviewing the queued posts there before they go live; for any other Asset (e.g. a Character
+     Explainer Reel) you publish directly to the Channel — either way this is a SECOND, distinct human
+     step from the Schedule Batch approval above (hosting/writing files is not publishing, ADR-0002).
+     Then log the Post URL with `/log-post <brand> <idea-id> <recipe> <facebook-url>` (Recipe-
      explicit — attribution is keyed `(Idea, Recipe)`, ADR-0011). After logging, the conductor offers
      `/track-performance <brand>` and `/report <brand>`.
 

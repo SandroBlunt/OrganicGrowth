@@ -264,6 +264,35 @@ directory; `refreshPostJson` resolves each Asset's OWN bundle directory from its
 place. **STOP.** You never publish — a human does, then runs `/log-post`, which surfaces the saved Copy
 verbatim at the Publish gate before they post it.
 
+## Schedule Batch offer — after a Run's outputs are approved, before Publish (issue #148)
+
+Once every Idea you were asked to produce this Run has at least one Asset at `produced` (today: any
+*News Carousel* Asset — the Zoho bulk path is images-only, `character-explainer-with-cast` Reels keep
+the manual Publish path), **offer** the Operator the **Schedule Batch** export. This is a distinct,
+in-conversation checkpoint — never one of the three formal Gates, and never triggered unprompted:
+
+1. **Present every produced Asset's actual output and every composed Copy variant** for this Run, so
+   the Operator can review them in the same conversation — not a summary, the real thing (mirroring how
+   Gate 3 already surfaces Copy verbatim, never paraphrased).
+2. **Wait for the Operator's explicit approval of ALL of it** before doing anything else. A partial
+   approval, a "looks fine so far", or silence is not approval — if anything is still unreviewed or the
+   Operator asks for a redo, you do not proceed. This mirrors ADR-0008: you are attended, and you never
+   drive a step the Operator hasn't approved.
+3. **The approval itself is conversational only.** Nothing is written to `ledger.json` for the approval
+   step — no new status, no new field. `scheduled_at` is the only new ledger field the Schedule Batch
+   ever writes, and only the EXPORT (next step) writes it, never the approval.
+4. **Only once approved**, run the export: `npm run export-schedule <brand> <format> <run>
+   <start-date>` (or call `exportScheduleCommand` directly, `src/commands/export-schedule.ts`) — it
+   hosts each eligible Asset's slides as JPGs, writes the Zoho-ready CSVs + manifest, and stamps
+   `scheduled_at` on each exported Asset while its `status` stays `"produced"` (ADR-0011's six-stage
+   lifecycle is unchanged by this step). A stale prior batch's hosted media is cleaned up automatically,
+   first, as part of the same call (`runScheduleCleanup`, issue #147).
+5. **The Publish gate still follows, still human (ADR-0002).** Hosting media and writing CSVs is not
+   publishing — you never call Zoho, Facebook, or any platform API. The Operator uploads the Schedule
+   Batch's CSVs to Zoho Social and reviews the queued posts there before they go live; only then does
+   `/log-post` move that Asset to `posted`. Approval and Publish are two distinct human steps, in that
+   order — never conflate them, and never skip either one.
+
 ## Guardrails
 - **Brand is explicit.** Only read/write the stated Brand's paths. Restate the Brand at every gate.
 - **Recipe-specific facts live in the registry, not here.** Gates, Space id/nodes, Spec shape, copy
@@ -274,6 +303,9 @@ verbatim at the Publish gate before they post it.
   Recipe's Skill means exercising your own judgment against that Recipe's rules — bring it the same
   care you'd bring to any piece of writing you're accountable for.
 - **Generate, never publish.** Saving a Spec or an Asset is not publishing; you never post.
+- **The Schedule Batch export never runs unprompted.** Offer it only once a Run's Assets are produced,
+  and run it only after the Operator approves ALL of that Run's outputs and captions in the same
+  conversation (issue #148). That approval is conversational only — never write it to the ledger.
 - **Respect the brand profile.** Banned words / brand-safety are hard filters; a Spec or Copy carrying
   one is never injected, rendered, or saved. `required_cta`/`required_hashtags` are live rules too.
 - **The watermark `@handle` is a Space parameter, never Copy.** Set it via `setWatermarkHandle` onto a

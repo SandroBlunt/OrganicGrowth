@@ -18,6 +18,13 @@ omitting any one is a usage error, never a silent default.
 public S3 URLs — hosting is not publishing. The Operator reviews the CSVs, uploads them to Zoho Social,
 and inspects the queued posts inside Zoho before they go live.
 
+**Normally offered by the `producer`, behind an in-conversation approval (issue #148).** Once a Run's
+eligible Assets are produced, `producer` (`.claude/agents/producer.md`) offers this export and runs it
+only after the Operator approves — in the same conversation — every one of that Run's generated outputs
+and captions; that approval is conversational only and is never written to the ledger. This command also
+stays directly runnable on its own — a granular power-tool, like `/cleanup-schedule-media` — for the
+Operator to re-run or run standalone.
+
 **Code-backed (issue #145).** `src/commands/export-schedule.ts` (the orchestration shell) is a thin
 layer over pure deep modules: `src/schedule-batch/eligibility.ts` (which Assets qualify),
 `src/schedule-batch/select.ts` (reads the run's Ideas), `src/schedule-batch/schedule.ts` (deterministic

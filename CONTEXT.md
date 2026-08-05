@@ -225,6 +225,28 @@ that job once the pick is in. There is **one global queue across all Brands**; e
 `(brand, idea, recipe)` so the Producer writes that **Asset** back to the right Brand's ledger.
 _Avoid_: batch, backlog, jobs.
 
+**Schedule Batch** (a Run's bulk-export bundle, on the way to a Post):
+The `/export-schedule` command's output for a Run's produced, not-yet-posted *News Carousel* **Assets**:
+each Asset's slides hosted as public JPGs, one CSV per configured **Zoho Social Brand**, and a manifest
+recording the cleanup contract. The **Producer** offers it once a Run's eligible Assets are produced, and
+runs it only after the Operator approves — in the same conversation — every one of that Run's generated
+outputs and captions; that approval is conversational only, never written to the ledger. Exporting stamps
+each Asset's `scheduled_at`; the Asset's `status` stays `produced` (ADR-0011's lifecycle is unchanged)
+until the Operator's own `/log-post`. Hosting media and writing files is **not publishing** — the Operator
+still uploads the CSVs to Zoho Social and reviews the queued posts there before they go live, a second,
+distinct human step (the **Publish** gate stays human; ADR-0002).
+_Avoid_: batch (too generic — this is Zoho-specific), export (name it fully — a Schedule Batch is more
+than a file dump: hosted media, CSVs, and a manifest, together).
+
+**Zoho Social Brand** (Zoho's own account container):
+Zoho Social's container of connected platform accounts — **not** an OrganicGrowth **Brand**. One
+OrganicGrowth Brand's **Channels** can span several Zoho Social Brands (e.g. Straw Motion's Facebook/
+Instagram/TikTok live in one, its LinkedIn/X in another), each with its own exact Zoho channel labels
+(e.g. `LinkedInProfile`, never `LinkedIn`) and its own configured clock — read from the Brand Profile's
+per-Brand Zoho config (`loadZohoConfig`), never hardcoded. A **Schedule Batch** writes one CSV per Zoho
+Social Brand grouping.
+_Avoid_: Brand (that's the OrganicGrowth tenant), Channel (that's the account/Page a Brand publishes to).
+
 **Post**:
 The published content on the **Channel** — the Operator publishes an **Asset** to create it; the unit
 OrganicGrowth measures. Each **Asset** becomes at most one Post (zero if never published), so an Idea
