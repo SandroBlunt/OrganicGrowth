@@ -72,6 +72,13 @@ describe("export-schedule.md — describes the code-backed Schedule Batch export
     assert.match(doc, /hermetic/i);
   });
 
+  it("documents that cleanup runs FIRST, automatically, before this run is touched (issue #147)", async () => {
+    const doc = await readFile(EXPORT_SCHEDULE_CMD, "utf8");
+    assert.match(doc, /cleanup FIRST, automatically/);
+    assert.match(doc, /src\/schedule-batch\/cleanup-runner\.ts/);
+    assert.match(doc, /cleanup-schedule-media/);
+  });
+
   it("states the Publish gate stays human — this command never publishes (ADR-0002)", async () => {
     const doc = await readFile(EXPORT_SCHEDULE_CMD, "utf8");
     assert.match(doc, /Publish gate stays human/);

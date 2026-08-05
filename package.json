@@ -19,6 +19,7 @@
     "report": "tsx src/commands/report.ts",
     "run-pipeline": "tsx src/commands/run-pipeline.ts",
     "export-schedule": "tsx src/commands/export-schedule.ts",
+    "cleanup-schedule-media": "tsx src/commands/cleanup-schedule-media.ts",
     "media-host-smoke": "tsx src/media-host/live/smoke.ts"
   },
   "dependencies": {

@@ -20,13 +20,21 @@
  * `/track-performance`'s `SKIPPED` lines). A genuine runtime failure (a broken ledger file, a Media Host
  * error) still propagates as a throw, exactly like every other command's underlying I/O.
  *
+ * **Runs the Brand's manifest-driven S3 cleanup FIRST, automatically** (issue #147, parent #140): before
+ * loading this run's Ideas at all, `runScheduleCleanup` (`src/schedule-batch/cleanup-runner.ts`) scans
+ * the WHOLE Brand's Schedule Batch manifest tree (every run, every Format — not just the one being
+ * exported), deletes any hosted object more than 1 day past its `scheduled_at` through the SAME injected
+ * `MediaHostPort`, and records the removal onto each manifest it touches. This is what keeps published
+ * media from lingering on S3 without the Operator ever having to remember a separate step; the same
+ * cleanup is also runnable on its own via `/cleanup-schedule-media <brand>`.
+ *
  * Brand is always explicit: `<brand>` is a required first argument, resolved via `resolveBrand` —
  * mirroring every other granular command (issue #20).
  */
 
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { resolveBrand } from "../brand/resolver.ts";
@@ -41,6 +49,7 @@ import { selectEligibleAssets, type EligibleAsset, type SkippedAsset } from "../
 import { deriveScheduleSlots, validateSlotsFuture } from "../schedule-batch/schedule.ts";
 import { validateAssetsForExport, buildSchedulePlan, type AssetHostedMedia } from "../schedule-batch/plan.ts";
 import { slideBaseName, scheduleMediaKey } from "../schedule-batch/media-key.ts";
+import { runScheduleCleanup, type CleanupResult } from "../schedule-batch/cleanup-runner.ts";
 import type { MediaHostPort } from "../media-host/port.ts";
 
 const MANIFEST_FILE_NAME = "zoho-manifest.json";
@@ -116,6 +125,16 @@ function describeSkipped(skipped: readonly SkippedAsset[]): string {
   return `\nSkipped:\n${skipped.map((s) => `  - ${s.note}`).join("\n")}`;
 }
 
+/** Empty when nothing was removed (the common case) — never clutters routine output. */
+function describeCleanup(result: CleanupResult): string {
+  if (result.actions.length === 0) return "";
+  const manifestCount = new Set(result.actions.map((a) => a.manifestPath)).size;
+  return (
+    `Cleanup: removed hosted media for ${result.actions.length} Asset(s) across ${manifestCount} ` +
+    "manifest(s) (more than 1 day past their scheduled time).\n\n"
+  );
+}
+
 // ---------------------------------------------------------------------------
 // exportScheduleCommand
 // ---------------------------------------------------------------------------
@@ -141,7 +160,18 @@ export async function exportScheduleCommand(
   const now = (options.now ?? (() => new Date().toISOString()))();
   const mediaHost = options.mediaHost ?? DEFAULT_MEDIA_HOST;
 
-  const header = `Exporting Schedule Batch for Brand: ${brand}, Format: ${format}, Run: ${run}.`;
+  // --- 0. Run the Brand's manifest-driven S3 cleanup FIRST, automatically (issue #147) --------------
+  // Scans the WHOLE Brand's Schedule Batch manifest tree (every run, every Format), not just this one —
+  // `options.ideasRoot` (when given) is THIS run's Format-parent folder, so its own parent is the
+  // Brand-level ideas root cleanup needs to scan (mirrors `resolveBrand(...).ideasRoot` exactly).
+  const cleanupIdeasRoot = options.ideasRoot !== undefined ? dirname(options.ideasRoot) : brandPaths.ideasRoot;
+  const cleanup = await runScheduleCleanup(brand, {
+    ideasRoot: cleanupIdeasRoot,
+    now: () => now,
+    mediaHost,
+  });
+
+  const header = `${describeCleanup(cleanup)}Exporting Schedule Batch for Brand: ${brand}, Format: ${format}, Run: ${run}.`;
 
   // --- 1. Load this run's Ideas, decide eligibility -------------------------------------------------
 
