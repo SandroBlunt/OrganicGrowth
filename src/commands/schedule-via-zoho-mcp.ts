@@ -10,10 +10,11 @@
  * (`src/schedule-batch/select.ts`), decide which Assets are eligible (`src/schedule-batch/eligibility.ts`
  * — the SAME `news-carousel`/`produced`/not-yet-`scheduled_at` rule the CSV path uses), load the Brand's
  * Zoho Social Brand config (`loadZohoConfig`, issue #143), decide WHICH Channels/WHEN via
- * `buildMcpSchedulePlan` (`src/schedule-batch/mcp-plan.ts`, issue #160), run the SAME preflight
- * validation the CSV path runs (`validateAssetsForExport`, defense in depth — never trusted blindly),
- * host each planned Asset's slides via the injected `MediaHostPort` (issue #144 — unchanged
- * infrastructure, the SAME Media Host the CSV export already uses), then drive `runMcpSchedule`
+ * `buildMcpSchedulePlan` (`src/schedule-batch/mcp-plan.ts`, issue #160 — including `options.postsPerDay`,
+ * issue #171, passed straight through to the SAME shared `deriveScheduleSlots` the CSV path uses), run
+ * the SAME preflight validation the CSV path runs (`validateAssetsForExport`, defense in depth — never
+ * trusted blindly), host each planned Asset's slides via the injected `MediaHostPort` (issue #144 —
+ * unchanged infrastructure, the SAME Media Host the CSV export already uses), then drive `runMcpSchedule`
  * (`src/schedule-batch/mcp-schedule.ts`) — which itself enforces AC1 (no Zoho write-tool before
  * approval) and AC2 (upload, then validate, then schedule). Every successfully-scheduled Asset's
  * `scheduled_at` + `zoho_schedule_reference` (issue #161) is stamped via `AssetStore.writeAsset`
@@ -99,6 +100,12 @@ export interface ScheduleViaZohoMcpOptions {
   /** REQUIRED, explicit: the Operator's in-conversation approval of this Run's outputs and captions
    *  (ADR-0020). There is no default — an omitted or `false` value refuses (AC1), before any Zoho call. */
   readonly approved: boolean;
+  /** How many eligible Assets share one calendar day before the schedule advances to the next (issue
+   *  #171 — the Unhypped Daily Format's ~6 Assets/day volume), passed straight through to the SAME
+   *  shared derivation the CSV/S3 fallback path uses (`buildMcpSchedulePlan` -> `deriveScheduleSlots`).
+   *  Defaults to 1 (one Asset per day), reproducing every existing (weekly) Format's schedule
+   *  byte-for-byte. */
+  readonly postsPerDay?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +160,8 @@ export async function scheduleViaZohoMcpCommand(
   // --- 3. Decide WHICH Channels/WHEN (issue #160) — refuses on empty-run/lead-window too -------------
 
   const nowMs = Date.parse(now);
-  const plan = buildMcpSchedulePlan({ eligible, run, zohoConfig, startDate, nowMs });
+  const postsPerDay = options.postsPerDay ?? 1;
+  const plan = buildMcpSchedulePlan({ eligible, run, zohoConfig, startDate, nowMs, postsPerDay });
   if (!plan.ok) {
     return `${header}\n${plan.message}`;
   }

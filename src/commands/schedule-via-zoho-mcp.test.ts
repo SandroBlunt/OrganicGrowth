@@ -8,6 +8,7 @@ import { scheduleViaZohoMcpCommand } from "./schedule-via-zoho-mcp.ts";
 import { loadIdeaAssets } from "../asset/store.ts";
 import { FakeMediaHost } from "../media-host/fixtures/fake-media-host.ts";
 import { FakeZohoSchedulePort } from "../schedule-batch/fixtures/fake-zoho-schedule-port.ts";
+import { deriveScheduleSlots } from "../schedule-batch/schedule.ts";
 
 const BRAND = "straw-motion";
 const FORMAT = "unhypped-news";
@@ -107,6 +108,30 @@ async function seedOneEligibleIdea(fx: Fixture): Promise<void> {
       ],
     },
   ]);
+}
+
+/** Seed `count` eligible Ideas (idea-01..idea-0N), in ascending Idea-number order. */
+async function seedEligibleIdeas(fx: Fixture, count: number): Promise<string[]> {
+  const ideaIds: string[] = [];
+  const ideas: unknown[] = [];
+  for (let i = 1; i <= count; i++) {
+    const label = String(i).padStart(2, "0");
+    const slidePaths = await writeOutputBundleSlides(fx.runFolder, `idea-${label}`);
+    const ideaId = `idea-${RUN}-${label}`;
+    ideaIds.push(ideaId);
+    ideas.push({
+      id: ideaId,
+      title: `Story ${label}`,
+      format: FORMAT,
+      run: RUN,
+      status: "accepted",
+      assets: [
+        { recipe: "news-carousel", status: "produced", asset_paths: slidePaths, copy: fullCopy(`idea-${label}`) },
+      ],
+    });
+  }
+  await writeLedger(fx.ledgerPath, ideas);
+  return ideaIds;
 }
 
 describe("scheduleViaZohoMcpCommand — AC1: no Zoho write-tool before approval (issue #163)", () => {
@@ -299,6 +324,38 @@ describe("scheduleViaZohoMcpCommand — happy path (issue #163)", () => {
 
       assert.match(output, /lead-window|1 hour/i);
       assert.equal(port.calls.length, 0);
+    });
+  });
+
+  it("posts-per-day (issue #171): 3 eligible Assets at postsPerDay=6 all schedule to the SAME calendar day, at the SAME shared-derivation slots the CSV path would use", async () => {
+    await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+      const ideaIds = await seedEligibleIdeas(fx, 3);
+      const port = new FakeZohoSchedulePort();
+      const mediaHost = new FakeMediaHost();
+
+      const output = await scheduleViaZohoMcpCommand(BRAND, FORMAT, RUN, START_DATE, {
+        ledgerPath: fx.ledgerPath,
+        brandProfilePath: fx.brandProfilePath,
+        now: () => NOW,
+        mediaHost,
+        port,
+        approved: true,
+        postsPerDay: 6,
+      });
+
+      assert.match(output, /Scheduled:/);
+
+      const expectedSlots = deriveScheduleSlots(START_DATE, 3, 6);
+      const scheduledAtByIdea: string[] = [];
+      for (let i = 0; i < ideaIds.length; i++) {
+        const assets = await loadIdeaAssets(ideaIds[i]!, fx.ledgerPath);
+        const scheduledAt = assets![0]!.scheduled_at!;
+        assert.equal(scheduledAt, new Date(expectedSlots[i]!.utcMs).toISOString());
+        scheduledAtByIdea.push(scheduledAt);
+      }
+      // All 3 land on the SAME calendar day — the whole point of postsPerDay=6 with only 3 Assets.
+      const distinctDays = new Set(scheduledAtByIdea.map((iso) => iso.slice(0, 10)));
+      assert.equal(distinctDays.size, 1);
     });
   });
 

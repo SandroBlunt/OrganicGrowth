@@ -4,9 +4,10 @@ import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { exportScheduleCommand, main as exportScheduleMain } from "./export-schedule.ts";
+import { exportScheduleCommand, main as exportScheduleMain, parsePostsPerDayArg } from "./export-schedule.ts";
 import { loadIdeaAssets } from "../asset/store.ts";
 import { FakeMediaHost } from "../media-host/fixtures/fake-media-host.ts";
+import { deriveScheduleSlots } from "../schedule-batch/schedule.ts";
 
 const BRAND = "straw-motion";
 const FORMAT = "unhypped-news";
@@ -586,6 +587,121 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
       ) as { readonly ideas: readonly { readonly cleaned_at?: string }[] };
       assert.equal(reread.ideas[0]!.cleaned_at, undefined);
     });
+  });
+
+  it("posts-per-day (issue #171): 7 eligible Assets at postsPerDay=6 schedule across ceil(7/6)=2 days, rotation order preserved", async () => {
+    await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+      const ideaLabels = ["01", "02", "03", "04", "05", "06", "07"];
+      const ideasWithPaths: { readonly ideaId: string; readonly paths: readonly string[] }[] = [];
+      for (const label of ideaLabels) {
+        const paths = await writeOutputBundleSlides(fx.runFolder, `idea-${label}`);
+        ideasWithPaths.push({ ideaId: `idea-${RUN}-${label}`, paths });
+      }
+
+      await writeLedger(
+        fx.ledgerPath,
+        ideasWithPaths.map(({ ideaId, paths }, i) => ({
+          id: ideaId,
+          title: `Story ${ideaLabels[i]}`,
+          format: FORMAT,
+          run: RUN,
+          status: "accepted",
+          assets: [
+            { recipe: "news-carousel", status: "produced", asset_paths: paths, copy: fullCopy(`idea-${ideaLabels[i]}`) },
+          ],
+        })),
+      );
+
+      const mediaHost = new FakeMediaHost();
+      const output = await exportScheduleCommand(BRAND, FORMAT, RUN, START_DATE, {
+        ledgerPath: fx.ledgerPath,
+        brandProfilePath: fx.brandProfilePath,
+        ideasRoot: fx.ideasRoot,
+        now: () => NOW,
+        mediaHost,
+        postsPerDay: 6,
+      });
+      assert.match(output, /Wrote/);
+
+      // --- Every Asset's scheduled_at matches EXACTLY what deriveScheduleSlots(startDate, 7, 6) would
+      //     produce, in Idea-number order — the shared derivation, not a per-mechanism reimplementation.
+      const expectedSlots = deriveScheduleSlots(START_DATE, 7, 6);
+      for (let i = 0; i < ideasWithPaths.length; i++) {
+        const assets = await loadIdeaAssets(ideasWithPaths[i]!.ideaId, fx.ledgerPath);
+        assert.equal(assets![0]!.scheduled_at, new Date(expectedSlots[i]!.utcMs).toISOString());
+      }
+
+      // --- ceil(7/6) = 2 distinct calendar days across the 7 stamped Assets ---
+      const allScheduledAt: string[] = [];
+      for (const { ideaId } of ideasWithPaths) {
+        const assets = await loadIdeaAssets(ideaId, fx.ledgerPath);
+        allScheduledAt.push(assets![0]!.scheduled_at!);
+      }
+      const distinctDays = new Set(allScheduledAt.map((iso) => iso.slice(0, 10)));
+      assert.equal(distinctDays.size, 2);
+    });
+  });
+
+  it("omitting postsPerDay is byte-identical to the pre-#171 default (one Asset per calendar day)", async () => {
+    await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+      const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01");
+      await writeLedger(fx.ledgerPath, [
+        {
+          id: "idea-2026-W32-01",
+          title: "T",
+          format: FORMAT,
+          run: RUN,
+          status: "accepted",
+          assets: [{ recipe: "news-carousel", status: "produced", asset_paths: idea01Paths, copy: fullCopy("idea-01") }],
+        },
+      ]);
+
+      const output = await exportScheduleCommand(BRAND, FORMAT, RUN, START_DATE, {
+        ledgerPath: fx.ledgerPath,
+        brandProfilePath: fx.brandProfilePath,
+        ideasRoot: fx.ideasRoot,
+        now: () => NOW,
+        mediaHost: new FakeMediaHost(),
+      });
+      assert.match(output, /Wrote/);
+
+      const mainCsv = await readFile(join(fx.runFolder, "zoho-main.csv"), "utf8");
+      // Same byte-exact schedule time this suite's very first happy-path test asserts (default 1/day).
+      assert.ok(mainCsv.startsWith("08/04/2026 15:06,"));
+    });
+  });
+
+  it("parsePostsPerDayArg (issue #171): omitted defaults to 1, a valid digit string parses, an invalid one is rejected", () => {
+    assert.equal(parsePostsPerDayArg(undefined), 1);
+    assert.equal(parsePostsPerDayArg("1"), 1);
+    assert.equal(parsePostsPerDayArg("6"), 6);
+    assert.equal(parsePostsPerDayArg("0"), null);
+    assert.equal(parsePostsPerDayArg("-1"), null);
+    assert.equal(parsePostsPerDayArg("1.5"), null);
+    assert.equal(parsePostsPerDayArg("not-a-number"), null);
+  });
+
+  it("main() prints a usage error and exits non-zero for a malformed 5th (posts-per-day) argument", async () => {
+    const originalArgv = process.argv;
+    const originalExitCode = process.exitCode;
+    const stderrChunks: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string) => {
+      stderrChunks.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      process.exitCode = 0;
+      process.argv = ["node", "export-schedule.ts", BRAND, FORMAT, RUN, START_DATE, "not-a-number"];
+      await exportScheduleMain();
+      assert.notEqual(process.exitCode, 0);
+      assert.match(stderrChunks.join(""), /posts-per-day must be a positive integer/);
+    } finally {
+      process.stderr.write = originalWrite;
+      process.argv = originalArgv;
+      process.exitCode = originalExitCode;
+    }
   });
 
   it("main() prints a usage error and exits non-zero when any of the 4 arguments is missing", async () => {

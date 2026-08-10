@@ -3,9 +3,11 @@
  *
  * Two responsibilities, both pure (no clock read, no I/O):
  *
- *   - `deriveScheduleSlots` — one Asset per calendar day, starting at a given date, with the hour
- *     varying across the 7:00-22:00 US-Eastern TARGETING window and always off the round minute (PRD
- *     #140 story 13). "Eastern" here is the shared reference clock the targeting window is defined in —
+ *   - `deriveScheduleSlots` — one Asset per calendar day by default (`postsPerDay = 1`), or up to
+ *     `postsPerDay` Assets sharing a calendar day before advancing to the next (issue #171 — the
+ *     Unhypped Daily Format's ~6 Assets/day volume), starting at a given date, with the hour varying
+ *     across the 7:00-22:00 US-Eastern TARGETING window and always off the round minute (PRD #140 story
+ *     13). "Eastern" here is the shared reference clock the targeting window is defined in —
  *     each output CSV then re-renders the SAME absolute instant in its own Zoho Social Brand's
  *     configured clock (`timezone.ts`'s `formatZohoScheduleTime`, done by the caller). Deterministic: a
  *     fixed rotation of (hour, minute) pairs, indexed by the Asset's position from the start date — no
@@ -86,16 +88,36 @@ function addCalendarDays(
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
 }
 
+/** Throw a clear error unless `postsPerDay` is a positive integer — never silently guess a different
+ *  value (mirrors `parseStartDate`'s own posture on a malformed `startDate`). */
+function assertValidPostsPerDay(postsPerDay: number): void {
+  if (!Number.isInteger(postsPerDay) || postsPerDay < 1) {
+    throw new Error(
+      `schedule: postsPerDay must be a positive integer (got ${JSON.stringify(postsPerDay)}).`,
+    );
+  }
+}
+
 /**
- * Derive `count` schedule slots, one per calendar day starting at `startDate` (`YYYY-MM-DD`), with the
- * hour/minute drawn from the fixed `HOUR_MINUTE_ROTATION` (cycling for `count` > 12). PURE: no clock
- * read, no randomness — the same `(startDate, count)` always returns the same slots.
+ * Derive `count` schedule slots starting at `startDate` (`YYYY-MM-DD`), placing up to `postsPerDay`
+ * consecutive slots on each calendar day before advancing to the next (issue #171 — the Unhypped Daily
+ * Format's ~6 Assets/day volume; PRD #140 story 13 only ever needed the 1/day case). `postsPerDay`
+ * defaults to **1**, which reproduces the original one-Asset-per-day behavior byte-for-byte — every
+ * existing (weekly) Format's schedule is unaffected. Each slot's hour/minute is STILL drawn from the
+ * fixed `HOUR_MINUTE_ROTATION` by its OVERALL position `i` (never re-indexed per day), so raising
+ * `postsPerDay` only changes which calendar day a slot lands on — never which (hour, minute) it uses;
+ * for `postsPerDay` values that evenly divide the rotation's own length (12) — e.g. the Unhypped Daily
+ * Format's 6 — this spreads each day's slots across the SAME six-way split of the 7:00-22:00 window
+ * every day. PURE: no clock read, no randomness — the same `(startDate, count, postsPerDay)` always
+ * returns the same slots.
  */
-export function deriveScheduleSlots(startDate: string, count: number): ScheduleSlot[] {
+export function deriveScheduleSlots(startDate: string, count: number, postsPerDay: number = 1): ScheduleSlot[] {
   const start = parseStartDate(startDate);
+  assertValidPostsPerDay(postsPerDay);
   const slots: ScheduleSlot[] = [];
   for (let i = 0; i < count; i++) {
-    const date = addCalendarDays(start, i);
+    const dayOffset = Math.floor(i / postsPerDay);
+    const date = addCalendarDays(start, dayOffset);
     const slot = HOUR_MINUTE_ROTATION[i % HOUR_MINUTE_ROTATION.length]!;
     const utcMs = zonedTimeToUtcMs(date.year, date.month, date.day, slot.hour, slot.minute, EASTERN_TIME_ZONE);
     slots.push({ utcMs });

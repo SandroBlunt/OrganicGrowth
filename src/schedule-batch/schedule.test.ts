@@ -66,6 +66,91 @@ describe("schedule — pure, deterministic schedule derivation (issue #145)", ()
       assert.equal(local.getUTCMonth() + 1, 8);
       assert.equal(local.getUTCDate(), 4);
     });
+
+    describe("postsPerDay (issue #171 — Unhypped Daily volume)", () => {
+      /** Read a slot's own Eastern-local calendar date back out (same helper shape as above). */
+      function localDate(utcMs: number): string {
+        const offset = utcOffsetMsAt(utcMs, EASTERN_TIME_ZONE);
+        const local = new Date(utcMs + offset);
+        return `${local.getUTCFullYear()}-${local.getUTCMonth() + 1}-${local.getUTCDate()}`;
+      }
+
+      it("omitting postsPerDay is byte-identical to the explicit default of 1", () => {
+        const implicit = deriveScheduleSlots("2026-08-04", 5);
+        const explicit = deriveScheduleSlots("2026-08-04", 5, 1);
+        assert.deepEqual(implicit, explicit);
+      });
+
+      it("with postsPerDay = 6, six consecutive slots share the SAME calendar day", () => {
+        const slots = deriveScheduleSlots("2026-08-11", 6, 6);
+        assert.equal(slots.length, 6);
+        const days = slots.map((s) => localDate(s.utcMs));
+        assert.deepEqual(days, Array(6).fill("2026-8-11"));
+      });
+
+      it("with postsPerDay = 6, the 7th slot rolls over to the next calendar day", () => {
+        const slots = deriveScheduleSlots("2026-08-11", 7, 6);
+        const days = slots.map((s) => localDate(s.utcMs));
+        assert.deepEqual(days, [
+          "2026-8-11", "2026-8-11", "2026-8-11", "2026-8-11", "2026-8-11", "2026-8-11",
+          "2026-8-12",
+        ]);
+      });
+
+      it("N=7 Assets at postsPerDay=6 span exactly ceil(7/6)=2 distinct calendar days", () => {
+        const slots = deriveScheduleSlots("2026-08-11", 7, 6);
+        const distinctDays = new Set(slots.map((s) => localDate(s.utcMs)));
+        assert.equal(distinctDays.size, 2);
+      });
+
+      it("N=18 Assets at postsPerDay=6 span exactly ceil(18/6)=3 distinct calendar days, 6 per day", () => {
+        const slots = deriveScheduleSlots("2026-08-11", 18, 6);
+        const byDay = new Map<string, number>();
+        for (const slot of slots) {
+          const day = localDate(slot.utcMs);
+          byDay.set(day, (byDay.get(day) ?? 0) + 1);
+        }
+        assert.equal(byDay.size, 3);
+        for (const count of byDay.values()) assert.equal(count, 6);
+      });
+
+      it("same-day slots are drawn from the HOUR_MINUTE_ROTATION in order (rotation order preserved)", () => {
+        // postsPerDay=1 already proves index i of the rotation is used for the i-th slot overall
+        // (existing "cycles the hour/minute rotation" + window-bounds tests above). With
+        // postsPerDay=6, the SAME rotation-by-overall-index rule must still hold — same-day slots are
+        // simply consecutive rotation entries, never re-ordered or re-picked.
+        const oneAtATime = deriveScheduleSlots("2026-08-11", 6, 1); // one slot per rotation index directly
+        const sixPerDay = deriveScheduleSlots("2026-08-11", 6, 6);
+        // The two calls place their slots on different calendar days (postsPerDay=1 spreads across 6
+        // days; postsPerDay=6 keeps all 6 on day 1) so the UTC instants differ — compare the
+        // Eastern-local (hour, minute) pair each slot renders at instead, which is exactly what the
+        // rotation itself is defined in terms of.
+        function localHourMinute(utcMs: number): { readonly hour: number; readonly minute: number } {
+          const offset = utcOffsetMsAt(utcMs, EASTERN_TIME_ZONE);
+          const local = new Date(utcMs + offset);
+          return { hour: local.getUTCHours(), minute: local.getUTCMinutes() };
+        }
+        assert.deepEqual(
+          sixPerDay.map((s) => localHourMinute(s.utcMs)),
+          oneAtATime.map((s) => localHourMinute(s.utcMs)),
+        );
+      });
+
+      it("is pure — calling it twice with the same (startDate, count, postsPerDay) returns the same output", () => {
+        const a = deriveScheduleSlots("2026-08-11", 18, 6);
+        const b = deriveScheduleSlots("2026-08-11", 18, 6);
+        assert.deepEqual(a, b);
+      });
+
+      it("throws a clear error for a non-positive postsPerDay, never silently guessing", () => {
+        assert.throws(() => deriveScheduleSlots("2026-08-11", 3, 0), /postsPerDay/);
+        assert.throws(() => deriveScheduleSlots("2026-08-11", 3, -1), /postsPerDay/);
+      });
+
+      it("throws a clear error for a non-integer postsPerDay, never silently guessing", () => {
+        assert.throws(() => deriveScheduleSlots("2026-08-11", 3, 1.5), /postsPerDay/);
+      });
+    });
   });
 
   describe("validateSlotsFuture", () => {
