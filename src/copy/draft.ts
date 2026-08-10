@@ -101,9 +101,11 @@ function emojiTail(count: number): string {
  * hashtags are injected separately, `inject.ts`). This is the SHARED envelope every deterministic
  * drafter ends with — it is what guarantees the returned Copy passes `validateCopy` for the SAME
  * `CopyShape` it was drafted for, so that safety-critical invariant lives in exactly ONE place rather
- * than being copied into each drafter (issue #111 code review).
+ * than being copied into each drafter (issue #111 code review). Exported so a Recipe-specific drafter
+ * (e.g. `news-short-script-draft.ts`'s `newsShortScriptDraftCopy`, issue #174) can reuse the SAME
+ * envelope for its own description body rather than re-implementing it.
  */
-function assembleCaption(body: string, input: CopyInput, shape: CopyShape): Copy {
+export function assembleCaption(body: string, input: CopyInput, shape: CopyShape): Copy {
   const tail = emojiTail(shape.minEmojis);
   const room = Math.max(0, shape.maxChars - [...tail].length);
   const head = [...body].slice(0, room).join("").trimEnd();
@@ -135,9 +137,10 @@ function beatByRole(
  * Join non-empty parts as SEPARATE SHORT SENTENCES — a period-space join, never an em dash, en dash,
  * or spaced hyphen (issue #108's rule, applied to every drafter, not just `defaultDraftCopy`). Each
  * part is given a trailing "." when it doesn't already end in sentence punctuation. Falsy/blank parts
- * are skipped, so an absent beat/field never leaves a stray double space or empty sentence.
+ * are skipped, so an absent beat/field never leaves a stray double space or empty sentence. Exported
+ * so a Recipe-specific drafter (issue #174) can reuse the SAME dash-free joining rule.
  */
-function joinSentences(parts: readonly (string | undefined)[]): string {
+export function joinSentences(parts: readonly (string | undefined)[]): string {
   return parts
     .map((part) => part?.trim())
     .filter((part): part is string => part !== undefined && part.length > 0)

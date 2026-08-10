@@ -216,3 +216,37 @@ describe("write-social-copy Skill — nothing Brand/Format-specific is hardcoded
     assert.doesNotMatch(text, /Link in bio!/, "must not hardcode any one Brand's required CTA");
   });
 });
+
+describe("write-social-copy Skill — composes a title + description shape for a Recipe whose copyShape declares titleMaxChars (issue #174)", () => {
+  it("names titleMaxChars, Copy.title, and the News Short Script Recipe", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /titleMaxChars/);
+    assert.match(text, /Copy\.title/);
+    assert.match(text, /News Short Script/);
+  });
+
+  it("states title is checked ONLY when shape.titleMaxChars is set — a no-op for every other Recipe", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /ONLY when.{0,20}shape\.titleMaxChars.{0,20}is set/i);
+    assert.match(text, /no-op for every other\s+Recipe/i);
+  });
+
+  it("states the description is stored in the SAME caption field every other Recipe uses", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /description.{0,40}SAME.{0,10}caption.{0,20}field/is);
+  });
+
+  it("hands off to the SAME deterministic checkers — injectRequiredParts then validateCopy", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /SAME deterministic checkers/i);
+    assert.match(text, /injectRequiredParts/);
+    assert.match(text, /validateCopy/);
+  });
+
+  it("points at newsShortScriptDraftCopy as this step's deterministic, testable proof", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /news-short-script-draft\.ts/);
+    assert.match(text, /newsShortScriptDraftCopy/);
+    assert.match(text, /deterministic, testable proof/i);
+  });
+});

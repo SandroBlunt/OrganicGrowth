@@ -47,7 +47,11 @@
  *     not the technical ceiling, with a generous emoji allowance to match TikTok's playful tone.
  *   - `youtube`   — YouTube's description field technically allows up to 5,000 chars; only the first
  *     couple of lines show above "Show more", so this table uses a shorter, still-generous practical
- *     bound that leaves room for a real description plus links/timestamps.
+ *     bound that leaves room for a real description plus links/timestamps. YouTube is also the ONE
+ *     platform in this table that declares `titleMaxChars` (issue #174): YouTube's real video-title
+ *     limit is 100 chars — `./validate.ts`'s `validateCopyForPlatform` enforces it via
+ *     `resolveCopyShapeForPlatform`'s inherited `CopyShape.titleMaxChars` field whenever `platform` is
+ *     `"youtube"`.
  *
  * Pure, deterministic, no I/O — mirrors `src/recipe/registry.ts`'s in-repo, brand-agnostic pattern.
  */
@@ -151,12 +155,14 @@ const PLATFORM_COPY_SHAPES_TABLE: readonly PlatformCopyShape[] = [
     description:
       "YouTube's description field technically allows up to 5,000 chars, but only the first couple of " +
       'lines show above "Show more" — this uses a shorter, still-generous practical bound with room ' +
-      "for a real description plus links/timestamps.",
+      "for a real description plus links/timestamps. YouTube's real video-title limit is 100 chars " +
+      "(titleMaxChars, issue #174) — the ONE platform in this table that declares it.",
     maxChars: 1000,
     minEmojis: 0,
     maxEmojis: 2,
     supportsMentions: false,
     capIncludesHashtags: false,
+    titleMaxChars: 100,
   },
 ];
 

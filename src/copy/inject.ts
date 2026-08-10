@@ -58,9 +58,12 @@ export function injectRequiredHashtags(
   return out;
 }
 
-/** Inject both the required CTA (into `caption`) and the required hashtags (into `hashtags`). */
+/** Inject both the required CTA (into `caption`) and the required hashtags (into `hashtags`). Any
+ *  OTHER field the drafted Copy carries (e.g. `title`, issue #174) passes through UNCHANGED — this
+ *  step only ever touches `caption`/`hashtags`, never silently drops a field it doesn't know about. */
 export function injectRequiredParts(copy: Copy, rules: BrandCopyRules): Copy {
   return {
+    ...copy,
     caption: injectRequiredCta(copy.caption, rules.requiredCta),
     hashtags: injectRequiredHashtags(copy.hashtags, rules.requiredHashtags),
   };

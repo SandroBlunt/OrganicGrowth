@@ -259,6 +259,30 @@ describe("generatePostJson — the ONE pure ledger->bundle generator", () => {
     assert.notEqual(first.copy!.variants, second.copy!.variants);
     assert.notEqual(first.copy!.variants, asset.copy!.variants, "never a shared reference with the input Asset");
   });
+
+  it("carries a title-carrying Recipe's Copy.title through unchanged (issue #174)", () => {
+    const asset: LedgerAssetRecord = {
+      recipe: "news-short-script",
+      status: "produced",
+      copy: {
+        caption: "A YouTube description body.",
+        hashtags: [],
+        title: "This AI tool just replaced three job roles overnight",
+      },
+    };
+    const post = generatePostJson(BRAND, IDEA, asset);
+    assert.equal(post.copy!.title, "This AI tool just replaced three job roles overnight");
+  });
+
+  it("carries NO title key at all when the Asset's Copy has none — both existing Recipes unchanged", () => {
+    const asset: LedgerAssetRecord = {
+      recipe: "news-carousel",
+      status: "produced",
+      copy: { caption: "Hi", hashtags: ["#a"] },
+    };
+    const post = generatePostJson(BRAND, IDEA, asset);
+    assert.equal(post.copy !== null && "title" in post.copy, false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -373,6 +397,38 @@ describe("captionText — paste-ready caption + hashtags", () => {
       "=== FACEBOOK ===\nFacebook body.\n\n#a\n" + "\n=== LINKEDIN ===\nLinkedIn body.\n\n#a #b\n";
     assert.equal(withOmitted, expected);
     assert.equal(withEmpty, expected);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Optional leading title line — issue #174
+  // ---------------------------------------------------------------------------
+
+  it("prepends a 'Title: …' line, then a blank line, when copy.title is present", () => {
+    const text = captionText({
+      caption: "A YouTube description body.",
+      hashtags: [],
+      title: "This AI tool just replaced three job roles overnight",
+    });
+    assert.equal(
+      text,
+      "Title: This AI tool just replaced three job roles overnight\n\nA YouTube description body.\n",
+    );
+  });
+
+  it("is byte-for-byte unchanged when copy.title is absent (both existing Recipes)", () => {
+    const withoutTitle = captionText({ caption: "See what changed.", hashtags: [] });
+    assert.equal(withoutTitle, "See what changed.\n");
+    assert.doesNotMatch(withoutTitle, /^Title:/);
+  });
+
+  it("prepends the title line ahead of every platform variant block too", () => {
+    const text = captionText({
+      caption: "Facebook body.",
+      hashtags: ["#a"],
+      title: "A punchy title",
+      variants: [{ platform: "facebook", caption: "Facebook body.", hashtags: ["#a"] }],
+    });
+    assert.equal(text, "Title: A punchy title\n\n=== FACEBOOK ===\nFacebook body.\n\n#a\n");
   });
 });
 
