@@ -15,6 +15,7 @@ import { getRecipe } from "./registry.ts";
 import { validSpec, twoClips } from "../production-spec/fixtures/specs.ts";
 import { validCarouselSpec, sixSlides } from "../production-spec/fixtures/news-carousel-specs.ts";
 import type { BrandCopyRules } from "../production-spec/brand-profile.ts";
+import { SPACE_LESS_TEST_RECIPE } from "./fixtures/space-less-recipe.ts";
 
 const NO_RULES: BrandCopyRules = { requiredCta: null, requiredHashtags: [], bannedWords: [] };
 
@@ -113,6 +114,12 @@ describe("auditBindMediaPhase — generic across ANY wired Recipe, via its OWN c
   it("fails the news-carousel Recipe when its required slot is NOT bound", () => {
     const result = auditBindMediaPhase(carouselRecipe, { boundSlotNames: new Set() });
     assert.equal(result.ok, false);
+  });
+
+  it("passes vacuously for a Space-less Recipe with no canvasInputs at all (ADR-0021, issue #170)", () => {
+    const result = auditBindMediaPhase(SPACE_LESS_TEST_RECIPE, { boundSlotNames: new Set() });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.items, []);
   });
 });
 

@@ -14,6 +14,12 @@
  * resolved `pick` for an idea-pick slot — and hands the RESULT in as a `MediaSlotResolutions` map. This
  * module only enforces ADR-0016's STOP rule uniformly across every wired Recipe's slot map, mirroring
  * how `recipe/phase-contract.ts`'s generic auditors already work off `Recipe.canvasInputs.mediaSlots`.
+ *
+ * A **Space-less Recipe** (ADR-0021, issue #170) declares NO `canvasInputs` at all — there is no
+ * canvas to bind media into. `bindMediaSlots` treats that as ZERO declared media slots
+ * (`recipe.canvasInputs?.mediaSlots ?? {}`), the SAME vacuous "nothing required, nothing to bind"
+ * path any Recipe with an empty slot map already takes: it always resolves `{ ok: true, bound: [],
+ * boundSlotNames: new Set() }`, never a crash on the missing `canvasInputs`.
  */
 
 import type { MediaSlot, Recipe } from "../recipe/registry.ts";
@@ -75,12 +81,15 @@ function missingSlotMessage(recipe: Recipe, name: string, slot: MediaSlot): stri
  *   otherwise) — never proceeds to bind the remaining slots;
  * - an OPTIONAL slot with no resolution is simply skipped.
  *
- * Pure: no I/O, no BrandAssetStore call, no Magnific — the caller already did the real lookups.
+ * Pure: no I/O, no BrandAssetStore call, no Magnific — the caller already did the real lookups. A
+ * Space-less Recipe (`recipe.canvasInputs` absent, ADR-0021) is treated as declaring ZERO media slots
+ * — this always resolves `ok: true` with nothing bound, never a crash.
  */
 export function bindMediaSlots(recipe: Recipe, resolutions: MediaSlotResolutions): BindMediaResult {
   const bound: BoundMediaSlot[] = [];
+  const mediaSlots = recipe.canvasInputs?.mediaSlots ?? {};
 
-  for (const [name, slot] of Object.entries(recipe.canvasInputs.mediaSlots)) {
+  for (const [name, slot] of Object.entries(mediaSlots)) {
     const resolution = resolutions[name];
 
     if (resolution === undefined || !resolution.found) {

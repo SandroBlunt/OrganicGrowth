@@ -80,9 +80,11 @@ DIFFERENT Recipe, audits that Recipe's own rules with zero drift risk:
   `recipe.specShape.scanBannedWords` against `candidateSpec` (never re-implementing either) and return
   a `PhaseAuditResult` for the `"author"` phase whose `ok` is `true` iff both pass.
 - `auditBindMediaPhase(recipe, { boundSlotNames })` SHALL, for every entry in
-  `recipe.canvasInputs.mediaSlots`, check that a REQUIRED slot's name is present in `boundSlotNames`
-  (an optional slot always passes) and return a `PhaseAuditResult` for the `"bind-media"` phase whose
-  `ok` is `true` iff every required slot is bound.
+  `recipe.canvasInputs?.mediaSlots ?? {}` (ADR-0021 — a Space-less Recipe's absent `canvasInputs` is
+  treated as ZERO declared media slots, never a crash), check that a REQUIRED slot's name is present in
+  `boundSlotNames` (an optional slot always passes) and return a `PhaseAuditResult` for the
+  `"bind-media"` phase whose `ok` is `true` iff every required slot is bound — vacuously `true`, with an
+  empty `items` list, for a Recipe with no media slots at all.
 - `auditCopyPhase(recipe, { candidateCopy, rules })` SHALL run `../copy/validate.ts`'s `validateCopy`
   against `candidateCopy`, `recipe.copyShape`, and `rules` (never re-implementing it) and return a
   `PhaseAuditResult` for the `"copy"` phase whose `ok` is `true` iff `validateCopy` reports `ok: true`.
@@ -121,9 +123,16 @@ top level SHALL be `true` iff no item's `ok` is `false` (agent-judged `null` ite
 
 #### Scenario: auditBindMediaPhase passes when every required slot is bound, for either Recipe
 
-- **GIVEN** the seeded `news-carousel` Recipe (one required `"Brand Logo"` slot)
-- **WHEN** `auditBindMediaPhase(recipe, { boundSlotNames: new Set(["Brand Logo"]) })` is called
+- **GIVEN** the seeded `news-carousel` Recipe (one required `"Brand_Logo"` slot)
+- **WHEN** `auditBindMediaPhase(recipe, { boundSlotNames: new Set(["Brand_Logo"]) })` is called
 - **THEN** the result's `ok` is `true`
+
+#### Scenario: auditBindMediaPhase passes vacuously for a Recipe with no canvasInputs at all (ADR-0021)
+
+- **GIVEN** a Space-less Recipe whose `canvasInputs` is `undefined`
+- **WHEN** `auditBindMediaPhase(recipe, { boundSlotNames: new Set() })` is called
+- **THEN** the result's `ok` is `true` and `items` is `[]` — there is nothing to check, never a crash on
+  the missing `canvasInputs`
 
 #### Scenario: auditCopyPhase enforces each Recipe's OWN, different copy shape
 

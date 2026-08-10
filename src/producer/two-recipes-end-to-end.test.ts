@@ -164,7 +164,7 @@ describe("One Idea -> two Recipes -> two Assets, end-to-end against the FAKE (is
     assert.equal(logoLookup.found, true);
     if (!logoLookup.found) return;
 
-    const logoSlotName = Object.keys(recipe.canvasInputs.mediaSlots)[0]!;
+    const logoSlotName = Object.keys(recipe.canvasInputs!.mediaSlots)[0]!;
     const bindResult = bindMediaSlots(recipe, {
       [logoSlotName]: { kind: "brand-asset", found: true, path: logoLookup.asset.path },
     });
@@ -184,7 +184,7 @@ describe("One Idea -> two Recipes -> two Assets, end-to-end against the FAKE (is
       kind: "first",
       targetGate: null,
       spec,
-      promptNode: recipe.canvasInputs.promptNode,
+      promptNode: recipe.canvasInputs!.promptNode,
     };
     const rendered = await driveToNextGate(space, await space.readState(), input, FAST);
     assert.equal(rendered.ok, true);
@@ -250,7 +250,7 @@ describe("One Idea -> two Recipes -> two Assets, end-to-end against the FAKE (is
       kind: "first",
       targetGate: "cast",
       spec,
-      promptNode: recipe.canvasInputs.promptNode,
+      promptNode: recipe.canvasInputs!.promptNode,
     };
     const paused = await driveToNextGate(space, fakeSpaceState(), input, FAST);
     assert.equal(paused.ok, true);
@@ -315,7 +315,7 @@ describe("One Idea -> two Recipes -> two Assets, end-to-end against the FAKE (is
       kind: "resumed",
       targetGate: null,
       pick,
-      pinnedReferenceNodeName: recipe.space.nodes.pinnedReference ?? CHARACTER_NODE_NAME,
+      pinnedReferenceNodeName: recipe.space!.nodes.pinnedReference ?? CHARACTER_NODE_NAME,
     };
     const rendered = await driveToNextGate(space, fakeSpaceState(), input, FAST);
     assert.equal(rendered.ok, true);

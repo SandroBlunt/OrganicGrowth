@@ -75,9 +75,9 @@ describe("Cast-gate download, end to end against the FakeSpace (issue #119, AC1)
         kind: "first",
         targetGate: "cast",
         spec: validSpec(),
-        promptNode: RECIPE.canvasInputs.promptNode,
+        promptNode: RECIPE.canvasInputs!.promptNode,
       };
-      assert.equal(RECIPE.canvasInputs.promptNode, JSON_MASTER_NODE_NAME);
+      assert.equal(RECIPE.canvasInputs!.promptNode, JSON_MASTER_NODE_NAME);
 
       const driven = await driveToNextGate(space, fakeSpaceState(), input, FAST);
       assert.equal(driven.ok, true);

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { bindMediaSlots } from "./bind-media.ts";
 import { getRecipe } from "../recipe/registry.ts";
+import { SPACE_LESS_TEST_RECIPE } from "../recipe/fixtures/space-less-recipe.ts";
 
 const NEWS_CAROUSEL = getRecipe("news-carousel")!;
 const CHARACTER = getRecipe("character-explainer-with-cast")!;
@@ -69,5 +70,13 @@ describe("bindMediaSlots — resolve a Recipe's declared media slots; STOP on a 
       "Brand_Logo": { kind: "brand-asset", found: false, message: "missing" },
     });
     assert.equal(result.ok, false);
+  });
+
+  it("a Space-less Recipe (no canvasInputs at all) always binds ok, with nothing bound (ADR-0021, issue #170)", () => {
+    const result = bindMediaSlots(SPACE_LESS_TEST_RECIPE, {});
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(result.bound, []);
+    assert.deepEqual(result.boundSlotNames, new Set());
   });
 });
