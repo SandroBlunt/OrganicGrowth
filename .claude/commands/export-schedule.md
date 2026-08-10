@@ -18,12 +18,21 @@ omitting any one is a usage error, never a silent default.
 public S3 URLs — hosting is not publishing. The Operator reviews the CSVs, uploads them to Zoho Social,
 and inspects the queued posts inside Zoho before they go live.
 
-**Normally offered by the `producer`, behind an in-conversation approval (issue #148).** Once a Run's
-eligible Assets are produced, `producer` (`.claude/agents/producer.md`) offers this export and runs it
-only after the Operator approves — in the same conversation — every one of that Run's generated outputs
-and captions; that approval is conversational only and is never written to the ledger. This command also
-stays directly runnable on its own — a granular power-tool, like `/cleanup-schedule-media` — for the
-Operator to re-run or run standalone.
+**The CSV/S3 FALLBACK path (ADR-0020).** Zoho's MCP tools (`scheduleViaZohoMcpCommand`,
+`src/commands/schedule-via-zoho-mcp.ts`) are the PRIMARY way a Run's produced News Carousel Assets get
+scheduled for Facebook/Instagram/TikTok/LinkedIn — this command is retained only for when Zoho MCP is
+unavailable, and always for X (Twitter), which the MCP path never schedules (Zoho's own guidance: doing
+so risks the connected account being flagged as a bot). When this command IS the path taken, the whole
+remaining step is the Operator's own, by hand — there is no silent, automatic switch between the two.
+
+**Normally offered by the `producer`, behind an in-conversation approval (issue #148),
+MCP-primary/CSV-fallback (ADR-0020).** Once a Run's eligible Assets are produced, `producer`
+(`.claude/agents/producer.md`) offers Schedule Batch scheduling and runs it only after the Operator approves —
+in the same conversation — every one of that Run's generated outputs and captions; that
+approval is conversational only and is never written to the ledger. `producer` reaches for the Zoho MCP
+path first, and offers THIS export explicitly as the fallback only when Zoho MCP is unavailable, and
+always for X. This command also stays directly runnable on its own — a granular power-tool, like
+`/cleanup-schedule-media` — for the Operator to re-run or run standalone.
 
 **Code-backed (issue #145).** `src/commands/export-schedule.ts` (the orchestration shell) is a thin
 layer over pure deep modules: `src/schedule-batch/eligibility.ts` (which Assets qualify),
@@ -100,3 +109,7 @@ credits, hermetic build.
   review; it never calls Zoho, Facebook, or any other platform API, and never marks anything `posted`.
 - **Ledger is source of truth** — `scheduled_at` is written via `AssetStore.writeAsset`, scoped to the
   ONE named Recipe's Asset; sibling Assets of the same Idea are untouched.
+- **This is the FALLBACK path (ADR-0020).** `src/commands/schedule-via-zoho-mcp.ts` is the primary path
+  for Facebook/Instagram/TikTok/LinkedIn — this command exists for when Zoho MCP is unavailable, and
+  always for X. It writes no `zoho_schedule_reference` (that field is MCP-only, issue #161) — an Asset
+  exported here is confirmed live the ordinary way, via the Operator's own `/log-post`.

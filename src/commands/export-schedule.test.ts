@@ -185,6 +185,10 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
       assert.equal(assets![0]!.status, "produced");
       assert.ok(assets![0]!.scheduled_at !== undefined);
       assert.equal(new Date(assets![0]!.scheduled_at!).toISOString(), assets![0]!.scheduled_at);
+      // --- This is the CSV/S3 FALLBACK path (ADR-0020, issue #163) — it never writes the MCP-only
+      //     zoho_schedule_reference field; a CSV-exported Asset is confirmed live via /log-post, never
+      //     auto-logged by src/schedule-batch/confirmed-live.ts (which requires that stored reference). ---
+      assert.equal(assets![0]!.zoho_schedule_reference, undefined);
 
       // --- The Media Host recorded exactly the expected calls: 7 converts + 7 uploads, one per slide ---
       assert.equal(mediaHost.convertCalls.length, 7);

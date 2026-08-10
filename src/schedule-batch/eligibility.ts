@@ -63,6 +63,14 @@ export interface EligibilityResult {
  * PURE: no I/O, no clock — a straight fold over already-loaded data. Each Asset of an Idea is judged
  * INDEPENDENTLY (an Idea may contribute one eligible Asset and one skipped Asset at once).
  */
+/** Render `skipped` as a human-readable report suffix — empty string when nothing was skipped (never
+ *  clutters routine output). Shared by every Schedule Batch orchestration shell (the CSV export and the
+ *  MCP scheduling shell, issue #163) so both report a skip the SAME way. */
+export function describeSkippedAssets(skipped: readonly SkippedAsset[]): string {
+  if (skipped.length === 0) return "";
+  return `\nSkipped:\n${skipped.map((s) => `  - ${s.note}`).join("\n")}`;
+}
+
 export function selectEligibleAssets(ideas: readonly ScheduleBatchIdea[]): EligibilityResult {
   const eligible: EligibleAsset[] = [];
   const skipped: SkippedAsset[] = [];
