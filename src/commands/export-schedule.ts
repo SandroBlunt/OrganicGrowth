@@ -50,7 +50,7 @@ import { writeFileAtomic } from "../fs/safe-io.ts";
 import { writeAsset } from "../asset/store.ts";
 
 import { loadScheduleBatchIdeas } from "../schedule-batch/select.ts";
-import { selectEligibleAssets, type SkippedAsset } from "../schedule-batch/eligibility.ts";
+import { selectEligibleAssets, describeSkippedAssets } from "../schedule-batch/eligibility.ts";
 import { sortEligible } from "../schedule-batch/order.ts";
 import { deriveScheduleSlots, validateSlotsFuture } from "../schedule-batch/schedule.ts";
 import { validateAssetsForExport, buildSchedulePlan, type AssetHostedMedia } from "../schedule-batch/plan.ts";
@@ -108,11 +108,6 @@ export interface ExportScheduleOptions {
 // Reporting helpers
 // ---------------------------------------------------------------------------
 
-function describeSkipped(skipped: readonly SkippedAsset[]): string {
-  if (skipped.length === 0) return "";
-  return `\nSkipped:\n${skipped.map((s) => `  - ${s.note}`).join("\n")}`;
-}
-
 /** Empty when nothing was removed (the common case) — never clutters routine output. */
 function describeCleanup(result: CleanupResult): string {
   if (result.actions.length === 0) return "";
@@ -167,7 +162,7 @@ export async function exportScheduleCommand(
   const { eligible, skipped } = selectEligibleAssets(ideas);
 
   if (eligible.length === 0) {
-    return `${header}\nNo eligible Assets to schedule — nothing written.${describeSkipped(skipped)}`;
+    return `${header}\nNo eligible Assets to schedule — nothing written.${describeSkippedAssets(skipped)}`;
   }
 
   // --- 2. This Brand's Zoho Social Brand config (issue #143) ----------------------------------------
@@ -273,7 +268,7 @@ export async function exportScheduleCommand(
 
   const fileNames = [...plan.csvFiles.map((f) => f.fileName), MANIFEST_FILE_NAME].join(", ");
   const lines = [header, `Wrote ${fileNames} to ${runFolder}.`, "", plan.summary];
-  const skipSuffix = describeSkipped(skipped);
+  const skipSuffix = describeSkippedAssets(skipped);
   if (skipSuffix.length > 0) lines.push(skipSuffix);
   return lines.join("\n");
 }
