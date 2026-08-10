@@ -257,6 +257,52 @@ describe("buildMcpSchedulePlan — MCP-first routing decision layer (issue #160)
     assert.deepEqual(a, b);
   });
 
+  it("honors postsPerDay from the shared derivation (issue #171) — several Assets scheduled to the SAME calendar day", () => {
+    const input = [
+      eligible(`idea-${RUN}-01`),
+      eligible(`idea-${RUN}-02`),
+      eligible(`idea-${RUN}-03`),
+    ];
+    const result = buildMcpSchedulePlan({
+      eligible: input,
+      run: RUN,
+      zohoConfig: CONFIGURED,
+      startDate: START_DATE,
+      nowMs: NOW_MS,
+      postsPerDay: 6,
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+
+    const expectedSlots = deriveScheduleSlots(START_DATE, 3, 6);
+    result.assets.forEach((a, i) => {
+      assert.equal(a.scheduledAtUtc, new Date(expectedSlots[i]!.utcMs).toISOString());
+    });
+    // All 3 land on the SAME calendar day (well under postsPerDay=6) — this is exactly what
+    // distinguishes it from the default (1/day) behavior, which would spread them over 3 days.
+    const distinctDays = new Set(result.assets.map((a) => a.scheduledAtUtc.slice(0, 10)));
+    assert.equal(distinctDays.size, 1);
+  });
+
+  it("omitting postsPerDay defaults to 1 — byte-identical to the pre-#171 behavior", () => {
+    const withDefault = buildMcpSchedulePlan({
+      eligible: [eligible(`idea-${RUN}-01`), eligible(`idea-${RUN}-02`)],
+      run: RUN,
+      zohoConfig: CONFIGURED,
+      startDate: START_DATE,
+      nowMs: NOW_MS,
+    });
+    const withExplicitOne = buildMcpSchedulePlan({
+      eligible: [eligible(`idea-${RUN}-01`), eligible(`idea-${RUN}-02`)],
+      run: RUN,
+      zohoConfig: CONFIGURED,
+      startDate: START_DATE,
+      nowMs: NOW_MS,
+      postsPerDay: 1,
+    });
+    assert.deepEqual(withDefault, withExplicitOne);
+  });
+
   it("is pure — calling it twice with the same inputs returns deep-equal output", () => {
     const input = {
       eligible: [eligible(`idea-${RUN}-01`), eligible(`idea-${RUN}-02`)],

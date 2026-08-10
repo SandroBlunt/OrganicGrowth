@@ -5,14 +5,17 @@ description: "Turn a run's produced News Carousel Assets into everything the Zoh
 
 # /export-schedule
 
-Usage: `/export-schedule <brand> <format> <run> <start-date>`
+Usage: `/export-schedule <brand> <format> <run> <start-date> [posts-per-day]`
 
 The **Schedule Batch** export (issue #145, parent #140). Turns a Run's produced **News Carousel**
 Assets into everything the Operator needs to bulk-upload to Zoho Social: each Asset's slides converted
 to JPG and hosted on S3, one CSV per configured **Zoho Social Brand** grouping (Zoho's own container of
 connected accounts — one OrganicGrowth Brand's Channels can span several), and a manifest recording the
 cleanup contract. `<brand>`, `<format>`, `<run>`, and `<start-date>` (`YYYY-MM-DD`) are all required —
-omitting any one is a usage error, never a silent default.
+omitting any one is a usage error, never a silent default. `[posts-per-day]` is OPTIONAL and defaults to
+**1** — every existing weekly Format's schedule is unaffected; a high-volume Format (e.g. Unhypped
+Daily's ~6 Assets/day) passes a higher value so several Assets share one calendar day instead of each
+falling a day further behind (issue #171).
 
 **The Publish gate stays human (ADR-0002).** This command writes files and hosts media on unlisted
 public S3 URLs — hosting is not publishing. The Operator reviews the CSVs, uploads them to Zoho Social,
@@ -56,7 +59,7 @@ credits, hermetic build.
    touched (delete late, never early — whether Zoho fetches media at CSV-upload or posting time is
    unconfirmed, so this assumes posting time). This same cleanup is also runnable on its own via
    `/cleanup-schedule-media <brand>`.
-3. **Run** `npm run export-schedule <brand> <format> <run> <start-date>` (or call
+3. **Run** `npm run export-schedule <brand> <format> <run> <start-date> [posts-per-day]` (or call
    `exportScheduleCommand()` in `src/commands/export-schedule.ts`). It:
    - **Loads** every Idea in `<format>`'s `<run>` from `data/brands/<slug>/ledger.json`
      (`src/schedule-batch/select.ts`).
@@ -71,9 +74,13 @@ credits, hermetic build.
      carry a composed Copy, that Copy must have a variant for every platform any configured Zoho Social
      Brand targets, and it must have exactly 7 downloaded slides. ANY problem REFUSES the WHOLE export,
      naming every Idea/problem found — never a partial write.
-   - **Derives** a deterministic schedule (`deriveScheduleSlots`): one Asset per calendar day from
-     `<start-date>`, hour varying across the 7:00-22:00 US-Eastern targeting window, always off the
-     round minute — no randomness, no clock read inside the derivation. **Validates** every derived time
+   - **Derives** a deterministic schedule (`deriveScheduleSlots`): by default, one Asset per calendar
+     day from `<start-date>`, hour varying across the 7:00-22:00 US-Eastern targeting window, always off
+     the round minute — no randomness, no clock read inside the derivation. `[posts-per-day]` (issue
+     #171, default 1) places that many CONSECUTIVE Assets on the same calendar day before advancing to
+     the next — the SAME fixed hour/minute rotation, just spread across fewer days; this is the ONE
+     shared derivation both this command and the Zoho MCP path (`schedule-via-zoho-mcp.ts`) use, never a
+     per-mechanism reimplementation. **Validates** every derived time
      is at least 1 hour in the future (`validateSlotsFuture`) — a past or too-soon time REFUSES the
      WHOLE export loudly (Zoho would otherwise silently grey out its own upload button, live-verified).
    - **Hosts** every eligible Asset's slides ONCE via the injected Media Host (`convertToJpg` then
@@ -97,8 +104,8 @@ credits, hermetic build.
    notes), and every skipped Asset with its reason.
 
 ## Guardrails
-- **Brand/Format/Run/start-date are all explicit** — every one of the 4 arguments is required; never a
-  silent default.
+- **Brand/Format/Run/start-date are all explicit** — every one of the 4 required arguments is required;
+  never a silent default. `[posts-per-day]` is the one optional argument and defaults to 1 (issue #171).
 - **Never fabricates.** A missing composed Copy, a missing platform variant, or a wrong slide count
   REFUSES the whole export, naming the Idea — nothing is half-written.
 - **The 1-hour-future guard is load-bearing.** A schedule time inside that window refuses the WHOLE

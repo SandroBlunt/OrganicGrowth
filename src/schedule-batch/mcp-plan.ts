@@ -12,9 +12,11 @@
  *
  * Reuses, never forks, the CSV export's own machinery: the SAME deterministic Idea-number scheduling
  * order (`./order.ts`'s `sortEligible`), the SAME slot derivation and 1-hour lead-time guard
- * (`./schedule.ts`'s `deriveScheduleSlots`/`validateSlotsFuture`), and the SAME per-zone time rendering
- * (`./timezone.ts`'s `formatZohoScheduleTime`) — so an Asset's MCP slot and its CSV-fallback slot are
- * always the same instant, never two independently-computed schedules for the same batch.
+ * (`./schedule.ts`'s `deriveScheduleSlots`/`validateSlotsFuture`, including that module's own
+ * `postsPerDay` — issue #171 — passed straight through here rather than re-implemented), and the SAME
+ * per-zone time rendering (`./timezone.ts`'s `formatZohoScheduleTime`) — so an Asset's MCP slot and its
+ * CSV-fallback slot are always the same instant, never two independently-computed schedules for the same
+ * batch.
  *
  * `X` (Twitter) is excluded from every returned group, unconditionally (ADR-0020: Zoho's own MCP tool
  * guidance warns that posting to X this way risks the connected account being flagged as a bot and
@@ -94,6 +96,10 @@ export interface BuildMcpSchedulePlanInput {
   readonly startDate: string;
   /** Explicit "now", ms since epoch — never read internally (pure). */
   readonly nowMs: number;
+  /** How many Assets share one calendar day before the schedule advances to the next (issue #171 — the
+   *  Unhypped Daily Format's ~6 Assets/day volume), passed straight through to `deriveScheduleSlots`.
+   *  Defaults to 1 (one Asset per day), reproducing the pre-#171 behavior byte-for-byte. */
+  readonly postsPerDay?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,7 +143,7 @@ function emptyRunRefusal(): McpSchedulePlanResult {
  * routing rules and refusal shapes.
  */
 export function buildMcpSchedulePlan(input: BuildMcpSchedulePlanInput): McpSchedulePlanResult {
-  const { eligible, run, zohoConfig, startDate, nowMs } = input;
+  const { eligible, run, zohoConfig, startDate, nowMs, postsPerDay = 1 } = input;
 
   // Scoped to news-carousel only (defense in depth — the caller's own selectEligibleAssets already
   // enforces this, but this module never trusts that blindly): any other Recipe's entry is dropped.
@@ -151,7 +157,7 @@ export function buildMcpSchedulePlan(input: BuildMcpSchedulePlanInput): McpSched
   }
 
   const sorted = sortEligible(newsCarouselOnly, run);
-  const slots = deriveScheduleSlots(startDate, sorted.length);
+  const slots = deriveScheduleSlots(startDate, sorted.length, postsPerDay);
   const futureCheck = validateSlotsFuture(slots, nowMs);
   if (!futureCheck.ok) {
     const lines = futureCheck.violations.map((v) => {

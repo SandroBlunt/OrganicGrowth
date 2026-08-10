@@ -102,6 +102,11 @@ export interface ExportScheduleOptions {
    *  temp directory (`mkdtemp`); a caller-supplied directory is left untouched by this command (the
    *  caller owns cleanup in that case) — primarily for testing. */
   readonly tempDir?: string;
+  /** How many eligible Assets share one calendar day before the schedule advances to the next (issue
+   *  #171 — the Unhypped Daily Format's ~6 Assets/day volume), passed straight through to
+   *  `deriveScheduleSlots`. Defaults to 1 (one Asset per day), reproducing every existing (weekly)
+   *  Format's schedule byte-for-byte. */
+  readonly postsPerDay?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -142,6 +147,7 @@ export async function exportScheduleCommand(
       : join(formatIdeasRoot(brand, format, options.brandsRoot), run);
   const now = (options.now ?? (() => new Date().toISOString()))();
   const mediaHost = options.mediaHost ?? DEFAULT_MEDIA_HOST;
+  const postsPerDay = options.postsPerDay ?? 1;
 
   // --- 0. Run the Brand's manifest-driven S3 cleanup FIRST, automatically (issue #147) --------------
   // Scans the WHOLE Brand's Schedule Batch manifest tree (every run, every Format), not just this one —
@@ -187,7 +193,7 @@ export async function exportScheduleCommand(
 
   // --- 4. Derive the schedule, and refuse loudly if any row is too close to now ---------------------
 
-  const slots = deriveScheduleSlots(startDate, sorted.length);
+  const slots = deriveScheduleSlots(startDate, sorted.length, postsPerDay);
   const nowMs = Date.parse(now);
   const futureCheck = validateSlotsFuture(slots, nowMs);
   if (!futureCheck.ok) {
@@ -278,23 +284,47 @@ export async function exportScheduleCommand(
 // ---------------------------------------------------------------------------
 
 /**
+ * Parse the CLI's optional 5th `[posts-per-day]` argument (issue #171) into a validated positive
+ * integer. An OMITTED argument defaults to `1` (byte-identical to every existing Format's schedule);
+ * a PRESENT-but-invalid argument (not a positive integer) returns `null` so `main` can print a clear
+ * usage error rather than passing a bad value down into `deriveScheduleSlots`, which would throw a
+ * message written for a library caller, not a CLI user. Pure — exported for direct, hermetic testing.
+ */
+export function parsePostsPerDayArg(raw: string | undefined): number | null {
+  if (raw === undefined) return 1;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : null;
+}
+
+/**
  * CLI entry: print the export result. Only runs when invoked directly (e.g. `npm run export-schedule`).
- * Usage: `npm run export-schedule <brand> <format> <run> <start-date>`. All four are required — never a
- * silent default (issue #20).
+ * Usage: `npm run export-schedule <brand> <format> <run> <start-date> [posts-per-day]`. The first four
+ * are required — never a silent default (issue #20). `[posts-per-day]` is OPTIONAL and defaults to `1`
+ * (issue #171 — the Unhypped Daily Format's ~6 Assets/day volume; every existing weekly Format's
+ * behavior is unaffected by omitting it).
  *
  * Exported so tests can invoke the usage-error path directly without spawning a subprocess.
  */
 export async function main(): Promise<void> {
-  const [brand, format, run, startDate] = process.argv.slice(2);
+  const [brand, format, run, startDate, postsPerDayArg] = process.argv.slice(2);
   if (brand === undefined || format === undefined || run === undefined || startDate === undefined) {
     process.stderr.write(
-      "usage: npm run export-schedule <brand> <format> <run> <start-date>\n" +
-        "  e.g. npm run export-schedule straw-motion unhypped-news 2026-W32 2026-08-05\n",
+      "usage: npm run export-schedule <brand> <format> <run> <start-date> [posts-per-day]\n" +
+        "  e.g. npm run export-schedule straw-motion unhypped-news 2026-W32 2026-08-05\n" +
+        "  e.g. npm run export-schedule straw-motion unhypped-daily 2026-08-11 2026-08-11 6\n",
     );
     process.exitCode = 1;
     return;
   }
-  const output = await exportScheduleCommand(brand, format, run, startDate, {});
+  const postsPerDay = parsePostsPerDayArg(postsPerDayArg);
+  if (postsPerDay === null) {
+    process.stderr.write(
+      `usage: posts-per-day must be a positive integer (got ${JSON.stringify(postsPerDayArg)}).\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const output = await exportScheduleCommand(brand, format, run, startDate, { postsPerDay });
   process.stdout.write(output + "\n");
 }
 
