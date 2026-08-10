@@ -437,6 +437,18 @@ export function findAsset(assets: readonly LedgerAssetRecord[], recipe: string):
 }
 
 /**
+ * Format an Idea's recorded Assets (`recipe (status)`, comma-joined) for a refusal message — lists what
+ * IS available, never guesses which one a caller meant (always-rules #5, explicit attribution). Shared
+ * by `/log-post` (`src/commands/log-post.ts`) and the confirmed-live auto-log path
+ * (`src/schedule-batch/confirmed-live.ts`, issue #162) so both refuse with the same wording.
+ */
+export function describeAssetList(assets: readonly LedgerAssetRecord[]): string {
+  if (assets.length === 0) return "This Idea has no recorded Assets yet.";
+  const list = assets.map((a) => `${a.recipe} (${a.status})`).join(", ");
+  return `This Idea's Assets: ${list}.`;
+}
+
+/**
  * Return a NEW Assets array with the Recipe's Asset inserted (if absent) or updated (merged with
  * `patch`, if present). Pure: never mutates `assets` or its records. `patch` must always carry a
  * `status` (an Asset can't exist without one); every other field is merged over the existing record.

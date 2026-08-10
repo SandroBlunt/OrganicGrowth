@@ -10,14 +10,18 @@
  *
  * Thin: load the Idea's Assets from the Brand's ledger (`ledger.ts`'s already per-Asset `loadIdeas`),
  * apply the pure `planLogPost` decision, and — on success — write `post_url`/`posted_at` (and the
- * Asset's advanced status) onto THAT Asset via `AssetStore.writeAsset`. No Magnific, no Apify, no
- * network in this shell; it never touches the Space and never publishes anything itself (the Operator
- * already published — this command only logs the URL, ADR-0002).
+ * Asset's advanced status) onto THAT Asset via the shared `writeAttributedPost`
+ * (`src/asset/attribution.ts`, issue #162) — the SAME write the confirmed-live auto-log path
+ * (`src/schedule-batch/confirmed-live.ts`, ADR-0020) uses, so there is only ever one produced -> posted
+ * transition in the codebase. No Magnific, no Apify, no network in this shell; it never touches the
+ * Space and never publishes anything itself (the Operator already published — this command only logs
+ * the URL, ADR-0002).
  *
- * On success it also refreshes that Asset's output-bundle `post.json` (`src/asset/output-bundle.ts`'s
- * `refreshPostJson`, issue #112) — a GENERATED view of the ledger, so it can never drift. This is a
- * silent side effect: it never changes this command's own returned message, and an Asset with no known
- * local bundle directory yet (no `asset_paths`) is skipped cleanly, never surfaced as an error.
+ * On success `writeAttributedPost` also refreshes that Asset's output-bundle `post.json`
+ * (`src/asset/output-bundle.ts`'s `refreshPostJson`, issue #112) — a GENERATED view of the ledger, so it
+ * can never drift. This is a silent side effect: it never changes this command's own returned message,
+ * and an Asset with no known local bundle directory yet (no `asset_paths`) is skipped cleanly, never
+ * surfaced as an error.
  *
  * Brand is always explicit: `<brand>` is a required first argument. The Brand's ledger path is derived
  * via `resolveBrand(brand).ledger`. Omitting `<brand>` is a usage error, never a silent MundoTip
@@ -27,9 +31,8 @@
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { loadIdeas, findIdea, type LedgerIdea } from "../ledger/ledger.ts";
-import { findAsset, type AssetStatus, type LedgerAssetRecord } from "../asset/asset.ts";
-import { writeAsset } from "../asset/store.ts";
-import { refreshPostJson } from "../asset/output-bundle.ts";
+import { findAsset, describeAssetList, type AssetStatus, type LedgerAssetRecord } from "../asset/asset.ts";
+import { writeAttributedPost, nextAttributedStatus } from "../asset/attribution.ts";
 import { resolveBrand } from "../brand/resolver.ts";
 
 /** Why a `/log-post` attempt was refused. */
@@ -61,16 +64,6 @@ export function isFacebookPermalink(url: string): boolean {
 }
 
 /**
- * The AssetStatus a successful `/log-post` advances an Asset to. A freshly `produced` Asset becomes
- * `posted` (Gate 3 clears). An Asset already `posted`/`tracking`/`scored` keeps its own status — this
- * command only ever ADVANCES the status forward via `/track-performance`, never regresses it; a re-log
- * (e.g. correcting a typo'd URL) still updates `post_url`/`posted_at` without rewinding progress.
- */
-function nextAssetStatus(current: AssetStatus): AssetStatus {
-  return current === "produced" ? "posted" : current;
-}
-
-/**
  * Decide what `/log-post <recipe> <url>` should do against one Idea's own recorded Assets. Pure: no
  * I/O. `recipe` is matched EXACTLY against the Idea's Assets (`findAsset`) — never inferred, never
  * defaulted to "the only Asset" even when there is exactly one (explicit attribution, always-rules #5).
@@ -92,14 +85,7 @@ export function planLogPost(idea: LedgerIdea | null, recipe: string, url: string
     // No asset_url exists yet — there is nothing to publish, so nothing to log a Post against.
     return { ok: false, reason: "not-yet-produced", asset };
   }
-  return { ok: true, asset, nextStatus: nextAssetStatus(asset.status) };
-}
-
-/** Format the Idea's recorded Assets for a refusal message — lists what IS available, never guesses. */
-function describeAssets(assets: readonly LedgerAssetRecord[]): string {
-  if (assets.length === 0) return "This Idea has no recorded Assets yet.";
-  const list = assets.map((a) => `${a.recipe} (${a.status})`).join(", ");
-  return `This Idea's Assets: ${list}.`;
+  return { ok: true, asset, nextStatus: nextAttributedStatus(asset.status) };
 }
 
 /** Options for `/log-post` (injected paths + clock keep the shell testable without ambient I/O). */
@@ -147,22 +133,17 @@ export async function logPostCommand(
       case "invalid-url":
         return `/log-post ${ideaId}: "${url}" is not a facebook.com permalink — no Post logged. [Brand: ${brand}]`;
       case "unknown-recipe":
-        return `/log-post ${ideaId}: recipe "${recipe}" is not one of this Idea's Assets — refusing rather than guessing which Post it belongs to. ${describeAssets(plan.assets)} [Brand: ${brand}]`;
+        return `/log-post ${ideaId}: recipe "${recipe}" is not one of this Idea's Assets — refusing rather than guessing which Post it belongs to. ${describeAssetList(plan.assets)} [Brand: ${brand}]`;
       case "not-yet-produced":
         return `/log-post ${ideaId}: the "${recipe}" Asset is not yet produced (status: ${plan.asset.status}) — nothing to publish yet. [Brand: ${brand}]`;
     }
   }
 
-  await writeAsset(
-    ideaId,
-    recipe,
-    { status: plan.nextStatus, post_url: url, posted_at: resolvedPostedAt },
+  await writeAttributedPost(
+    brand,
+    { ideaId, recipe, nextStatus: plan.nextStatus, postUrl: url, postedAt: resolvedPostedAt },
     { ledgerPath },
   );
-
-  // Refresh the output-bundle post.json from the ledger we just wrote (issue #112) — a silent side
-  // effect; an Asset with no known local bundle directory yet is skipped cleanly (never an error here).
-  await refreshPostJson(brand, ideaId, recipe, { ledgerPath });
 
   return `/log-post ${ideaId}: linked Post ◀ Recipe "${recipe}" for Brand ${brand}. Run /track-performance ${brand} once engagement has accrued (give it a few days).`;
 }
