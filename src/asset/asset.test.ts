@@ -18,6 +18,7 @@ import {
   parseAssetMetricsSnapshot,
   parseAssetMetricsHistory,
   parseAssetPaths,
+  parseZohoScheduleReference,
   parseAssetRecord,
   parseAssetsArray,
   findAsset,
@@ -479,6 +480,76 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
         scheduled_at: "2026-08-05T13:23:00.000Z",
       });
       assert.equal(a?.status, "produced");
+    });
+  });
+
+  // issue #161 / ADR-0020: an Asset scheduled via Zoho's MCP path records the EXACT reference (or
+  // references) Zoho returned at schedule-time, alongside `scheduled_at` — never re-derived, never
+  // normalized. `status` stays `produced`; no new AssetStatus.
+  describe("zoho_schedule_reference (issue #161, ADR-0020)", () => {
+    it("parseZohoScheduleReference keeps a well-formed single string verbatim", () => {
+      assert.equal(parseZohoScheduleReference("post_abc123"), "post_abc123");
+    });
+
+    it("parseZohoScheduleReference keeps a well-formed array of strings verbatim, in order", () => {
+      const raw = ["fb_post_1", "ig_post_1"];
+      assert.deepEqual(parseZohoScheduleReference(raw), raw);
+    });
+
+    it("parseZohoScheduleReference rejects a blank string, empty array, or non-string entries", () => {
+      assert.equal(parseZohoScheduleReference(""), null);
+      assert.equal(parseZohoScheduleReference([]), null);
+      assert.equal(parseZohoScheduleReference(["ok", ""]), null);
+      assert.equal(parseZohoScheduleReference(["ok", 42]), null);
+      assert.equal(parseZohoScheduleReference(42), null);
+      assert.equal(parseZohoScheduleReference(null), null);
+      assert.equal(parseZohoScheduleReference(undefined), null);
+    });
+
+    it("parses a well-formed single-string reference onto the Asset, verbatim", () => {
+      const a = parseAssetRecord({
+        recipe: "news-carousel",
+        status: "produced",
+        scheduled_at: "2026-08-10T09:00:00.000Z",
+        zoho_schedule_reference: "post_abc123",
+      });
+      assert.deepEqual(a, {
+        recipe: "news-carousel",
+        status: "produced",
+        scheduled_at: "2026-08-10T09:00:00.000Z",
+        zoho_schedule_reference: "post_abc123",
+      });
+    });
+
+    it("parses a well-formed array of references onto the Asset, verbatim and in order", () => {
+      const a = parseAssetRecord({
+        recipe: "news-carousel",
+        status: "produced",
+        zoho_schedule_reference: ["fb_post_1", "ig_post_1", "li_post_1"],
+      });
+      assert.deepEqual(a?.zoho_schedule_reference, ["fb_post_1", "ig_post_1", "li_post_1"]);
+    });
+
+    it("omits zoho_schedule_reference when absent", () => {
+      const a = parseAssetRecord({ recipe: "news-carousel", status: "produced" });
+      assert.equal(Object.hasOwn(a as object, "zoho_schedule_reference"), false);
+    });
+
+    it("drops a malformed zoho_schedule_reference (blank/empty/mixed-type) rather than crashing", () => {
+      for (const bad of ["", [], ["ok", ""], ["ok", 42], 42, { post: "x" }]) {
+        const a = parseAssetRecord({ recipe: "news-carousel", status: "produced", zoho_schedule_reference: bad });
+        assert.equal(Object.hasOwn(a as object, "zoho_schedule_reference"), false);
+      }
+    });
+
+    it("does not add a new AssetStatus — status stays produced", () => {
+      const a = parseAssetRecord({
+        recipe: "news-carousel",
+        status: "produced",
+        zoho_schedule_reference: "post_abc123",
+      });
+      assert.equal(a?.status, "produced");
+      assert.equal(isAssetStatus("scheduled"), false);
     });
   });
 
