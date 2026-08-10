@@ -23,6 +23,16 @@
  * single-variant consumer (`validateCopy`, the output bundle, `/log-post`'s surfaced Copy) keeps
  * working unmodified on the top-level fields; `variants` carries the FULL, platform-labeled set
  * (including the primary) for the Operator to pick the right one per Channel at Publish.
+ *
+ * `title` / `CopyShape.titleMaxChars` (issue #174) are a SECOND, ADDITIVE, opt-in pair for a Recipe
+ * whose Copy is a title + description shape rather than a caption + hashtags one (today: the News
+ * Short Script Recipe's YouTube title + description). A Recipe's `copyShape` declares `titleMaxChars`
+ * ONLY when its Copy carries a title at all; `./validate.ts`'s `validateCopy` checks `Copy.title`
+ * (required, length-bounded, banned-word- and dash-scanned) ONLY when `shape.titleMaxChars` is set —
+ * for the two existing Recipes (which never set it) this is a complete no-op, byte-for-byte unchanged.
+ * When present, `caption` holds the DESCRIPTION body (the longer text), not a social caption — the
+ * field is reused rather than duplicated because the underlying checkers (`validateCopy`,
+ * `injectRequiredParts`) already operate on it uniformly.
  */
 
 /** One platform-tuned Copy variant (issue #129) — the SAME `caption`/`hashtags` shape as `Copy` itself,
@@ -47,7 +57,8 @@ export interface CopyVariant {
  *  is NEVER part of Copy — it stays a Space parameter fed from the Brand (ADR-0012). */
 export interface Copy {
   /** The voice-composed body text, including any injected required CTA line — the PRIMARY Channel's
-   *  own variant when `variants` is present. */
+   *  own variant when `variants` is present. For a title-carrying Copy (`title` present, issue #174)
+   *  this is the DESCRIPTION body, not a social caption. */
   readonly caption: string;
   /** The final hashtag list — the Idea's own hashtags plus any Brand-required ones, deduped. */
   readonly hashtags: readonly string[];
@@ -56,6 +67,10 @@ export interface Copy {
    *  Channel's own variant too (duplicating `caption`/`hashtags` above under its own `platform` label),
    *  so the full, labeled set is always self-contained here. */
   readonly variants?: readonly CopyVariant[];
+  /** A short headline, present ONLY for a Recipe whose `copyShape` declares `titleMaxChars` (issue
+   *  #174 — today: the News Short Script Recipe's YouTube video title, ≤100 chars). Absent for both
+   *  existing Recipes' plain caption + hashtags shape. */
+  readonly title?: string;
 }
 
 /** A Recipe's declared copy-shape constraints — length + emoji bounds. Structurally identical to
@@ -64,4 +79,9 @@ export interface CopyShape {
   readonly maxChars: number;
   readonly minEmojis: number;
   readonly maxEmojis: number;
+  /** The max length of an OPTIONAL `Copy.title` (issue #174) — present ONLY for a Recipe whose Copy is
+   *  a title + description shape (today: the News Short Script Recipe, mirroring YouTube's real
+   *  100-char title limit via `platform-shape.ts`'s own `titleMaxChars`). Absent for both existing
+   *  Recipes — `validateCopy` then never checks `title` at all, a complete no-op for them. */
+  readonly titleMaxChars?: number;
 }

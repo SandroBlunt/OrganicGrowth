@@ -328,3 +328,66 @@ describe("validateCopyForPlatform — X's combined cap is wired in (issue #142)"
     assert.equal(linkedin.ok, true, JSON.stringify(linkedin.errors));
   });
 });
+
+describe("validateCopy — optional title, checked ONLY when shape.titleMaxChars is declared (issue #174)", () => {
+  const TITLE_SHAPE: CopyShape = { maxChars: 1000, minEmojis: 0, maxEmojis: 2, titleMaxChars: 100 };
+
+  it("requires a title when titleMaxChars is declared, even though caption/hashtags are fine", () => {
+    const copy = { caption: "A description with enough words to read as real prose.", hashtags: [] };
+    const result = validateCopy(copy, TITLE_SHAPE, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "title_missing"), true);
+  });
+
+  it("rejects a title over titleMaxChars", () => {
+    const copy = {
+      caption: "A description with enough words to read as real prose.",
+      hashtags: [],
+      title: "T".repeat(101),
+    };
+    const result = validateCopy(copy, TITLE_SHAPE, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "title_length"), true);
+  });
+
+  it("accepts a well-formed title within bounds", () => {
+    const copy = {
+      caption: "A description with enough words to read as real prose.",
+      hashtags: [],
+      title: "This AI Tool Just Replaced Three Job Roles",
+    };
+    const result = validateCopy(copy, TITLE_SHAPE, NO_RULES);
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+  });
+
+  it("scans the title for banned words, reject-only", () => {
+    const copy = {
+      caption: "A description with enough words to read as real prose.",
+      hashtags: [],
+      title: "This is a miracle breakthrough",
+    };
+    const result = validateCopy(copy, TITLE_SHAPE, { ...NO_RULES, bannedWords: ["miracle"] });
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "banned_word"), true);
+    assert.ok(result.errors.some((e) => e.message.includes("title")));
+  });
+
+  it("scans the title for a dash tell, reject-only (issue #108)", () => {
+    const copy = {
+      caption: "A description with enough words to read as real prose.",
+      hashtags: [],
+      title: "AI tool - three roles gone overnight",
+    };
+    const result = validateCopy(copy, TITLE_SHAPE, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "dash_in_copy"), true);
+  });
+
+  it("is a COMPLETE no-op for a shape with no titleMaxChars — a present title is never checked or required", () => {
+    const withTitle = { caption: validCopy().caption, hashtags: validCopy().hashtags, title: "Ignored" };
+    const withoutTitle = validCopy();
+    const shapeWithNoTitle = CHARACTER_EXPLAINER_SHAPE; // no titleMaxChars field at all
+    assert.equal(validateCopy(withTitle, shapeWithNoTitle, NO_RULES).ok, true);
+    assert.equal(validateCopy(withoutTitle, shapeWithNoTitle, NO_RULES).ok, true);
+  });
+});

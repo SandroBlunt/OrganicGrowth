@@ -92,4 +92,21 @@ describe("injectRequiredParts — combines CTA + hashtag injection", () => {
     const rules: BrandCopyRules = { requiredCta: null, requiredHashtags: [], bannedWords: [] };
     assert.deepEqual(injectRequiredParts(copy, rules), copy);
   });
+
+  it("preserves an input title through unchanged (issue #174) — never silently dropped", () => {
+    const copy: Copy = {
+      caption: "A description body.",
+      hashtags: ["#morning"],
+      title: "A punchy YouTube title",
+    };
+    const rules: BrandCopyRules = {
+      requiredCta: "Link in bio!",
+      requiredHashtags: ["#lifehacks"],
+      bannedWords: [],
+    };
+    const result = injectRequiredParts(copy, rules);
+    assert.equal(result.title, "A punchy YouTube title");
+    assert.equal(result.caption, "A description body. Link in bio!");
+    assert.deepEqual(result.hashtags, ["#morning", "#lifehacks"]);
+  });
 });

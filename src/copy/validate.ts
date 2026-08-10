@@ -62,7 +62,9 @@ export type CopyValidationCode =
   | "banned_word"
   | "dash_in_copy"
   | "platform_mention_syntax"
-  | "caption_hashtags_length";
+  | "caption_hashtags_length"
+  | "title_missing"
+  | "title_length";
 
 /** One Copy contract violation: a stable `code` plus a human-readable `message`. */
 export interface CopyValidationError {
@@ -179,9 +181,31 @@ export function validateCopy(
     }
   }
 
+  // title — checked ONLY when `shape.titleMaxChars` is declared (issue #174); a complete no-op for
+  // both existing Recipes, which never set it, even when a stray `title` value happens to be present.
+  let titleText: string | null = null;
+  if (shape.titleMaxChars !== undefined) {
+    const title = copy.title;
+    if (typeof title !== "string" || title.trim().length === 0) {
+      errors.push({
+        code: "title_missing",
+        message: "title is required and must be a non-empty string.",
+      });
+    } else {
+      titleText = title;
+      if ([...title].length > shape.titleMaxChars) {
+        errors.push({
+          code: "title_length",
+          message: `title must be at most ${shape.titleMaxChars} characters (got ${[...title].length}).`,
+        });
+      }
+    }
+  }
+
   // Banned words — reject-only, re-pointed onto the composed Copy's own fields (ADR-0012).
   const fields: TextField[] = [
     ...(captionText !== null ? [{ field: "caption", text: captionText }] : []),
+    ...(titleText !== null ? [{ field: "title", text: titleText }] : []),
     ...(hashtags ?? []).map((text, i) => ({ field: `hashtags[${i}]`, text })),
   ];
   const safety = scanTextFields(fields, rules.bannedWords);

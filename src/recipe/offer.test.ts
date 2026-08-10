@@ -5,6 +5,7 @@ import { offeredRecipes, resolveRecipeSelection } from "./offer.ts";
 
 const WIRED = "character-explainer-with-cast";
 const SECOND_WIRED = "news-carousel"; // wired by issue #81 — proves AC4 generalizes to a new Recipe
+const THIRD_WIRED = "news-short-script"; // wired by issue #174 — a Space-less Recipe, offered the same way
 const UNWIRED = "carousel"; // not in the registry — must never be offered/chosen (AC4)
 
 describe("offeredRecipes — filters a Format's default_recipes to wired-only (issue #54 AC3/AC4)", () => {
@@ -35,6 +36,12 @@ describe("offeredRecipes — filters a Format's default_recipes to wired-only (i
   it("offers news-carousel for a Format whose default_recipes lists it (issue #81 AC4)", () => {
     const result = offeredRecipes([SECOND_WIRED]);
     assert.deepEqual(result.offered, [SECOND_WIRED]);
+    assert.deepEqual(result.unwired, []);
+  });
+
+  it("offers news-short-script the instant it is wired — a Space-less Recipe is offered exactly like any other (issue #174)", () => {
+    const result = offeredRecipes([THIRD_WIRED]);
+    assert.deepEqual(result.offered, [THIRD_WIRED]);
     assert.deepEqual(result.unwired, []);
   });
 

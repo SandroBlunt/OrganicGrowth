@@ -201,6 +201,24 @@ Brand's saved Copy carries no `variants` field at all, unchanged. The LinkedIn v
 `unresolvedMentions` (issue #130), when non-empty, is saved right there on that `CopyVariant` — it flows
 into the output bundle's `caption.txt`, flagged for Operator review, automatically.
 
+### 3. A title + description shape, for a Recipe whose copyShape declares titleMaxChars (issue #174)
+
+Most Recipes' Copy is a plain caption + hashtags. A Recipe whose `copyShape` (`src/recipe/registry.ts`)
+declares `titleMaxChars` — today: the News Short Script Recipe alone, for its YouTube video — composes a
+DIFFERENT shape instead: a short **title** (`Copy.title`, at most `copyShape.titleMaxChars` chars — 100
+for YouTube) plus a **description** stored in the SAME `caption` field every other Recipe's caption
+lives in (`src/copy/contract.ts`'s own documented reuse). You still hand off to the SAME deterministic
+checkers as every other Copy: `injectRequiredParts` (title passes through untouched — it only ever
+touches `caption`/`hashtags`) then `validateCopy`, which checks `title` (required, length-bounded,
+banned-word- and dash-scanned) ONLY when `shape.titleMaxChars` is set — a complete no-op for every other
+Recipe's plain caption + hashtags Copy. Draft the title from the Idea's own hook, kept punchy and
+on-brief; draft the description the same way you'd draft any other Recipe's caption — grounded in the
+brief and, once the Shot List's media exists, what was actually collected. `src/copy/news-short-script-draft.ts`'s
+`newsShortScriptDraftCopy` is this step's deterministic, testable proof, mirroring `skillDraftCopy`'s own
+role: given the SAME `CopyInput`/`CopyShape` this Skill reads, it derives a title from the Idea's title
+(truncated to `titleMaxChars`) and a description from `angle`/`mediaContext`, always passing
+`validateCopy` for the shape it was drafted for.
+
 ## What this Skill does not do
 
 - It does not run the Space, drive a canvas, pick a gate, or call any `spaces_*`/`creations_*` tool —

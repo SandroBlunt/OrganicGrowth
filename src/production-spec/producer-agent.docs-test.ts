@@ -335,3 +335,65 @@ describe("producer.md's Copy phase composes one variant per targeted Channel pla
     assert.match(text, /caption_hashtags_length/);
   });
 });
+
+describe("producer.md documents a Space-less Recipe: skip Bind/Watermark/Drive-canvas, collect the Shot List instead (ADR-0021, issue #174)", () => {
+  // Registry-backed: read the LIVE registry, never a frozen literal, mirroring the news-carousel
+  // node-name regression guard above — if news-short-script's own Space-less shape ever regresses,
+  // these assertions fail FIRST and loudly, so this guard's own premise can never itself go stale.
+  it("the real news-short-script Recipe is genuinely Space-less — the fact this whole block documents", async () => {
+    const recipe = getRecipe("news-short-script");
+    assert.ok(recipe !== null, "news-short-script must be registered");
+    assert.equal(recipe!.space, undefined);
+    assert.equal(recipe!.canvasInputs, undefined);
+    assert.deepEqual(recipe!.gates, []);
+  });
+
+  it("names usesSpace and ADR-0021 as the check that gates all canvas work", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /usesSpace\(recipe\)/);
+    assert.match(text, /src\/producer\/uses-space\.ts/);
+    assert.match(text, /ADR-0021/);
+  });
+
+  it("instructs skipping Bind, Watermark, and Drive-the-canvas entirely for a Space-less Recipe", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /skip the Bind phase, the Watermark step, and Drive-the[\s-]*\n?\s*canvas ENTIRELY/i);
+    assert.match(text, /This phase only applies when `usesSpace\(recipe\)` is `true`/);
+    assert.match(text, /This step, too, only ever applies to a Space-driving Recipe/);
+    assert.match(text, /This whole section applies only when `usesSpace\(recipe\)` is `true`/);
+  });
+
+  it("names collectShotListMedia as this Recipe's own render step, best-effort, never failing the job", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /src\/asset\/shot-list-media\.ts/);
+    assert.match(text, /collectShotListMedia/);
+    assert.match(text, /best-effort/i);
+    assert.match(text, /NEVER fails? the job/i);
+  });
+
+  it("states the Shot List collection writes into the SAME outputDirFor directory the Save phase uses", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /SAME `outputDirFor\(ideaId, run, ideasRoot, recipe\)` directory/);
+  });
+
+  it("states asset_paths for a Space-less Recipe come from downloadedMediaPaths, not downloadAssetFiles", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /downloadedMediaPaths\(shotListResults\)/);
+    assert.match(text, /no Magnific creation to download here at all/i);
+  });
+
+  it("names writeScriptText/script.txt and writeShotListText/shot-list.txt as the two extra output-bundle files", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /src\/asset\/news-short-script-output\.ts/);
+    assert.match(text, /writeScriptText/);
+    assert.match(text, /script\.txt/);
+    assert.match(text, /writeShotListText/);
+    assert.match(text, /shot-list\.txt/);
+  });
+
+  it("states script.txt is a single, copy-paste-ready teleprompter file with no cues or URLs", async () => {
+    const text = await readFile(PRODUCER_AGENT, "utf8");
+    assert.match(text, /copy-paste-ready teleprompter script/i);
+    assert.match(text, /no cues, no\s*\n?\s*URLs/i);
+  });
+});

@@ -74,10 +74,21 @@
  * `copyShape`, `copySkill`, and all six `phases` — a Space-less Recipe's Space-bound phases
  * (`bind-media`, `gate`, `render`) simply declare EMPTY checklists, the exact pattern the zero-gate News
  * Carousel Recipe's own `gate` phase already uses. `src/producer/uses-space.ts`'s `usesSpace(recipe)` is
- * the single, pure signal the thin Producer checks before doing ANY canvas work for a Recipe's job.
- * BOTH Recipes seeded below still drive a Space, unchanged by this widening — the first real Space-less
- * Recipe (News Short Script) is registered in a follow-up slice; issue #170 proves the generic support
- * against a throwaway, NOT-wired test fixture (`src/recipe/fixtures/space-less-recipe.ts`).
+ * the single, pure signal the thin Producer checks before doing ANY canvas work for a Recipe's job. The
+ * two Recipes seeded above still drive a Space, unchanged by this widening — issue #170 proved the
+ * generic support against a throwaway, NOT-wired test fixture (`src/recipe/fixtures/space-less-recipe.ts`).
+ *
+ * --- Seeded entry #3: "News Short Script" — the FIRST REAL, wired Space-less Recipe (issue #174) ---
+ *
+ * "News Short Script" is a ready-to-record teleprompter script plus its Shot List (CONTEXT.md "Shot
+ * List"), published manually by the Operator to YouTube. It declares NO `space`/`canvasInputs` at all
+ * (ADR-0021): its "render" step, `src/asset/shot-list-media.ts`'s `collectShotListMedia`, collects the
+ * Shot List's media instead of driving a canvas — best-effort, video preferred, a failed download NEVER
+ * fails the job. Its own Spec shape (`production-spec/news-short-script-contract.ts`/`-validate.ts`/
+ * `-brand-safety.ts`) is an ordered `beats` array (hook -> story* -> cta, ~120-150 words). Its Copy is a
+ * TITLE + description shape, not the other two Recipes' caption + hashtags one — `CopyShape.titleMaxChars`
+ * (`src/copy/contract.ts`, issue #174) is the additive field that makes this possible, read here from
+ * `copy/platform-shape.ts`'s own documented YouTube bounds so the two numbers can never drift.
  */
 
 import {
@@ -92,6 +103,8 @@ import {
 import { scanForBannedWords, type BrandSafetyResult } from "../production-spec/brand-safety.ts";
 import { validateNewsCarouselSpec } from "../production-spec/news-carousel-validate.ts";
 import { scanNewsCarouselForBannedWords } from "../production-spec/news-carousel-brand-safety.ts";
+import { validateNewsShortScriptSpec } from "../production-spec/news-short-script-validate.ts";
+import { scanNewsShortScriptForBannedWords } from "../production-spec/news-short-script-brand-safety.ts";
 import {
   JSON_MASTER_NODE_NAME,
   CHARACTER_NODE_NAME,
@@ -99,6 +112,7 @@ import {
 } from "../space-driver/driver.ts";
 import { canonicalProtocol, canonicalCarouselProtocol } from "../execution-protocol/protocol.ts";
 import { declaresAllPhasesInOrder, type PhaseContract } from "./phase-contract.ts";
+import { platformCopyShapeFor } from "../copy/platform-shape.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -165,12 +179,18 @@ export interface RecipeSpecShape {
   readonly scanBannedWords: (spec: unknown, bannedWords: readonly string[]) => BrandSafetyResult;
 }
 
-/** A Recipe's declared copy shape — the constraints its copy step's output must satisfy. */
+/** A Recipe's declared copy shape — the constraints its copy step's output must satisfy. Structurally
+ *  identical to `../copy/contract.ts`'s `CopyShape` (see that module's own doc comment) — a Recipe's
+ *  `copyShape` passes straight through with no conversion. */
 export interface RecipeCopyShape {
   readonly description: string;
   readonly maxChars: number;
   readonly minEmojis: number;
   readonly maxEmojis: number;
+  /** The max length of an OPTIONAL composed `title` (issue #174) — present ONLY for a Recipe whose
+   *  Copy is a title + description shape (today: the News Short Script Recipe, mirroring YouTube's
+   *  real 100-char title limit). Absent for both other Recipes' plain caption + hashtags shape. */
+  readonly titleMaxChars?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -779,15 +799,185 @@ if (!declaresAllPhasesInOrder(NEWS_CAROUSEL.phases)) {
 }
 
 // ---------------------------------------------------------------------------
+// The third seeded Recipe: "News Short Script" — SPACE-LESS (issue #174, ADR-0021)
+// ---------------------------------------------------------------------------
+
+/**
+ * The News Short Script Recipe's OWN copy-shape params — a title + description shape (issue #174), NOT
+ * a caption + hashtags one. Read from `copy/platform-shape.ts`'s own documented YouTube bounds
+ * (`platformCopyShapeFor("youtube")`) rather than re-typed as independent literals, so this Recipe's
+ * numbers can never drift from that table's own YouTube entry (mirrors CAST_RUN_POINT/CLIP_RUN_POINT's
+ * own "read from the same source, never re-typed" pattern above). YouTube's `titleMaxChars: 100` is the
+ * ONE entry in that table declaring it — this Recipe is what makes it real.
+ */
+const YOUTUBE_COPY_SHAPE = platformCopyShapeFor("youtube");
+if (YOUTUBE_COPY_SHAPE === null || YOUTUBE_COPY_SHAPE.titleMaxChars === undefined) {
+  // Defensive, mirroring the CAST_RUN_POINT/CLIP_RUN_POINT/CAROUSEL_RUN_POINT guards above: fail loudly
+  // at import time rather than silently registering this Recipe with undefined copy bounds.
+  throw new Error(
+    "recipe/registry: platform-shape.ts no longer documents a YouTube entry with titleMaxChars — the " +
+      "News Short Script Recipe cannot describe its own copy shape.",
+  );
+}
+
+/**
+ * The News Short Script Recipe's six ordered Phase Contracts (ADR-0017). Its `bind-media`/`gate`
+ * checklists are EMPTY — this is a Space-less Recipe (ADR-0021): no canvas to bind media into, zero
+ * declared gates. Unlike the throwaway ADR-0021 fixture (whose `render` checklist was a deliberate
+ * no-op, reserved for "this Recipe's own future build slice"), THIS Recipe's `render` phase is real
+ * work: collecting the Shot List's media is what a Space-less Recipe's "render" step IS.
+ */
+const NEWS_SHORT_SCRIPT_PHASES: readonly PhaseContract[] = [
+  {
+    phase: "author",
+    description:
+      "Author the Production Spec: an ordered beats array (hook -> one-or-more story beats -> cta), " +
+      "~120-150 words total, each beat carrying its own Shot List entry (source_url, an optional " +
+      "media_url, and a one-line show_cue).",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          "hook first, cta last, at least one story beat between them; every beat has a non-empty " +
+          "text/source_url/show_cue and a well-formed source_url/media_url; the total word count " +
+          "across every beat's text falls in 120-150 words.",
+        reference: "production-spec/news-short-script-validate.ts: validateNewsShortScriptSpec (this Recipe's specShape.validate)",
+      },
+      {
+        kind: "mechanical",
+        description: "No banned word in any beat field (text, source_url, media_url, show_cue) — reject-only, never a silent swap.",
+        reference:
+          "production-spec/news-short-script-brand-safety.ts: scanNewsShortScriptForBannedWords (this Recipe's specShape.scanBannedWords)",
+      },
+      {
+        kind: "agent-judged",
+        description:
+          "Each beat's text reads naturally aloud, fast-paced, in the Format's voice, grounded in the " +
+          "Idea's brief — never invented; a beat's media_url, when set, names the SPECIFIC clip the " +
+          "author identified (video preferred), not a generic thumbnail or the bare source page.",
+      },
+    ],
+  },
+  {
+    phase: "bind-media",
+    description: "This Recipe has no canvas at all (ADR-0021) — there is nothing to bind. EMPTY checklist.",
+    checklist: [],
+  },
+  {
+    phase: "gate",
+    description: "This Recipe declares zero gates — nothing pauses here, the same as the News Carousel Recipe.",
+    checklist: [],
+  },
+  {
+    phase: "render",
+    description:
+      "This Recipe has no Space to drive (ADR-0021) — its \"render\" step is collecting the Shot " +
+      "List's media instead: best-effort download, video preferred, falling back to a clearly-marked " +
+      "link when a clip can't be pulled or none was identified.",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          "Every beat resolves to either a downloaded local file or a clearly-marked link naming why " +
+          "(no media_url, or a failed download) — a failed download NEVER fails the job.",
+        reference: "asset/shot-list-media.ts: collectShotListMedia",
+      },
+    ],
+  },
+  {
+    phase: "copy",
+    description:
+      "Compose the Copy out of the Space, separately: a YouTube video title (at most 100 chars) plus " +
+      "a description, via the SAME shared copy step every Recipe uses.",
+    checklist: [
+      {
+        kind: "mechanical",
+        description:
+          "title is required and at most 100 chars; description length/emoji bounds; the required " +
+          "CTA/hashtags; no banned word or dash tell in the title or description.",
+        reference: "recipe/phase-contract.ts: auditCopyPhase (copy/validate.ts's validateCopy, this Recipe's copyShape)",
+      },
+    ],
+  },
+  {
+    phase: "save",
+    description: "Write the produced Asset back to the Brand's ledger and its self-contained .output/ bundle.",
+    checklist: [
+      {
+        kind: "agent-judged",
+        description:
+          'The Asset\'s ledger record carries recipe, status: "produced", spec_path, ' +
+          "asset_paths (the downloaded Shot List media's durable LOCAL file paths, when any were " +
+          "downloaded), produced_at, and the composed title + description copy " +
+          "(ledger-as-source-of-truth, always-rule 7).",
+      },
+      {
+        kind: "agent-judged",
+        description:
+          "The .output/ bundle follows issue #112's conventions (media + paste-ready text + " +
+          "regenerated post.json), PLUS this Recipe's own script.txt (the single copy-paste-ready " +
+          "teleprompter script) and shot-list.txt (the Operator's Shot List manifest).",
+      },
+    ],
+  },
+];
+
+/**
+ * The third seeded Recipe (issue #174): a ZERO-gate, SPACE-LESS Recipe (ADR-0021) — a ready-to-record
+ * teleprompter script plus its Shot List, published manually to YouTube. Proves the registry's
+ * Space-less shape (widened generically in issue #170) against a REAL, wired production Recipe for the
+ * first time — its own Spec shape/validator/banned-word scan, its own title + description copy shape,
+ * and no `space`/`canvasInputs` at all.
+ */
+const NEWS_SHORT_SCRIPT: Recipe = {
+  slug: "news-short-script",
+  name: "News Short Script",
+  description:
+    "A ready-to-record, ~45-60 second teleprompter script (hook -> story beats -> cta, ~120-150 " +
+    "words) plus its Shot List of collected media, for the Operator to record and publish manually to " +
+    "YouTube (ADR-0021).",
+  gates: [],
+  specShape: {
+    description:
+      "An ordered beats array — hook first, cta last, at least one story beat between — ~120-150 " +
+      "words total; each beat carries text, source_url, an optional media_url, and a show_cue. Media " +
+      "instructions only — no post_copy (ADR-0012).",
+    validate: validateNewsShortScriptSpec,
+    scanBannedWords: scanNewsShortScriptForBannedWords,
+  },
+  copyShape: {
+    description:
+      "Copy is composed OUT of the Space, separately, by the shared copy step (`src/copy/`) — a " +
+      "YouTube video title (at most 100 chars) plus a description, mirroring " +
+      "copy/platform-shape.ts's own documented YouTube bounds so the two can never drift.",
+    maxChars: YOUTUBE_COPY_SHAPE.maxChars,
+    minEmojis: YOUTUBE_COPY_SHAPE.minEmojis,
+    maxEmojis: YOUTUBE_COPY_SHAPE.maxEmojis,
+    titleMaxChars: YOUTUBE_COPY_SHAPE.titleMaxChars,
+  },
+  copySkill: "write-social-copy",
+  // No `space`, no `canvasInputs` — a Space-less Recipe (ADR-0021): there is no canvas to bind media
+  // into, inject a prompt onto, or drive a run-point against. `usesSpace(NEWS_SHORT_SCRIPT)` is `false`.
+  phases: NEWS_SHORT_SCRIPT_PHASES,
+};
+
+if (!declaresAllPhasesInOrder(NEWS_SHORT_SCRIPT.phases)) {
+  // Defensive, mirroring the CHARACTER_EXPLAINER_PHASES/NEWS_CAROUSEL_PHASES guards above.
+  throw new Error("recipe/registry: NEWS_SHORT_SCRIPT_PHASES does not declare all six phases in PHASE_ORDER.");
+}
+
+// ---------------------------------------------------------------------------
 // Registry lookups
 // ---------------------------------------------------------------------------
 
-/** The full in-repo Recipe registry, keyed by slug. Seeded with two entries (issue #54, issue #81):
- *  the wired *Character Explainer with Cast* Recipe (one gate) and the *News Carousel* Recipe (zero
- *  gates), in registration order. */
+/** The full in-repo Recipe registry, keyed by slug. Seeded with three entries (issue #54, issue #81,
+ *  issue #174): the wired *Character Explainer with Cast* Recipe (one gate), the *News Carousel*
+ *  Recipe (zero gates), and the SPACE-LESS *News Short Script* Recipe (zero gates, no Space —
+ *  ADR-0021), in registration order. */
 const REGISTRY: ReadonlyMap<string, Recipe> = new Map([
   [CHARACTER_EXPLAINER_WITH_CAST.slug, CHARACTER_EXPLAINER_WITH_CAST],
   [NEWS_CAROUSEL.slug, NEWS_CAROUSEL],
+  [NEWS_SHORT_SCRIPT.slug, NEWS_SHORT_SCRIPT],
 ]);
 
 /** Look up a Recipe by slug, or `null` if it is not (yet) wired/registered. Never throws. */

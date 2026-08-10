@@ -188,3 +188,37 @@ describe("AC4 — multi-Channel Brand: two different platform bounds (Straw Moti
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// YouTube's titleMaxChars (issue #174)
+// ---------------------------------------------------------------------------
+
+describe("YouTube's documented bounds declare titleMaxChars: 100 (issue #174) — the only platform that does", () => {
+  it("platformCopyShapeFor('youtube') carries titleMaxChars: 100", () => {
+    const shape = platformCopyShapeFor("youtube");
+    assert.equal(shape?.titleMaxChars, 100);
+  });
+
+  it("no other documented platform declares titleMaxChars", () => {
+    for (const shape of listPlatformCopyShapes()) {
+      if (shape.platform === "youtube") continue;
+      assert.equal(shape.titleMaxChars, undefined, `${shape.platform} should not declare titleMaxChars`);
+    }
+  });
+
+  it("validateCopyForPlatform enforces the 100-char title bound for youtube, via resolveCopyShapeForPlatform", () => {
+    const recipeBase: CopyShape = { maxChars: 1000, minEmojis: 0, maxEmojis: 2 }; // no titleMaxChars of its own
+    const tooLong = {
+      caption: "A description with enough words to read as real prose about the story.",
+      hashtags: [],
+      title: "T".repeat(101),
+    };
+    const result = validateCopyForPlatform(tooLong, "youtube", recipeBase, NO_RULES);
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((e) => e.code === "title_length"));
+
+    const ok = { ...tooLong, title: "A punchy, on-brief YouTube title" };
+    const okResult = validateCopyForPlatform(ok, "youtube", recipeBase, NO_RULES);
+    assert.equal(okResult.ok, true, JSON.stringify(okResult.errors));
+  });
+});

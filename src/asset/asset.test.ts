@@ -220,6 +220,35 @@ describe("parseCopy — structured Copy, defensive (ADR-0012, issue #58)", () =>
   it("degrades to the plain shape when `variants` is present but not an array", () => {
     assert.deepEqual(parseCopy({ caption: "x", hashtags: [], variants: "nope" }), { caption: "x", hashtags: [] });
   });
+
+  // -------------------------------------------------------------------------
+  // title (issue #174) — additive; absent/malformed never breaks the base Copy
+  // -------------------------------------------------------------------------
+
+  it("carries NO `title` key at all when the raw Copy doesn't have one — the pre-#174 shape unchanged", () => {
+    const parsed = parseCopy({ caption: "x", hashtags: ["#a"] });
+    assert.equal("title" in parsed!, false);
+  });
+
+  it("parses a well-formed title through, surviving a load -> write -> load round trip", () => {
+    const raw = { caption: "A YouTube description body.", hashtags: [], title: "A punchy title" };
+    assert.deepEqual(parseCopy(raw), raw);
+  });
+
+  it("drops a blank or non-string title defensively, degrading to the plain shape", () => {
+    assert.deepEqual(parseCopy({ caption: "x", hashtags: [], title: "" }), { caption: "x", hashtags: [] });
+    assert.deepEqual(parseCopy({ caption: "x", hashtags: [], title: 7 }), { caption: "x", hashtags: [] });
+  });
+
+  it("carries title AND variants together when both are present", () => {
+    const raw = {
+      caption: "Body",
+      hashtags: [],
+      title: "Title here",
+      variants: [{ platform: "facebook", caption: "Body", hashtags: [] }],
+    };
+    assert.deepEqual(parseCopy(raw), raw);
+  });
 });
 
 describe("parseCopyVariant / parseCopyVariants — one platform-labeled Copy variant (issue #129)", () => {

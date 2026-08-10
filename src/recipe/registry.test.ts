@@ -12,16 +12,20 @@ import { validate as validateProductionSpec } from "../production-spec/validate.
 import { scanForBannedWords } from "../production-spec/brand-safety.ts";
 import { validateNewsCarouselSpec } from "../production-spec/news-carousel-validate.ts";
 import { scanNewsCarouselForBannedWords } from "../production-spec/news-carousel-brand-safety.ts";
+import { validateNewsShortScriptSpec } from "../production-spec/news-short-script-validate.ts";
+import { scanNewsShortScriptForBannedWords } from "../production-spec/news-short-script-brand-safety.ts";
 import { JSON_MASTER_NODE_NAME, CHARACTER_NODE_NAME, WATERMARK_NODE_NAME } from "../space-driver/driver.ts";
 import { canonicalProtocol, canonicalCarouselProtocol } from "../execution-protocol/protocol.ts";
+import { platformCopyShapeFor } from "../copy/platform-shape.ts";
 import { validSpec } from "../production-spec/fixtures/specs.ts";
 import { validCarouselSpec } from "../production-spec/fixtures/news-carousel-specs.ts";
+import { validNewsShortScriptSpec } from "../production-spec/fixtures/news-short-script-specs.ts";
 
-describe("Recipe registry — seeded with two entries (issue #54, issue #81)", () => {
-  it("registers exactly two Recipes: character-explainer-with-cast and news-carousel", () => {
+describe("Recipe registry — seeded with three entries (issue #54, issue #81, issue #174)", () => {
+  it("registers exactly three Recipes: character-explainer-with-cast, news-carousel, news-short-script", () => {
     const slugs = listWiredRecipeSlugs();
-    assert.deepEqual(slugs, ["character-explainer-with-cast", "news-carousel"]);
-    assert.equal(listRecipes().length, 2);
+    assert.deepEqual(slugs, ["character-explainer-with-cast", "news-carousel", "news-short-script"]);
+    assert.equal(listRecipes().length, 3);
   });
 
   it("getRecipe returns the seeded character Recipe by slug", () => {
@@ -38,26 +42,40 @@ describe("Recipe registry — seeded with two entries (issue #54, issue #81)", (
     assert.equal(recipe!.name, "News Carousel");
   });
 
+  it("getRecipe returns the seeded news-short-script Recipe by slug", () => {
+    const recipe = getRecipe("news-short-script");
+    assert.ok(recipe !== null);
+    assert.equal(recipe!.slug, "news-short-script");
+    assert.equal(recipe!.name, "News Short Script");
+  });
+
   it("getRecipe returns null for an unregistered slug — never throws", () => {
     assert.equal(getRecipe("carousel"), null);
     assert.equal(getRecipe(""), null);
     assert.equal(getRecipe("../evil"), null);
   });
 
-  it("isWiredRecipe is true for both seeded slugs and false for an unregistered one", () => {
+  it("isWiredRecipe is true for all three seeded slugs and false for an unregistered one", () => {
     assert.equal(isWiredRecipe("character-explainer-with-cast"), true);
     assert.equal(isWiredRecipe("news-carousel"), true);
+    assert.equal(isWiredRecipe("news-short-script"), true);
     assert.equal(isWiredRecipe("carousel"), false);
     assert.equal(isWiredRecipe(""), false);
   });
 
-  it("both wired Recipes still populate BOTH space and canvasInputs — Recipe.space/canvasInputs widening to optional (ADR-0021, issue #170) changes NEITHER seeded Recipe's shape", () => {
+  it("both Space-driving Recipes still populate BOTH space and canvasInputs — Recipe.space/canvasInputs widening to optional (ADR-0021, issue #170) changes NEITHER seeded Recipe's shape", () => {
     const character = getRecipe("character-explainer-with-cast")!;
     const carousel = getRecipe("news-carousel")!;
     assert.notEqual(character.space, undefined);
     assert.notEqual(character.canvasInputs, undefined);
     assert.notEqual(carousel.space, undefined);
     assert.notEqual(carousel.canvasInputs, undefined);
+  });
+
+  it("the News Short Script Recipe declares NEITHER space NOR canvasInputs — a real, wired Space-less Recipe (ADR-0021, issue #174)", () => {
+    const newsShortScript = getRecipe("news-short-script")!;
+    assert.equal(newsShortScript.space, undefined);
+    assert.equal(newsShortScript.canvasInputs, undefined);
   });
 });
 
@@ -274,15 +292,106 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
   });
 });
 
-describe("Both wired Recipes' copySkill is a swappable, per-Recipe field (issue #111)", () => {
-  it("both seeded Recipes declare the SAME copySkill today — ADR-0012's one shared copy step, made an explicit, swappable slug", () => {
-    const character = getRecipe("character-explainer-with-cast")!;
-    const carousel = getRecipe("news-carousel")!;
-    assert.equal(character.copySkill, "write-social-copy");
-    assert.equal(carousel.copySkill, "write-social-copy");
+describe("The News Short Script Recipe declares its OWN gates + spec-shape + copy-shape + NO Space target (issue #174, ADR-0021)", () => {
+  const recipe = getRecipe("news-short-script")!;
+
+  it("declares ZERO gates", () => {
+    assert.deepEqual(recipe.gates, []);
   });
 
-  it("copySkill is independent of gates/specShape/copyShape — the two Recipes differ in all three but share copySkill", () => {
+  it("declares NO space and NO canvasInputs — a Space-less Recipe", () => {
+    assert.equal(recipe.space, undefined);
+    assert.equal(recipe.canvasInputs, undefined);
+  });
+
+  it("declares a spec-shape whose validator IS the real news-short-script validator (zero drift)", () => {
+    assert.equal(recipe.specShape.validate, validateNewsShortScriptSpec);
+  });
+
+  it("declares a spec-shape whose banned-word scan IS the real news-short-script scanner (zero drift)", () => {
+    assert.equal(recipe.specShape.scanBannedWords, scanNewsShortScriptForBannedWords);
+  });
+
+  it("the spec-shape's validator accepts a well-formed Spec and rejects a malformed one", () => {
+    assert.equal(recipe.specShape.validate(validNewsShortScriptSpec()).ok, true);
+    assert.equal(recipe.specShape.validate({}).ok, false);
+  });
+
+  it("declares a copy-shape mirroring copy/platform-shape.ts's own documented YouTube bounds, including titleMaxChars: 100 — zero drift", () => {
+    const youtube = platformCopyShapeFor("youtube")!;
+    assert.equal(recipe.copyShape.maxChars, youtube.maxChars);
+    assert.equal(recipe.copyShape.minEmojis, youtube.minEmojis);
+    assert.equal(recipe.copyShape.maxEmojis, youtube.maxEmojis);
+    assert.equal(recipe.copyShape.titleMaxChars, 100);
+    assert.equal(recipe.copyShape.titleMaxChars, youtube.titleMaxChars);
+  });
+
+  it("declares a copy-shape DIFFERENT from both other Recipes' — it alone carries titleMaxChars", () => {
+    const character = getRecipe("character-explainer-with-cast")!;
+    const carousel = getRecipe("news-carousel")!;
+    assert.equal(character.copyShape.titleMaxChars, undefined);
+    assert.equal(carousel.copyShape.titleMaxChars, undefined);
+    assert.notEqual(recipe.copyShape.titleMaxChars, undefined);
+  });
+
+  it("declares its copySkill as the SAME shared write-social-copy Skill every other Recipe uses", () => {
+    assert.equal(recipe.copySkill, "write-social-copy");
+  });
+
+  it("declares all six Phase Contracts, in PHASE_ORDER's exact order", () => {
+    assert.equal(declaresAllPhasesInOrder(recipe.phases), true);
+    assert.deepEqual(
+      recipe.phases.map((p) => p.phase),
+      [...PHASE_ORDER],
+    );
+  });
+
+  it("its bind-media and gate phase checklists are EMPTY — no canvas, zero gates (ADR-0021)", () => {
+    const bindMedia = recipe.phases.find((p) => p.phase === "bind-media")!;
+    const gate = recipe.phases.find((p) => p.phase === "gate")!;
+    assert.deepEqual(bindMedia.checklist, []);
+    assert.deepEqual(gate.checklist, []);
+  });
+
+  it("its render phase checklist is NOT empty — collecting the Shot List's media IS this Recipe's render step", () => {
+    const render = recipe.phases.find((p) => p.phase === "render")!;
+    assert.ok(render.checklist.length > 0);
+    const first = render.checklist[0]!;
+    assert.equal(first.kind, "mechanical");
+    if (first.kind === "mechanical") {
+      assert.match(first.reference, /shot-list-media\.ts/);
+    }
+  });
+
+  it("its author-phase checklist references its OWN specShape functions", () => {
+    const author = recipe.phases.find((p) => p.phase === "author")!;
+    assert.ok(author.checklist.length >= 2);
+    const mechanical = author.checklist.filter((i) => i.kind === "mechanical");
+    assert.equal(mechanical.length, 2);
+  });
+
+  it("every mechanical checklist item across every phase carries a non-empty reference", () => {
+    for (const phase of recipe.phases) {
+      for (const item of phase.checklist) {
+        if (item.kind === "mechanical") {
+          assert.ok(item.reference.length > 0, `${phase.phase}: ${item.description}`);
+        }
+      }
+    }
+  });
+});
+
+describe("All three wired Recipes' copySkill is a swappable, per-Recipe field (issue #111)", () => {
+  it("all three seeded Recipes declare the SAME copySkill today — ADR-0012's one shared copy step, made an explicit, swappable slug", () => {
+    const character = getRecipe("character-explainer-with-cast")!;
+    const carousel = getRecipe("news-carousel")!;
+    const newsShortScript = getRecipe("news-short-script")!;
+    assert.equal(character.copySkill, "write-social-copy");
+    assert.equal(carousel.copySkill, "write-social-copy");
+    assert.equal(newsShortScript.copySkill, "write-social-copy");
+  });
+
+  it("copySkill is independent of gates/specShape/copyShape — the Recipes differ in all three but share copySkill", () => {
     const character = getRecipe("character-explainer-with-cast")!;
     const carousel = getRecipe("news-carousel")!;
     assert.notDeepEqual(character.gates, carousel.gates);

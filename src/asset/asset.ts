@@ -340,12 +340,16 @@ export function parseCopyVariants(raw: unknown): CopyVariant[] {
 }
 
 /**
- * Parse one raw structured Copy (`{ caption, hashtags, variants? }` — ADR-0012, issue #58; `variants`
- * added issue #129). Returns `null` on any malformed shape (a missing/blank `caption` is required; a
- * missing/non-array `hashtags` degrades to `[]` rather than failing the whole Copy) — never throws.
- * `variants` is included ONLY when at least one well-formed entry parses — a single-Channel Brand's
- * Copy (no `variants` key at all, or a garbled one) parses to the SAME plain `{ caption, hashtags }`
- * shape it always has (AC1/AC5).
+ * Parse one raw structured Copy (`{ caption, hashtags, variants?, title? }` — ADR-0012, issue #58;
+ * `variants` added issue #129; `title` added issue #174). Returns `null` on any malformed shape (a
+ * missing/blank `caption` is required; a missing/non-array `hashtags` degrades to `[]` rather than
+ * failing the whole Copy) — never throws. `variants` is included ONLY when at least one well-formed
+ * entry parses — a single-Channel Brand's Copy (no `variants` key at all, or a garbled one) parses to
+ * the SAME plain `{ caption, hashtags }` shape it always has (AC1/AC5). `title` is included ONLY when
+ * it is itself a non-empty string — absent (or garbled) on every Recipe whose Copy carries no title,
+ * exactly like before this field existed; PRESENT on a title-carrying Recipe's Copy so it survives a
+ * ledger load -> write -> load cycle (mirrors `unresolvedMentions`' own issue #141 fix — a missing
+ * parse here would silently erase `title` on the next write to a sibling Asset on the same Idea).
  */
 export function parseCopy(raw: unknown): Copy | null {
   if (!isObject(raw)) return null;
@@ -354,7 +358,12 @@ export function parseCopy(raw: unknown): Copy | null {
     ? raw.hashtags.filter((h): h is string => typeof h === "string")
     : [];
   const variants = parseCopyVariants(raw.variants);
-  return { caption: raw.caption, hashtags, ...(variants.length > 0 ? { variants } : {}) };
+  return {
+    caption: raw.caption,
+    hashtags,
+    ...(variants.length > 0 ? { variants } : {}),
+    ...(nonEmptyString(raw.title) ? { title: raw.title } : {}),
+  };
 }
 
 function isNonEmptyStringArray(value: unknown): value is readonly string[] {

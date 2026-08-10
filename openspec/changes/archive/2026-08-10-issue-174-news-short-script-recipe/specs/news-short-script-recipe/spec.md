@@ -1,0 +1,94 @@
+## ADDED Requirements
+
+### Requirement: The News Short Script Production Spec is an ordered beats array (issue #174)
+
+`NewsShortScriptSpec` (`src/production-spec/news-short-script-contract.ts`) SHALL be `{ beats:
+NewsShortScriptBeat[] }`, where each beat is `{ role: "hook" | "story" | "cta", text, source_url,
+media_url?, show_cue }`. `role` values SHALL follow the fixed narrative shape: exactly one `"hook"`
+first, exactly one `"cta"` last, at least `MIN_STORY_BEATS` `"story"` beats between them. The Spec is
+media instructions only (no `post_copy` — ADR-0012; Copy is composed separately, as a title +
+description).
+
+#### Scenario: countWords counts whitespace-separated tokens, ignoring extra whitespace
+
+- **GIVEN** a string with multiple consecutive spaces between words
+- **WHEN** `countWords` is called
+- **THEN** it returns the number of non-empty tokens, unaffected by the extra whitespace
+
+### Requirement: Shot List media collection is best-effort — video preferred, a failed download never fails the job (ADR-0021, issue #174)
+
+`collectShotListMedia` (`src/asset/shot-list-media.ts`) SHALL, for each beat in a
+`NewsShortScriptSpec`, resolve its media outcome as follows, NEVER throwing:
+
+- a beat with NO `media_url` resolves to `{ kind: "link", reason: "no_media_url" }`, referencing its
+  `source_url` — no download is attempted;
+- a beat WITH a `media_url` is attempted via an injectable `download` function (defaulting to
+  `defaultShotListDownload`, a real `fetch`-based implementation never exercised by this Recipe's own
+  tests); on success, the bytes are written to the destination directory and the beat resolves to
+  `{ kind: "downloaded", filename, path }`; on ANY failure — the downloader returning `{ ok: false }` OR
+  throwing — the beat resolves to `{ kind: "link", reason: "download_failed", error }`, referencing the
+  `media_url` itself.
+
+Results preserve `spec.beats`' own order. `downloadedMediaPaths` SHALL return the ordered local file
+paths of every `"downloaded"` beat only, ready to feed `LedgerAssetRecord.asset_paths`.
+
+#### Scenario: A beat with no media_url resolves to a link, referencing source_url, with no download attempted
+
+- **GIVEN** a beat with no `media_url`
+- **WHEN** `collectShotListMedia` is called
+- **THEN** that beat's result is `{ kind: "link", reason: "no_media_url", url: <the beat's source_url> }`
+  and the injected `download` function is never called for it
+
+#### Scenario: A successful download is written to disk and marked downloaded
+
+- **GIVEN** a beat with a `media_url` and a `download` function that resolves `{ ok: true, bytes, ... }`
+- **WHEN** `collectShotListMedia` is called
+- **THEN** that beat's result is `{ kind: "downloaded", filename, path }`, and a file exists at `path`
+  containing the downloaded bytes
+
+#### Scenario: A failed download (ok:false or a thrown error) falls back to a marked link — never fails the job
+
+- **GIVEN** a beat with a `media_url` and a `download` function that either returns `{ ok: false, error
+  }` or throws
+- **WHEN** `collectShotListMedia` is called
+- **THEN** the whole call resolves successfully (never rejects), and that beat's result is `{ kind:
+  "link", reason: "download_failed", error, url: <the beat's media_url> }`
+
+#### Scenario: downloadedMediaPaths returns only the downloaded beats' local paths, in beat order
+
+- **GIVEN** a mixed set of `collectShotListMedia` results (some downloaded, some link-only)
+- **WHEN** `downloadedMediaPaths` is called
+- **THEN** it returns only the `"downloaded"` beats' `path` values, in the same order as `spec.beats`
+
+### Requirement: The teleprompter script renders as a single, copy-paste-ready file; the Shot List renders as a separate manifest (issue #174)
+
+`scriptText` (`src/asset/news-short-script-output.ts`) SHALL render a Spec's beats as ONE clean text:
+each beat's `text`, in order, separated by a blank line — no beat labels, show cues, or URLs. Skips a
+beat whose `text` is blank/whitespace-only. `shotListText` SHALL render a SEPARATE, human-readable
+manifest: for each beat, its role, `show_cue`, `source_url`, and its collected-media outcome (a
+downloaded filename, or a marked link naming why) — accepting an OPTIONAL `results` array (defaulting to
+`[]`, rendering `"media: not collected"` for a beat with no matching result, never crashing).
+`writeScriptText`/`writeShotListText` write these into the Asset's `.output/` bundle as `script.txt`/
+`shot-list.txt` respectively, alongside the bundle's existing `caption.txt`/`post.json` (issue #112).
+
+#### Scenario: scriptText joins every beat's text as clean paragraphs, with no cues or URLs
+
+- **GIVEN** a well-formed Spec
+- **WHEN** `scriptText` is called
+- **THEN** the result is every beat's `text`, joined by a blank line, containing no beat-role labels, no
+  `show_cue` text, and no URL
+
+#### Scenario: shotListText renders each beat's role, show cue, source, and media outcome
+
+- **GIVEN** a Spec and its `collectShotListMedia` results
+- **WHEN** `shotListText` is called
+- **THEN** each beat's block names its role, `show_cue`, `source_url`, and either its downloaded
+  filename or its link (with the reason) — a downloaded outcome is textually distinguishable from a
+  link-only one
+
+#### Scenario: shotListText never crashes when results are omitted or incomplete
+
+- **GIVEN** a Spec and either no `results` argument or a `results` array missing an entry for some beat
+- **WHEN** `shotListText` is called
+- **THEN** it returns a rendered manifest whose unmatched beat(s) read `"media: not collected"` — never
+  throws

@@ -17,6 +17,12 @@ channel:
     url: ""
   - platform: tiktok
     url: ""
+  # The News Short Script Recipe's measured Channel (issue #174) — added to the list so its Copy step
+  # composes/validates against YouTube's own documented bounds (title <=100 chars + description,
+  # src/copy/platform-shape.ts); NOT primary — performance tracking stays scoped to the one primary
+  # Channel above (ADR-0019), publishing every Channel here stays 100% manual.
+  - platform: youtube
+    url: https://www.youtube.com/@strawmotion
 
 niche: "Where agentic AI meets generative media: building agents/workflows,
   generative-media workflows, comparing models, AI news, and how the technology

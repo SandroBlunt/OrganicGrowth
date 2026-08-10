@@ -41,11 +41,13 @@ import type { Copy, CopyVariant } from "../copy/contract.ts";
 /** Deep-clone a `Copy` (including `variants`, when present) — never shares a reference with the input
  *  (issue #129, mirroring `generatePostJson`'s own purity guarantee: identical inputs always yield
  *  deep-equal, freshly-allocated output). Each variant's `unresolvedMentions` (issue #130) is cloned too,
- *  when present and non-empty. */
+ *  when present and non-empty. `title` (issue #174) is carried through too, when present — so
+ *  `post.json` never silently drops a title-carrying Recipe's own headline. */
 function cloneCopy(copy: Copy): Copy {
   return {
     caption: copy.caption,
     hashtags: [...copy.hashtags],
+    ...(copy.title !== undefined ? { title: copy.title } : {}),
     ...(copy.variants !== undefined && copy.variants.length > 0
       ? {
           variants: copy.variants.map((v) => ({
@@ -171,27 +173,41 @@ function unresolvedMentionsNote(variant: CopyVariant): string {
   return `[Unresolved ${variant.platform} mentions - no committed handle, review before publishing: ${unresolved.join(", ")}]\n`;
 }
 
+/** Render a leading `Title: …` line, when `copy.title` is present — a Recipe whose Copy is a title +
+ *  description shape (issue #174, today: the News Short Script Recipe's YouTube video title). Returns
+ *  `""` (nothing at all) when `copy.title` is absent — BYTE-FOR-BYTE identical to before this field
+ *  existed for both existing Recipes' plain caption + hashtags Copy. */
+function renderTitleLine(copy: Copy): string {
+  return copy.title !== undefined ? `Title: ${copy.title}\n\n` : "";
+}
+
 /**
  * Render a Copy as paste-ready text for `caption.txt` (issue #112; per-platform variants added issue
- * #129). When `copy.variants` is absent or empty (today's single-Channel shape — AC1/AC5), this is
- * BYTE-FOR-BYTE unchanged from before: just the one caption block. When a Brand targets more than one
- * Channel, `copy.variants` is present and this instead renders EVERY variant, each headed by an
+ * #129; an optional leading title line added issue #174). When `copy.variants` is absent or empty
+ * (today's single-Channel shape — AC1/AC5), this is otherwise BYTE-FOR-BYTE unchanged from before: just
+ * the one caption block, optionally preceded by a `Title: …` line when `copy.title` is present (never
+ * for either existing Recipe, which never sets it). When a Brand targets more than one Channel,
+ * `copy.variants` is present and this instead renders EVERY variant, each headed by an
  * `=== PLATFORM ===` label and separated by a blank line, so the Operator can find and paste the right
  * one per Channel at Publish. A variant carrying non-empty `unresolvedMentions` (issue #130) gets one
  * additional flagged note line, inside its OWN block, naming every unresolved company/product — never
  * leaking into another variant's block, and never appearing at all when there is nothing unresolved.
  */
 export function captionText(copy: Copy): string {
+  const titlePrefix = renderTitleLine(copy);
   const variants = copy.variants;
   if (variants === undefined || variants.length === 0) {
-    return renderCaptionBlock(copy.caption, copy.hashtags);
+    return `${titlePrefix}${renderCaptionBlock(copy.caption, copy.hashtags)}`;
   }
-  return variants
-    .map(
-      (v) =>
-        `=== ${v.platform.toUpperCase()} ===\n${renderCaptionBlock(v.caption, v.hashtags)}${unresolvedMentionsNote(v)}`,
-    )
-    .join("\n");
+  return (
+    titlePrefix +
+    variants
+      .map(
+        (v) =>
+          `=== ${v.platform.toUpperCase()} ===\n${renderCaptionBlock(v.caption, v.hashtags)}${unresolvedMentionsNote(v)}`,
+      )
+      .join("\n")
+  );
 }
 
 // ---------------------------------------------------------------------------
