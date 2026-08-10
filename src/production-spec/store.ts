@@ -14,6 +14,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ProductionSpec } from "./contract.ts";
 import { writeFileAtomic } from "../fs/safe-io.ts";
+import { assertValidRunId } from "../format/run-id.ts";
 
 /**
  * Derive a Brief's SHORT on-disk name (`idea-NN`) from its full ledger id (`idea-<run>-NN`).
@@ -40,8 +41,13 @@ export function briefShortName(ideaId: string, run: string): string {
  * required (there is no ambient default; a bare `"ideas"` root was deliberately removed with the
  * legacy folder). `recipe` is REQUIRED (issue #56): the Recipe segment is what lets two Recipes of one
  * Idea each keep their own Spec file instead of the second overwriting the first (ADR-0011).
+ *
+ * `run` is validated (`assertValidRunId`, issue #172) BEFORE it is joined into the path — a Run id is
+ * untrusted input (a raw `/run-trends <brand> <format> [<run-id>]` CLI argument), so a path-traversal
+ * value is rejected here, loudly, before any I/O.
  */
 export function specPathFor(ideaId: string, run: string, ideasRoot: string, recipe: string): string {
+  assertValidRunId(run);
   return join(ideasRoot, run, `${briefShortName(ideaId, run)}.${recipe}.spec.json`);
 }
 

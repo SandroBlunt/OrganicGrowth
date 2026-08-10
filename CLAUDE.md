@@ -42,7 +42,9 @@ and are intentionally kept out of this table.*
 
 ## The OrganicGrowth pipeline (weekly loop)
 
-Run once per **Format** per week (running a whole Brand is a loop over its Formats). Steps marked 👤 are
+Run once per **Format** per cadence period — a Format owns its own **cadence**, `weekly` (the default)
+or `daily` (ADR-0022; a daily Run is named by date, e.g. `2026-08-11`) — running a whole Brand is a loop
+over its Formats. Steps marked 👤 are
 the Operator. **The agent auto-advances through the mechanical steps and pauses only at the three human
 gates (Review, each chosen Recipe's own pick-gate(s), Publish) — it never asks the Operator to run a step
 it can run itself, and never renders past a gate before the Operator acts.** Gates are **per-Recipe**

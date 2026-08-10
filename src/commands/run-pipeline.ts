@@ -64,6 +64,7 @@ import { loadQueue } from "../production-queue/store.ts";
 import { enqueueOnAccept } from "../production-queue/enqueue-on-accept.ts";
 import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
 import { reportCommand } from "./report.ts";
+import { isoWeek } from "../format/run-id.ts";
 import type { Finding } from "../readiness/types.ts";
 import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
 import type { BrandInterviewAnswers } from "../brand/scaffolder.ts";
@@ -73,18 +74,17 @@ import type { BrandInterviewAnswers } from "../brand/scaffolder.ts";
 // ---------------------------------------------------------------------------
 
 /**
- * Return the ISO 8601 week string for a given Date (e.g. `"2026-W23"`).
- * Pure: deterministic for a given date input. Uses UTC date components to avoid timezone drift.
+ * `isoWeek` (used for the `/rename` hint below, a Brand-level session-naming suggestion) now lives in
+ * `../format/run-id.ts` (issue #172, ADR-0022), so `/run-trends`'s cadence-derived default Run naming
+ * (`defaultRunId`) shares the SAME implementation rather than a second copy. Re-exported here so this
+ * module's existing public surface (and `run-pipeline.test.ts`'s import) is unchanged.
+ *
+ * This hint stays week-shaped regardless of a Format's cadence: it prints BEFORE any Format is chosen
+ * (Step 3, ahead of Gate 1), and a Brand may run several Formats of different cadences at once, so
+ * there is no single "the" cadence to derive it from here — the real cadence-aware default Run naming
+ * lives at `/run-trends`, which DOES know the Format (see `.claude/commands/run-trends.md`).
  */
-export function isoWeek(date: Date): string {
-  // Use UTC date components to avoid local-timezone drift when the caller passes a UTC midnight.
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  // ISO week: Thursday of the week determines the year.
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
-}
+export { isoWeek };
 
 // ---------------------------------------------------------------------------
 // ConductorTurn — the unit of interaction the conductor yields

@@ -31,6 +31,7 @@
 
 import { join } from "node:path";
 import { briefShortName } from "../production-spec/store.ts";
+import { assertValidRunId } from "../format/run-id.ts";
 import { downloadAssetFiles, type AssetDownloadTarget } from "./download.ts";
 import type { LedgerCastCandidate } from "./asset.ts";
 
@@ -45,8 +46,12 @@ import type { LedgerCastCandidate } from "./asset.ts";
  * (`idea-NN.<recipe>.output/`) — mirroring `src/production-spec/store.ts`'s `specPathFor`/
  * `briefShortName` id/run/recipe convention exactly (reusing `briefShortName`, never re-deriving it),
  * with the `.cast` suffix in place of `.spec.json`/`.output`, so it is never mistaken for either.
+ *
+ * `run` is validated (`assertValidRunId`, issue #172) BEFORE it is joined into the path — see
+ * `specPathFor`'s matching doc comment for why.
  */
 export function castCandidatesDirFor(ideaId: string, run: string, ideasRoot: string, recipe: string): string {
+  assertValidRunId(run);
   return join(ideasRoot, run, `${briefShortName(ideaId, run)}.${recipe}.cast`);
 }
 

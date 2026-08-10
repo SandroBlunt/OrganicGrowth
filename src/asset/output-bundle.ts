@@ -32,6 +32,7 @@ import { mkdir } from "node:fs/promises";
 
 import { writeFileAtomic } from "../fs/safe-io.ts";
 import { briefShortName } from "../production-spec/store.ts";
+import { assertValidRunId } from "../format/run-id.ts";
 import { loadIdeas, findIdea, type LedgerIdea } from "../ledger/ledger.ts";
 import { findAsset } from "./asset.ts";
 import type { AssetMetrics, LedgerAssetRecord } from "./asset.ts";
@@ -75,8 +76,12 @@ function cloneCopy(copy: Copy): Copy {
  * resolves an EXISTING Asset's bundle directory from its own recorded `asset_paths` instead (see
  * `refreshPostJson`), which is what keeps a pre-this-slice Asset's `.assets/`-named folder working
  * with zero migration.
+ *
+ * `run` is validated (`assertValidRunId`, issue #172) BEFORE it is joined into the path — see
+ * `specPathFor`'s matching doc comment for why.
  */
 export function outputDirFor(ideaId: string, run: string, ideasRoot: string, recipe: string): string {
+  assertValidRunId(run);
   return join(ideasRoot, run, `${briefShortName(ideaId, run)}.${recipe}.output`);
 }
 

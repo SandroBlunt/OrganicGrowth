@@ -20,6 +20,7 @@ import {
   isValidFormatSlug,
   assertValidFormatSlug,
   deriveSourceMode,
+  parseCadence,
   parseFormatFile,
   formatFilePath,
   formatIdeasRoot,
@@ -145,6 +146,41 @@ describe("parseFormatFile — a fully-populated Format file parses to the typed 
     assert.equal(format.ideasPerRun, 10);
     assert.deepEqual(format.defaultRecipes, ["character-explainer-with-cast"]);
     assert.deepEqual(format.baselinePrompts, { "news-carousel": "news-carousel.md" });
+    assert.equal(format.cadence, "weekly", "no cadence key at all defaults to weekly (ADR-0022)");
+  });
+
+  it("parses an explicit cadence: daily", () => {
+    const format = parseFormatFile({ ...raw, cadence: "daily" }, "unhypped-daily");
+    assert.equal(format.cadence, "daily");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// cadence (ADR-0022, issue #172)
+// ---------------------------------------------------------------------------
+
+describe("parseCadence — weekly default, daily opt-in, defensive on garbled input", () => {
+  it("defaults to weekly when absent", () => {
+    assert.equal(parseCadence(undefined), "weekly");
+  });
+
+  it("selects daily for the exact string 'daily'", () => {
+    assert.equal(parseCadence("daily"), "daily");
+  });
+
+  it("is case-insensitive and trims whitespace", () => {
+    assert.equal(parseCadence("Daily"), "daily");
+    assert.equal(parseCadence("  daily  "), "daily");
+    assert.equal(parseCadence("DAILY"), "daily");
+  });
+
+  it("falls back to weekly for any other value, including garbled input, never throwing", () => {
+    assert.equal(parseCadence("weekly"), "weekly");
+    assert.equal(parseCadence("monthly"), "weekly");
+    assert.equal(parseCadence(""), "weekly");
+    assert.equal(parseCadence(null), "weekly");
+    assert.equal(parseCadence(42), "weekly");
+    assert.equal(parseCadence(["daily"]), "weekly");
   });
 });
 
@@ -191,6 +227,7 @@ describe("parseFormatFile — defensive defaults on missing/garbled input", () =
     assert.equal(format.sources.lookbackDays, 7);
     assert.equal(format.sources.overperformanceOnly, true);
     assert.equal(format.ideasPerRun, 10);
+    assert.equal(format.cadence, "weekly");
     assert.deepEqual(format.defaultRecipes, []);
     assert.deepEqual(format.baselinePrompts, {}, "no Format declares an empty {} — a clear 'none', never an error");
   });
@@ -439,6 +476,7 @@ describe("mundotip and straw-motion are migrated to their own Format files (issu
     assert.ok(format.sources.seedPages.length > 0, "must carry MundoTip's real peer seed pages");
     assert.ok(format.voice.length > 0, "must carry a real voice, not a placeholder");
     assert.deepEqual(format.defaultRecipes, ["character-explainer-with-cast"]);
+    assert.equal(format.cadence, "weekly", "issue #172 AC1: unhypped-news/life-hacks behavior unchanged");
   });
 
   it("straw-motion's real formats/unhypped-news.yaml loads through the FormatStore in curated mode", async () => {
@@ -447,6 +485,7 @@ describe("mundotip and straw-motion are migrated to their own Format files (issu
     assert.equal(format.sources.mode, "curated");
     assert.ok(format.sources.curatedSources.length > 0, "must carry Straw Motion's real curated sources");
     assert.ok(format.voice.length > 0, "must carry a real voice, not a placeholder");
+    assert.equal(format.cadence, "weekly", "issue #172 AC1: unhypped-news has no cadence key, defaults weekly");
   });
 
   it("straw-motion's real unhypped-news.yaml declares the Baseline Prompt pointer for news-carousel (issue #83 AC2)", async () => {

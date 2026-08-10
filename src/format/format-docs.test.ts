@@ -48,6 +48,24 @@ describe("/run-trends requires an explicit Format argument (issue #53 AC3)", () 
   });
 });
 
+describe("/run-trends defaults the Run name from the invoked Format's cadence (ADR-0022, issue #172 AC2)", () => {
+  it("documents the default run id as cadence-derived: current ISO week (weekly) or current ISO date (daily)", async () => {
+    const doc = await readDoc(".claude", "commands", "run-trends.md");
+    assert.match(doc, /cadence/i, "must mention the Format's cadence deciding the default Run id");
+    assert.match(doc, /defaultRunId/, "must name the deep module function that computes the default");
+    assert.match(doc, /src\/format\/run-id\.ts/, "must point at the module the function lives in");
+    assert.match(doc, /current ISO week/i, "must state the weekly default");
+    assert.match(doc, /current ISO date/i, "must state the daily default");
+    assert.match(doc, /2026-08-11/, "must give a concrete daily-Run example date");
+  });
+
+  it("documents that the run id is validated as a safe path segment before any directory is created", async () => {
+    const doc = await readDoc(".claude", "commands", "run-trends.md");
+    assert.match(doc, /assertValidRunId/, "must name the Run-id guard function");
+    assert.match(doc, /BEFORE creating any directory/i, "must state the guard runs before any I/O");
+  });
+});
+
 describe("trend-scout reads its peer-vs-curated mode + sources from the Format file (issue #53 AC4)", () => {
   it("names the Format file as the source of truth for sources.mode", async () => {
     const doc = await readDoc(".claude", "agents", "trend-scout.md");

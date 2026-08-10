@@ -110,5 +110,10 @@ how you invoke it selects the Brand:
   `/run-pipeline <brand>` at any time picks up from the correct gate.
 - **No duplicated logic.** The conductor delegates to existing modules: `resolveBrand`, `resolvePhase`,
   `classify`, `checkConfig`, `enqueueOnAccept`, and the granular commands.
-- **One week at a time.** The default run is the current ISO week. Running again within the same week
-  continues where you left off unless you pick `fresh`.
+- **The `/rename` hint (step 3) is a Brand-level cosmetic suggestion, not the Run id.** It prints the
+  current ISO week BEFORE any Format is chosen, and a Brand may run several Formats of different
+  cadences at once, so it cannot know a per-Format cadence yet. The actual Run naming — the current
+  ISO week for a weekly Format, the current ISO date for a daily Format (ADR-0022) — is decided by
+  `/run-trends`, which DOES know the invoked Format's `cadence`. Running `/run-trends` again within
+  the same cadence period continues that Run (its output directory already exists) unless you pass a
+  different `<run-id>` or the Operator picks `fresh` here.

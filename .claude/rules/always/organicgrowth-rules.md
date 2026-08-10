@@ -33,7 +33,9 @@ globs: *
    ideas, or metrics.
 9. **Respect the brand profile.** Banned words and brand-safety rules in `brand-profile.yaml` are hard
    filters on every Idea.
-10. **Weekly cadence.** One Run per week unless the Operator explicitly asks otherwise.
+10. **Cadence.** One Run per cadence period per Format — a Format owns its own `cadence`, `weekly`
+    (the default) or `daily` (`docs/adr/0022-cadence-is-a-format-property.md`) — unless the Operator
+    explicitly asks otherwise.
 11. **Human gates: Review, each Recipe's picks, Publish; the producer drives the Space attended.** The
     pipeline pauses at **Review** (accept an Idea + choose its **Recipes**, pre-filled from the Format),
     at **each Recipe's own pick-gate(s)** (zero, one, or several — the wired *Character Explainer with

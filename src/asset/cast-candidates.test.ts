@@ -71,6 +71,10 @@ describe("castCandidatesDirFor — mirrors outputDirFor's id/run/recipe conventi
     assert.notEqual(wired, future);
     assert.ok(future.endsWith("idea-01.some-future-cast-recipe.cast"));
   });
+
+  it("rejects a path-traversal Run id BEFORE joining it into a path (issue #172)", () => {
+    assert.throws(() => castCandidatesDirFor("idea-01", "../../evil", "ideas", "character-explainer-with-cast"));
+  });
 });
 
 // ---------------------------------------------------------------------------
