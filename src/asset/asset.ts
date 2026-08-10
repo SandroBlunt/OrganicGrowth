@@ -50,6 +50,13 @@
  * read back by the parser, so a write to any sibling Asset on the same Idea (which re-normalizes the
  * WHOLE Idea's `assets` array through this module on its way back to disk) silently erased both fields
  * on every OTHER Asset that Idea carried.
+ *
+ * `zoho_schedule_reference` (issue #161, ADR-0020) is the identifier (or identifiers) Zoho's MCP
+ * schedule-post tool returned at schedule-time, sitting alongside `scheduled_at` on an Asset scheduled
+ * through that path. ADR-0020: later confirmation ("is it live yet?") keys on this EXACT reference, never
+ * on guessed timing — so it is stored and read back completely VERBATIM, string or array of strings,
+ * whatever shape Zoho itself returned. Like `scheduled_at`, it carries no lifecycle meaning of its own:
+ * the Asset's `status` stays `produced` (being queued in Zoho is not being posted) until `/log-post`.
  */
 
 import type { Copy, CopyVariant } from "../copy/contract.ts";
@@ -85,6 +92,14 @@ export interface LedgerCastCandidate {
    */
   readonly path?: string;
 }
+
+/**
+ * The shape Zoho's MCP schedule-post tool returns for "what got scheduled" (issue #161, ADR-0020): a
+ * single reference, or an array of them (one per targeted Channel platform). Never normalized to always
+ * one shape — a caller that scheduled to one platform gets a string back; one that scheduled to several
+ * gets an array back, and the Asset stores exactly whichever shape it received.
+ */
+export type ZohoScheduleReference = string | readonly string[];
 
 /**
  * The four public Apify metrics (always-rules #2/#4 — public-metrics-only, relative-not-absolute) a
@@ -160,6 +175,16 @@ export interface LedgerAssetRecord {
    * scope).
    */
   readonly scheduled_at?: string;
+  /**
+   * The EXACT reference (or references) Zoho's MCP schedule-post tool returned at schedule-time for
+   * this Asset (issue #161, ADR-0020) — a single string or an array of strings, matching whatever shape
+   * Zoho itself returned (e.g. one reference per targeted Channel platform). Stored and read back
+   * VERBATIM: never re-derived, never normalized, never collapsed to/from one of the two shapes. Present
+   * only on an Asset scheduled via the MCP path; absent on one scheduled via the CSV/S3 fallback (which
+   * has no such reference) or not yet scheduled at all. Carries no lifecycle meaning of its own — same
+   * as `scheduled_at`, the Asset's `status` stays `produced` until `/log-post` (ADR-0011 unchanged).
+   */
+  readonly zoho_schedule_reference?: ZohoScheduleReference;
   readonly post_url?: string;
   readonly posted_at?: string;
   readonly performance_score?: number;
@@ -332,6 +357,24 @@ export function parseCopy(raw: unknown): Copy | null {
   return { caption: raw.caption, hashtags, ...(variants.length > 0 ? { variants } : {}) };
 }
 
+function isNonEmptyStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.length > 0 && value.every(nonEmptyString);
+}
+
+/**
+ * Parse one raw `zoho_schedule_reference` (issue #161, ADR-0020): a non-empty string, OR a non-empty
+ * array whose every entry is a non-empty string — kept VERBATIM, in whichever shape it arrived (never
+ * collapsed to always-array, never re-derived). Any other shape (blank string, empty array, an array
+ * with any non-string/blank entry, a number, an object, `null`/`undefined`) returns `null` — the WHOLE
+ * value is omitted rather than partially kept, mirroring `parseAssetMetrics`'s never-half-fabricate
+ * rule. Never throws.
+ */
+export function parseZohoScheduleReference(raw: unknown): ZohoScheduleReference | null {
+  if (nonEmptyString(raw)) return raw;
+  if (isNonEmptyStringArray(raw)) return [...raw];
+  return null;
+}
+
 /**
  * Parse one raw Asset record. Requires a non-empty `recipe` and a valid `status`; every other field
  * is included ONLY when present and well-typed (never assigned as `undefined` — keeps the result
@@ -348,6 +391,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
   const metrics = parseAssetMetrics(raw.metrics);
   const history = parseAssetMetricsHistory(raw.history);
   const assetPaths = parseAssetPaths(raw.asset_paths);
+  const zohoScheduleReference = parseZohoScheduleReference(raw.zoho_schedule_reference);
 
   return {
     recipe: raw.recipe,
@@ -361,6 +405,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
     ...(assetPaths.length > 0 ? { asset_paths: assetPaths } : {}),
     ...(nonEmptyString(raw.produced_at) ? { produced_at: raw.produced_at } : {}),
     ...(nonEmptyString(raw.scheduled_at) ? { scheduled_at: raw.scheduled_at } : {}),
+    ...(zohoScheduleReference !== null ? { zoho_schedule_reference: zohoScheduleReference } : {}),
     ...(nonEmptyString(raw.post_url) ? { post_url: raw.post_url } : {}),
     ...(nonEmptyString(raw.posted_at) ? { posted_at: raw.posted_at } : {}),
     ...(isFiniteNumber(raw.performance_score) ? { performance_score: raw.performance_score } : {}),

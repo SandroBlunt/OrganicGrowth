@@ -192,6 +192,84 @@ describe("writeAsset — upserts one Recipe's Asset on the target Idea, preservi
     });
   });
 
+  // issue #161 / ADR-0020: an Asset scheduled via Zoho's MCP path carries `zoho_schedule_reference`
+  // (verbatim, string or array of strings) alongside `scheduled_at`. Like `scheduled_at`/
+  // `unresolvedMentions` before it, this field must survive a write to a SIBLING Asset on the same Idea,
+  // since `writeAsset` re-normalizes the whole Idea's `assets[]` through the parser on every write.
+  it("a write to a sibling Asset does NOT erase zoho_schedule_reference", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-01",
+          status: "accepted",
+          assets: [
+            {
+              recipe: "news-carousel",
+              status: "produced",
+              scheduled_at: "2026-08-10T09:00:00.000Z",
+              zoho_schedule_reference: ["fb_post_1", "ig_post_1"],
+            },
+            { recipe: "character-explainer-with-cast", status: "queued" },
+          ],
+        },
+      ],
+    };
+    await withLedger(seed, async (path) => {
+      await writeAsset(
+        "idea-01",
+        "character-explainer-with-cast",
+        { status: "in_production", pending_gate: "cast" },
+        { ledgerPath: path },
+      );
+
+      const after = JSON.parse(await readFile(path, "utf8")) as {
+        ideas: Array<{ id: string; assets: Array<Record<string, unknown>> }>;
+      };
+      const carousel = after.ideas[0]!.assets.find((a) => a.recipe === "news-carousel")!;
+      assert.deepEqual(
+        carousel.zoho_schedule_reference,
+        ["fb_post_1", "ig_post_1"],
+        "zoho_schedule_reference must survive the sibling write, verbatim",
+      );
+      assert.equal(carousel.scheduled_at, "2026-08-10T09:00:00.000Z");
+
+      const assets = await loadIdeaAssets("idea-01", path);
+      const carouselAsset = assets!.find((a) => a.recipe === "news-carousel")!;
+      assert.deepEqual(carouselAsset.zoho_schedule_reference, ["fb_post_1", "ig_post_1"]);
+    });
+  });
+
+  it("writes and reads back a single-string zoho_schedule_reference verbatim", async () => {
+    await withLedger({ ideas: [{ id: "idea-A", status: "accepted" }] }, async (path) => {
+      await writeAsset(
+        "idea-A",
+        "news-carousel",
+        { status: "produced", scheduled_at: "2026-08-10T09:00:00.000Z", zoho_schedule_reference: "post_abc123" },
+        { ledgerPath: path },
+      );
+      const assets = await loadIdeaAssets("idea-A", path);
+      assert.equal(assets![0]!.zoho_schedule_reference, "post_abc123");
+      assert.equal(assets![0]!.status, "produced");
+    });
+  });
+
+  it("loads a ledger record written before this field existed cleanly — no zoho_schedule_reference", async () => {
+    const seed = {
+      ideas: [
+        {
+          id: "idea-A",
+          status: "accepted",
+          assets: [{ recipe: "news-carousel", status: "produced", scheduled_at: "2026-08-04T14:23:00.000Z" }],
+        },
+      ],
+    };
+    await withLedger(seed, async (path) => {
+      const assets = await loadIdeaAssets("idea-A", path);
+      assert.equal(Object.hasOwn(assets![0]! as object, "zoho_schedule_reference"), false);
+      assert.equal(assets![0]!.scheduled_at, "2026-08-04T14:23:00.000Z");
+    });
+  });
+
   it("normalizes an un-migrated Idea's legacy status/scalars onto assets[] BEFORE upserting", async () => {
     // Writing an Asset onto a not-yet-migrated Idea must not silently drop its legacy production data.
     const seed = { ideas: [{ id: "idea-A", status: "casting", cast: [{ identifier: "c1", url: "https://x/1.png" }] }] };
