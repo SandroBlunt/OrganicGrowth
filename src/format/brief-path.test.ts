@@ -143,6 +143,21 @@ describe("resolveBriefPathCandidates — priority order (pure)", () => {
     );
   });
 
+  it("never throws on a path-traversal run value — degrades to no candidates at all (issue #172)", () => {
+    const idea: SuggestedIdeaRef = {
+      id: "idea-01",
+      run: "../../evil",
+      format: "unhypped-news",
+      briefPath: null,
+    };
+    assert.doesNotThrow(() => resolveBriefPathCandidates(idea, "straw-motion", "data/brands"));
+    assert.deepEqual(
+      resolveBriefPathCandidates(idea, "straw-motion", "data/brands"),
+      [],
+      "an unsafe run must never be joined into a returned candidate path",
+    );
+  });
+
   it("treats a blank brief_path as absent (falls through to reconstruction)", () => {
     const idea: SuggestedIdeaRef = {
       id: "idea-01",

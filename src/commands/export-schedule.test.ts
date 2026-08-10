@@ -259,6 +259,42 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
     });
   });
 
+  it("rejects a path-traversal Run id BEFORE any path join or I/O (issue #172)", async () => {
+    await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+      const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01");
+      await writeLedger(fx.ledgerPath, [
+        {
+          id: "idea-2026-W32-01",
+          title: "AI got cheaper this week",
+          format: FORMAT,
+          run: RUN,
+          status: "accepted",
+          assets: [
+            { recipe: "news-carousel", status: "produced", asset_paths: idea01Paths, copy: fullCopy("idea-01") },
+          ],
+        },
+      ]);
+      const mediaHost = new FakeMediaHost();
+
+      await assert.rejects(
+        exportScheduleCommand(BRAND, FORMAT, "../../evil", START_DATE, {
+          ledgerPath: fx.ledgerPath,
+          brandProfilePath: fx.brandProfilePath,
+          ideasRoot: fx.ideasRoot,
+          now: () => NOW,
+          mediaHost,
+        }),
+        (err: unknown) => {
+          assert.ok(err instanceof Error);
+          assert.ok(err.message.includes("../../evil"), "error must name the offending Run id");
+          return true;
+        },
+      );
+      assert.equal(mediaHost.convertCalls.length, 0, "no media may be hosted before the Run id is validated");
+      assert.equal(mediaHost.uploadCalls.length, 0);
+    });
+  });
+
   it("refuses loudly and writes nothing when the Brand has no Zoho Social Brand config", async () => {
     await withFixture(NOT_CONFIGURED_PROFILE_YAML, async (fx) => {
       const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01");

@@ -24,6 +24,7 @@ import { join } from "node:path";
 import { resolveBrand } from "../brand/resolver.ts";
 import { briefShortName } from "../production-spec/store.ts";
 import { formatIdeasRoot } from "./store.ts";
+import { isValidRunId } from "./run-id.ts";
 
 /** The subset of a ledger Idea record `resolveBriefPath` needs. */
 export interface SuggestedIdeaRef {
@@ -60,8 +61,12 @@ function nonEmpty(value: string | null | undefined): value is string {
  *   3. Otherwise (no `format` either): just the legacy Brand-level path
  *      `data/brands/<brand>/ideas/<run>/idea-NN.md`.
  *
- * PURE: no filesystem access. The caller tries each candidate in order and uses the first that
- * exists.
+ * PURE: no filesystem access; NEVER throws. `idea.run` is validated (`isValidRunId`, issue #172)
+ * before being joined into either reconstructed candidate — a garbled/path-traversal `run` (e.g. from
+ * a hand-edited ledger record) degrades to `[]` (no reconstructed candidate at all) rather than
+ * returning a dangerous path, mirroring how a garbled `format` already degrades to skipping the
+ * Format-namespaced candidate below. The caller tries each returned candidate in order and uses the
+ * first that exists.
  */
 export function resolveBriefPathCandidates(
   idea: SuggestedIdeaRef,
@@ -70,6 +75,10 @@ export function resolveBriefPathCandidates(
 ): string[] {
   if (nonEmpty(idea.briefPath)) {
     return [idea.briefPath.trim()];
+  }
+
+  if (!isValidRunId(idea.run)) {
+    return [];
   }
 
   const shortName = briefShortName(idea.id, idea.run);

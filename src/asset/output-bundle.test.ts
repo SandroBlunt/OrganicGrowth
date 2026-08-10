@@ -70,6 +70,10 @@ describe("outputDirFor — mirrors specPathFor's id/run/recipe convention, with 
     const dir = outputDirFor("idea-01", "2026-W22", "ideas", "news-carousel");
     assert.equal(dir, join("ideas", "2026-W22", "idea-01.news-carousel.output"));
   });
+
+  it("rejects a path-traversal Run id BEFORE joining it into a path (issue #172)", () => {
+    assert.throws(() => outputDirFor("idea-01", "../../evil", "ideas", "news-carousel"));
+  });
 });
 
 // ---------------------------------------------------------------------------

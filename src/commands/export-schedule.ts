@@ -44,6 +44,7 @@ import { fileURLToPath } from "node:url";
 
 import { resolveBrand } from "../brand/resolver.ts";
 import { formatIdeasRoot } from "../format/store.ts";
+import { assertValidRunId } from "../format/run-id.ts";
 import { briefShortName } from "../production-spec/store.ts";
 import { loadZohoConfig } from "../production-spec/brand-profile.ts";
 import { writeFileAtomic } from "../fs/safe-io.ts";
@@ -138,6 +139,10 @@ export async function exportScheduleCommand(
   startDate: string,
   options: ExportScheduleOptions = {},
 ): Promise<string> {
+  // A Run id is untrusted input (a raw `/export-schedule <brand> <format> <run> <start-date>` CLI
+  // argument) that gets joined into `runFolder` below — reject a path-traversal value loudly, before
+  // any path join or I/O (issue #172).
+  assertValidRunId(run);
   const brandPaths = resolveBrand(brand, options.brandsRoot);
   const ledgerPath = options.ledgerPath ?? brandPaths.ledger;
   const brandProfilePath = options.brandProfilePath ?? brandPaths.brandProfile;

@@ -54,6 +54,17 @@ describe("specPathFor", () => {
     const specPath = specPathFor("idea-2026-W22-01", "2026-W22", ideasRoot, RECIPE);
     assert.equal(specPath, join(ideasRoot, "2026-W22", `idea-01.${RECIPE}.spec.json`));
   });
+
+  it("rejects a path-traversal Run id BEFORE joining it into a path (issue #172)", () => {
+    assert.throws(
+      () => specPathFor("idea-01", "../../evil", "root", RECIPE),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes("../../evil"), "error must name the offending Run id");
+        return true;
+      },
+    );
+  });
 });
 
 describe("saveSpec", () => {

@@ -41,6 +41,15 @@ import { normalizeSeeds, type NormalizedSeed } from "../readiness/check-config.t
 /** How a Format's Trend Research sources are gathered — chosen per-Format (ADR-0013). */
 export type FormatSourceMode = "peer" | "curated";
 
+/**
+ * How often a Run of this Format is launched (ADR-0022, `docs/adr/0022-cadence-is-a-format-property.md`):
+ * `"weekly"` (the default — every Format that predates this field parses as weekly, unchanged) or
+ * `"daily"` (e.g. Straw Motion's Unhypped Daily). A Run's DEFAULT name follows this — the current ISO
+ * week for `"weekly"`, the current ISO date for `"daily"` (`defaultRunId`, `./run-id.ts`) — but the
+ * Run id stays an opaque label everywhere else: no code parses week/date semantics back out of it.
+ */
+export type FormatCadence = "weekly" | "daily";
+
 /** A Format's trend-research sources + mode — moved down from the Brand's `seeds.yaml`. */
 export interface FormatSources {
   readonly mode: FormatSourceMode;
@@ -79,6 +88,8 @@ export interface FormatFile {
   readonly sources: FormatSources;
   /** How many Idea briefs to suggest per Run of THIS Format (moved down from the Brand). */
   readonly ideasPerRun: number;
+  /** How often a Run of this Format is launched — `"weekly"` (default) or `"daily"` (ADR-0022). */
+  readonly cadence: FormatCadence;
   /** Recipe slugs pre-filled at Review for Ideas of this Format (ADR-0009). Stays free-text/unvalidated
    * HERE at parse time — the in-repo Recipe registry (`src/recipe/registry.ts`, issue #54) is the
    * thing that filters these to WIRED slugs only, at offer time (`src/recipe/offer.ts`,
@@ -155,6 +166,15 @@ function positiveInt(value: unknown, fallback: number): number {
 }
 
 /**
+ * Parse a Format's `cadence` field (ADR-0022). `"daily"` (trimmed, case-insensitive) selects the
+ * daily cadence; anything else — absent, garbled, or any other string — defaults to `"weekly"`, so
+ * every Format that predates this field (every real Format today) parses unchanged.
+ */
+export function parseCadence(value: unknown): FormatCadence {
+  return typeof value === "string" && value.trim().toLowerCase() === "daily" ? "daily" : "weekly";
+}
+
+/**
  * A string->string map with every key and value trimmed, keeping only entries where BOTH the key
  * and the value are non-empty strings. Non-object/garbled input (and every non-string/empty-after-
  * trim entry within it) is dropped rather than crashing — the same defensive-degrade convention
@@ -225,6 +245,7 @@ export function parseFormatFile(raw: unknown, slug: string): FormatFile {
     mediaFocus: str(obj.media_focus, "reel"),
     sources,
     ideasPerRun: positiveInt(obj.ideas_per_run, 10),
+    cadence: parseCadence(obj.cadence),
     defaultRecipes: strArray(obj.default_recipes),
     baselinePrompts: strRecord(obj.baseline_prompts),
   };
