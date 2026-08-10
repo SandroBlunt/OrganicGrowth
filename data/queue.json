@@ -125,7 +125,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.468Z"
     },
     {
@@ -133,7 +133,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.470Z"
     },
     {
@@ -141,7 +141,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.471Z"
     },
     {
@@ -149,7 +149,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.472Z"
     },
     {
@@ -157,7 +157,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.473Z"
     },
     {
@@ -165,7 +165,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.474Z"
     },
     {
@@ -173,7 +173,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.475Z"
     },
     {
@@ -181,7 +181,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.476Z"
     },
     {
@@ -189,7 +189,7 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.477Z"
     },
     {
@@ -197,8 +197,170 @@
       "brand": "straw-motion",
       "recipe": "character-explainer-with-cast",
       "gate": "cast",
-      "status": "awaiting_pick",
+      "status": "done",
       "enqueued_at": "2026-07-22T14:53:55.478Z"
+    },
+    {
+      "idea_id": "idea-2026-W30-01",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:57:49.141Z",
+      "pick": "8vBvOh2IrU"
+    },
+    {
+      "idea_id": "idea-2026-W30-02",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:00.590Z",
+      "pick": "mCICANEhJQ"
+    },
+    {
+      "idea_id": "idea-2026-W30-03",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:02.357Z",
+      "pick": "PiOiKTf42C"
+    },
+    {
+      "idea_id": "idea-2026-W30-04",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:04.184Z",
+      "pick": "xg1gCJOjfW"
+    },
+    {
+      "idea_id": "idea-2026-W30-05",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:05.916Z",
+      "pick": "swjwqOUl8e"
+    },
+    {
+      "idea_id": "idea-2026-W30-06",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:07.698Z",
+      "pick": "5xqxEOOKxe"
+    },
+    {
+      "idea_id": "idea-2026-W30-07",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:09.512Z",
+      "pick": "kL5LqYZ16B"
+    },
+    {
+      "idea_id": "idea-08",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:11.265Z",
+      "pick": "Xtetdw1Bfo"
+    },
+    {
+      "idea_id": "idea-09",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:13.432Z",
+      "pick": "e8DIo80dqL"
+    },
+    {
+      "idea_id": "idea-10",
+      "brand": "straw-motion",
+      "recipe": "character-explainer-with-cast",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-07-24T13:58:15.222Z",
+      "pick": "LUxw7HBswO"
+    },
+    {
+      "idea_id": "idea-2026-W32-01",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.191Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-03",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.199Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-04",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.201Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-05",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.203Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-06",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.205Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-07",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.207Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-08",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.211Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-09",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:21:13.215Z"
+    },
+    {
+      "idea_id": "idea-2026-W32-10",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-03T12:25:29.702Z"
     }
   ],
   "lock": {

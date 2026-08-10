@@ -10,21 +10,21 @@
       "clip_id": 1,
       "concept_title": "It answered, then stopped",
       "image_prompt": "Pixar-style 3D animation. Otto, a friendly tidy desk-agent robot with a briefcase body and little white gloves, politely answers one small floating question then sits still, while a towering stack of project boxes looms over a tired owner in the warm-lit office background, gentle wistful expression, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
-      "video_prompt": "Slow push-in on Otto as he answers and goes quiet -> behind him the owner eyes a mountain of project boxes and slumps -> Voice (soft): for years, it answered your question, then stopped. -> SFX: a soft ding, a tired sigh."
+      "video_prompt": "Animate from the first frame. Camera: slow push-in on Otto as he answers and goes still. Motion: behind him the tired owner eyes a mountain of project boxes and slumps at 4s. Audio: soft voice, \"for years, it answered your question, then stopped\"; SFX a soft ding, a tired sigh."
     },
     {
       "id": "idea-2026-W30-05-clip-2",
       "clip_id": 2,
       "concept_title": "Weeks down to hours",
       "image_prompt": "Pixar-style 3D animation. Otto the desk-agent robot rolls up his sleeves and races through a whole multi-step project, papers and browser windows swirling neatly around him into a tidy finished folder, a big wall clock behind him spinning from weeks to hours, the owner stepping away through a doorway, bright energetic lighting, focused delighted expression, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
-      "video_prompt": "Fast montage orbit as Otto works -> windows and pages fly into a neat folder while the clock spins from weeks down to hours and the owner steps away -> Voice (rising, amazed): now it does the whole job while you are away. -> SFX: brisk shuffling, a whirring clock, a bright chime."
+      "video_prompt": "Animate from the first frame. Camera: fast montage orbit as Otto works. Motion: browser windows and pages fly into a neat folder while the wall clock spins from weeks to hours and the owner steps out at 5s. Audio: rising amazed voice, \"now it does the whole job while you are away\"; SFX brisk shuffling, a whirring clock, a bright chime."
     },
     {
       "id": "idea-2026-W30-05-clip-3",
       "clip_id": 3,
       "concept_title": "It finishes, you sign off",
       "image_prompt": "Pixar-style 3D animation. Otto the desk-agent robot proudly hands a neat finished deliverable folder to the returning owner, who holds an approve stamp ready, a small hand-lettered sign nearby reads it finishes you sign off, warm evening office glow, satisfied honest expression, vibrant family-film color grade, cinematic lighting. Aspect Ratio 9:16.",
-      "video_prompt": "Slow push-in as Otto offers the finished folder -> the owner reviews it and presses an approve stamp before it ships -> Voice (warm, honest): it finishes the task, you still sign off. -> SFX: a paper flip, a firm approving stamp."
+      "video_prompt": "Animate from the first frame. Camera: slow push-in as Otto offers the finished folder. Motion: the returning owner reviews it and at 4s presses an approve stamp before it ships. Audio: warm honest voice, \"it finishes the task, you still sign off\"; SFX a paper flip, a firm approving stamp."
     }
   ],
   "thumbnails": [

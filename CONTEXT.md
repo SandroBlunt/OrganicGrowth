@@ -37,8 +37,8 @@ _Avoid_: profile, handle.
 The recurring editorial identity a **Brand** publishes under — its subject **and** treatment (e.g. Straw
 Motion's **"Unhypped News"**: AI/tech news explained in-depth, in plain terms). A Format sits **above
 Ideas** and holds many of them; a Brand may run one or several. It shapes what its Ideas are about and
-how their copy reads. It **owns** its voice/treatment, its trend sources, and its peer-vs-curated mode —
-so one Brand can run several Formats with different voices (ADR-0013). It also owns the **look** — a
+how their copy reads. It **owns** its voice/treatment, its trend sources, its peer-vs-curated mode, and its **cadence**
+(weekly or daily; ADR-0022) — so one Brand can run several Formats with different voices (ADR-0013). It also owns the **look** — a
 per-Recipe **Baseline Prompt** (a referenced document the Recipe's **Skill** interprets to author the
 media; ADR-0015). It carries the **default Recipes** its Ideas are produced through (the Operator
 confirms or trims them at Review). Distinct from a **Recipe** (how the media is made): the bare word "format" used to
@@ -53,14 +53,15 @@ _Avoid_: user, admin (be specific — the Operator is the marketer driving the l
 **Trend**:
 A theme with current momentum on the Channel's platform, surfaced from Apify by scraping *other
 people's* public posts (engagement + recency). Momentum is carried more by topics/formats/sounds than by
-hashtags. For a Brand with `curated_sources` set in `seeds.yaml`, trend-scout surfaces Trends from the
-Operator's own curated public newsletters instead of scraping peers — momentum there means editorial
-prominence in the source, not peer over-performance.
+hashtags. For a **Format** that lists `curated_sources`, trend-scout surfaces Trends from the Operator's own
+curated public sources (newsletters, RSS feeds) instead of scraping peers — momentum there means
+editorial prominence in the source, not peer over-performance.
 _Avoid_: hashtag (a Trend is more than a tag), topic.
 
-**Run** (weekly Trend Research Run):
-One cycle of the pipeline, launched **weekly** by the Operator with basic parameters — trend-scout
-scrapes Trends and idea-strategist turns the strongest into suggested Ideas for Review.
+**Run** (a Format's Trend Research Run):
+One cycle of the pipeline for one **Format**, launched by the Operator at that Format's **cadence** —
+weekly (named by ISO week, e.g. `2026-W32`) or daily (named by date, e.g. `2026-08-11`; ADR-0022) —
+trend-scout surfaces Trends and idea-strategist turns the strongest into suggested Ideas for Review.
 _Avoid_: batch, job.
 
 **Idea** (canonical; the keystone output):
@@ -110,7 +111,8 @@ _Avoid_: cast (the Cast is the set, the Character is the chosen one), actor.
 
 **Asset**:
 The publish-ready deliverable a **Recipe** produces from an accepted Idea: the **media** (the Space's
-Reel / image / carousel) **plus its tailored Copy** (caption, hashtags, mentions, CTA). It exists but is
+Reel / image / carousel) — or, for a Space-less Recipe, the ready-to-record **script** with its **Shot
+List** (ADR-0021) — **plus its tailored Copy** (caption, hashtags, mentions, CTA). It exists but is
 **not yet published** — the Operator reviews it and publishes it. An Idea yields **one Asset per Recipe**
 the Operator runs — several Assets if several Recipes are chosen.
 _Avoid_: draft, content, creative, Creation (Magnific's own word), post (a Post is *published*).
@@ -127,6 +129,13 @@ caption it always has. Composing is **not** the Space's job — the Space makes 
 single shared, parameterized step produces it; before this change it was a dropped, single-line
 template.
 _Avoid_: caption (that is only one part), post_copy (the old single throwaway field).
+
+**Shot List** (a script Asset's on-screen plan):
+The per-beat plan that ships with a Space-less script **Asset** (e.g. *News Short Script*): for each
+beat of the script, what to show on screen — the story's source page and its specific media,
+**downloaded when possible** (video preferred), otherwise a clearly marked link. The Operator records
+and edits against it; re-using collected third-party media stays the Operator's per-clip call.
+_Avoid_: b-roll list, storyboard, assets (a **Brand Asset** is the Brand's own reusable media).
 
 **Space** (Magnific Space; the media engine):
 A pre-defined Magnific pipeline that generates the **media** a **Recipe** needs — a UGC-style video, an
@@ -147,9 +156,11 @@ Space(s) and reads each Space's on-canvas run-points for the media, but owns the
 spec shape itself (ADR-0010) — plus its canvas's **two typed inputs** (media slots + a prompt node;
 ADR-0016), its **Phase Contracts** (ADR-0017), and a producer **Skill** that authors the media prompt
 (ADR-0018). The **Operator picks one or many** Recipes per
-Idea (a Reel, a carousel, a meme…); each yields its own Asset → Post. A Recipe is **brand-agnostic** and
-shared — the per-Brand halves are the **Format** and idea generation. Today one Recipe is wired —
-**Character Explainer with Cast** (cast → pick the **Character** → render).
+Idea (a Reel, a carousel, a meme…); each yields its own Asset → Post. A Recipe may drive **no Space at all** when its Asset is written words plus collected media (a
+teleprompter script with its **Shot List**; ADR-0021). A Recipe is **brand-agnostic** and shared — the
+per-Brand halves are the **Format** and idea generation. Today two Recipes are wired — **Character
+Explainer with Cast** (cast → pick the **Character** → render) and **News Carousel**; **News Short
+Script** (Space-less) is decided, build pending.
 _Avoid_: format (that is the editorial line), template, pipeline (a Space is a pipeline; a Recipe wraps
 one), media output (that is the Recipe's *result*, not the plan).
 
@@ -236,10 +247,13 @@ way, exporting/scheduling stamps `scheduled_at`; `status` stays `produced` (ADR-
 unchanged) until `/log-post` or a later confirmed-live check. Hosting media and writing files is
 **not publishing** — the Operator still uploads the CSVs to Zoho Social and reviews the queued posts
 there before they go live, a second, distinct human step (the **Publish** gate stays human; ADR-0002)
-— MCP path aside, where that same pre-schedule approval stands in instead (ADR-0020).
-_Avoid_: batch (too generic — this is Zoho-specific), export (name it fully — a Schedule Batch is more
-than a file dump: hosted media, CSVs, and a manifest, together, or the MCP path's own hosted-media/
-upload/validate/schedule sequence).
+— MCP path aside, where that same pre-schedule approval stands in instead (ADR-0020 — the
+CSV-upload-as-gate model is retired there). X stays CSV/manual always because Zoho's own MCP guidance
+warns posting to X that way risks the account being flagged as a bot.
+_Avoid_: batch (too generic — this is Zoho-specific), export / CSV export (name the mechanism — MCP or
+CSV — since one is the default and the other the fallback, and a Schedule Batch is more than a file
+dump: hosted media, CSVs, and a manifest, together, or the MCP path's own hosted-media/upload/validate/
+schedule sequence).
 
 **Zoho Social Brand** (Zoho's own account container):
 Zoho Social's container of connected platform accounts — **not** an OrganicGrowth **Brand**. One
@@ -301,7 +315,7 @@ decision, designed fresh for OrganicGrowth.
 
 ## Relationships
 
-- The **Operator** launches a weekly **Run** for one of a Brand's **Formats**, using that Format's own sources, voice, and idea count
+- The **Operator** launches a **Run** for one of a Brand's **Formats** at that Format's cadence (weekly or daily — ADR-0022), using that Format's own sources, voice, and idea count
 - A **Run** scrapes **Trends** (Apify) and turns the strongest into **suggested Ideas**
 - The **Operator Reviews** the suggested Ideas — **accepting** some, **rejecting** others with a **Rejection Reason**
 - At **Review** the Operator accepts an Idea **and chooses its Recipes** (pre-filled from the Format); each chosen **Recipe** becomes one production job. For each, the **Producer** drives that Recipe's **Space** for the media (pausing at the Recipe's own gates, e.g. the *Character Explainer with Cast* pick), then composes the **Copy** — yielding **one Asset per Recipe**. The Operator reviews each Asset and **publishes** it into a **Post**, logging the URL with its Recipe (attribution is stated, never inferred)

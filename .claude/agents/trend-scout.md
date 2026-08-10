@@ -118,7 +118,11 @@ from a default — both must be stated at invocation.
    say this Format has no curated sources configured — use peer-scrape mode instead.
 3. For each curated source, `WebFetch` its archive/homepage to find issues published within the last
    `sources.lookback_days`, then `WebFetch` each such issue's full page. Only ever fetch these public
-   pages — never an inbox, never an authenticated source.
+   pages — never an inbox, never an authenticated source. **If a source is an RSS/Atom feed or a
+   fetch is blocked, read and follow `.claude/skills/fetch-curated-source/SKILL.md`** — the fallback
+   ladder (WebFetch → browser-UA curl → the Apify RSS actor from `seeds.yaml` `apify.rss.feed_actor`)
+   that keeps a blocked source readable; report which rung served each source, and only report a
+   source unreachable after all three rungs fail (issue #168).
 4. From each issue, pull out the individual news stories (not the whole issue as one blob). For each,
    note: a short label and how prominently it was featured (lead story vs. a smaller mention) — this
    becomes its momentum rank.

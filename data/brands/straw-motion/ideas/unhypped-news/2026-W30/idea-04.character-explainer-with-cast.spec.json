@@ -10,21 +10,21 @@
       "clip_id": 1,
       "concept_title": "Hands-off, they promised",
       "image_prompt": "Pixar-style 3D animation. Deck, a chunky friendly control keyboard with a big glowing dial and lit start stop approve buttons, sits on a cozy desk watching a hyperactive little coding-agent robot type in a blur and start to veer toward a messy tangle of wires, a relaxed owner leaning back with feet up in the soft-focus background, warm desk-lamp light, wary knowing expression, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
-      "video_prompt": "Slow push-in on Deck as chaos builds behind him -> the agent robot speeds up and wobbles off course while the owner lounges unaware -> Voice (dry, knowing): they promised the agent would let you do less. -> SFX: frantic typing, a nervous little creak."
+      "video_prompt": "Animate from the first frame. Camera: slow push-in on Deck as chaos builds behind him. Motion: the little agent robot speeds up and wobbles off course toward the wire tangle while the owner lounges unaware. Audio: dry knowing voice, \"they promised the agent would let you do less\"; SFX frantic typing, a nervous little creak."
     },
     {
       "id": "idea-2026-W30-04-clip-2",
       "clip_id": 2,
       "concept_title": "One press, back in control",
       "image_prompt": "Pixar-style 3D animation. Deck the control keyboard lights up brightly as a human hand presses his big glowing approve dial, and the hyperactive coding-agent robot instantly snaps back onto a clean track with tidy code streaming, focused determined expression on Deck, warm energetic lighting, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
-      "video_prompt": "Quick cut to a finger pressing Deck's big dial -> the button glows, the agent robot straightens and gets back on track in one press -> Voice (satisfied): one press, and you are back in control. -> SFX: a firm click, a clean confirming chime."
+      "video_prompt": "Animate from the first frame. Camera: quick cut punching in on a finger pressing Deck's big dial. Motion: the dial glows at 2s and the agent robot straightens onto a clean track with tidy code streaming. Audio: satisfied voice, \"one press, and you are back in control\"; SFX a firm click, a clean confirming chime."
     },
     {
       "id": "idea-2026-W30-04-clip-3",
       "clip_id": 3,
       "concept_title": "Supervised, not hands gone",
       "image_prompt": "Pixar-style 3D animation. Deck the control keyboard sits proudly at the front of a tidy desk while the little coding-agent robot works calmly under his watch, a small hand-lettered sign nearby reads supervised not hands gone, warm evening glow, content confident smile, vibrant family-film color grade, cinematic lighting. Aspect Ratio 9:16.",
-      "video_prompt": "Slow orbit around Deck on the tidy desk -> he watches the calm agent work and taps a small honest sign beside him -> Voice (warm, honest): real work today is supervised, not hands gone. -> SFX: gentle keyboard clicks, a soft satisfied hum."
+      "video_prompt": "Animate from the first frame. Camera: slow orbit around Deck on the tidy desk. Motion: Deck watches the calm agent work, then at 4s taps the small supervised-not-hands-gone sign. Audio: warm honest voice, \"real work today is supervised, not hands gone\"; SFX gentle keyboard clicks, a soft satisfied hum."
     }
   ],
   "thumbnails": [

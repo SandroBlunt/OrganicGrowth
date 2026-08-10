@@ -10,21 +10,21 @@
       "clip_id": 1,
       "concept_title": "Everyone expected a phone",
       "image_prompt": "Pixar-style 3D animation. Pebble, a smooth screenless AI companion speaker with a soft glowing light-ring, watches from the side as a frantic crowd of glossy smartphone characters races to cram glowing AI onto pocket screens under a big banner reading everyone expects a phone, cool tech-expo lighting, quietly curious mood-glow, vibrant family-film color grade, cinematic depth. Aspect Ratio 9:16.",
-      "video_prompt": "Slow push-in past the phone crowd to Pebble waiting calmly -> the smartphones jostle to put AI on tiny screens while a banner promises a phone -> Voice (calm, wry): everyone assumed the future was AI on a screen in your pocket. -> SFX: frantic notification pings, a calm low hum."
+      "video_prompt": "Animate from the first frame. Camera: slow push-in past the jostling phone crowd to Pebble waiting calmly. Motion: the smartphones scramble to cram AI onto tiny screens under the banner while Pebble's light-ring pulses. Audio: calm wry voice, \"everyone assumed the future was AI on a screen in your pocket\"; SFX frantic notification pings, a low hum."
     },
     {
       "id": "idea-2026-W30-06-clip-2",
       "clip_id": 2,
       "concept_title": "No screen, on purpose",
       "image_prompt": "Pixar-style 3D animation. Pebble the screenless companion speaker rolls out under a spotlight and settles into a cozy warm living room, its soft light-ring glowing friendly, a big hand-lettered sign reading no screen on purpose behind it, the phone crowd gasping in the soft-focus background, warm inviting lighting, delighted gentle mood-glow, vibrant family-film color grade, cinematic detail. Aspect Ratio 9:16.",
-      "video_prompt": "Spotlight snaps on as Pebble rolls forward and nestles into a living room -> its light-ring warms up while the phones gasp at the screenless reveal -> Voice (bright, surprised): instead, a screenless speaker made to live in your house. -> SFX: a soft reveal chime, a gentle crowd gasp."
+      "video_prompt": "Animate from the first frame. Camera: spotlight snaps on and holds as Pebble rolls forward. Motion: Pebble nestles into the cozy living room and its light-ring warms up while the phone crowd gasps at 4s. Audio: bright surprised voice, \"instead, a screenless speaker made to live in your house\"; SFX a soft reveal chime, a gentle crowd gasp."
     },
     {
       "id": "idea-2026-W30-06-clip-3",
       "clip_id": 3,
       "concept_title": "A bet worth watching",
       "image_prompt": "Pixar-style 3D animation. Pebble the screenless companion speaker rests contentedly on a shelf in a cozy family living room at dusk, a small hand-lettered sign nearby reads a bet worth watching, a tiny thoughtful question mark floating above it, warm lamplight glow, calm honest mood-ring, vibrant family-film color grade, cinematic lighting. Aspect Ratio 9:16.",
-      "video_prompt": "Slow orbit around Pebble on the shelf -> it glows softly as a small honest question mark drifts up beside it -> Voice (warm, honest): a bet on a new shape for AI, worth watching, not pre-ordering on faith. -> SFX: gentle room ambience, a soft pensive tone."
+      "video_prompt": "Animate from the first frame. Camera: slow orbit around Pebble on the shelf. Motion: Pebble glows softly as a small honest question mark drifts up beside it at 4s. Audio: warm honest voice, \"a bet on a new shape for AI, worth watching, not pre-ordering on faith\"; SFX gentle room ambience, a soft pensive tone."
     }
   ],
   "thumbnails": [
