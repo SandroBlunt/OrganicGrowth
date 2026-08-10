@@ -1,8 +1,5 @@
-# schedule-batch-approval-gate Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change issue-148-approval-gate-docs. Update Purpose after archive.
-## Requirements
 ### Requirement: The producer offers the Schedule Batch export only after full in-conversation approval, never unprompted
 
 `.claude/agents/producer.md` SHALL document a "Schedule Batch offer" step: once every Idea produced this
@@ -146,6 +143,8 @@ reports it live.
   ledger
 - **AND** it states the command remains directly runnable on its own, as a granular power-tool
 
+## ADDED Requirements
+
 ### Requirement: Zoho's own Approval workflow is never used, on any Channel (ADR-0020)
 
 `.claude/agents/producer.md` SHALL explicitly forbid calling `ZohoSocial_updateSocialPostApprovalStatus`
@@ -170,4 +169,3 @@ structural guard on top of the documented rule.
 - **THEN** it grants `ZohoSocial_createSocialSchedule` and `ZohoSocial_validateSocialPost`
 - **AND** it does NOT grant `ZohoSocial_publishSocialPost`
 - **AND** it does NOT grant `ZohoSocial_updateSocialPostApprovalStatus`
-

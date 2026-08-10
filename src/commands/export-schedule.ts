@@ -30,6 +30,11 @@
  *
  * Brand is always explicit: `<brand>` is a required first argument, resolved via `resolveBrand` —
  * mirroring every other granular command (issue #20).
+ *
+ * Eligible Assets are scheduled in deterministic Idea-number order (`src/schedule-batch/order.ts`'s
+ * `sortEligible`, extracted issue #160) — the SAME shared ordering the MCP schedule plan
+ * (`src/schedule-batch/mcp-plan.ts`) indexes its own slots against, so a batch never gets two different
+ * orderings depending on which path (CSV or MCP) ends up scheduling it.
  */
 
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
@@ -45,7 +50,8 @@ import { writeFileAtomic } from "../fs/safe-io.ts";
 import { writeAsset } from "../asset/store.ts";
 
 import { loadScheduleBatchIdeas } from "../schedule-batch/select.ts";
-import { selectEligibleAssets, type EligibleAsset, type SkippedAsset } from "../schedule-batch/eligibility.ts";
+import { selectEligibleAssets, describeSkippedAssets } from "../schedule-batch/eligibility.ts";
+import { sortEligible } from "../schedule-batch/order.ts";
 import { deriveScheduleSlots, validateSlotsFuture } from "../schedule-batch/schedule.ts";
 import { validateAssetsForExport, buildSchedulePlan, type AssetHostedMedia } from "../schedule-batch/plan.ts";
 import { slideBaseName, scheduleMediaKey } from "../schedule-batch/media-key.ts";
@@ -99,31 +105,8 @@ export interface ExportScheduleOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Idea ordering — deterministic scheduling order (idea-01, idea-02, ... by numeric suffix)
-// ---------------------------------------------------------------------------
-
-/** The numeric `NN` suffix of an eligible Asset's Idea (via `briefShortName`'s `idea-NN` short name),
- *  or `Number.MAX_SAFE_INTEGER` for an unparseable id — pushed to the end rather than crashing. */
-function ideaSortKey(ideaId: string, run: string): number {
-  const shortName = briefShortName(ideaId, run);
-  const match = /-(\d+)$/.exec(shortName);
-  return match !== null ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-}
-
-/** Sort eligible Assets into a deterministic, narrative production order (idea-01, idea-02, ...) — the
- *  order `deriveScheduleSlots`' one-Asset-per-day rotation is indexed against. */
-function sortEligible(eligible: readonly EligibleAsset[], run: string): EligibleAsset[] {
-  return [...eligible].sort((a, b) => ideaSortKey(a.ideaId, run) - ideaSortKey(b.ideaId, run));
-}
-
-// ---------------------------------------------------------------------------
 // Reporting helpers
 // ---------------------------------------------------------------------------
-
-function describeSkipped(skipped: readonly SkippedAsset[]): string {
-  if (skipped.length === 0) return "";
-  return `\nSkipped:\n${skipped.map((s) => `  - ${s.note}`).join("\n")}`;
-}
 
 /** Empty when nothing was removed (the common case) — never clutters routine output. */
 function describeCleanup(result: CleanupResult): string {
@@ -179,7 +162,7 @@ export async function exportScheduleCommand(
   const { eligible, skipped } = selectEligibleAssets(ideas);
 
   if (eligible.length === 0) {
-    return `${header}\nNo eligible Assets to schedule — nothing written.${describeSkipped(skipped)}`;
+    return `${header}\nNo eligible Assets to schedule — nothing written.${describeSkippedAssets(skipped)}`;
   }
 
   // --- 2. This Brand's Zoho Social Brand config (issue #143) ----------------------------------------
@@ -285,7 +268,7 @@ export async function exportScheduleCommand(
 
   const fileNames = [...plan.csvFiles.map((f) => f.fileName), MANIFEST_FILE_NAME].join(", ");
   const lines = [header, `Wrote ${fileNames} to ${runFolder}.`, "", plan.summary];
-  const skipSuffix = describeSkipped(skipped);
+  const skipSuffix = describeSkippedAssets(skipped);
   if (skipSuffix.length > 0) lines.push(skipSuffix);
   return lines.join("\n");
 }

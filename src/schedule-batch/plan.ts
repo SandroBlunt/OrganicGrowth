@@ -35,8 +35,10 @@ import { buildZohoCsvRow, buildZohoCsvFile, zohoCsvFileName } from "./csv.ts";
 import { buildManifest, type ScheduleManifest, type ScheduleManifestAssetEntry } from "./manifest.ts";
 
 /** The platform whose rows carry only the first `X_SLIDE_LIMIT` slides (PRD #140 story 9). Every other
- *  platform carries all `CAROUSEL_SLIDE_COUNT` slides, in narrative order (story 8). */
-const X_PLATFORM = "x";
+ *  platform carries all `CAROUSEL_SLIDE_COUNT` slides, in narrative order (story 8). Exported (issue
+ *  #160) so the MCP schedule plan's own permanent X-exclusion (`src/schedule-batch/mcp-plan.ts`) reads
+ *  the SAME literal rather than a second, independently-typed `"x"` string. */
+export const X_PLATFORM = "x";
 const X_SLIDE_LIMIT = 4;
 
 /** Find `platform`'s own `CopyVariant` on a structured `Copy`, or `null` when there is none — either

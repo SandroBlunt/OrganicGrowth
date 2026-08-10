@@ -1,0 +1,250 @@
+/**
+ * `scheduleViaZohoMcpCommand` — the attended orchestration shell for ADR-0020's MCP-primary Schedule
+ * Batch path (issue #163). The `producer` agent calls this once the Operator has approved, in the same
+ * conversation, every one of a Run's produced outputs and captions (the SAME checkpoint issue #148
+ * added) — it resolves what to schedule, hosts media, drives the Zoho MCP calls through the injected
+ * `ZohoSchedulePort` (the real MCP tools at runtime, a FAKE in every test — hermetic build), and records
+ * every receipt on the ledger.
+ *
+ * Thin: resolve the Brand's paths, load the run's Ideas scoped to `(format, run)`
+ * (`src/schedule-batch/select.ts`), decide which Assets are eligible (`src/schedule-batch/eligibility.ts`
+ * — the SAME `news-carousel`/`produced`/not-yet-`scheduled_at` rule the CSV path uses), load the Brand's
+ * Zoho Social Brand config (`loadZohoConfig`, issue #143), decide WHICH Channels/WHEN via
+ * `buildMcpSchedulePlan` (`src/schedule-batch/mcp-plan.ts`, issue #160), run the SAME preflight
+ * validation the CSV path runs (`validateAssetsForExport`, defense in depth — never trusted blindly),
+ * host each planned Asset's slides via the injected `MediaHostPort` (issue #144 — unchanged
+ * infrastructure, the SAME Media Host the CSV export already uses), then drive `runMcpSchedule`
+ * (`src/schedule-batch/mcp-schedule.ts`) — which itself enforces AC1 (no Zoho write-tool before
+ * approval) and AC2 (upload, then validate, then schedule). Every successfully-scheduled Asset's
+ * `scheduled_at` + `zoho_schedule_reference` (issue #161) is stamped via `AssetStore.writeAsset`
+ * (ledger-as-source-of-truth) — its `status` stays `"produced"` (ADR-0011's lifecycle is unchanged; the
+ * confirmed-live check, `src/schedule-batch/confirmed-live.ts`, issue #162, is what later moves it to
+ * `"posted"`, once Zoho reports it live).
+ *
+ * **AC1, enforced at the very top of this shell too:** an unapproved call (`options.approved !== true`)
+ * refuses before ANY step runs — no eligibility read, no hosting, no port call.
+ *
+ * **AC4, the explicit CSV/S3 fallback:** `options.port === undefined` means Zoho MCP is unavailable —
+ * this shell immediately returns `mcpUnavailableFallbackMessage` and does NOTHING else (no ledger read,
+ * no hosting). There is no silent, automatic switch — the caller (the `producer` agent, per its own
+ * documented instructions) is the one who decides to offer `/export-schedule` instead.
+ *
+ * Every business-rule refusal (not approved, MCP unavailable, an empty run, a Brand not configured, a
+ * preflight problem, a schedule time inside the 1-hour lead window) is a RETURNED, clearly-worded
+ * string — never a throw — mirroring `src/commands/export-schedule.ts`'s own posture exactly.
+ */
+
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { resolveBrand } from "../brand/resolver.ts";
+import { briefShortName } from "../production-spec/store.ts";
+import { loadZohoConfig } from "../production-spec/brand-profile.ts";
+import { writeAsset } from "../asset/store.ts";
+
+import { loadScheduleBatchIdeas } from "../schedule-batch/select.ts";
+import { selectEligibleAssets, describeSkippedAssets } from "../schedule-batch/eligibility.ts";
+import { buildMcpSchedulePlan } from "../schedule-batch/mcp-plan.ts";
+import { validateAssetsForExport } from "../schedule-batch/plan.ts";
+import { slideBaseName, scheduleMediaKey } from "../schedule-batch/media-key.ts";
+import {
+  runMcpSchedule,
+  mcpUnavailableFallbackMessage,
+  type McpScheduleAssetInput,
+} from "../schedule-batch/mcp-schedule.ts";
+import type { ZohoSchedulePort } from "../schedule-batch/mcp-schedule-port.ts";
+import type { MediaHostPort } from "../media-host/port.ts";
+
+// ---------------------------------------------------------------------------
+// Default Media Host (deferred live wiring — mirrors export-schedule.ts's own DEFAULT_MEDIA_HOST)
+// ---------------------------------------------------------------------------
+
+function noMediaHostConfigured(): never {
+  throw new Error(
+    "schedule-via-zoho-mcp: no Media Host is configured. Pass options.mediaHost explicitly (e.g. " +
+      "`new LiveMediaHost({ config: { bucket, region } })`, src/media-host/live/adapter.ts) — this " +
+      "command's default has no live wiring, mirroring export-schedule's own deferred default. Tests " +
+      "always inject FakeMediaHost.",
+  );
+}
+
+/** Runtime placeholder: THROWS rather than silently no-op'ing (a Media Host that does nothing would
+ *  produce a Zoho post with a broken image link). NEVER exercised in tests. */
+const DEFAULT_MEDIA_HOST: MediaHostPort = {
+  convertToJpg: () => noMediaHostConfigured(),
+  upload: () => noMediaHostConfigured(),
+  delete: () => noMediaHostConfigured(),
+};
+
+// ---------------------------------------------------------------------------
+// Options
+// ---------------------------------------------------------------------------
+
+export interface ScheduleViaZohoMcpOptions {
+  readonly brandsRoot?: string;
+  readonly ledgerPath?: string;
+  readonly brandProfilePath?: string;
+  /** Injected clock — the "now" the 1-hour-future lead-window guard runs against. Defaults to the real
+   *  clock. */
+  readonly now?: () => string;
+  /** The Media Host port (fake in tests; the deferred default at runtime). */
+  readonly mediaHost?: MediaHostPort;
+  /** Where converted-to-JPG staging files are written before upload. Defaults to a fresh, self-cleaning
+   *  temp directory; primarily for testing. */
+  readonly tempDir?: string;
+  /** The Zoho MCP port. ABSENT means Zoho MCP is unavailable — the whole call short-circuits to the
+   *  explicit CSV/S3 fallback offer (AC4), before anything else runs. */
+  readonly port?: ZohoSchedulePort;
+  /** REQUIRED, explicit: the Operator's in-conversation approval of this Run's outputs and captions
+   *  (ADR-0020). There is no default — an omitted or `false` value refuses (AC1), before any Zoho call. */
+  readonly approved: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// scheduleViaZohoMcpCommand
+// ---------------------------------------------------------------------------
+
+export async function scheduleViaZohoMcpCommand(
+  brand: string,
+  format: string,
+  run: string,
+  startDate: string,
+  options: ScheduleViaZohoMcpOptions,
+): Promise<string> {
+  // --- AC4: Zoho MCP unavailable -> the explicit fallback offer, nothing else runs ------------------
+  if (options.port === undefined) {
+    return mcpUnavailableFallbackMessage(brand, format, run, startDate);
+  }
+
+  // --- AC1: no Zoho write-tool before the Operator's in-conversation approval ------------------------
+  if (!options.approved) {
+    return (
+      `Zoho MCP scheduling for Brand: ${brand}, Format: ${format}, Run: ${run} — refused: the Operator ` +
+      "has not yet approved this Run's outputs and captions in this conversation. No Zoho write-tool " +
+      "was called."
+    );
+  }
+
+  const brandPaths = resolveBrand(brand, options.brandsRoot);
+  const ledgerPath = options.ledgerPath ?? brandPaths.ledger;
+  const brandProfilePath = options.brandProfilePath ?? brandPaths.brandProfile;
+  const now = (options.now ?? (() => new Date().toISOString()))();
+  const mediaHost = options.mediaHost ?? DEFAULT_MEDIA_HOST;
+
+  const header = `Scheduling via Zoho MCP for Brand: ${brand}, Format: ${format}, Run: ${run}.`;
+
+  // --- 1. Load this run's Ideas, decide eligibility (SAME rule the CSV path uses) --------------------
+
+  const ideas = await loadScheduleBatchIdeas(ledgerPath, brand, format, run);
+  const { eligible, skipped } = selectEligibleAssets(ideas);
+
+  if (eligible.length === 0) {
+    return `${header}\nNo eligible Assets to schedule — nothing done.${describeSkippedAssets(skipped)}`;
+  }
+
+  // --- 2. This Brand's Zoho Social Brand config (issue #143) -----------------------------------------
+
+  const zohoConfig = await loadZohoConfig(brandProfilePath, brand);
+  if (!zohoConfig.configured) {
+    return `${header}\n${zohoConfig.message}\nNothing scheduled.`;
+  }
+
+  // --- 3. Decide WHICH Channels/WHEN (issue #160) — refuses on empty-run/lead-window too -------------
+
+  const nowMs = Date.parse(now);
+  const plan = buildMcpSchedulePlan({ eligible, run, zohoConfig, startDate, nowMs });
+  if (!plan.ok) {
+    return `${header}\n${plan.message}`;
+  }
+
+  // --- 4. Preflight validation — the SAME check the CSV path runs, defense in depth ------------------
+
+  const problems = validateAssetsForExport(eligible, zohoConfig.zohoBrands);
+  if (problems.length > 0) {
+    const lines = problems.map((p) => `  - ${p.message}`);
+    return (
+      `${header}\nSCHEDULING REFUSED — ${problems.length} problem(s) found (fix these first; nothing ` +
+      `was scheduled):\n${lines.join("\n")}`
+    );
+  }
+
+  // --- 5. Host every planned Asset's slides once, matching the plan's own order ----------------------
+
+  const byIdeaId = new Map(eligible.map((e) => [e.ideaId, e]));
+  const ownsTempDir = options.tempDir === undefined;
+  const stagingDir = options.tempDir ?? (await mkdtemp(join(tmpdir(), "og-zoho-mcp-")));
+  let assetsInput: McpScheduleAssetInput[];
+  try {
+    assetsInput = [];
+    for (const planned of plan.assets) {
+      const source = byIdeaId.get(planned.ideaId);
+      if (source === undefined) continue; // defensive — plan.assets is always drawn from `eligible`
+      const ideaShortName = briefShortName(planned.ideaId, run);
+      const urls: string[] = [];
+      for (const slidePath of source.asset.asset_paths ?? []) {
+        const base = slideBaseName(slidePath);
+        const key = scheduleMediaKey(brand, run, ideaShortName, base);
+        const destPath = join(stagingDir, `${ideaShortName}-${base}.jpg`);
+        await mediaHost.convertToJpg(slidePath, destPath);
+        const { url } = await mediaHost.upload(destPath, key);
+        urls.push(url);
+      }
+      assetsInput.push({
+        ideaId: planned.ideaId,
+        recipe: planned.recipe,
+        scheduledAtUtc: planned.scheduledAtUtc,
+        groups: planned.groups,
+        copy: source.asset.copy!, // guaranteed present — validateAssetsForExport already confirmed it
+        mediaUrls: urls,
+      });
+    }
+  } finally {
+    if (ownsTempDir) {
+      await rm(stagingDir, { recursive: true, force: true }).catch(() => {
+        /* best-effort cleanup; never let a cleanup failure mask the real result */
+      });
+    }
+  }
+
+  // --- 6. Drive the actual Zoho MCP calls (AC1/AC2/AC3 enforced inside runMcpSchedule) ---------------
+
+  const result = await runMcpSchedule({ assets: assetsInput, approved: true, port: options.port });
+  if (!result.ok) {
+    // Unreachable in practice (already checked options.approved above) — handled for completeness.
+    return `${header}\n${result.message}`;
+  }
+
+  // --- 7. Record every receipt: scheduled_at + zoho_schedule_reference, status unchanged (ADR-0011) --
+
+  for (const outcome of result.scheduled) {
+    await writeAsset(
+      outcome.ideaId,
+      outcome.recipe,
+      { status: "produced", scheduled_at: outcome.scheduledAt, zoho_schedule_reference: outcome.reference },
+      { ledgerPath },
+    );
+  }
+
+  // --- 8. Report ---------------------------------------------------------------------------------
+
+  const lines = [header];
+  if (result.scheduled.length > 0) {
+    lines.push(
+      "Scheduled:",
+      ...result.scheduled.map((o) => `  - ${o.ideaId}: ${o.scheduledPlatforms.join(", ")} at ${o.scheduledAt}`),
+    );
+  }
+  if (result.failures.length > 0) {
+    lines.push("Failures:", ...result.failures.map((f) => `  - ${f.message}`));
+  }
+  if (result.scheduled.length === 0 && result.failures.length === 0) {
+    lines.push(
+      "Nothing to schedule via MCP (every configured Zoho Social Brand is X-only for this run's " +
+        "eligible Assets).",
+    );
+  }
+  const skipSuffix = describeSkippedAssets(skipped);
+  if (skipSuffix.length > 0) lines.push(skipSuffix);
+  return lines.join("\n");
+}

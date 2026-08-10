@@ -236,22 +236,24 @@ that job once the pick is in. There is **one global queue across all Brands**; e
 `(brand, idea, recipe)` so the Producer writes that **Asset** back to the right Brand's ledger.
 _Avoid_: batch, backlog, jobs.
 
-**Schedule Batch** (getting a Run's produced News Carousel Assets into Zoho Social's queue):
-How a Run's produced, not-yet-posted *News Carousel* **Assets** reach Zoho Social to go live. The
-**Producer** offers this once a Run's eligible Assets are produced, and proceeds only after the Operator
-approves — in the same conversation — every one of that Run's generated outputs and captions; that
-approval is conversational only, never written to the ledger. Two mechanisms exist (ADR-0020): the **MCP
-path** (primary) schedules each Asset directly through Zoho's own MCP tools right after that approval, no
-CSV involved; the **CSV export** (`/export-schedule` — hosted JPGs, one CSV per configured **Zoho Social
-Brand**, and a manifest) is now a **fallback only**, used when MCP is unavailable and always for the **X**
-Channel (Zoho's own MCP guidance warns against posting to X this way). Whichever mechanism runs, it stamps
-`scheduled_at`; the Asset's `status` stays `produced` (ADR-0011's lifecycle is unchanged) until it's
-logged as posted. Getting a post queued is **not publishing** — the Operator's conversational approval,
-before either mechanism runs, is the human decision that satisfies the **Publish** gate's spirit
-(ADR-0002; mechanics revised by ADR-0020 — the CSV-upload-as-gate model is retired for the MCP path); a
-post only actually goes live later, at its scheduled time.
-_Avoid_: batch (too generic — this is Zoho-specific), CSV export (name the mechanism — MCP or CSV — since
-one is now the default and the other the fallback).
+**Schedule Batch** (turning a Run's produced *News Carousel* **Assets** into scheduled **Posts**):
+For a Run's produced, not-yet-posted *News Carousel* Assets, the **Producer** offers it once they are
+produced, and runs it only after the Operator approves — in the same conversation — every one of that
+Run's generated outputs and captions; that approval is conversational only, never written to the ledger.
+**Since ADR-0020, Zoho's own MCP tools are the PRIMARY mechanism** (never Zoho's own Approval workflow),
+with `/export-schedule`'s CSV/S3 bundle (hosted JPGs, one CSV per configured **Zoho Social Brand**, a
+manifest) retained as the explicit **FALLBACK** for when MCP is unavailable, and always for X. Either
+way, exporting/scheduling stamps `scheduled_at`; `status` stays `produced` (ADR-0011's lifecycle is
+unchanged) until `/log-post` or a later confirmed-live check. Hosting media and writing files is
+**not publishing** — the Operator still uploads the CSVs to Zoho Social and reviews the queued posts
+there before they go live, a second, distinct human step (the **Publish** gate stays human; ADR-0002)
+— MCP path aside, where that same pre-schedule approval stands in instead (ADR-0020 — the
+CSV-upload-as-gate model is retired there). X stays CSV/manual always because Zoho's own MCP guidance
+warns posting to X that way risks the account being flagged as a bot.
+_Avoid_: batch (too generic — this is Zoho-specific), export / CSV export (name the mechanism — MCP or
+CSV — since one is the default and the other the fallback, and a Schedule Batch is more than a file
+dump: hosted media, CSVs, and a manifest, together, or the MCP path's own hosted-media/upload/validate/
+schedule sequence).
 
 **Zoho Social Brand** (Zoho's own account container):
 Zoho Social's container of connected platform accounts — **not** an OrganicGrowth **Brand**. One
