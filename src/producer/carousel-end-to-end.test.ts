@@ -24,7 +24,7 @@ const NEWS_CAROUSEL = getRecipe("news-carousel")!;
 const BRAND_LOGO_LOCAL_PATH = "/data/brands/straw-motion/assets/brand-logo.png";
 // The media slot's map KEY is the real, captured canvas node ("Brand_Logo", issue #86/#89) — the
 // bind target below is read straight off the Recipe's own slot map, never re-typed as a literal.
-const LOGO_SLOT_NAME = Object.keys(NEWS_CAROUSEL.canvasInputs.mediaSlots)[0]!;
+const LOGO_SLOT_NAME = Object.keys(NEWS_CAROUSEL.canvasInputs!.mediaSlots)[0]!;
 
 /**
  * The thin, recipe-generic Producer's carousel path, proven end-to-end against the FAKE — rebuilt to
@@ -81,7 +81,7 @@ describe("carousel end-to-end — a gate-free News Carousel job runs straight th
       kind: "first",
       targetGate: null, // gate-free: this Recipe's FIRST leg is also its FINAL leg
       spec,
-      promptNode: NEWS_CAROUSEL.canvasInputs.promptNode,
+      promptNode: NEWS_CAROUSEL.canvasInputs!.promptNode,
     };
     // The real, captured inject/run-point node — "JSON Master" on THIS (Carrousel) canvas, a
     // different Space than the wired Recipe's own "JSON Master" (issue #86/#89).

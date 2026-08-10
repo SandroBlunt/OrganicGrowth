@@ -186,10 +186,13 @@ export interface BindMediaPhaseInput {
  * `canvasInputs.mediaSlots` (issue #81/ADR-0016): every REQUIRED slot SHALL have a bound asset before
  * render — "a missing required slot's asset STOPS the run" (ADR-0016) — an optional slot may be
  * skipped. Works identically for the character Recipe (one `idea-pick` slot) and the News Carousel
- * Recipe (one `brand-asset` slot), since both already carry a uniform `mediaSlots` map.
+ * Recipe (one `brand-asset` slot), since both already carry a uniform `mediaSlots` map. A Space-less
+ * Recipe (`recipe.canvasInputs` absent, ADR-0021/issue #170) is treated as declaring ZERO media slots
+ * — this audits vacuously `ok: true` with an empty `items` list, never a crash.
  */
 export function auditBindMediaPhase(recipe: Recipe, input: BindMediaPhaseInput): PhaseAuditResult {
-  const items: ChecklistItemAudit[] = Object.entries(recipe.canvasInputs.mediaSlots).map(
+  const mediaSlots = recipe.canvasInputs?.mediaSlots ?? {};
+  const items: ChecklistItemAudit[] = Object.entries(mediaSlots).map(
     ([name, slot]) => {
       const bound = input.boundSlotNames.has(name);
       const ok = slot.required ? bound : true;

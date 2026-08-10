@@ -64,6 +64,20 @@
  * mirroring the CAST_RUN_POINT/CLIP_RUN_POINT defensive pattern. This is the checkable-contract HALF
  * of ADR-0017 — the Producer actually self-auditing against these at production time is later work
  * (issues #87/#88).
+ *
+ * --- A Recipe's Space target is OPTIONAL — a Space-less Recipe (ADR-0021, issue #170) ---
+ *
+ * `Recipe.space` and `Recipe.canvasInputs` are BOTH OPTIONAL, absent together for a **Space-less
+ * Recipe** (`docs/adr/0021-space-less-recipe-script-assets.md`): one whose Asset is written words (a
+ * script) plus collected media, with no canvas to bind media into, inject a prompt onto, or drive a
+ * run-point against. Every other field a Recipe owns stays REQUIRED regardless — `gates`, `specShape`,
+ * `copyShape`, `copySkill`, and all six `phases` — a Space-less Recipe's Space-bound phases
+ * (`bind-media`, `gate`, `render`) simply declare EMPTY checklists, the exact pattern the zero-gate News
+ * Carousel Recipe's own `gate` phase already uses. `src/producer/uses-space.ts`'s `usesSpace(recipe)` is
+ * the single, pure signal the thin Producer checks before doing ANY canvas work for a Recipe's job.
+ * BOTH Recipes seeded below still drive a Space, unchanged by this widening — the first real Space-less
+ * Recipe (News Short Script) is registered in a follow-up slice; issue #170 proves the generic support
+ * against a throwaway, NOT-wired test fixture (`src/recipe/fixtures/space-less-recipe.ts`).
  */
 
 import {
@@ -238,7 +252,16 @@ export interface Recipe {
    * declares NONE — an empty array renders unattended end-to-end.
    */
   readonly gates: readonly string[];
-  readonly space: RecipeSpaceTarget;
+  /**
+   * The Magnific Space this Recipe drives — its id, name, and on-canvas node names — or ABSENT for a
+   * Space-less Recipe (ADR-0021): one whose Asset is written words (a script) plus collected media,
+   * with nothing for a Space to render. Present together with `canvasInputs` below (a Recipe with no
+   * Space has no canvas at all); a Recipe declaring one declares the other too.
+   * `src/producer/uses-space.ts`'s `usesSpace(recipe)` is the single, pure signal the thin Producer
+   * checks before doing ANY canvas work — binding media slots, driving a run-point, or setting the
+   * watermark `@handle` — for this Recipe's job.
+   */
+  readonly space?: RecipeSpaceTarget;
   readonly specShape: RecipeSpecShape;
   readonly copyShape: RecipeCopyShape;
   /**
@@ -251,8 +274,12 @@ export interface Recipe {
    * Skill slug without touching any other Recipe's config or this agent's own prose.
    */
   readonly copySkill: string;
-  /** This Recipe's canvas's two typed inputs — media slots + prompt node (ADR-0016, issue #81). */
-  readonly canvasInputs: RecipeCanvasInputs;
+  /**
+   * This Recipe's canvas's two typed inputs — media slots + prompt node (ADR-0016, issue #81) — or
+   * ABSENT for a Space-less Recipe (ADR-0021), which has no canvas to bind media into or inject a
+   * prompt onto. Absent together with `space` above.
+   */
+  readonly canvasInputs?: RecipeCanvasInputs;
   /**
    * This Recipe's six ordered Phase Contracts — author the prompt -> bind media -> gate -> render ->
    * copy -> save (ADR-0017, issue #85) — each declaring the checklist its output must satisfy.

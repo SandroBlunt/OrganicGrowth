@@ -148,21 +148,21 @@ describe("producer.md is a thin, recipe-generic conductor — no recipe-specific
     // if the registry's own values ever change again, the `assert.equal`/`assert.deepEqual` calls
     // below fail FIRST and loudly, so this guard's own premise can never itself go silently stale.
     const carousel = getRecipe("news-carousel")!;
-    assert.equal(carousel.canvasInputs.promptNode, "JSON Master");
-    assert.deepEqual(Object.keys(carousel.canvasInputs.mediaSlots), ["Brand_Logo"]);
+    assert.equal(carousel.canvasInputs!.promptNode, "JSON Master");
+    assert.deepEqual(Object.keys(carousel.canvasInputs!.mediaSlots), ["Brand_Logo"]);
 
     const text = await readFile(PRODUCER_AGENT, "utf8");
     assert.doesNotMatch(
       text,
       /Slides Prompts/,
       'producer.md must not cite "Slides Prompts" — retired (issue #86/#89); the News Carousel ' +
-        `Recipe's real promptNode is "${carousel.canvasInputs.promptNode}" (src/recipe/registry.ts)`,
+        `Recipe's real promptNode is "${carousel.canvasInputs!.promptNode}" (src/recipe/registry.ts)`,
     );
     assert.doesNotMatch(
       text,
       /"Brand Logo"/,
       'producer.md must not cite "Brand Logo" — retired (issue #86/#89); the News Carousel Recipe\'s ' +
-        `real canvas node is "${Object.keys(carousel.canvasInputs.mediaSlots)[0]}" (src/recipe/registry.ts)`,
+        `real canvas node is "${Object.keys(carousel.canvasInputs!.mediaSlots)[0]}" (src/recipe/registry.ts)`,
     );
   });
 });

@@ -50,6 +50,15 @@ describe("Recipe registry — seeded with two entries (issue #54, issue #81)", (
     assert.equal(isWiredRecipe("carousel"), false);
     assert.equal(isWiredRecipe(""), false);
   });
+
+  it("both wired Recipes still populate BOTH space and canvasInputs — Recipe.space/canvasInputs widening to optional (ADR-0021, issue #170) changes NEITHER seeded Recipe's shape", () => {
+    const character = getRecipe("character-explainer-with-cast")!;
+    const carousel = getRecipe("news-carousel")!;
+    assert.notEqual(character.space, undefined);
+    assert.notEqual(character.canvasInputs, undefined);
+    assert.notEqual(carousel.space, undefined);
+    assert.notEqual(carousel.canvasInputs, undefined);
+  });
 });
 
 describe("The character Recipe declares gates + spec-shape + copy-shape + Space target (issue #54 AC1) — UNCHANGED by issue #81", () => {
@@ -60,23 +69,23 @@ describe("The character Recipe declares gates + spec-shape + copy-shape + Space 
   });
 
   it("declares a Space target with the node names today's driver actually uses", () => {
-    assert.equal(recipe.space.id, "a1f05d67-1b98-4d10-9251-6603bea3b578");
-    assert.equal(recipe.space.name, "Organic Character Explainer");
+    assert.equal(recipe.space!.id, "a1f05d67-1b98-4d10-9251-6603bea3b578");
+    assert.equal(recipe.space!.name, "Organic Character Explainer");
     // Not duplicated literals: assert equality against the SAME constants driver.ts exports.
-    assert.equal(recipe.space.nodes.specInput, JSON_MASTER_NODE_NAME);
-    assert.equal(recipe.space.nodes.pinnedReference, CHARACTER_NODE_NAME);
+    assert.equal(recipe.space!.nodes.specInput, JSON_MASTER_NODE_NAME);
+    assert.equal(recipe.space!.nodes.pinnedReference, CHARACTER_NODE_NAME);
   });
 
   it("declares the cast/clip run-point node names from the SAME canonicalProtocol() the driver reads", () => {
     const protocol = canonicalProtocol();
     const castRunPoint = protocol.run_points.find((rp) => rp.gate === "cast")!;
     const clipRunPoint = protocol.run_points.find((rp) => rp.gate === null)!;
-    assert.equal(recipe.space.nodes.castRunPoint, castRunPoint.start);
-    assert.equal(recipe.space.nodes.clipRunPoint, clipRunPoint.start);
+    assert.equal(recipe.space!.nodes.castRunPoint, castRunPoint.start);
+    assert.equal(recipe.space!.nodes.clipRunPoint, clipRunPoint.start);
   });
 
   it("declares a watermarkNode — the real, captured Watermark-instructions node (QA-1, issue #88)", () => {
-    assert.equal(recipe.space.nodes.watermarkNode, WATERMARK_NODE_NAME);
+    assert.equal(recipe.space!.nodes.watermarkNode, WATERMARK_NODE_NAME);
   });
 
   it("declares a spec-shape whose validator IS the real production-spec validator (zero drift)", () => {
@@ -104,8 +113,8 @@ describe("The character Recipe declares gates + spec-shape + copy-shape + Space 
   });
 
   it("declares its typed canvas inputs: one idea-pick media slot (Selected Character) + a prompt node (issue #81 AC1)", () => {
-    assert.deepEqual(Object.keys(recipe.canvasInputs.mediaSlots), ["Selected Character"]);
-    const slot = recipe.canvasInputs.mediaSlots["Selected Character"]!;
+    assert.deepEqual(Object.keys(recipe.canvasInputs!.mediaSlots), ["Selected Character"]);
+    const slot = recipe.canvasInputs!.mediaSlots["Selected Character"]!;
     assert.equal(slot.kind, "idea-pick");
     assert.equal(slot.media, "image");
     assert.equal(slot.required, true);
@@ -115,8 +124,8 @@ describe("The character Recipe declares gates + spec-shape + copy-shape + Space 
   });
 
   it("declares its prompt node as the SAME node the Producer injects the Production Spec into", () => {
-    assert.equal(recipe.canvasInputs.promptNode, recipe.space.nodes.specInput);
-    assert.equal(recipe.canvasInputs.promptNode, JSON_MASTER_NODE_NAME);
+    assert.equal(recipe.canvasInputs!.promptNode, recipe.space!.nodes.specInput);
+    assert.equal(recipe.canvasInputs!.promptNode, JSON_MASTER_NODE_NAME);
   });
 
   it("declares all six Phase Contracts, in PHASE_ORDER's exact order (issue #85 AC1)", () => {
@@ -159,25 +168,25 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
 
   it("declares a Space target different from the character Recipe's — the single-lane 'Carrousel' Space", () => {
     const characterRecipe = getRecipe("character-explainer-with-cast")!;
-    assert.equal(recipe.space.name, "Carrousel");
-    assert.notEqual(recipe.space.id, characterRecipe.space.id);
-    assert.notEqual(recipe.space.name, characterRecipe.space.name);
+    assert.equal(recipe.space!.name, "Carrousel");
+    assert.notEqual(recipe.space!.id, characterRecipe.space!.id);
+    assert.notEqual(recipe.space!.name, characterRecipe.space!.name);
   });
 
   it("declares its Space's SOLE run-point name from the SAME canonicalCarouselProtocol() (zero drift)", () => {
     const protocol = canonicalCarouselProtocol();
     assert.equal(protocol.run_points.length, 1);
-    assert.equal(recipe.space.nodes.clipRunPoint, protocol.run_points[0]!.start);
-    assert.equal(recipe.space.nodes.clipRunPoint, "JSON Master");
+    assert.equal(recipe.space!.nodes.clipRunPoint, protocol.run_points[0]!.start);
+    assert.equal(recipe.space!.nodes.clipRunPoint, "JSON Master");
   });
 
   it("declares NO pinnedReference/castRunPoint — it has no pick-gate to pin or render a paused Cast for", () => {
-    assert.equal(recipe.space.nodes.pinnedReference, undefined);
-    assert.equal(recipe.space.nodes.castRunPoint, undefined);
+    assert.equal(recipe.space!.nodes.pinnedReference, undefined);
+    assert.equal(recipe.space!.nodes.castRunPoint, undefined);
   });
 
   it("declares NO watermarkNode — its canvas has no watermark parameter (QA-1, issue #88)", () => {
-    assert.equal(recipe.space.nodes.watermarkNode, undefined);
+    assert.equal(recipe.space!.nodes.watermarkNode, undefined);
   });
 
   it("declares a spec-shape whose validator IS the real news-carousel validator (zero drift)", () => {
@@ -205,8 +214,8 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
   });
 
   it("declares its typed canvas inputs: one brand-asset media slot (Brand_Logo, the real captured canvas node) + a prompt node (issue #81 AC1, issue #89 node-name alignment)", () => {
-    assert.deepEqual(Object.keys(recipe.canvasInputs.mediaSlots), ["Brand_Logo"]);
-    const slot = recipe.canvasInputs.mediaSlots["Brand_Logo"]!;
+    assert.deepEqual(Object.keys(recipe.canvasInputs!.mediaSlots), ["Brand_Logo"]);
+    const slot = recipe.canvasInputs!.mediaSlots["Brand_Logo"]!;
     assert.equal(slot.kind, "brand-asset");
     assert.equal(slot.media, "image");
     assert.equal(slot.required, true);
@@ -214,8 +223,8 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
   });
 
   it("declares its prompt node as the SAME node its sole run-point starts at", () => {
-    assert.equal(recipe.canvasInputs.promptNode, recipe.space.nodes.clipRunPoint);
-    assert.equal(recipe.canvasInputs.promptNode, "JSON Master");
+    assert.equal(recipe.canvasInputs!.promptNode, recipe.space!.nodes.clipRunPoint);
+    assert.equal(recipe.canvasInputs!.promptNode, "JSON Master");
   });
 
   it("declares all six Phase Contracts, in PHASE_ORDER's exact order (issue #85 AC1)", () => {
