@@ -42,3 +42,8 @@ apify:
   youtube:
     trends_actor: streamers/youtube-scraper
     post_actor: streamers/youtube-scraper
+  # Rung 3 of the curated-source fetch fallback ladder (.claude/skills/fetch-curated-source,
+  # issue #168): a free RSS/Atom parser actor used ONLY when WebFetch and a browser-UA curl both
+  # fail for a curated feed. Evaluated in docs/research/2026-08-10-apify-rss-fetch-fallback.md.
+  rss:
+    feed_actor: shahidirfan/rss-xml-scraper
