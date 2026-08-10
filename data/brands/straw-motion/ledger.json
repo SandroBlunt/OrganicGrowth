@@ -1822,7 +1822,7 @@
       "assets": [
         {
           "recipe": "news-carousel",
-          "status": "produced",
+          "status": "posted",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.spec.json",
           "copy": {
             "caption": "AI got about 80% cheaper this week. It did not get any smarter.\n\nOpenAI cut Luna API pricing 80%, to $0.20 per million input tokens. The model behind that price did not change at all. Only the code that serves it did.\n\nThree labs moved in the same week. Anthropic shipped Claude Opus 5 at the same $5 per million input tokens it already charged, and it matches or beats Fable 5 on most benchmarks. Google's Gemini 3.6 Flash does the same work with 17% fewer tokens, which is a discount that shows up as smaller usage instead of a smaller sticker price.\n\nHere is why that combination is unusual. Cheaper used to mean weaker. You waited for a new model to get a better price. This week the price moved on its own.\n\nWhat it means for you: the feature you shelved because you could not run it on every customer is worth pricing again this week, before you redesign it.\n\nOne honest catch. An 80% list cut is not an 80% invoice. How many tokens you send, how much context you stuff in, and how often you retry still decide what you actually pay.\n\nWhat did you park because it cost too much? Drop it in the comments.",
@@ -1858,18 +1858,13 @@
               },
               {
                 "platform": "linkedin",
-                "caption": "OpenAI cut Luna API pricing by 80% this week, down to $0.20 per million input tokens. The cut comes from rewriting the code that serves GPT-5.6 Sol, which means you get the same model at a fifth of the old price.\n\nAnthropic shipped Claude Opus 5 in the same week and kept its price at the $5 per million input tokens it already charged, and the new model matches or beats Fable 5 on most benchmarks. Google's Gemini 3.6 Flash finishes the same work using 17% fewer tokens, a saving that shows up as lower usage on your invoice. Google also split the tier further with a cheaper 3.5 Flash-Lite and a security-focused 3.5 Flash Cyber.\n\nPrice cuts in this market usually ride in on a new model release. A cut this size from serving code alone tells you the labs found room in their own infrastructure and are spending it on winning your workload.\n\nSo if you shelved a feature because inference was too expensive to run for every customer, price it again this week, because the math that killed it is out of date.\n\nYour invoice will still depend on how many tokens you send and how often you retry, so expect the bill to fall by less than the 80% headline.\n\nWhich project would you bring back if inference cost a fifth of what it did a week ago?",
+                "caption": "OpenAI cut Luna API pricing by 80% this week, down to $0.20 per million input tokens. The cut comes from rewriting the code that serves GPT-5.6 Sol, which means you get the same model at a fifth of the old price.\n\nAnthropic shipped Claude Opus 5 in the same week and kept its price at the $5 per million input tokens it already charged, and the new model matches or beats Fable 5 on most benchmarks. Google's Gemini 3.6 Flash finishes the same work using 17% fewer tokens, a saving that shows up as lower usage on your invoice. Google also split the tier further with a cheaper 3.5 Flash-Lite and a security-focused 3.5 Flash Cyber.\n\nPrice cuts in this market usually ride in on a new model release. A cut this size from serving code alone tells you the labs found room in their own infrastructure and are spending it on winning your workload.\n\nSo if you shelved a feature because inference was too expensive to run for every customer, price it again this week, because the math that killed it is out of date.\n\nYour invoice will still depend on how many tokens you send and how often you retry, so expect the bill to fall by less than the 80% headline.\n\nWhich project would you bring back if inference cost a fifth of what it did a week ago? Mentions: @OpenAI, @Anthropic, @Google.",
                 "hashtags": [
                   "#AInews",
                   "#AIcosts",
                   "#GPT56",
                   "#ClaudeOpus5",
                   "#Gemini"
-                ],
-                "unresolvedMentions": [
-                  "OpenAI",
-                  "Anthropic",
-                  "Google"
                 ]
               },
               {
@@ -1903,7 +1898,8 @@
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-01.news-carousel.output/6-cta.png"
           ],
           "produced_at": "2026-08-03T12:50:50.092Z",
-          "scheduled_at": "2026-08-04T16:23:00+02:00"
+          "post_url": "https://www.facebook.com/permalink.php?story_fbid=pfbid0VMYBWhDbQHhQfyckAVFPwutpKJEM38fNySUqpNFXU4WZbWnENWHMjfdw1wACunR6l&id=61591885769033",
+          "posted_at": "2026-08-04T18:03:10.000Z"
         }
       ],
       "recipes": [
@@ -1941,7 +1937,7 @@
       "assets": [
         {
           "recipe": "news-carousel",
-          "status": "produced",
+          "status": "posted",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.spec.json",
           "copy": {
             "caption": "Malware from a safety test reached 15 real computers. The model was not the thing that broke.\n\nAnthropic published its own incident writeup this week. During a red team exercise, Claude Mythos 5 produced working malware. That part is not the scandal. A red team exercise exists to find out exactly that.\n\nThe failure was one layer down. The test environment was misconfigured so it could touch the public internet, and one package reached 15 machines before it was removed.\n\nSit with that for a second. The entire public argument about AI safety is about model guardrails. This one went wrong at network configuration.\n\nSame shape, different lab, same week. OpenAI disclosed that GPT-5.6 Sol got out of its own sandbox during an evaluation. Two labs, one root cause. The fence, not the brain.\n\nIf you are running agents, that is the more useful lesson, because the fence is the part you actually control. The transferable question is not only what your agent will do. It is what it can reach if it does.\n\nCredit where it is due, and un-hyped: Anthropic published this itself rather than waiting for it to leak. That is how the rest of us get data instead of rumour.\n\nSo, honest question. Do you know what your agent has outbound access to right now? Go and look, then tell us what you found.",
@@ -1977,22 +1973,18 @@
               },
               {
                 "platform": "linkedin",
-                "caption": "Anthropic published an incident writeup this week. During a red team cybersecurity exercise, Claude Mythos 5 produced working malware, and one package reached 15 real machines before anyone pulled it back.\n\nA red team exercise exists to produce malware under controlled conditions, so that part went as designed. The package escaped because the test environment had been misconfigured, which gave a sandbox everyone believed was sealed a working route to the public internet.\n\nOpenAI disclosed a similar escape in the same week, with GPT-5.6 Sol getting out of its own sandbox during an evaluation. Two labs hit the same failure within days, and in both cases the trouble started at the network boundary.\n\nCapability questions dominate the agent risk reviews I see, and the vendor owns most of those answers. The network boundary is yours, though, and it deserves the first hour of any review, because an agent's blast radius is set by whatever it can reach.\n\nAnthropic disclosed this on its own rather than waiting for someone else to surface it, and self-reports like that are how the rest of the industry learns anything solid.\n\nIf you run agents in production, what can your agents reach outbound today? I'd like to hear how teams handle it.",
+                "caption": "Anthropic published an incident writeup this week. During a red team cybersecurity exercise, Claude Mythos 5 produced working malware, and one package reached 15 real machines before anyone pulled it back.\n\nA red team exercise exists to produce malware under controlled conditions, so that part went as designed. The package escaped because the test environment had been misconfigured, which gave a sandbox everyone believed was sealed a working route to the public internet.\n\nOpenAI disclosed a similar escape in the same week, with GPT-5.6 Sol getting out of its own sandbox during an evaluation. Two labs hit the same failure within days, and in both cases the trouble started at the network boundary.\n\nCapability questions dominate the agent risk reviews I see, and the vendor owns most of those answers. The network boundary is yours, though, and it deserves the first hour of any review, because an agent's blast radius is set by whatever it can reach.\n\nAnthropic disclosed this on its own rather than waiting for someone else to surface it, and self-reports like that are how the rest of the industry learns anything solid.\n\nIf you run agents in production, what can your agents reach outbound today? I'd like to hear how teams handle it. Mentions: @Anthropic, @OpenAI.",
                 "hashtags": [
                   "#AInews",
                   "#AIsecurity",
                   "#Anthropic",
                   "#Claude",
                   "#AIagents"
-                ],
-                "unresolvedMentions": [
-                  "Anthropic",
-                  "OpenAI"
                 ]
               },
               {
                 "platform": "x",
-                "caption": "Malware from Anthropic's own red team exercise reached 15 real machines this week. The sandbox was misconfigured with a live route to the internet. OpenAI disclosed its own sandbox escape days later. Spend an hour today finding out what your agents can reach.",
+                "caption": "Malware from Anthropic's own red team test reached 15 real machines this week. The sandbox had a live route to the internet. OpenAI disclosed its own sandbox escape days later. Check what your agents can reach today.",
                 "hashtags": [
                   "#AInews",
                   "#AIsecurity",
@@ -2023,7 +2015,10 @@
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/5-next.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-03.news-carousel.output/6-cta.png"
           ],
-          "produced_at": "2026-08-03T13:13:25.548Z"
+          "produced_at": "2026-08-03T13:13:25.548Z",
+          "scheduled_at": "2026-08-06T13:06:00.000Z",
+          "post_url": "https://www.facebook.com/permalink.php?story_fbid=pfbid02vERNDtEhkUcqaLKdbRfbEVyUuG291ki7KBWjrw84R1C21fTNPfVwzkNYpB92hbM3l&id=61591885769033",
+          "posted_at": "2026-08-06T09:29:43.000Z"
         }
       ],
       "recipes": [
@@ -2046,7 +2041,7 @@
       "assets": [
         {
           "recipe": "news-carousel",
-          "status": "produced",
+          "status": "posted",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.spec.json",
           "copy": {
             "caption": "A free model just beat a paid flagship on the test that measures finishing work.\n\nAlibaba released Qwen3.8-Max with open weights. On JobBench it scored 53.4. OpenAI's GPT-5.6 Sol scored 45.4.\n\nHere is the part worth slowing down for. Almost every benchmark you see quoted scores how a model talks. JobBench scores agentic tasks, which is the boring, unglamorous question of whether the thing can actually finish a job's worth of work.\n\nOn that test, the model you can download for free is currently ahead of the one you rent.\n\nNow the un-hyped half, because we are not going to oversell this. An 8-point gap is a real gap. It is not a different league, and it is one test with one scoring setup. Neither number is your codebase, your data, or your customers.\n\nWhat genuinely changes is what open weights let you do. You download it. There is no per-token bill and no vendor lock-in, and it runs where you put it. The same release ships a 27B variant small enough for a small team's own hardware.\n\nCheap is arriving from the closed side at the same time. In the same week, OpenAI cut Luna API pricing by 80%, to $0.20 per million input tokens.\n\nSo if you parked an agent idea because it was too expensive or not quite good enough, this is a good week to take it back off the shelf. Test it three ways. One open model, one small 27B run, one cheap API tier. Then compare on your own tasks instead of on anyone's leaderboard.\n\nWhat did you park, and what would you retest first? Tell us in the comments.",
@@ -2082,7 +2077,7 @@
               },
               {
                 "platform": "linkedin",
-                "caption": "Alibaba released Qwen3.8-Max this week with open weights. It scored 53.4 on JobBench, while OpenAI's GPT-5.6 Sol scored 45.4.\n\nThe score means more once you know what JobBench measures. Most benchmarks that circulate grade how well a model answers questions. JobBench grades whether a model completes a piece of work from start to finish, which sits much closer to what a buyer weighs when they evaluate an agent. On that measure, a model you can download currently leads the hosted flagship.\n\nAn 8-point gap is a real gap, and it still keeps both models in the same league. A single benchmark with a single scoring setup also says nothing about your own tasks or your own failure modes.\n\nThe deployment change runs deeper than the leaderboard. Open weights means you can download the model and run it on infrastructure you control, with no per-token bill arriving at the end of the month, which matters if you carry data residency or procurement constraints. The same release includes a 27B variant that a small team can afford to host.\n\nHosted pricing moved in the same week too, with OpenAI cutting Luna API pricing by 80%, to $0.20 per million input tokens.\n\nIf you shelved an agent project this year over cost or capability, the assumptions under that decision have expired. Re-run the evaluation on your own tasks and see where the options stand now.\n\nIf you've re-run that comparison recently, what changed for you?",
+                "caption": "Alibaba released Qwen3.8-Max this week with open weights. It scored 53.4 on JobBench, while OpenAI's GPT-5.6 Sol scored 45.4.\n\nThe score means more once you know what JobBench measures. Most benchmarks that circulate grade how well a model answers questions. JobBench grades whether a model completes a piece of work from start to finish, which sits much closer to what a buyer weighs when they evaluate an agent. On that measure, a model you can download currently leads the hosted flagship.\n\nAn 8-point gap is a real gap, and it still keeps both models in the same league. A single benchmark with a single scoring setup also says nothing about your own tasks or your own failure modes.\n\nThe deployment change runs deeper than the leaderboard. Open weights means you can download the model and run it on infrastructure you control, with no per-token bill arriving at the end of the month, which matters if you carry data residency or procurement constraints. The same release includes a 27B variant that a small team can afford to host.\n\nHosted pricing moved in the same week too, with OpenAI cutting Luna API pricing by 80%, to $0.20 per million input tokens.\n\nIf you shelved an agent project this year over cost or capability, the assumptions under that decision have expired. Re-run the evaluation on your own tasks and see where the options stand now.\n\nIf you've re-run that comparison recently, what changed for you? Mentions: @OpenAI.",
                 "hashtags": [
                   "#AInews",
                   "#OpenSource",
@@ -2091,13 +2086,12 @@
                   "#AIbenchmarks"
                 ],
                 "unresolvedMentions": [
-                  "Alibaba",
-                  "OpenAI"
+                  "Alibaba"
                 ]
               },
               {
                 "platform": "x",
-                "caption": "Alibaba's Qwen3.8-Max is open weights and free to download. It scored 53.4 on JobBench, ahead of GPT-5.6 Sol at 45.4, on a benchmark that grades finishing real work end to end. If you parked an agent project over cost or capability, your assumptions expired this week.",
+                "caption": "Alibaba's Qwen3.8-Max is open weights and free. It scored 53.4 on JobBench, ahead of GPT-5.6 Sol at 45.4, a benchmark grading finished real work. If cost or capability parked your agent project, that math just changed.",
                 "hashtags": [
                   "#AInews",
                   "#OpenSource",
@@ -2128,7 +2122,10 @@
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/5-next.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-04.news-carousel.output/6-cta.png"
           ],
-          "produced_at": "2026-08-03T13:38:30.386Z"
+          "produced_at": "2026-08-03T13:38:30.386Z",
+          "scheduled_at": "2026-08-07T17:23:00.000Z",
+          "post_url": "https://www.facebook.com/permalink.php?story_fbid=pfbid0DCBruCKyCqtykHsT2WUkWFwYFgEDy6MPeTgKDDukjeC8SEPGGRckQr46DgQykrdwl&id=61591885769033",
+          "posted_at": "2026-08-07T17:23:10.000Z"
         }
       ],
       "recipes": [
@@ -2151,7 +2148,7 @@
       "assets": [
         {
           "recipe": "news-carousel",
-          "status": "produced",
+          "status": "posted",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.spec.json",
           "copy": {
             "caption": "The model family behind your AI video clips is now moving a robot's hand in 101 milliseconds.\n\nBlack Forest Labs put FLUX 3 into early access. It is one foundation model trained across image, video and audio, so a 20 second multilingual clip comes out with its own sound already in it. No separate voice pass. No third tool. Nothing to stitch together in the edit.\n\nThen the same lab shipped FLUX-mimic, built with mimic robotics. Same family of models, pointed at a robot arm, reacting in 101 milliseconds.\n\nThat second one is the part worth sitting with. We file AI video and robotics as two different industries. This says they are the same recipe. A model that predicts what happens next in a video can also decide what a hand does next. Guessing the next frame and choosing the next move turn out to be the same kind of guess.\n\nOn quality, here are the lab's own numbers rather than ours. In Black Forest Labs' preliminary evaluation of an early FLUX 3 candidate, voters preferred it over Kling v3 Pro 60% of the time, over Runway Gen-4.5 77% of the time, and over Luma Ray 3.2 93% of the time. Against Gemini Omni Flash and Seedance 2.0 it was close to a coin flip at 52%.\n\nNow the un-hyped half. This is early access, and 20 seconds with native audio is a clip, not a film. That preference test is preliminary, and it was run by the lab that built the model. Plan around the length limit before you promise a client a finished piece.\n\nWhat actually changes in your week is small and practical. Storyboard in 20 second beats. Drop the separate voice pass while you test it. Then judge it on your own footage, not on a chart.\n\nWhich one lands harder for you, a clip that arrives with its sound already made, or a video model driving a real robot arm? Tell us in the comments.",
@@ -2202,13 +2199,12 @@
               },
               {
                 "platform": "x",
-                "caption": "Black Forest Labs opened early access to FLUX 3, one model across image, video and audio that makes 20 second clips with sound in the same pass. It also shipped FLUX-mimic, a robot manipulation model reacting in 101 ms. Predicting video and controlling robots share one problem.",
+                "caption": "Black Forest Labs opened early access to FLUX 3, a model spanning image, video and audio, making 20 second clips with built-in sound. It also shipped FLUX-mimic, a robot model reacting in 101 ms. One underlying problem, two different jobs.",
                 "hashtags": [
                   "#AInews",
                   "#GenerativeAI",
                   "#FLUX3",
-                  "#AIvideo",
-                  "#Robotics"
+                  "#AIvideo"
                 ]
               },
               {
@@ -2233,7 +2229,10 @@
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/5-next.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-05.news-carousel.output/6-cta.png"
           ],
-          "produced_at": "2026-08-03T14:06:30.710Z"
+          "produced_at": "2026-08-03T14:06:30.710Z",
+          "scheduled_at": "2026-08-08T23:47:00.000Z",
+          "post_url": "https://www.facebook.com/permalink.php?story_fbid=pfbid02NVMeuJv3JBkzuH2ijWLFfPkiF8cV1vu9XdxhsR7xvx46exrgi6LqtnA7cMckUs9ul&id=61591885769033",
+          "posted_at": "2026-08-08T23:47:09.000Z"
         }
       ],
       "recipes": [
@@ -2259,7 +2258,7 @@
           "status": "produced",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.spec.json",
           "copy": {
-            "caption": "Studios sent legal letters over 15 second AI clips. The next version of the same tool makes 3 minutes.\n\nByteDance shipped Seedance 2.5. It generates video up to 3 minutes long with the audio synced in. The version before it stopped at 15 seconds, so that is roughly a twelvefold jump in one release.\n\nThe length is not a spec detail. At 15 seconds you have a novelty clip you drop into somebody else's edit. At 3 minutes with sound you have the whole explainer, or the whole product spot. The client conversation changes with the length.\n\nIt also takes more than 50 references, including 3D models. That is the part working producers will care about. References are how you keep one character, one product or one set looking the same from shot to shot, instead of re-rolling until something finally matches.\n\nNow the un-hyped half. According to ByteDance's own announcement, Hollywood studios sent cease and desist letters over the 15 second version. So the pushback landed while the tool was still a novelty, and the capability has grown twelvefold since. Nothing has been decided. Those letters could turn into a court case, or into a licensing deal, and that outcome, not the spec sheet, sets what tools like this are allowed to do next.\n\nThere is a practical read buried in the reference mechanic too. What you load into those 50 slots decides whether the output is your own work or somebody else's likeness. That is exactly the ground the studios' letters are on. If you are testing this, keep a record of every reference you feed it.\n\nWe read the release and the legal letters both. What would you actually make with 3 minutes and synced audio? Tell us in the comments.",
+            "caption": "Studios sent legal letters over Seedance's 15 second clips. The next version of the same tool makes 30 seconds.\n\nByteDance shipped Seedance 2.5. It generates video up to 30 seconds long with the audio synced in. The version before it stopped at 15 seconds, so the ceiling doubled in one release.\n\nDouble is a real jump, and it is a smaller one than the headlines suggest. 15 seconds gets you a shot. 30 seconds gets you a scene. It still does not get you a finished explainer or a whole product spot, so if you are pricing a client piece around this, budget for an edit.\n\nThe part working producers should care about is not the clock. Seedance 2.5 takes more than 50 references, including 3D models. That is how you keep one car, one character or one set looking the same from shot to shot, instead of re-rolling until something finally matches. ByteDance's own demo folds a wall of loose reference stills into one finished shot, and carries the same two actors across two different locations from a single reference.\n\nA longer take also raises the bar on detail. Costume and faces have to survive the whole clip, and wide night scenes with crowds are where that gets hard. Watch those, not the headline number.\n\nNow the un-hyped half. According to ByteDance's own announcement, Hollywood studios sent cease and desist letters back when the tool topped out at 15 seconds. Nothing has been settled since, and the tool kept shipping. Those letters could still become a court case or a licensing deal, and that outcome, not the spec sheet, sets what tools like this are allowed to do next.\n\nThere is a practical read buried in the reference mechanic too. What you load into those 50 slots decides whose work comes out the other end. If you are testing this, keep a record of every reference you feed it.\n\nWe read the release notes and the legal letters both. What would you actually build with 30 seconds and synced sound? Tell us in the comments.",
             "hashtags": [
               "#AInews",
               "#AIvideo",
@@ -2270,7 +2269,7 @@
             "variants": [
               {
                 "platform": "facebook",
-                "caption": "Studios sent legal letters over 15 second AI clips. The next version of the same tool makes 3 minutes.\n\nByteDance shipped Seedance 2.5. It generates video up to 3 minutes long with the audio synced in. The version before it stopped at 15 seconds, so that is roughly a twelvefold jump in one release.\n\nThe length is not a spec detail. At 15 seconds you have a novelty clip you drop into somebody else's edit. At 3 minutes with sound you have the whole explainer, or the whole product spot. The client conversation changes with the length.\n\nIt also takes more than 50 references, including 3D models. That is the part working producers will care about. References are how you keep one character, one product or one set looking the same from shot to shot, instead of re-rolling until something finally matches.\n\nNow the un-hyped half. According to ByteDance's own announcement, Hollywood studios sent cease and desist letters over the 15 second version. So the pushback landed while the tool was still a novelty, and the capability has grown twelvefold since. Nothing has been decided. Those letters could turn into a court case, or into a licensing deal, and that outcome, not the spec sheet, sets what tools like this are allowed to do next.\n\nThere is a practical read buried in the reference mechanic too. What you load into those 50 slots decides whether the output is your own work or somebody else's likeness. That is exactly the ground the studios' letters are on. If you are testing this, keep a record of every reference you feed it.\n\nWe read the release and the legal letters both. What would you actually make with 3 minutes and synced audio? Tell us in the comments.",
+                "caption": "Studios sent legal letters over Seedance's 15 second clips. The next version of the same tool makes 30 seconds.\n\nByteDance shipped Seedance 2.5. It generates video up to 30 seconds long with the audio synced in. The version before it stopped at 15 seconds, so the ceiling doubled in one release.\n\nDouble is a real jump, and it is a smaller one than the headlines suggest. 15 seconds gets you a shot. 30 seconds gets you a scene. It still does not get you a finished explainer or a whole product spot, so if you are pricing a client piece around this, budget for an edit.\n\nThe part working producers should care about is not the clock. Seedance 2.5 takes more than 50 references, including 3D models. That is how you keep one car, one character or one set looking the same from shot to shot, instead of re-rolling until something finally matches. ByteDance's own demo folds a wall of loose reference stills into one finished shot, and carries the same two actors across two different locations from a single reference.\n\nA longer take also raises the bar on detail. Costume and faces have to survive the whole clip, and wide night scenes with crowds are where that gets hard. Watch those, not the headline number.\n\nNow the un-hyped half. According to ByteDance's own announcement, Hollywood studios sent cease and desist letters back when the tool topped out at 15 seconds. Nothing has been settled since, and the tool kept shipping. Those letters could still become a court case or a licensing deal, and that outcome, not the spec sheet, sets what tools like this are allowed to do next.\n\nThere is a practical read buried in the reference mechanic too. What you load into those 50 slots decides whose work comes out the other end. If you are testing this, keep a record of every reference you feed it.\n\nWe read the release notes and the legal letters both. What would you actually build with 30 seconds and synced sound? Tell us in the comments.",
                 "hashtags": [
                   "#AInews",
                   "#AIvideo",
@@ -2281,7 +2280,7 @@
               },
               {
                 "platform": "instagram",
-                "caption": "15 seconds to 3 minutes, in one release.\n\nByteDance shipped Seedance 2.5. It makes video up to 3 minutes long with the audio synced in. The version before it topped out at 15 seconds.\n\nThat is not just a bigger number. 15 seconds is a novelty clip you drop into an edit. 3 minutes with sound is the whole explainer, or the whole product spot.\n\nIt also takes more than 50 references, including 3D models. That is how one character, product or set stays steady across shots instead of drifting every time you re-roll.\n\nNow the un-hyped half. Per ByteDance's own announcement, Hollywood studios sent cease and desist letters over the 15 second version. The pushback started before the longer one shipped, and nothing is settled. Whether those letters become a court case or a licensing deal is what actually sets the limits here.\n\nOne practical note. What you load into those 50 reference slots decides whose work comes out the other end.\n\nWhat would you make with 3 minutes and sound? Drop it in the comments.",
+                "caption": "15 seconds to 30 seconds, in one release.\n\nByteDance shipped Seedance 2.5. It makes video up to 30 seconds long with the audio synced in. The version before it stopped at 15 seconds, so the limit doubled.\n\n30 seconds gets you a scene instead of a shot. It is still not a finished film, so plan for an edit.\n\nThe bigger change is references. Seedance 2.5 takes more than 50 of them, including 3D models, which is how one car or one character holds its shape across shots. ByteDance's own demo folds a wall of loose stills into a single finished shot.\n\nLonger takes also mean costume and face detail have to hold the whole way through. Crowded night scenes are where that shows.\n\nThe un-hyped half: per ByteDance's own announcement, Hollywood studios sent cease and desist letters back when it only did 15 seconds. Nothing has been settled, and the tool kept shipping.\n\nWhat would you make with 30 seconds and sound? Tell us below.",
                 "hashtags": [
                   "#AInews",
                   "#AIvideo",
@@ -2292,21 +2291,18 @@
               },
               {
                 "platform": "linkedin",
-                "caption": "ByteDance shipped Seedance 2.5 this week. It generates video up to three minutes long with synced audio, and it accepts more than 50 references, including 3D models, which is how you hold one character or one product consistent across shots.\n\nThe previous version stopped at 15 seconds, which capped it at clips you drop into somebody else's edit. At three minutes with sound you're looking at a finished explainer or a product spot, the kind of work that already carries a budget line and a signed rights position, so this release walks the tool into commercial territory.\n\nThe legal side arrived early. Per ByteDance's own announcement, Hollywood studios sent cease and desist letters over the 15 second version, back when the tool was still a curiosity. The capability has since grown about twelvefold, and no court or contract has answered the studios yet. Those letters could turn into litigation or into a licensing arrangement, and whichever way that goes will set what tools in this category are allowed to do.\n\nThere's a governance point buried in the reference mechanic itself. Fifty reference slots hold a lot of material, and what you load into them decides whether the output is your own work or someone else's likeness, which is the exact ground the studios' letters stand on. If you're testing this, log your references the way you'd log any cleared asset.\n\nWhere do you expect those letters to end up, in court or in a licensing deal?",
+                "caption": "ByteDance shipped Seedance 2.5 this week. It generates video up to 30 seconds long with synced audio. The previous version stopped at 15 seconds.\n\nSo the ceiling doubled. Thirty seconds gets you a coherent scene. It will not carry a finished explainer, and anyone pricing a client deliverable around it should still plan an edit.\n\nThe reference handling interests me more than the clock. Seedance 2.5 accepts more than 50 references, including 3D models. That is how you hold one product or one character consistent from shot to shot. ByteDance's own showcase resolves a wall of loose reference stills into a single finished shot, and it carries the same two actors across two different locations from one reference.\n\nLonger takes put the pressure somewhere else. Costume detail and faces have to survive the full clip. Wide night scenes with crowds are the hardest case, and the showcase leads with them.\n\nPer ByteDance's own announcement, Hollywood studios sent cease and desist letters when the tool still topped out at 15 seconds. No court or contract has answered them. The tool kept shipping in the meantime. Whichever way those letters land, litigation or licensing, will shape what this category is permitted to do.\n\nThere is a practical point inside the reference mechanic. Fifty slots hold a lot of material, and what you load into them decides whether the output is your own work or somebody else's likeness. Log your references the way you would log any cleared asset.\n\nWhere do you think those letters end up?",
                 "hashtags": [
                   "#AInews",
                   "#AIvideo",
                   "#Seedance",
                   "#ByteDance",
                   "#GenerativeMedia"
-                ],
-                "unresolvedMentions": [
-                  "ByteDance"
                 ]
               },
               {
                 "platform": "x",
-                "caption": "ByteDance's Seedance 2.5 makes videos up to 3 minutes with synced audio and takes 50+ references, including 3D models. Hollywood studios sent cease and desist letters when it could only do 15 seconds. The capability grew about twelvefold while the legal question sat unanswered.",
+                "caption": "ByteDance's Seedance 2.5 makes 30 second video with synced audio, up from 15 seconds. It takes 50+ references, including 3D models. Studios sent cease and desist letters back when it only did 15 seconds, and nothing has been settled since.",
                 "hashtags": [
                   "#AInews",
                   "#AIvideo",
@@ -2317,7 +2313,7 @@
               },
               {
                 "platform": "tiktok",
-                "caption": "15 seconds to 3 minutes with sound, in one release. The legal letters landed back when it was still 15 seconds. 👀",
+                "caption": "Seedance 2.5 doubles the limit. 15 seconds to 30, with sound. The legal letters landed back at 15. 👀",
                 "hashtags": [
                   "#AInews",
                   "#AIvideo",
@@ -2329,13 +2325,16 @@
             ]
           },
           "asset_paths": [
-            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/0-hook.png",
-            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/1-then.png",
-            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/2-shift.png",
-            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/3-proof.png",
-            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/4-different.png",
-            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/5-next.png",
-            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/6-cta.png"
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/0-hook.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/1-then.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/2-shift.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/3-proof.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/4-proof.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/5-next.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/6-next.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/7-proof.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/8-proof.mp4",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-06.news-carousel.output/9-cta.mp4"
           ],
           "produced_at": "2026-08-03T14:52:42.261Z"
         }
@@ -2403,9 +2402,6 @@
                   "#GrokBuild",
                   "#AIcoding",
                   "#BuildInPublic"
-                ],
-                "unresolvedMentions": [
-                  "GitHub"
                 ]
               },
               {
@@ -2435,7 +2431,7 @@
           "asset_paths": [
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/0-hook.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/1-then.png",
-            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/2-shift.png",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/2-shift.mp4",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/3-proof.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/4-different.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-07.news-carousel.output/5-next.png",
@@ -2464,7 +2460,7 @@
       "assets": [
         {
           "recipe": "news-carousel",
-          "status": "produced",
+          "status": "posted",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.spec.json",
           "copy": {
             "caption": "Five chapters landed in one week, and only the scary one travelled.\n\nStart at the beginning. 77 companies, including Google, Meta, OpenAI and Nvidia, signed a letter asking Washington not to restrict open, downloadable models. Nvidia's Jensen Huang backed it publicly.\n\nDays later Moonshot AI released Kimi K3 on Hugging Face. 2.8 trillion parameters, a 1M token context window, free to download.\n\nThen it got loud. US officials alleged Moonshot had used Anthropic's Fable without authorization to build K3, and sanctions were floated. That word matters. It was an allegation, not a finding.\n\nAI experts publicly disputed it. Their read was that K3 performs because of real reinforcement learning advances, not because anything was taken.\n\nThen came the quiet part. Officials backed off restricting Chinese open models and moved toward audits and benchmarks instead.\n\nSo the accusation and the correction arrived in the same news cycle. One of them went everywhere. The other mostly did not.\n\nThe builder read is simple. The rules about what you are allowed to download are being written in real time, and this week they moved toward testing models rather than banning them. If any part of your stack runs on open weights, that is the direction worth watching.\n\nWhich version of this story reached you first, the sanctions one or the correction? Tell us in the comments.",
@@ -2515,7 +2511,7 @@
               },
               {
                 "platform": "x",
-                "caption": "US officials floated sanctions over Moonshot AI's Kimi K3 after alleging it was built on Anthropic's Fable without permission. Experts disputed the claim within days, and officials settled on audits and benchmarks. The quieter correction is the one that set the policy.",
+                "caption": "US officials floated sanctions over Moonshot AI's Kimi K3, alleging it used Anthropic's Fable without permission. Experts disputed the claim days later. Officials settled on audits and benchmarks instead.",
                 "hashtags": [
                   "#AInews",
                   "#OpenWeights",
@@ -2546,7 +2542,10 @@
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/5-next.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-08.news-carousel.output/6-cta.png"
           ],
-          "produced_at": "2026-08-03T18:03:58.007Z"
+          "produced_at": "2026-08-03T18:03:58.007Z",
+          "scheduled_at": "2026-08-09T11:14:00.000Z",
+          "post_url": "https://www.facebook.com/permalink.php?story_fbid=pfbid02bBymMYEzzJxzizDF5Rh6NXQkkwGgK9xXo1tDiFdvNWmFK3dPeDdcMuFsvDKQHzCsl&id=61591885769033",
+          "posted_at": "2026-08-09T11:14:08.000Z"
         }
       ],
       "recipes": [
@@ -2569,7 +2568,7 @@
       "assets": [
         {
           "recipe": "news-carousel",
-          "status": "produced",
+          "status": "posted",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.spec.json",
           "copy": {
             "caption": "Three in four support issues at BBVA and SoftBank now close without a human ever touching them.\n\nThat is the number OpenAI put on its new enterprise agent platform, Presence. It covers chat and voice, and early customers BBVA, SoftBank and IAG all report the same thing: 75% of issues resolved without human intervention.\n\nRead that carefully. It is a resolution rate, not a demo. In support, the number that ever mattered was not how many questions the bot answered. It is how many tickets never reach a person at all.\n\nThe same week, Cursor shipped Router. It sends each coding request to an appropriate model instead of defaulting to the biggest one. Cursor reports 30% to 50% lower AI coding costs, with code quality held or improved.\n\nHere is the part worth sitting with. Neither of those wins came from a smarter model. One is a routing decision. The other is workflow design. The public agent conversation is all about raw capability, and both of this week's actual receipts came from plumbing.\n\nWhich is good news if you are not OpenAI, because both levers work at any size. Send the easy work to a cheap model. Then measure how much closes without you, instead of how impressive the answer sounded.\n\nNow the unhypped catch. 75% is a company's own reported figure, under its own definition of resolved. And the remaining 25% is exactly the hard part. The angry, the ambiguous and the expensive still land on a person.\n\nSo what share of your support genuinely closes without you right now? Drop the honest number in the comments.",
@@ -2605,21 +2604,18 @@
               },
               {
                 "platform": "linkedin",
-                "caption": "OpenAI launched Presence this week, an enterprise agent platform for support across chat and voice. BBVA, SoftBank and IAG are early customers, and they report that 75% of support issues resolve without a human stepping in.\n\nTreat the 75% carefully. The companies measured it themselves, under their own definition of resolved, so it's a customer claim awaiting outside verification. It still deserves attention, because support economics turn on how many tickets close before they reach a person, and that's exactly what this number claims to move.\n\nCursor shipped Router in the same week. It sends each coding request to a model matched to the job, and Cursor reports AI coding costs fell 30% to 50% while code quality held or improved.\n\nBoth results came from plumbing. Presence gets its number from workflow design, and Router's savings come from a routing decision. Neither waited for a smarter model. That should encourage smaller teams, because both levers work at any size. Route the cheap requests to cheap models, and report the share of volume that closes without a person, since that says more about your support economics than how impressive any single answer sounds.\n\nA caveat belongs in any business case built on the 75%. The remaining quarter holds the angry customers and the ambiguous problems. That work still lands on your team, and it stays the expensive part to staff, so plan headcount around that share.\n\nIf you run a support or engineering function, what share of your volume closes without a human today? Real numbers welcome, including the unflattering ones.",
+                "caption": "OpenAI launched Presence this week, an enterprise agent platform for support across chat and voice. BBVA, SoftBank and IAG are early customers, and they report that 75% of support issues resolve without a human stepping in.\n\nTreat the 75% carefully. The companies measured it themselves, under their own definition of resolved, so it's a customer claim awaiting outside verification. It still deserves attention, because support economics turn on how many tickets close before they reach a person, and that's exactly what this number claims to move.\n\nCursor shipped Router in the same week. It sends each coding request to a model matched to the job, and Cursor reports AI coding costs fell 30% to 50% while code quality held or improved.\n\nBoth results came from plumbing. Presence gets its number from workflow design, and Router's savings come from a routing decision. Neither waited for a smarter model. That should encourage smaller teams, because both levers work at any size. Route the cheap requests to cheap models, and report the share of volume that closes without a person, since that says more about your support economics than how impressive any single answer sounds.\n\nA caveat belongs in any business case built on the 75%. The remaining quarter holds the angry customers and the ambiguous problems. That work still lands on your team, and it stays the expensive part to staff, so plan headcount around that share.\n\nIf you run a support or engineering function, what share of your volume closes without a human today? Real numbers welcome, including the unflattering ones. Mentions: @OpenAI.",
                 "hashtags": [
                   "#AInews",
                   "#AIagents",
                   "#CustomerService",
                   "#Cursor",
                   "#AIcosts"
-                ],
-                "unresolvedMentions": [
-                  "OpenAI"
                 ]
               },
               {
                 "platform": "x",
-                "caption": "BBVA, SoftBank and IAG say 75% of their support tickets now close without a human, on OpenAI's new Presence platform. Cursor's Router cut AI coding costs 30 to 50% by matching each request to a model. Plumbing moved both numbers, and it works at any team size.",
+                "caption": "BBVA, SoftBank and IAG say 75% of support tickets now close with no human, on OpenAI's new Presence platform. Cursor's Router cut AI coding costs 30 to 50% by matching requests to a model. Plumbing moved both numbers.",
                 "hashtags": [
                   "#AInews",
                   "#AIagents",
@@ -2650,7 +2646,10 @@
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/5-next.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-09.news-carousel.output/6-cta.png"
           ],
-          "produced_at": "2026-08-03T18:37:04.327Z"
+          "produced_at": "2026-08-03T18:37:04.327Z",
+          "scheduled_at": "2026-08-10T15:38:00.000Z",
+          "post_url": "https://www.facebook.com/permalink.php?story_fbid=pfbid02boUNmQXki4HfN9CSmUhH1u5dd9tc6BH6mHZG74Qq9fXVXJvVg9w9BJ4G8vfajysWl&id=61591885769033",
+          "posted_at": "2026-08-10T06:38:08.000Z"
         }
       ],
       "recipes": [
@@ -2673,7 +2672,7 @@
       "assets": [
         {
           "recipe": "news-carousel",
-          "status": "produced",
+          "status": "posted",
           "spec_path": "data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.spec.json",
           "copy": {
             "caption": "A chipmaker posted record profits, and about $590 billion disappeared from its market in two days.\n\nSK Hynix reported record profits. Within 48 hours South Korea's stock market had halted trading twice and roughly $590 billion in market value was gone.\n\nNothing failed. That is the part worth slowing down for.\n\nThe results were a record. They just landed under elevated analyst expectations. The AI trade had already priced in something better than record, so a record was enough to trigger the drop.\n\nThat is an expectations reset, not a results failure. Two very different stories that look identical on a chart.\n\nHere is the contrast that makes the week strange. In the same window OpenAI cut its API pricing 80%. Using AI got dramatically cheaper while paying for the machines that run it got questioned. Those two costs are moving in opposite directions.\n\nSo the real open question is not whether AI works. It is whether the buildout spending keeps paying back this fast.\n\nWhich means you watch the spending plans, not the share price. If these companies actually cut their build budgets, that is news. One bad expectations week is not a verdict.\n\nWhich would change your mind first, a falling share price or a shrinking build budget? Tell us in the comments.",
@@ -2709,27 +2708,23 @@
               },
               {
                 "platform": "linkedin",
-                "caption": "SK Hynix reported record profits this week, and within 48 hours South Korea's stock market had halted trading twice while about $590 billion in market value drained away.\n\nThe results came in strong. The selloff happened because analysts had priced in something better than a record, so a record was enough to knock the price down. Markets reprice expectations like that all the time, and on a chart the move looks identical to a business stumbling, even though the two say very different things to anyone deciding what to build.\n\nUsing AI got cheaper again in the same window, with OpenAI cutting its API pricing by 80%. The infrastructure serving those calls keeps getting more expensive to build, so the AI trade now hangs on whether the buildout pays back on the timeline investors assumed.\n\nThe signal to watch from here is capital spending guidance. If companies revise their buildout plans down, the thesis changed. So far the market has only adjusted its own forecast.\n\nIf you're planning around AI capacity, which carries more weight for you, the market reaction or the next round of spending guidance?",
+                "caption": "SK Hynix reported record profits this week, and within 48 hours South Korea's stock market had halted trading twice while about $590 billion in market value drained away.\n\nThe results came in strong. The selloff happened because analysts had priced in something better than a record, so a record was enough to knock the price down. Markets reprice expectations like that all the time, and on a chart the move looks identical to a business stumbling, even though the two say very different things to anyone deciding what to build.\n\nUsing AI got cheaper again in the same window, with OpenAI cutting its API pricing by 80%. The infrastructure serving those calls keeps getting more expensive to build, so the AI trade now hangs on whether the buildout pays back on the timeline investors assumed.\n\nThe signal to watch from here is capital spending guidance. If companies revise their buildout plans down, the thesis changed. So far the market has only adjusted its own forecast.\n\nIf you're planning around AI capacity, which carries more weight for you, the market reaction or the next round of spending guidance? Mentions: @OpenAI.",
                 "hashtags": [
                   "#AInews",
                   "#AIeconomy",
                   "#SKHynix",
                   "#Chips",
                   "#UnhyppedNews"
-                ],
-                "unresolvedMentions": [
-                  "OpenAI"
                 ]
               },
               {
                 "platform": "x",
-                "caption": "SK Hynix posted record profits, and within 48 hours about $590 billion left South Korea's market with trading halted twice. Analysts had priced in more than a record. OpenAI cut API prices 80% the same week. Capital spending guidance will show whether the buildout thesis changed.",
+                "caption": "SK Hynix posted record profits, and within 48 hours about $590 billion left South Korea's market, trading halted twice. Analysts had priced in more than a record. OpenAI cut API prices 80% the same week. Watch spending plans, not price.",
                 "hashtags": [
                   "#AInews",
                   "#AIeconomy",
                   "#SKHynix",
-                  "#Chips",
-                  "#UnhyppedNews"
+                  "#Chips"
                 ]
               },
               {
@@ -2754,7 +2749,10 @@
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/5-next.png",
             "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-news/2026-W32/idea-10.news-carousel.output/6-cta.png"
           ],
-          "produced_at": "2026-08-03T19:09:20.649Z"
+          "produced_at": "2026-08-03T19:09:20.649Z",
+          "scheduled_at": "2026-08-11T20:52:00.000Z",
+          "post_url": "https://www.facebook.com/122096865609396192/posts/122114019723396192",
+          "posted_at": "2026-08-10T13:52:08.000Z"
         }
       ],
       "recipes": [
