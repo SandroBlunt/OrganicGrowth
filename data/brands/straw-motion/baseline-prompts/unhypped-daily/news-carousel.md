@@ -113,6 +113,34 @@ Live-review feedback on real carousels. These sharpen the Subject rules above; t
 
 ---
 
+## Operator QA reinforcements (2026-08-11, first Unhypped Daily run) — render mechanics, apply on EVERY slide
+
+Lessons from 7 live carousels (~70 renders) on this canvas. These are mechanics, not voice.
+
+- **The black-plate-behind-logo defect (the #1 failure, ~9 occurrences).** Root cause: the brand
+  logo asset is white lettering on transparency, so the model invents a dark plate whenever the
+  photo area behind it is bright. Counter-phrasing that worked, in order of effect: (a) "Prefer no
+  darkening at all: the white lettering sits directly on the photograph and reads by contrast
+  alone"; (b) "A visible rectangle, plate, panel, bar or box behind the logo is a rendering
+  error"; (c) place the logo where the photo is already dark ("over trees or shadow, never over
+  bright sky"). Still re-render on sight when a plate appears.
+- **Keep the explicit logo width phrase on every slide.** Removing "no wider than roughly …" (even
+  when another sentence implies a size) reliably balloons the logo to near-full width.
+- **Top-card slides: describe the photo as the FULL-BLEED BACKGROUND layer with the card laid ON
+  TOP** — this killed the recurring black band around top cards; never describe the photo as
+  sitting "below" the card.
+- **Never name the Hugging Face logo mark as a photo subject** — it renders as a giant cartoon
+  emoji face, the exact nonsense-scene this document forbids. Show a dark screen or a device
+  instead.
+- **Single-logo rows: state "no company name, wordmark or any other lettering"** — a lone logo
+  otherwise renders with the company name spelled beside it (multi-logo rows don't do this).
+- **Prefer short, common words in on-card copy** — the renderer misspells rarer words ("caried"
+  for "carried"); swapping to a shorter synonym fixed it at zero cost.
+- **`small_badge` needs an explicit "grows tall enough to show the stat callout and the full
+  supporting line together"** clause or it crops the text.
+
+---
+
 ## The 7-slide narrative — a copy formula per role
 
 Every News Carousel tells the same story shape: something changed, here's proof it's real, here's

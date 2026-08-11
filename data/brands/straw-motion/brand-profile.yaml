@@ -72,8 +72,14 @@ zoho:
           label: Instagram
         - platform: tiktok
           label: TikTok
-    - name: "Straw Motion Personal"
-      timezone: "Europe/Berlin" # aligned to the same clock as the main Zoho Social Brand above
+    - name: "SandroFrancoC"
+      # Corrected 2026-08-11 (first Unhypped Daily run): Zoho's live brand for the LinkedIn profile
+      # is named "SandroFrancoC" — the old "Straw Motion Personal" name matched nothing and forced a
+      # channel-label fallback match. CAUTION: Zoho reports this brand's clock as EEST, NOT
+      # Europe/Berlin — harmless on the MCP path (epoch times), but the CSV fallback would shift
+      # every LinkedIn row by an hour. Verify the real zone in Zoho before ever using CSV for
+      # LinkedIn; timezone below left as-is pending that check.
+      timezone: "Europe/Berlin"
       channels:
         - platform: linkedin
           label: LinkedInProfile # the Operator's PERSONAL profile — NEVER "LinkedIn" (a company Page,
