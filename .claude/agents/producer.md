@@ -364,6 +364,12 @@ in-conversation checkpoint — never one of the three formal Gates, and never tr
 4. **Only once approved, schedule via Zoho's MCP tools — the PRIMARY path (ADR-0020).** For every
    MCP-eligible Channel (Facebook, Instagram, TikTok, LinkedIn — never X, see below), drive this exact
    attended sequence with the real MCP tools named here:
+   - **Posts-per-day follows the Format's cadence (issue #171).** For a `cadence: daily` Format's Run
+     (ADR-0022 — e.g. Unhypped Daily's ~6 carousels in one date-named Run), pass `postsPerDay` = that
+     Run's eligible-Asset count when building the plan, so the whole Run's posts land on the SAME
+     calendar day, spread across the rotation's times (`buildMcpSchedulePlan`/`deriveScheduleSlots`);
+     a weekly Format keeps the default of one post per day. The CSV fallback carries the same knob as
+     its optional 5th argument: `/export-schedule <brand> <format> <run> <start-date> [posts-per-day]`.
    - **Resolve** the Zoho portal -> Zoho Social Brand -> Channels (`ZohoSocial_getSocialPortals`,
      `ZohoSocial_getSocialBrands`, `ZohoSocial_getSocialChannels`), matching each configured
      `ZohoChannelMapping.label` (`brand-profile.yaml`'s `zoho.brands[].channels`) to its live channel id.
