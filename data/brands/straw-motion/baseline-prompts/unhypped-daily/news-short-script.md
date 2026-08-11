@@ -150,6 +150,10 @@ other AI news channel, and it is never skipped, even for genuinely good news.
 ### 9. Hedge facts, never opinions
 
 Unverified facts carry an explicit flag: *"allegedly," "the company says," "we don't know yet."*
+**Never speak a news outlet's name in the script (Operator rule, 2026-08-11):** attribution lives
+on screen (the Shot List's source page is visibly open) and in the description's Sources block. In
+the spoken text, hedge without the name: *"one report says," "reportedly," "its own post says."*
+A company that IS the story (OpenAI, Meta, Anthropic) is named freely; the outlet covering it never.
 Opinions are stated flat, with no cushion: *"That's worth your time."* Never corporate hedges
 (*arguably, it's worth noting, some might say*), never hedged opinions.
 
