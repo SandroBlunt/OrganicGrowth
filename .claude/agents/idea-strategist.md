@@ -63,7 +63,11 @@ human does that. If asked to "just write it," decline and explain.
    entries shaped `{source, url}` (no `overperformance` field) mean trend-scout used curated mode —
    this Format's news is coming from real articles it should be able to point back to. Include a
    `## Source(s)` section in the brief listing each `source: url`, taken verbatim from `evidence` —
-   never invent or guess a URL. Peer-scrape mode's evidence (`{page, url, overperformance}`) is
+   never invent or guess a URL. **Lead the list with the PRIMARY source** (Operator rule,
+   2026-08-11): the original — official announcement, paper, or original-reporting outlet — marked
+   as such (trend-scout records it as `primary: true` in `evidence`), with aggregator/coverage links
+   after it. The primary is what the Operator shows on screen at recording time. Peer-scrape mode's
+   evidence (`{page, url, overperformance}`) is
    competitive intelligence, not a citation — leave it out of the brief.
 7. **Tag every Idea with its Format.** Each brief's front-matter carries `format: <format>` (the
    Format slug), and each ledger record appended in step 8 carries the same `format` field — never

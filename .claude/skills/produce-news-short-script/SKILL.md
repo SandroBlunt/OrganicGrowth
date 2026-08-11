@@ -55,7 +55,9 @@ exactly one `"hook"` beat first, at least `MIN_STORY_BEATS` `"story"` beats in t
   Prompt document's voice). Never an em dash, en dash, or a hyphen used as a sentence dash — write
   separate short sentences instead (issue #108's rule, shared by every Recipe's text).
 - **source_url** — the story's source page (always required, even when no specific media is
-  identifiable).
+  identifiable). **Prefer the PRIMARY source** (Operator rule, 2026-08-11): the brief's marked
+  original — official announcement or original-reporting outlet — never an aggregator/digest link
+  when the brief lists a primary; this is the URL the Operator puts on screen while recording.
 - **media_url** — the specific media URL for this beat's show cue, ONLY when you can identify one (video
   preferred). Leave it unset otherwise — the Shot List then falls back to `source_url` as its reference
   link, marked accordingly.

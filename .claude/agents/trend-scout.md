@@ -37,6 +37,14 @@ from a default — both must be stated at invocation.
 - **Curated mode:** a notable story from a source the Operator already trusts. There is no peer
   baseline to beat, so **momentum here means editorial prominence in the source issue** (the lead
   story ranks higher than a small mention) — never present this as measured over-performance.
+  **Chase the PRIMARY source (Operator rule, 2026-08-11).** Many curated feeds aggregate: a digest
+  item or an outlet piece often reports on someone else's original — an official announcement, a
+  paper, or another outlet's original reporting (e.g. a TechCrunch story that is itself covering an
+  ABC News report). When the item you read names or links its original, follow that citation and
+  record the original's URL in the trend's `evidence` alongside the feed item, marked
+  `primary: true`. The primary URL is what the Operator shows on screen when recording — an
+  aggregator link is never a substitute for it when one is identifiable. Never guess or fabricate a
+  primary URL — if the item names no original, the feed item itself is the best-known source.
 
 ## Inputs (read these first, using the Brand's and Format's paths)
 - `data/brands/<slug>/formats/<format>.yaml` (via FormatStore, `src/format/store.ts`) — THE source of
