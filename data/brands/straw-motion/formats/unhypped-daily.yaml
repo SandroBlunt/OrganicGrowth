@@ -1,0 +1,100 @@
+# Format: Unhypped Daily — Straw Motion's daily editorial line (map #176, ticket #177).
+# A Format is a Brand's editorial line (subject + treatment), NOT a media type (ADR-0009).
+# `cadence: daily` (ADR-0022): one Run per day, named by date — `/run-trends straw-motion
+# unhypped-daily` namespaces its Run output under data/brands/straw-motion/ideas/unhypped-daily/
+# <YYYY-MM-DD>/. The weekly Unhypped News Format coexists, unchanged.
+
+name: "Unhypped Daily"
+niche: >-
+  The day's AI news, unhypped: what actually shipped or changed in the last 24
+  hours, what it really means for the viewer, and the catch the announcement
+  glossed over — one story per post, told straight.
+
+voice: >-
+  Plain-human and direct — telling a smart friend the day's AI news. No jargon
+  without a one-breath, stupidly-simple explanation. You-first: every story
+  answers "what does this mean for you, today?" Skeptical by default — every
+  story carries its honest catch, the limit or cost the announcement glossed
+  over. Dry humor welcome; hype words never. Speaks to total beginners and
+  seasoned builders without talking down to anyone.
+
+# The media SHAPE trend-scout favors when scanning peer posts — not meaningful in curated mode
+# (no peer scan); kept for parity with unhypped-news.yaml.
+media_focus: reel
+
+cadence: daily   # ADR-0022 — the Run's default name is today's ISO date (e.g. 2026-08-11)
+
+sources:
+  mode: curated   # always the curated feeds below (issue #168) — never peer-scraped
+
+  # The Operator-approved daily source list — 16 feeds (issue #168 resolution, 2026-08-10), copied
+  # verbatim with the per-feed notes. Scanned 7 days a week via the fetch fallback ladder
+  # (.claude/skills/fetch-curated-source/SKILL.md): WebFetch → browser-UA curl → Apify actor
+  # shahidirfan/rss-xml-scraper (wired as apify.rss.feed_actor in seeds.yaml). A source is only
+  # reported unreachable after all three rungs fail — never silently skipped. ⛓ marks the 6 feeds
+  # where the ladder is load-bearing (WebFetch is hard-blocked on the domain; a browser-UA curl
+  # serves the feed fine).
+  curated_sources:
+    # --- Specialist / outlet feeds ---
+    # TechCrunch AI (~5/day)
+    - https://techcrunch.com/category/artificial-intelligence/feed/
+    # MarkTechPost (~4/day, technical)
+    - https://www.marktechpost.com/feed/
+    # Fast Company AI (~2/day)
+    - https://www.fastcompany.com/section/artificial-intelligence/rss
+    # The AI Insider (~10+/day; NOTE: feed window is only a few hours deep — a daily scan is fine,
+    # a weekly scan would miss most of it)
+    - https://theaiinsider.tech/feed/
+    # FT AI ⛓ (~3-4/day; feed serves titles + short summaries despite the article paywall)
+    - https://www.ft.com/artificial-intelligence?format=rss
+    # WIRED AI ⛓ (~2-3/day; summaries despite paywall)
+    - https://www.wired.com/feed/tag/ai/latest/rss
+    # NYT AI spotlight ⛓ (~1-2/day; summaries despite paywall; the double-URL shape is NYT's real
+    # feed pattern)
+    - https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/spotlight/artificial-intelligence/rss.xml
+    # MIT Tech Review AI (~5/week; feed carries full article text)
+    - https://www.technologyreview.com/topic/artificial-intelligence/feed/
+    # The Verge AI ⛓
+    - https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+    # Ars Technica AI ⛓
+    - https://arstechnica.com/ai/feed/
+    # The Guardian AI ⛓
+    - https://www.theguardian.com/technology/artificialintelligenceai/rss
+    # --- Daily digests ---
+    # AINews by smol.ai (1/weekday)
+    - https://news.smol.ai/rss.xml
+    # TLDR AI (1/weekday; parse dates defensively — one stray 2018 placeholder item)
+    - https://tldr.tech/api/rss/ai
+    # --- First-party lab/vendor blogs ---
+    # (Anthropic skipped: no official feed exists; the unofficial community mirror was rejected as
+    # third-party-maintained — issue #168. Revisit only if Anthropic ships an official feed.)
+    # OpenAI News (~3/day)
+    - https://openai.com/news/rss.xml
+    # Hugging Face blog (~1/day)
+    - https://huggingface.co/blog/feed.xml
+    # Google AI blog (~2-3/week)
+    - https://blog.google/technology/ai/rss/
+
+  keywords: []
+
+  # A daily scan wants only the last day's items; the scan runs 7 days a week (issue #168), so
+  # nothing slips between Runs.
+  lookback_days: 1
+  overperformance_only: true   # not meaningful in curated mode (no peer baseline) — kept for parity
+
+ideas_per_run: 6   # ~6 stories a day, both treatments each (map #176 Destination)
+
+# Both treatments for every accepted story (map #176): the carousel is scheduled via Zoho MCP
+# (ADR-0020); the short's script + Shot List are Space-less (ADR-0021) — the Operator records the
+# short and publishes it to https://www.youtube.com/@strawmotion by hand.
+default_recipes:
+  - news-carousel
+  - news-short-script
+
+# Per-Recipe Baseline Prompt pointers (ADR-0015): relative filenames resolved under
+# data/brands/straw-motion/baseline-prompts/unhypped-daily/ — never inline YAML.
+baseline_prompts:
+  # The copy-vs-adapt call for this document is recorded on ticket #177.
+  news-carousel: news-carousel.md
+  # #173's Operator-approved style document (Fireship-emulating delivery, plain-human register).
+  news-short-script: news-short-script.md
