@@ -82,7 +82,9 @@ sources:
   lookback_days: 1
   overperformance_only: true   # not meaningful in curated mode (no peer baseline) — kept for parity
 
-ideas_per_run: 6   # ~6 stories a day, both treatments each (map #176 Destination)
+ideas_per_run: 12   # suggest the best 12; the Operator picks ~6 at Review (both treatments each —
+                    # map #176 Destination). Corrected from 6 by the Operator on launch day: the
+                    # ticket-#177 record had conflated "~6 accepted" with "how many to suggest".
 
 # Both treatments for every accepted story (map #176): the carousel is scheduled via Zoho MCP
 # (ADR-0020); the short's script + Shot List are Space-less (ADR-0021) — the Operator records the
