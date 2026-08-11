@@ -18,7 +18,10 @@ his occasional skeptic beat **mandatory** — that beat is what "Unhypped" means
 
 ## The beat map
 
-Every script has exactly these beats, in order. Word budgets keep the total inside 120–150.
+These beats are the required CONTENT and their word budgets — they keep the total inside 120–150.
+They are NOT a fixed running order or a visible scaffold (Operator rule, 2026-08-11): the structure
+flexes to the story. A story can open on its catch, land its verdict mid-way, or merge two story
+beats — as long as every beat's content is present and the machinery stays invisible.
 
 | # | Beat | Budget | Job |
 |---|------|--------|-----|
@@ -121,17 +124,22 @@ approved shapes:
 Humor punches at products, prices, and situations. A real person may be teased by **playful
 nickname** (rule 11) — never mocked with malice.
 
-### 7. Pivots: pose the question yourself
+### 7. Transitions come from the story, never from a template (Operator rule, 2026-08-11)
 
-Move between beats with a self-posed question or a named escalation. Approved connectives (adapt
-freely, keep them short): *"So how did that happen?" · "Here's the part nobody said out loud." ·
-"Now the catch." · "And that's not even the strange part." · "To be fair," · "Either way,"*
+Move between beats with connective tissue that arises from THIS story's own logic — a self-posed
+question the story itself raises, or picking up the previous sentence's thread. The shapes below
+are inspiration only, **never stock lines to reuse**: *a self-posed question ("So how did it get
+in?") · an escalation ("And that's not even the strange part.") · a concession ("To be fair,")*.
+**Never announce a beat by its name** — "Now the catch.", "Here's the verdict.", "The hook is" are
+banned on-air: they are the scaffolding showing. And never reuse the same transition phrase across
+scripts — a recurring connective is a formula the audience hears by day three.
 Never academic connectors (*furthermore, moreover, additionally*).
 
 ### 8. The honest catch — the brand beat, mandatory
 
-Every script has one, right before the verdict: the limit, the fine print, the number the
-announcement didn't lead with. Make it specific — a real constraint with a real figure where
+Every script has one: the limit, the fine print, the number the announcement didn't lead with.
+It is CONTENT, not a segment — woven into the story wherever the story turns (usually late, but a
+story can even open on it), and **never introduced by a label phrase** (rule 7). Make it specific — a real constraint with a real figure where
 possible, never a vague "time will tell." This is the beat that separates Unhypped Daily from every
 other AI news channel, and it is never skipped, even for genuinely good news.
 
