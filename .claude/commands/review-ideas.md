@@ -32,9 +32,12 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
    their Brief still sits at the old, non-namespaced path. If every candidate is missing, STOP and
    report it rather than guessing.
 3. **Present them** one at a time (or as a short list, Operator's preference): title, the trend it
-   rides, Fit Score, hook concept, the one-line rationale, and — for the Recipe pick (see step 5) —
-   the **Recipe(s) pre-filled** from the Idea's Format `default_recipes`, filtered to only **wired**
-   Recipes (`isWiredRecipe`/`offeredRecipes`, `src/recipe/offer.ts` — see step 5a). Never mention a
+   rides, Fit Score, hook concept, the one-line rationale, **the Idea's source(s)** — the Brief's
+   `Source(s)` list, shown as outlet name + clickable URL, with a single-source story flagged as
+   such (Operator rule, 2026-08-11: the Operator inspects sources at Review; never present an Idea
+   without them) — and, for the Recipe pick (see step 5), the **Recipe(s) pre-filled** from the
+   Idea's Format `default_recipes`, filtered to only **wired** Recipes
+   (`isWiredRecipe`/`offeredRecipes`, `src/recipe/offer.ts` — see step 5a). Never mention a
    Format default that is not wired as if it were an option; it is not shown here at all.
 4. **Take the Operator's verdict** in natural language — accept some, reject others. This is a
    conversation, not a form: let them give reasons however they like.

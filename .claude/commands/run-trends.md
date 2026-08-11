@@ -46,7 +46,9 @@ e.g. `2026-W23`), or the current ISO date for `cadence: daily` (e.g. `2026-08-11
    `data/brands/<slug>/ideas/<format>/<run>/idea-NN.md`, each appended to
    `data/brands/<slug>/ledger.json` as `status: suggested` with a Fit Score AND its Format slug
    (`format: <format>`) — every Idea is tagged with the Format it belongs to.
-6. **Summarize.** Show a ranked table (id · title · fit_score · trend · one-line why) and tell the
+6. **Summarize.** Show a ranked table (id · title · fit_score · trend · one-line why · **source(s)**
+   — each Brief's outlet name(s) as clickable links, single-source stories flagged; Operator rule,
+   2026-08-11: Ideas are never presented for review without their sources) and tell the
    Operator: *"Run `/review-ideas <brand> <run>` to accept or reject."*
 
 ## Guardrails
