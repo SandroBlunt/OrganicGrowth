@@ -66,7 +66,12 @@ human does that. If asked to "just write it," decline and explain.
    never invent or guess a URL. **Lead the list with the PRIMARY source** (Operator rule,
    2026-08-11): the original — official announcement, paper, or original-reporting outlet — marked
    as such (trend-scout records it as `primary: true` in `evidence`), with aggregator/coverage links
-   after it. The primary is what the Operator shows on screen at recording time. Peer-scrape mode's
+   after it. The primary is what the Operator shows on screen at recording time. **Never suggest an
+   Idea whose every source is paywalled** (Operator rule, 2026-08-11 — idea-03 of the first daily
+   Run was rejected exactly for this): paywalled feed items (FT, NYT — the Format file marks them)
+   are fitness signals, but the brief MUST carry at least one openly readable link — the original or
+   alternative open coverage, from the Trend's `evidence` — or the story is skipped and the next
+   trend takes its slot. Peer-scrape mode's
    evidence (`{page, url, overperformance}`) is
    competitive intelligence, not a citation — leave it out of the brief.
 7. **Tag every Idea with its Format.** Each brief's front-matter carries `format: <format>` (the

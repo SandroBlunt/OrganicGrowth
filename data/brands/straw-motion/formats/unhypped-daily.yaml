@@ -46,11 +46,14 @@ sources:
     # a weekly scan would miss most of it)
     - https://theaiinsider.tech/feed/
     # FT AI ⛓ (~3-4/day; feed serves titles + short summaries despite the article paywall)
+    # PAYWALLED — SIGNAL ONLY (Operator rule, 2026-08-11): counts toward a story's momentum, but a
+    # story surfaced only here needs an openly readable source (original or alternative coverage)
+    # before it can be briefed — the Operator can't inspect or show a paywalled article.
     - https://www.ft.com/artificial-intelligence?format=rss
-    # WIRED AI ⛓ (~2-3/day; summaries despite paywall)
+    # WIRED AI ⛓ (~2-3/day; summaries despite paywall) — PAYWALLED, SIGNAL ONLY (same rule as FT)
     - https://www.wired.com/feed/tag/ai/latest/rss
     # NYT AI spotlight ⛓ (~1-2/day; summaries despite paywall; the double-URL shape is NYT's real
-    # feed pattern)
+    # feed pattern) — PAYWALLED, SIGNAL ONLY (same rule as FT)
     - https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/spotlight/artificial-intelligence/rss.xml
     # MIT Tech Review AI (~5/week; feed carries full article text)
     - https://www.technologyreview.com/topic/artificial-intelligence/feed/

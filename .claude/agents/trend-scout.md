@@ -45,6 +45,14 @@ from a default — both must be stated at invocation.
   `primary: true`. The primary URL is what the Operator shows on screen when recording — an
   aggregator link is never a substitute for it when one is identifiable. Never guess or fabricate a
   primary URL — if the item names no original, the feed item itself is the best-known source.
+  **Paywalled feeds are fitness signals, never the story's readable source (Operator rule,
+  2026-08-11).** A feed whose articles sit behind a paywall (the Format file marks these — e.g. FT,
+  NYT) still counts toward a story's momentum/corroboration, but the Operator cannot inspect a
+  paywalled article and cannot show it on screen. So for any story surfaced ONLY by paywalled feed
+  items, find an OPENLY READABLE source for the same reported news — the original (official
+  announcement, filing, paper) or alternative open coverage — and record it in `evidence` before
+  the story can carry a Trend forward. A story with no open source at all must say so in the
+  Trend's evidence (`open_source: none`) so the strategist can skip it.
 
 ## Inputs (read these first, using the Brand's and Format's paths)
 - `data/brands/<slug>/formats/<format>.yaml` (via FormatStore, `src/format/store.ts`) — THE source of
