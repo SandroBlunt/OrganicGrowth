@@ -1,0 +1,40 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "You can't un-download a file. A senator asked the AI industry to pause, and the same day 500 billion dollars said otherwise.",
+      "source_url": "https://huggingface.co/meta-models/Muse-Glimmer-30B",
+      "show_cue": "The Muse Glimmer model page's Files tab full frame, a downloadable model literally a list of files on screen."
+    },
+    {
+      "role": "story",
+      "text": "Bernie Sanders wrote to the bosses of OpenAI, Anthropic and Meta, asking them to pause development, and the ask arrives with no bill behind it, no regulator named and no deadline attached. On its own it changes nothing.",
+      "source_url": "https://www.sanders.senate.gov/wp-content/uploads/AI-Pause-Letter-FINAL.pdf",
+      "show_cue": "The letter PDF held on the addressee block with the three names. sanders.senate.gov blocks automated fetches, open it in a browser before recording."
+    },
+    {
+      "role": "story",
+      "text": "The same day, lenders were reportedly lining up about 500 billion dollars for AI, and Meta published a model anyone can download. Stopping the lab used to stop the model. That door is gone.",
+      "source_url": "https://www.sanders.senate.gov/press-releases/news-sanders-calls-on-tech-giants-to-pause-development-of-out-of-control-ai/",
+      "show_cue": "The press release page beside the model page tab, then an Operator-built text card stating about 500 billion dollars reported for AI infrastructure. The senate page blocks robots too, browser first."
+    },
+    {
+      "role": "story",
+      "text": "And before you call the pause naive, labs already pause themselves. OpenAI froze parts of a model days earlier, its own criteria, nobody outside checking.",
+      "source_url": "https://openai.com/index/responding-next-frontier-critical-cyber-capabilities/",
+      "show_cue": "OpenAI's own August 7 post held on its date, so the days-earlier gap is visible. openai.com blocks automated fetchers, browser first."
+    },
+    {
+      "role": "story",
+      "text": "Every stop button here belongs to the companies being asked to stop. The question is who else should hold one.",
+      "source_url": "https://www.sanders.senate.gov/wp-content/uploads/AI-Pause-Letter-FINAL.pdf",
+      "show_cue": "Operator on camera, no inserts."
+    },
+    {
+      "role": "cta",
+      "text": "Follow Straw Motion. We skip the hype, you get the story.",
+      "source_url": "https://www.sanders.senate.gov/press-releases/news-sanders-calls-on-tech-giants-to-pause-development-of-out-of-control-ai/",
+      "show_cue": "Straw Motion logo end card, no overlay."
+    }
+  ]
+}

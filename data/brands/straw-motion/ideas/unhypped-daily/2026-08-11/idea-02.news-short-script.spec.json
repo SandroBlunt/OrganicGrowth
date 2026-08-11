@@ -1,0 +1,40 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "You'd think a model too dangerous to release stays unreleased. OpenAI gave that idea three days.",
+      "source_url": "https://openai.com/index/responding-next-frontier-critical-cyber-capabilities/",
+      "show_cue": "Both OpenAI posts side by side, the August 7 pause post left, the August 10 ship post right, dates legible. openai.com returns 403 to automated fetchers, open both in a browser before recording."
+    },
+    {
+      "role": "story",
+      "text": "On August 7 the company said its unreleased Astra model crossed its own critical line, the point where it could run a cyberattack start to finish with nobody driving, so parts of it went on pause, though which parts stays unsaid.",
+      "source_url": "https://openai.com/index/responding-next-frontier-critical-cyber-capabilities/",
+      "show_cue": "The August 7 post full frame, held on the critical threshold wording and the publication date."
+    },
+    {
+      "role": "story",
+      "text": "On August 10 it shipped GPT-5.6-Cyber to vetted partners for authorized penetration testing, which is paying a burglar to try your locks before a real one does. Same skill, different paperwork.",
+      "source_url": "https://openai.com/index/expanding-daybreak-as-the-cyber-defense-window-narrows",
+      "show_cue": "The Daybreak post held on the GPT-5.6-Cyber and Daybreak Red lines, then a real terminal running an nmap scan. Never a hooded hacker stock shot."
+    },
+    {
+      "role": "story",
+      "text": "Every ruler here belongs to OpenAI. It set the danger bar, graded its own model against it, and it keeps the list of who gets the safe version.",
+      "source_url": "https://openai.com/index/putting-frontier-cyber-models-in-more-trusted-hands",
+      "show_cue": "The trusted-hands post scrolled slowly past the approved collaborators paragraph, so viewers can see no external auditor is named anywhere."
+    },
+    {
+      "role": "story",
+      "text": "Attackers were never on a list. How fast you patch is the defense you own, so own it.",
+      "source_url": "https://techcrunch.com/2026/08/10/as-ai-led-attacks-multiply-openai-launches-a-new-cyber-model/",
+      "show_cue": "The coverage headline about AI-led attacks multiplying, held briefly, then Operator on camera."
+    },
+    {
+      "role": "cta",
+      "text": "Follow Straw Motion for AI news that isn't selling you anything.",
+      "source_url": "https://openai.com/index/expanding-daybreak-as-the-cyber-defense-window-narrows",
+      "show_cue": "Straw Motion logo end card, no overlay."
+    }
+  ]
+}

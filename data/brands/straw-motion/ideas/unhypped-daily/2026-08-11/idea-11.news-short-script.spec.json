@@ -1,0 +1,41 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "Your coding agent asks permission before it runs anything. On Friday August 14 that prompt is gone, and the company's pitch is that you were the problem.",
+      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
+      "show_cue": "Operator's own screen showing a real Claude Code permission prompt, the thing that is about to disappear."
+    },
+    {
+      "role": "story",
+      "text": "Anthropic makes auto mode the default for new Claude Code sessions on paid plans, so the agent edits files and runs commands while a built in checker screens each one.",
+      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
+      "show_cue": "The vendor's own post held on the Starting on August 14 line and the plan names."
+    },
+    {
+      "role": "story",
+      "text": "Its case is its own study. Across 1,053 paid testers, the checker caught 89 percent of dangerous commands, and the humans clicking allow caught 13.6 percent, because the humans approve 97 percent of everything.",
+      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
+      "media_url": "https://cdn.prod.website-files.com/68a44d4040f98a4adf2207b6/6a7551c77738b3678fdde0ce_image4.png",
+      "show_cue": "The post's own results chart, the 13.6 versus 89 bars and the 1,053 testers footnote visible, then scroll to the line reporting users approve 97 percent of permission prompts."
+    },
+    {
+      "role": "story",
+      "text": "That's the company grading its own homework against a student who wasn't reading. And after three blocks in a row, auto mode steps aside and asks again.",
+      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
+      "show_cue": "Scroll to the fallback paragraph, three blocks in a row or twenty in a session, hold on it."
+    },
+    {
+      "role": "story",
+      "text": "Open your permission settings before Friday and decide what it may touch unasked. A default decides for everyone who doesn't.",
+      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
+      "show_cue": "Operator's own screen, opening the permission settings and setting one rule on camera."
+    },
+    {
+      "role": "cta",
+      "text": "Follow Straw Motion. No hype, just what happened.",
+      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
+      "show_cue": "Straw Motion logo end card, no overlay."
+    }
+  ]
+}

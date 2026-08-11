@@ -361,6 +361,118 @@
       "gate": null,
       "status": "done",
       "enqueued_at": "2026-08-03T12:25:29.702Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-01",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:34:44.059Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-01",
+      "brand": "straw-motion",
+      "recipe": "news-short-script",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:34:44.059Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-02",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.098Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-02",
+      "brand": "straw-motion",
+      "recipe": "news-short-script",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.098Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-04",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.106Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-04",
+      "brand": "straw-motion",
+      "recipe": "news-short-script",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.106Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-06",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.108Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-06",
+      "brand": "straw-motion",
+      "recipe": "news-short-script",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.108Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-10",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.111Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-10",
+      "brand": "straw-motion",
+      "recipe": "news-short-script",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.111Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-11",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.114Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-11",
+      "brand": "straw-motion",
+      "recipe": "news-short-script",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.114Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-12",
+      "brand": "straw-motion",
+      "recipe": "news-carousel",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.116Z"
+    },
+    {
+      "idea_id": "idea-2026-08-11-12",
+      "brand": "straw-motion",
+      "recipe": "news-short-script",
+      "gate": null,
+      "status": "done",
+      "enqueued_at": "2026-08-11T07:57:04.116Z"
     }
   ],
   "lock": {

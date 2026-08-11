@@ -1,0 +1,43 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "Your voice assistant takes turns like a walkie talkie. Last week, four models from three labs stopped waiting for the beep.",
+      "source_url": "https://seed.bytedance.com/en/blog/seedrealtime-audio-visual-full-duplex-llm-released-toward-omni-modal-natural-interaction",
+      "show_cue": "Operator on camera holding a real walkie talkie, then swapping it for a phone mid sentence."
+    },
+    {
+      "role": "story",
+      "text": "ByteDance shipped one model that watches, listens and speaks at once, Nvidia put out an open voice model that answers in about 450 milliseconds plus voice weights in 12 languages, and MiniMax shipped video with its own sound. Nobody called it a moment.",
+      "source_url": "https://seed.bytedance.com/en/blog/seedrealtime-audio-visual-full-duplex-llm-released-toward-omni-modal-natural-interaction",
+      "media_url": "https://lf3-static.bytednsdoc.com/obj/eden-cn/lapzild-tss/ljhwZthlaukjlkulzlp/user-upload/4xfa4msffa7qt.mp4",
+      "show_cue": "The four model pages in quick sequence, release dates visible, then ByteDance's own live demo clip where the model cuts in unprompted. Trim the demo before editing, the source file is heavy."
+    },
+    {
+      "role": "story",
+      "text": "The speed isn't magic. Old voice stacks chained three models, transcribe, think, speak, and the lag lived in the handoffs. These go straight from speech to speech, so the queue feeling dies.",
+      "source_url": "https://huggingface.co/nvidia/NVIDIA-NemotronLabs-VoiceChat-11B",
+      "media_url": "https://huggingface.co/nvidia/NVIDIA-NemotronLabs-VoiceChat-11B/resolve/main/turn_taking.wav",
+      "show_cue": "The Nvidia model card held on the 450 millisecond turn-taking line, then play Nvidia's own turn_taking audio sample over it."
+    },
+    {
+      "role": "story",
+      "text": "Every number is the lab's own, no outside test yet. The open one is research licence only, and a live call keeps a GPU busy, billing by talk time.",
+      "source_url": "https://huggingface.co/nvidia/NVIDIA-NemotronLabs-VoiceChat-11B",
+      "show_cue": "The model card's licence block held on the research-only wording, then a live nvidia-smi readout in a terminal for the GPU line."
+    },
+    {
+      "role": "story",
+      "text": "Try one this week, they're downloads. Just don't hand it your phone lines yet.",
+      "source_url": "https://huggingface.co/MiniMaxAI/MiniMax-H3",
+      "media_url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/resolve/main/assets/i2va.mp4",
+      "show_cue": "MiniMax's own generated sample clip, then Operator on camera for the verdict."
+    },
+    {
+      "role": "cta",
+      "text": "Follow Straw Motion. No hype, just what happened.",
+      "source_url": "https://huggingface.co/blog/nvidia/magpie-tts-multilingual-voice-agents",
+      "show_cue": "Straw Motion logo end card, no overlay."
+    }
+  ]
+}

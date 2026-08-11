@@ -1,0 +1,41 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "Your rent has a new suspect. About 7 billion dollars of OpenAI shares reportedly just turned into money staff can spend.",
+      "source_url": "https://techcrunch.com/2026/08/10/openai-reportedly-completed-a-7-billion-employee-tender-offer/",
+      "media_url": "https://techcrunch.com/wp-content/uploads/2026/07/OpenAI-logo-green.jpg?w=1024",
+      "show_cue": "The coverage's lead art with the OpenAI logo, then real San Francisco street footage the Operator shoots, a steep street with Victorians."
+    },
+    {
+      "role": "story",
+      "text": "Shares in a private company are paper until somebody organises a sale, and that's what a tender offer is: the company lines up new investors, staff sell them existing shares, and nobody waits for an IPO. OpenAI hasn't confirmed a word of it.",
+      "source_url": "https://www.cnbc.com/2026/08/10/openai-wraps-7-billion-share-sale-ahead-of-potential-ipo-.html",
+      "show_cue": "The open coverage headline with its August 10 date, then an Operator-built three box diagram, staff shares to new investors to cash. Credit the original financial outlet in a small text card only, it is paywalled."
+    },
+    {
+      "role": "story",
+      "text": "For scale, about 500 billion dollars was reportedly lined up for data centres the same day. Machine money dwarfs people money. People money lands on one city's streets.",
+      "source_url": "https://www.nytimes.com/2026/08/10/business/ai-nvidia-lenders-500-billion.html",
+      "show_cue": "An Operator-built comparison card, 7 billion beside 500 billion. Credit the papers by name in small text, never screen record them, both are paywalled."
+    },
+    {
+      "role": "story",
+      "text": "The San Francisco rent panic, though, is a headline's leap, not a study. Nobody's measured where this money went, and rents move on rates, supply and construction all at once.",
+      "source_url": "https://techcrunch.com/2026/08/10/openai-reportedly-completed-a-7-billion-employee-tender-offer/",
+      "show_cue": "The coverage's housing paragraph held long enough to read as one news sentence, not a finding."
+    },
+    {
+      "role": "story",
+      "text": "And a tender puts no new money into OpenAI, so it tells you nothing about the business.",
+      "source_url": "https://www.cnbc.com/2026/08/10/openai-wraps-7-billion-share-sale-ahead-of-potential-ipo-.html",
+      "show_cue": "Operator on camera, one plain text caption, no graphs."
+    },
+    {
+      "role": "cta",
+      "text": "Follow Straw Motion. We skip the hype, you get the story.",
+      "source_url": "https://www.cnbc.com/2026/08/10/openai-wraps-7-billion-share-sale-ahead-of-potential-ipo-.html",
+      "show_cue": "Straw Motion logo end card, no overlay."
+    }
+  ]
+}

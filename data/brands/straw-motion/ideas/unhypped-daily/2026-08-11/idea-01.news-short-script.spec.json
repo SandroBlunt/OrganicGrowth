@@ -1,0 +1,40 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "You can download a 30 billion parameter brain from Meta tonight. Nobody at Meta led with that.",
+      "source_url": "https://huggingface.co/meta-models/Muse-Glimmer-30B",
+      "show_cue": "The Muse Glimmer model page full frame, held on the model name, the Meta Superintelligence Lab org, and the apache-2.0 licence tag."
+    },
+    {
+      "role": "story",
+      "text": "Meta spent the day on a 6,000 word essay that says superintelligent about 60 times, while the thing you can touch, Muse Glimmer, slipped onto Hugging Face with an Apache licence and a build that fits one gaming card. The essay got the headlines.",
+      "source_url": "https://about.fb.com/news/2026/08/the-future-is-for-everyone/",
+      "show_cue": "Meta's essay page scrolling fast so superintelligent keeps flying past, then cut to the model page tab. The essay page is heavy, open it in a browser and let it settle before recording."
+    },
+    {
+      "role": "story",
+      "text": "The download is the story. Open weights means the brain itself is a file on your drive. No bill per question, nothing leaves the room, and Meta claims decoding runs 3.1 times faster.",
+      "source_url": "https://huggingface.co/meta-models/Muse-Glimmer-30B",
+      "show_cue": "The model page's Files tab, the model literally a list of files, then the Target Hardware table with the 24GB VRAM column readable."
+    },
+    {
+      "role": "story",
+      "text": "The file is not the recipe, the 24 gig figure is the squeezed version, full precision wants 64, and the bigger Muse Spark still hasn't shipped.",
+      "source_url": "https://arstechnica.com/ai/2026/08/with-new-open-models-meta-pitches-another-reboot-of-its-struggling-ai-strategy/",
+      "show_cue": "The hardware table held on the quantized 24GB row beside the 64GB full precision row, then the coverage paragraph reporting Muse Spark 1.2 is still weeks away."
+    },
+    {
+      "role": "story",
+      "text": "If you shelved a local agent project over cost, price it again. The card is on you.",
+      "source_url": "https://huggingface.co/meta-models/Muse-Glimmer-30B",
+      "show_cue": "Operator on camera, the model page in a small corner inset."
+    },
+    {
+      "role": "cta",
+      "text": "Follow Straw Motion. We skip the hype, you get the story.",
+      "source_url": "https://huggingface.co/meta-models/Muse-Glimmer-30B",
+      "show_cue": "Straw Motion logo end card, no overlay."
+    }
+  ]
+}
