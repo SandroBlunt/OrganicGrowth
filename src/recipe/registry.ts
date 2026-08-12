@@ -826,6 +826,12 @@ if (YOUTUBE_COPY_SHAPE === null || YOUTUBE_COPY_SHAPE.titleMaxChars === undefine
  * declared gates. Unlike the throwaway ADR-0021 fixture (whose `render` checklist was a deliberate
  * no-op, reserved for "this Recipe's own future build slice"), THIS Recipe's `render` phase is real
  * work: collecting the Shot List's media is what a Space-less Recipe's "render" step IS.
+ *
+ * The `author` phase's checklist is graduated (issue #187, 2026-08-12 grilling), mirroring the News
+ * Carousel Recipe's own precedent: on top of the two items REFERENCING this Recipe's `specShape`
+ * functions, `production-spec/news-short-script-author-checklist.ts`'s `auditNewsShortScriptAuthorPhase`
+ * adds three NEW mechanical items — every beat carries 3-5 Curiosity Queries, no beat's spoken text
+ * states an explicit calendar date, and no two beats' `source_url` repeat the same site/company.
  */
 const NEWS_SHORT_SCRIPT_PHASES: readonly PhaseContract[] = [
   {
@@ -833,7 +839,7 @@ const NEWS_SHORT_SCRIPT_PHASES: readonly PhaseContract[] = [
     description:
       "Author the Production Spec: an ordered beats array (hook -> one-or-more story beats -> cta), " +
       "~120-150 words total, each beat carrying its own Shot List entry (source_url, an optional " +
-      "media_url, and a one-line show_cue).",
+      "media_url, a one-line show_cue, and 3-5 Curiosity Queries) — graduated, issue #187.",
     checklist: [
       {
         kind: "mechanical",
@@ -848,6 +854,25 @@ const NEWS_SHORT_SCRIPT_PHASES: readonly PhaseContract[] = [
         description: "No banned word in any beat field (text, source_url, media_url, show_cue) — reject-only, never a silent swap.",
         reference:
           "production-spec/news-short-script-brand-safety.ts: scanNewsShortScriptForBannedWords (this Recipe's specShape.scanBannedWords)",
+      },
+      {
+        kind: "mechanical",
+        description: "Every beat carries 3-5 non-empty Curiosity Queries (CONTEXT.md \"Curiosity Queries\").",
+        reference: "production-spec/news-short-script-author-checklist.ts: auditNewsShortScriptAuthorPhase",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "No beat's SPOKEN text states an explicit calendar date anywhere in the script body (not " +
+          "just an opening stamp) — reject-only.",
+        reference: "production-spec/news-short-script-author-checklist.ts: auditNewsShortScriptAuthorPhase",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "No two beats' source_url repeat the same source page or the same site/company across the " +
+          "Shot List (mirrors the News Carousel Recipe's own placement-variety item, issue #106).",
+        reference: "production-spec/news-short-script-author-checklist.ts: auditNewsShortScriptAuthorPhase",
       },
       {
         kind: "agent-judged",

@@ -13,6 +13,10 @@ import {
   mediaUrlNotAUrl,
   wordCountTooLow,
   wordCountTooHigh,
+  missingCuriosityQueries,
+  curiosityQueriesTooFew,
+  curiosityQueriesTooMany,
+  curiosityQueriesBlankEntry,
 } from "./fixtures/news-short-script-specs.ts";
 
 describe("validateNewsShortScriptSpec — a well-formed Spec (issue #174)", () => {
@@ -132,8 +136,39 @@ describe("validateNewsShortScriptSpec — total word-count band (issue #174: ~12
     assert.ok(result.errors.some((e) => e.code === "word_count_out_of_range"));
   });
 
-  it("accepts a Spec whose total word count sits inside the band (the valid fixture: 123 words)", () => {
+  it("accepts a Spec whose total word count sits inside the band (the valid fixture: 124 words)", () => {
     const result = validateNewsShortScriptSpec(validNewsShortScriptSpec());
     assert.equal(result.ok, true);
+  });
+});
+
+describe("validateNewsShortScriptSpec — Curiosity Queries: 3-5 non-empty entries per beat (issue #187)", () => {
+  it("rejects a beat missing curiosity_queries entirely", () => {
+    const result = validateNewsShortScriptSpec(missingCuriosityQueries());
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((e) => e.code === "curiosity_queries_invalid"));
+  });
+
+  it("rejects a beat with fewer than MIN_CURIOSITY_QUERIES (3) entries", () => {
+    const result = validateNewsShortScriptSpec(curiosityQueriesTooFew());
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((e) => e.code === "curiosity_queries_invalid"));
+  });
+
+  it("rejects a beat with more than MAX_CURIOSITY_QUERIES (5) entries", () => {
+    const result = validateNewsShortScriptSpec(curiosityQueriesTooMany());
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((e) => e.code === "curiosity_queries_invalid"));
+  });
+
+  it("rejects a beat whose curiosity_queries contains a blank entry", () => {
+    const result = validateNewsShortScriptSpec(curiosityQueriesBlankEntry());
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((e) => e.code === "curiosity_queries_invalid"));
+  });
+
+  it("accepts the valid fixture — every beat carries 3 Curiosity Queries", () => {
+    const result = validateNewsShortScriptSpec(validNewsShortScriptSpec());
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
   });
 });

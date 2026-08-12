@@ -219,6 +219,15 @@ role: given the SAME `CopyInput`/`CopyShape` this Skill reads, it derives a titl
 (truncated to `titleMaxChars`) and a description from `angle`/`mediaContext`, always passing
 `validateCopy` for the shape it was drafted for.
 
+**For the News Short Script Recipe specifically, aim the description's closing CTA at the viewer's own
+life, not a generic subject (2026-08-12 grilling; issue #187).** End the description by inviting a
+comment/question/opinion about how AI/this tech is affecting the viewer's OWN life or work — tied to
+THIS story's specific angle, paraphrased fresh every time (unlike the script's own spoken **Sign-off**,
+which deliberately rotates within a small fixed family instead — CONTEXT.md "Sign-off"; a different
+thing, composed earlier, by the `produce-news-short-script` Skill, never by this one). This replaces, for
+THIS Recipe only, the general "comment their thoughts or follow for more" direction above — every other
+Recipe's caption keeps that general direction unchanged.
+
 ## What this Skill does not do
 
 - It does not run the Space, drive a canvas, pick a gate, or call any `spaces_*`/`creations_*` tool —

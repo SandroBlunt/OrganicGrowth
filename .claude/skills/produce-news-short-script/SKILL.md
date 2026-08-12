@@ -63,31 +63,53 @@ exactly one `"hook"` beat first, at least `MIN_STORY_BEATS` `"story"` beats in t
   link, marked accordingly.
 - **show_cue** — a one-line description of what to show on screen for this beat (CONTEXT.md "Shot
   List") — concrete enough for the Operator to record or edit against.
+- **curiosity_queries** — `MIN_CURIOSITY_QUERIES`-`MAX_CURIOSITY_QUERIES` (3-5) suggested search queries
+  (CONTEXT.md "Curiosity Queries") that help the Operator find better real source material for THIS
+  beat — never spoken, never itself the beat's `source_url`/`media_url`/`show_cue`.
+
+**Never an explicit calendar date anywhere in a beat's spoken `text`** (not just the hook/intro) — the
+platform shows the date itself; the Baseline Prompt document already dropped the old mid-intro date
+stamp for the same reason. **Never let two beats' `source_url` repeat the same source page or the same
+site/company** (CONTEXT.md "Shot List") — when a beat (often the closing `cta`/Sign-off beat) has no
+distinct external source of its own, point it at a stable, distinct reference instead of reusing another
+beat's `source_url` (e.g. the Channel's own URL for an end-card beat).
+
+**The closing `cta` beat is the Sign-off** (CONTEXT.md "Sign-off") — pick it, verbatim, from the Baseline
+Prompt document's own small, fixed, rotating Sign-off family; never invent a new one per script (ritual
+repetition is intentional). Its content invites a comment/question about the viewer's OWN life and how
+AI is affecting them — never a generic channel-growth line.
 
 Completion: hook first, cta last, at least `MIN_STORY_BEATS` story beats between them, every beat's
-`text`/`source_url`/`show_cue` non-empty, and the WHOLE script's total word count (summed across every
-beat's `text`) lands in `MIN_TOTAL_WORDS`-`MAX_TOTAL_WORDS` (120-150 words, the ~45-60-second target).
+`text`/`source_url`/`show_cue` non-empty, every beat's `curiosity_queries` carrying 3-5 non-empty entries,
+no beat's `text` naming an explicit calendar date, no two beats' `source_url` sharing the same site, and
+the WHOLE script's total word count (summed across every beat's `text`) lands in
+`MIN_TOTAL_WORDS`-`MAX_TOTAL_WORDS` (120-150 words, the ~45-60-second target).
 
 ### 2. Self-audit against the author-phase checklist
 
-Run `src/production-spec/news-short-script-validate.ts`'s `validateNewsShortScriptSpec(spec)` and
-`src/production-spec/news-short-script-brand-safety.ts`'s
-`scanNewsShortScriptForBannedWords(spec, bannedWords)` against your beats. Fix and re-audit any miss.
+Run `src/production-spec/news-short-script-author-checklist.ts`'s
+`auditNewsShortScriptAuthorPhase(spec, bannedWords)` against your beats. Fix and re-audit any miss. This
+graduated checklist REFERENCES — never duplicates — `src/production-spec/news-short-script-validate.ts`'s
+`validateNewsShortScriptSpec(spec)` and `src/production-spec/news-short-script-brand-safety.ts`'s
+`scanNewsShortScriptForBannedWords(spec, bannedWords)` (the SAME pair of checks
+`src/recipe/phase-contract.ts`'s `auditAuthorPhase` runs generically via this Recipe's own `specShape`),
+and layers three NEW mechanical items on top: every beat carries 3-5 Curiosity Queries, no beat's spoken
+`text` states an explicit calendar date, and no two beats' `source_url` repeat the same site/company.
 **A banned word is REJECT-ONLY — STOP and report; never silently swap it for another word** (always-rule
-6/9). This is the SAME pair of checks `src/recipe/phase-contract.ts`'s `auditAuthorPhase` runs generically
-via this Recipe's own `specShape` — running them yourself here is the SAME check, not a second one.
+6/9) — an explicit calendar date is the SAME reject-only contract: STOP and report, never silently
+rewrite it.
 
-Completion: both checks return `ok: true`.
+Completion: `auditNewsShortScriptAuthorPhase(...).ok` is `true`.
 
 ### 3. Emit the Production Spec through the spec store
 
 Shape the result to `src/production-spec/news-short-script-contract.ts`'s `NewsShortScriptSpec`
-(`{ beats: [{ role, text, source_url, media_url?, show_cue }] }`, ordered hook -> story* -> cta) and
-write it via `src/production-spec/store.ts`'s `saveSpec` to the path
+(`{ beats: [{ role, text, source_url, media_url?, show_cue, curiosity_queries }] }`, ordered hook ->
+story* -> cta) and write it via `src/production-spec/store.ts`'s `saveSpec` to the path
 `specPathFor(ideaId, run, ideasRoot, "news-short-script")` —
 `data/brands/<slug>/ideas/<format>/<run>/idea-NN.news-short-script.spec.json`, sitting beside the Brief.
 
-Completion: the Spec passes both checks from step 2 and is saved at that path.
+Completion: the Spec passes the checklist from step 2 and is saved at that path.
 
 ## Author-phase checklist (also re-run, unchanged, by a QA pass)
 
@@ -95,6 +117,10 @@ Completion: the Spec passes both checks from step 2 and is saved at that path.
   them.
 - Every beat has a non-empty `text`, `source_url` (an http(s) URL), and `show_cue`; `media_url`, when
   present, is also an http(s) URL.
+- Every beat carries 3-5 non-empty `curiosity_queries` (CONTEXT.md "Curiosity Queries").
+- No beat's spoken `text` states an explicit calendar date anywhere in the script body — reject-only.
+- No two beats' `source_url` repeat the same source page or the same site/company (mirrors the News
+  Carousel Recipe's own placement-variety item, issue #106).
 - The WHOLE script's total word count (every beat's `text`, summed) falls in 120-150 words.
 - No banned word in any beat field (`text`, `source_url`, `media_url`, `show_cue`) — reject-only, never a
   silent swap.
