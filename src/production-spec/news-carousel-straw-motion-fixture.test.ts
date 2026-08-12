@@ -22,7 +22,7 @@ import assert from "node:assert/strict";
 
 import { validateNewsCarouselSpec } from "./news-carousel-validate.ts";
 import { auditNewsCarouselAuthorPhase } from "./news-carousel-author-checklist.ts";
-import { CAROUSEL_ROLES } from "./news-carousel-contract.ts";
+import { CAROUSEL_ROLES, isCarouselHeroRole } from "./news-carousel-contract.ts";
 import {
   STRAW_MOTION_BASELINE,
   strawMotionIdeaOneCarouselSpec,
@@ -75,7 +75,7 @@ describe("the produce-news-carousel Skill's graduated output passes both gates (
       STRAW_MOTION_BASELINE,
     );
     assert.equal(result.ok, true);
-    assert.equal(result.items.length, 12);
+    assert.equal(result.items.length, 15);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);
@@ -152,6 +152,28 @@ describe("STRAW_MOTION_BASELINE's strings are genuinely Straw Motion's own (not 
         `the document must actually contain the fixed clause ${JSON.stringify(clause)}`,
       );
     }
+    for (const clause of STRAW_MOTION_BASELINE.heroLogoClauses) {
+      assert.ok(
+        normalized.includes(clause),
+        `the document must actually contain the hero logo clause ${JSON.stringify(clause)} (issue #188)`,
+      );
+    }
+    assert.ok(
+      normalized.includes(STRAW_MOTION_BASELINE.heroTextCardMinPctClause),
+      "the document must actually contain the hero text-card-size clause STRAW_MOTION_BASELINE claims (issue #188)",
+    );
+    assert.ok(
+      normalized.includes(STRAW_MOTION_BASELINE.standardTextCardMinPctClause),
+      "the document must actually contain the standard text-card-size clause STRAW_MOTION_BASELINE claims (issue #188)",
+    );
+    assert.ok(
+      normalized.includes(STRAW_MOTION_BASELINE.realImageFrameClause),
+      "the document must actually contain the real-image reserved-frame clause STRAW_MOTION_BASELINE claims (ADR-0024)",
+    );
+    assert.ok(
+      normalized.includes(STRAW_MOTION_BASELINE.realVideoWindowClause),
+      "the document must actually contain the real-video reserved-window clause STRAW_MOTION_BASELINE claims (ADR-0024)",
+    );
   });
 
   it("is genuinely a DIFFERENT baseline than the stand-in TEST_BASELINE (proving this isn't the same fixture renamed)", () => {
@@ -208,13 +230,22 @@ describe("news-carousel.md instructs the four render-fidelity guardrails (issue 
     assert.match(normalized, /never a hard-edged solid black bar or box/i);
   });
 
-  it("every strawMotionIdeaOneCarouselSpec() slide still carries the UPDATED vignette clause verbatim (the doc/fixture stay in sync after issue #109's wording change)", () => {
-    const spec = strawMotionIdeaOneCarouselSpec() as { slides: readonly { image_prompt: string }[] };
+  it("every HERO slide (hook/cta) of strawMotionIdeaOneCarouselSpec() still carries the UPDATED logo vignette clause verbatim (the doc/fixture stay in sync after issue #109's wording change); the 5 middle slides carry no logo clause at all (issue #188)", () => {
+    const spec = strawMotionIdeaOneCarouselSpec() as {
+      slides: readonly { role: string; image_prompt: string }[];
+    };
     for (const slide of spec.slides) {
-      assert.match(
-        slide.image_prompt,
-        /A soft dark gradient vignette sits behind it for legibility against the photo, never a hard-edged solid black bar or box\./,
-      );
+      if (isCarouselHeroRole(slide.role)) {
+        assert.match(
+          slide.image_prompt,
+          /A soft dark gradient vignette sits behind it for legibility against the photo, never a hard-edged solid black bar or box\./,
+        );
+      } else {
+        assert.doesNotMatch(
+          slide.image_prompt,
+          /A soft dark gradient vignette sits behind it for legibility against the photo, never a hard-edged solid black bar or box\./,
+        );
+      }
     }
   });
 });
@@ -273,11 +304,35 @@ describe("news-carousel.md carries the issue #110 logo negative-prompt guardrail
     assert.ok(normalized.includes(STRAW_MOTION_BASELINE.pillText));
   });
 
-  it("every strawMotionIdeaOneCarouselSpec() slide carries the negative guardrail clause verbatim (the doc/fixture stay in sync, mirroring issue #109's own sync check)", () => {
-    const spec = strawMotionIdeaOneCarouselSpec() as { slides: readonly { image_prompt: string }[] };
+  it("every HERO slide (hook/cta) of strawMotionIdeaOneCarouselSpec() carries the negative guardrail clause verbatim (the doc/fixture stay in sync, mirroring issue #109's own sync check); the 5 middle slides carry no logo reference at all (issue #188)", () => {
+    const spec = strawMotionIdeaOneCarouselSpec() as {
+      slides: readonly { role: string; image_prompt: string }[];
+    };
     for (const slide of spec.slides) {
-      assert.ok(slide.image_prompt.includes(STRAW_MOTION_BASELINE.logoNameGuardrailInstruction));
-      assert.ok(slide.image_prompt.includes(STRAW_MOTION_BASELINE.logoReferencePhrase));
+      if (isCarouselHeroRole(slide.role)) {
+        assert.ok(slide.image_prompt.includes(STRAW_MOTION_BASELINE.logoNameGuardrailInstruction));
+        assert.ok(slide.image_prompt.includes(STRAW_MOTION_BASELINE.logoReferencePhrase));
+      } else {
+        assert.equal(slide.image_prompt.includes(STRAW_MOTION_BASELINE.logoNameGuardrailInstruction), false);
+        assert.equal(slide.image_prompt.includes(STRAW_MOTION_BASELINE.logoReferencePhrase), false);
+      }
+    }
+  });
+
+  it("the hook slide's logo keeps its ~⅓-frame-width scale, DISTINCT from the cta slide's ~⅙-frame-width scale — both their EXISTING sizes, unchanged by issue #188", () => {
+    const spec = strawMotionIdeaOneCarouselSpec() as {
+      slides: readonly { role: string; image_prompt: string }[];
+    };
+    const hook = spec.slides.find((s) => s.role === "hook")!;
+    const cta = spec.slides.find((s) => s.role === "cta")!;
+    assert.match(hook.image_prompt, /roughly a third of the frame width/);
+    assert.doesNotMatch(hook.image_prompt, /roughly a sixth of the frame width/);
+    assert.match(cta.image_prompt, /roughly a sixth of the frame width/);
+    assert.doesNotMatch(cta.image_prompt, /roughly a third of the frame width/);
+    for (const slide of spec.slides) {
+      if (slide.role === "hook" || slide.role === "cta") continue;
+      assert.doesNotMatch(slide.image_prompt, /roughly a third of the frame width/);
+      assert.doesNotMatch(slide.image_prompt, /roughly a sixth of the frame width/);
     }
   });
 

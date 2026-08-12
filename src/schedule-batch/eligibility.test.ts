@@ -33,6 +33,36 @@ describe("eligibility — which Assets a Schedule Batch export includes (issue #
     assert.match(result.skipped[0]!.note, /character-explainer-with-cast/);
   });
 
+  // ADR-0024, issue #188: a news-carousel Asset carrying a real video slide is a video Asset too.
+  describe("a news-carousel Asset carrying a video slide (ADR-0024, issue #188)", () => {
+    it("is skipped with reason 'video', the SAME mechanism as any other video Recipe's Asset", () => {
+      const ideas = [
+        idea("idea-01", [
+          asset({ recipe: SUPPORTED_RECIPE, status: "produced", has_video_slide: true }),
+        ]),
+      ];
+      const result = selectEligibleAssets(ideas);
+      assert.equal(result.eligible.length, 0);
+      assert.equal(result.skipped.length, 1);
+      assert.equal(result.skipped[0]!.reason, "video");
+      assert.equal(result.skipped[0]!.recipe, SUPPORTED_RECIPE);
+      assert.match(result.skipped[0]!.note, /idea-01/);
+      assert.match(result.skipped[0]!.note, /video slide/);
+    });
+
+    it("a news-carousel Asset with has_video_slide false (or absent) stays eligible as normal", () => {
+      const ideas = [
+        idea("idea-01", [
+          asset({ recipe: SUPPORTED_RECIPE, status: "produced", has_video_slide: false }),
+        ]),
+        idea("idea-02", [asset({ recipe: SUPPORTED_RECIPE, status: "produced" })]),
+      ];
+      const result = selectEligibleAssets(ideas);
+      assert.equal(result.eligible.length, 2);
+      assert.equal(result.skipped.length, 0);
+    });
+  });
+
   it("skips a news-carousel Asset that is not yet produced", () => {
     const ideas = [idea("idea-01", [asset({ recipe: SUPPORTED_RECIPE, status: "in_production" })])];
     const result = selectEligibleAssets(ideas);

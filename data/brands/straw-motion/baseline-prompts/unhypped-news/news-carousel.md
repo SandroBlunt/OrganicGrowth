@@ -40,32 +40,35 @@ still being tested:
     product shots across the carousel.** Do not default to a product screen on every slide just
     because it is the safer choice — when a named person is the obvious subject, show them (per
     the guardrail above), and vary which slides use a person vs. a product/UI shot.
-- **Logo:** the connected reference image `Straw_Motion_Logo` (not described in prose), laid
-  horizontally along the top edge of the photo, rendered unaltered — no shape/proportion/color
-  changes — with a soft dark gradient vignette behind it for legibility, never a hard-edged solid
-  black bar or box. **Scale varies by slide position:** on the hook slide (`slide_index` 0),
-  no wider than ~⅓ frame width, as before; on slides 2-6 (`slide_index` 1-5 — then, shift, proof,
-  different, next), tiny; on the cta slide (`slide_index` 6), back to no wider than ~⅙ frame
-  width — so the stat callout and supporting line, not the branding, carry the slide's visual
-  weight (issue #106 item 7).
-- **Logo guardrail — negative-prompt instruction (issue #110):** the connected reference image is a
-  bare identifier for which asset to swap in, never a caption. Beyond rendering it unaltered
-  (above), never render its reference name, its file name, or any underscored/technical token that
-  identifies it (e.g. `Straw_Motion_Logo`) as visible text anywhere in the image — it identifies
-  which reference to use, never a label to draw. This Recipe's canvas has no dedicated
-  negative-prompt field to carry this instruction separately (verified against
-  `src/recipe/registry.ts`'s canvas inputs and `src/space-driver/port.ts`'s `SpaceMcpPort` — neither
-  exposes one), so it is stated as an explicit prohibition inside the image prompt itself, alongside
-  the "render unaltered" clause (see the template and worked examples below). Where a canvas DOES
-  offer a dedicated negative-prompt field, add this instruction there too.
-- **"Unhypped News" pill:** a fully rounded, stadium-shaped badge — thin black border, white fill —
-  with "Unhypped News" centered inside it in Inter, title case only (capital U, capital N, the rest
-  lowercase — **never** all-caps, regardless of surrounding typography), sitting next to the slide's
-  tiny real product logos — one per company in that slide's `companies` list (a slide naming no
-  real company omits the logo row entirely). **Scale varies by slide position, matching the logo
-  above:** the hook slide (`slide_index` 0) may keep today's larger badge; every other slide
-  (`slide_index` 1-6) renders it noticeably smaller, so it reads as a quiet tag rather than a
-  headline element (issue #106 item 7).
+- **Logo — HOOK AND CTA SLIDES ONLY (issue #188):** the connected reference image `Straw_Motion_Logo`
+  (not described in prose), laid horizontally along the top edge of the photo, rendered unaltered —
+  no shape/proportion/color changes — with a soft dark gradient vignette behind it for legibility,
+  never a hard-edged solid black bar or box. **Present on exactly two slides, at their existing
+  respective sizes:** the hook slide (`slide_index` 0), no wider than ~⅓ frame width, and the cta
+  slide (`slide_index` 6), no wider than ~⅙ frame width. **On every other slide — `then`, `shift`,
+  `proof`, `different`, `next` (`slide_index` 1-5) — omit the logo clause ENTIRELY: no reference to
+  the connected reference image, no logo sentence, no logo of any size.** The stat callout and
+  supporting line, not the branding, carry the visual weight on every one of those 5 slides.
+- **Logo guardrail — negative-prompt instruction (issue #110), applies only where the logo appears
+  (hook/cta):** the connected reference image is a bare identifier for which asset to swap in, never
+  a caption. Beyond rendering it unaltered (above), never render its reference name, its file name,
+  or any underscored/technical token that identifies it (e.g. `Straw_Motion_Logo`) as visible text
+  anywhere in the image — it identifies which reference to use, never a label to draw. This Recipe's
+  canvas has no dedicated negative-prompt field to carry this instruction separately (verified
+  against `src/recipe/registry.ts`'s canvas inputs and `src/space-driver/port.ts`'s `SpaceMcpPort` —
+  neither exposes one), so it is stated as an explicit prohibition inside the hook/cta image
+  prompts themselves, alongside the "render unaltered" clause (see the template and worked examples
+  below). Where a canvas DOES offer a dedicated negative-prompt field, add this instruction there
+  too. A middle slide (no logo at all) needs no guardrail — there is nothing to guard.
+- **"Unhypped News" pill — every slide, hook/cta and middle alike:** a fully rounded, stadium-shaped
+  badge — thin black border, white fill — with "Unhypped News" centered inside it in Inter, title
+  case only (capital U, capital N, the rest lowercase — **never** all-caps, regardless of surrounding
+  typography), sitting next to the slide's tiny real product logos — one per company in that slide's
+  `companies` list (a slide naming no real company omits the logo row entirely). **Scale varies by
+  slide position, following the same hook/cta-vs-middle bookend pattern as the Logo bullet above**
+  (though the pill itself, unlike the logo, is never dropped): the hook slide (`slide_index` 0) may
+  keep today's larger badge; every other slide (`slide_index` 1-6) renders it noticeably smaller, so
+  it reads as a quiet tag rather than a headline element (issue #106 item 7).
 - **Card text:** stat callout + supporting line, both set in **Inter**. Never an em dash ("—"), an en
   dash ("–"), or a hyphen used as a sentence dash (" - ", with spaces on both sides) in either one —
   it is an AI "tell" and hurts scannability. Where a dash would join two clauses, write them as
@@ -73,6 +76,13 @@ still being tested:
   only a hyphen surrounded by spaces counts. The supporting line renders at a comfortably readable
   size — a minimum of roughly 13-14px equivalent — never shrunk down to a small caption-sized
   afterthought under the stat callout.
+- **Card size (issue #188) — the text card is now the carousel's own visual lead:** on the hook and
+  cta slides, the text card occupies at least 60% of the frame's vertical height; on every other
+  slide (`then`, `shift`, `proof`, `different`, `next`), the text card occupies at least 50% of the
+  frame's vertical height. This replaces the earlier, role-blind ~25-30% card — regardless of which
+  of the 7 confirmed placements below is used, the card itself grows to meet this floor; only the
+  remaining minority of the frame is photo (or, on an image/video slide, the reserved frame/window —
+  see "Real source media" below).
 - **Card style — all 7 placements below are confirmed, working options** (`1`–`7` in the Examples
   below): full-width bottom card, floating "toast" card, top card with photo below, small floating
   badge, and three circular-inset variants layered on the first three. **Actively spread
@@ -82,7 +92,24 @@ still being tested:
   sits at the bottom or lower-left on every slide reads as monotone and is not on-brief. Every
   placement — including the top card — fills its own photo region edge to edge, with no black
   margins or letterboxing at any edge; only the card itself (never the photo) is ever allowed to
-  look inset.
+  look inset. The Examples section below predates the Card size rule above (its photo/card split
+  still shows the old ~25-30% card) — when assembling a real prompt, always apply the Card size rule
+  above; the Examples remain a reference for PLACEMENT (where the card sits), not for SIZE.
+- **Real source media (ADR-0024, issue #188):** each of the 7 slides independently declares its own
+  `kind` — `generated` (this whole document, unchanged), `image`, or `video`. The producer tries the
+  story's own source first for an `image`- or `video`-kind slide, falling back straight to a fully
+  generated slide (never a pause to ask the Operator) when that source is unreachable or too low
+  quality.
+  - **`image`-kind slide:** leave a reserved rectangular frame empty in the photo area for the real,
+    fetched source photo to be composited in afterward — everything else on the slide (card, pill,
+    stat callout, supporting line, and the hero-only logo) renders exactly as any other slide.
+  - **`video`-kind slide:** leave a reserved window empty in the photo area for the real, fetched
+    source video to be composited in afterward, and keep the rest of the background calm and
+    uncluttered, with no other competing focal elements, since the moving video is the slide's own
+    focal point — a deliberately CALMER background than a fully generated slide's own busy, detailed
+    scene (idea-06's background is the "too busy" reference point this replaces).
+  - **`generated`-kind slide (the default, and every slide before this ADR):** no reserved
+    frame/window of any kind — the full Subject rules above apply exactly as written.
 
 ---
 
@@ -180,25 +207,35 @@ substitute for the fact itself.
 
 ---
 
-**Reusable template** (swap the bracketed parts per slide; everything else is fixed):
+**Reusable template** (swap the bracketed parts per slide; everything else is fixed). The `[LOGO
+CLAUSE]` bracket is present ONLY on the hook (`slide_index` 0) and cta (`slide_index` 6) slides —
+omit it ENTIRELY (the whole sentence group, not just shrink it) on every other slide. The `[CARD
+SIZE]` bracket is present on every slide, its number set by role. The `[REAL MEDIA CLAUSE]` bracket
+is present only when this slide's `kind` is `image` or `video` — omit it entirely for a `generated`
+slide.
 
 > A vertical viral Instagram news post. A full frame high quality photograph[, cropped to the top
 > ~70% of the frame, that photo filling its own region edge to edge with no black margins —
 > full-width card style / filling the entire frame edge to edge with no black margins — floating
 > toast card style], of `[SUBJECT: real products/logos/people/actions, named explicitly — prefer a real,
 > recognizable product/screen over fine invented UI text, which renders as misspelled gibberish;
-> where no real screen exists, keep any on-screen text minimal]`. Along
-> the top edge of the photo, lay the connected reference image Straw_Motion_Logo horizontally,
-> `[SCALE — small and subtle in scale, no wider than roughly a third of the frame width, on the
-> hook slide (slide_index 0); tiny in scale on slides 2-6 (slide_index 1-5 — then, shift, proof,
-> different, next); back to no wider than roughly a sixth of the frame width on the cta slide
-> (slide_index 6)]` so it stays a
-> quiet brand mark and never competes with the headline or stat callout for attention. Render the
-> logo exactly as provided in the reference image: do not change its shape, proportions, or color
-> in any way, and do not restyle it to match the scene. Never render this reference image's name or
-> file name (for example Straw_Motion_Logo) as visible text anywhere in the image. It identifies
-> which reference to use, never a caption to draw. A soft dark gradient vignette sits behind it
-> for legibility against the photo, never a hard-edged solid black bar or box. Whichever placement
+> where no real screen exists, keep any on-screen text minimal]`. `[REAL MEDIA CLAUSE — image-kind
+> slide: "Leave a reserved rectangular frame empty in the photo area for the real, fetched source
+> photo to be composited in afterward." / video-kind slide: "Leave a reserved window empty in the
+> photo area for the real, fetched source video to be composited in afterward, and keep the rest of
+> the background calm and uncluttered, with no other competing focal elements, since the moving
+> video is the slide's own focal point." / omit entirely for a generated-kind slide]` `[LOGO CLAUSE —
+> hook/cta ONLY, omit entirely on then/shift/proof/different/next: "Along the top edge of the photo,
+> lay the connected reference image Straw_Motion_Logo horizontally, small and subtle in scale, no
+> wider than roughly a third of the frame width on the hook slide (slide_index 0) / no wider than
+> roughly a sixth of the frame width on the cta slide (slide_index 6), so it stays a quiet brand mark
+> and never competes with the
+> headline or stat callout for attention. Render the logo exactly as provided in the reference
+> image: do not change its shape, proportions, or color in any way, and do not restyle it to match
+> the scene. Never render this reference image's name or file name (for example Straw_Motion_Logo)
+> as visible text anywhere in the image. It identifies which reference to use, never a caption to
+> draw. A soft dark gradient vignette sits behind it for legibility against the photo, never a
+> hard-edged solid black bar or box."]` Whichever placement
 > is used — including a top card with the photo below it — the photograph always fills its own
 > entire allotted region edge to edge, with no black margins or letterboxing on any side. `[CARD
 > CLAUSE — full-width bottom card, or floating toast card with its own soft gradient vignette +
@@ -213,7 +250,11 @@ substitute for the fact itself.
 > empty]` Below that,
 > in large bold black display type, is the stat callout "`[STAT]`", and beneath it, in clearly
 > readable near-black sentence-case text (no smaller than roughly 13-14px equivalent — never a tiny
-> caption-sized afterthought), the supporting line "`[SLIDE TEXT / HEADLINE]`" All text on the
+> caption-sized afterthought), the supporting line "`[SLIDE TEXT / HEADLINE]`" `[CARD SIZE — hook/cta:
+> "On this slide, the text card occupies at least 60% of the frame's vertical height, so the on-card
+> text reads as the carousel's own visual lead." / then/shift/proof/different/next: "On this slide,
+> the text card occupies at least 50% of the frame's vertical height, so the on-card text reads as
+> the carousel's own visual lead."]` All text on the
 > card — inside the "Unhypped News" pill, the stat callout, and the supporting line — is set in
 > Inter. Clean editorial social media news page layout. Photorealistic, crisp bold typography
 > overlay for the photo, clean flat UI-card typography for the card.
@@ -226,6 +267,14 @@ Worked examples of the baseline template above, applied to idea-01's Hook slide.
 renders as the pill badge shown in the reference image you supplied — a fully rounded,
 stadium-shaped badge (thin black outline, white fill) with "Unhypped News" centered inside it in
 Inter, title case only, next to the example story's 3 tiny real product logos.
+
+**Pre-#188 examples — read for PLACEMENT only, not for size or logo scope.** These 7 variations
+predate the Card size rule and the hero-only Logo rule above: their card still shows the old
+~25-30% split, and every variation still lays out the logo (this is fine here — the hook slide
+IS one of the two hero slides that keeps the logo). When assembling a real prompt for ANY slide,
+always apply the Card size rule (60%/50%) above, and the Logo rule (hook/cta ONLY, omitted
+entirely on the 5 middle slides) above — never copy this section's old proportions, and never copy
+its logo clause onto a middle slide.
 
 ```json
 [

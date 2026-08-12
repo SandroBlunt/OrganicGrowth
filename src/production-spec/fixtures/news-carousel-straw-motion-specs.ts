@@ -25,12 +25,12 @@
  * `no-dash-tells` checklist item landed. Rewritten as separate short sentences, meaning preserved,
  * still within `CAROUSEL_TEXT_MAX_CHARS` (140).
  *
- * `logoClause()` now also carries the negative-prompt logo guardrail (issue #110): every slide's
- * `image_prompt` states, verbatim, that the logo's reference name/file name is never rendered as
- * visible on-image text — the document's own fix for the model sometimes printing the raw reference
- * name as a caption. The pre-existing "no wider than roughly a third of the frame width" scale is left
- * as-is here (idea-01 is a committed, historical example authored before issue #110's slide-position
- * sizing rule; see this slice's Build Report "Known limits").
+ * `logoClause()` also carries the negative-prompt logo guardrail (issue #110): the logo's reference
+ * name/file name is never rendered as visible on-image text — the document's own fix for the model
+ * sometimes printing the raw reference name as a caption. Issue #188 scopes `logoClause()` to the two
+ * HERO slides only (hook/cta) — the 5 middle slides carry no logo at all — and differentiates the
+ * hook's ~⅓-frame-width scale from the cta's ~⅙-frame-width scale (both unchanged values, now both
+ * actually implemented instead of the earlier "left as-is, always ~⅓" simplification).
  *
  * issue #106 update: its "shift" slide now uses the document's "top card, photo below" placement
  * (`top_card`) instead of repeating `full_width`/`floating_toast` — so this fixture ALSO demonstrates
@@ -40,7 +40,12 @@
  * see `news-carousel-author-checklist.test.ts`'s `allBottomPlacements` fixture for that reproduction.
  */
 
-import { CAROUSEL_ROLES, type CarouselRole, type CarouselSlide } from "../news-carousel-contract.ts";
+import {
+  CAROUSEL_ROLES,
+  isCarouselHeroRole,
+  type CarouselRole,
+  type CarouselSlide,
+} from "../news-carousel-contract.ts";
 import type { NewsCarouselBaselineParams } from "../news-carousel-author-checklist.ts";
 
 // ---------------------------------------------------------------------------
@@ -69,21 +74,28 @@ const LOGO_NAME_GUARDRAIL_INSTRUCTION =
   "text anywhere in the image. It identifies which reference to use, never a caption to draw.";
 
 /**
- * Five clauses that appear VERBATIM in the real document's reusable template AND in both of its
- * confirmed worked examples (`3.1-final`/`3.2-final`) — mirroring
- * `news-carousel-author-checklist-specs.ts`'s `TEST_BASELINE.fixedClauses` shape (5 entries), but
- * these five are Straw Motion's REAL strings, not a stand-in.
+ * Three clauses that appear VERBATIM in EVERY slide's image_prompt, hero or standard alike (mirroring
+ * `news-carousel-author-checklist-specs.ts`'s `TEST_BASELINE.fixedClauses` shape), Straw Motion's REAL
+ * strings, not a stand-in.
  */
 const FIXED_CLAUSES = [
   "A vertical viral Instagram news post.",
+  "solid white rounded card",
+  "Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay " +
+    "for the photo, clean flat UI-card typography for the card.",
+] as const; // a fixed 3-tuple (not a general array) so indexed access below stays non-undefined
+
+/**
+ * Two clauses that describe the LOGO itself — required verbatim ONLY on the two hero slides (hook/cta,
+ * issue #188), alongside `LOGO_NAME_GUARDRAIL_INSTRUCTION`. The 5 middle slides carry no logo at all,
+ * so they carry neither of these either.
+ */
+const HERO_LOGO_CLAUSES = [
   "Render the logo exactly as provided in the reference image: do not change its shape, " +
     "proportions, or color in any way, and do not restyle it to match the scene.",
   "A soft dark gradient vignette sits behind it for legibility against the photo, never a " +
     "hard-edged solid black bar or box.",
-  "solid white rounded card",
-  "Clean editorial social media news page layout. Photorealistic, crisp bold typography overlay " +
-    "for the photo, clean flat UI-card typography for the card.",
-] as const; // a fixed 5-tuple (not a general array) so indexed access below stays non-undefined
+] as const;
 
 /**
  * The document's own confirmed card styles (news-carousel.md, "Card style" bullet: "all 7 placements
@@ -113,6 +125,31 @@ const TOP_REGION_CARD_STYLES: readonly string[] = ["top_card", "top_card_inset"]
  */
 const MIN_DISTINCT_CARD_STYLES = 3;
 
+/** The real, committed document's own hero-slide (hook/cta) text-card minimum-vertical-space clause
+ *  (news-carousel.md, "Card style" bullet — issue #188). */
+const HERO_TEXT_CARD_MIN_PCT_CLAUSE =
+  "the text card occupies at least 60% of the frame's vertical height";
+
+/** The real, committed document's own standard-slide (then/shift/proof/different/next) text-card
+ *  minimum-vertical-space clause (news-carousel.md, "Card style" bullet — issue #188). */
+const STANDARD_TEXT_CARD_MIN_PCT_CLAUSE =
+  "the text card occupies at least 50% of the frame's vertical height";
+
+/** The real, committed document's own reserved-frame clause for a real, fetched photo (news-carousel.md,
+ *  "Real source media" bullet — ADR-0024, issue #188). Capitalized — the document quotes it as a
+ *  standalone sentence, never mid-sentence (matched verbatim, case-sensitive). */
+const REAL_IMAGE_FRAME_CLAUSE =
+  "Leave a reserved rectangular frame empty in the photo area for the real, fetched source photo to " +
+  "be composited in afterward.";
+
+/** The real, committed document's own reserved-window + calmer-background clause for a real, fetched
+ *  video (news-carousel.md, "Real source media" bullet — ADR-0024, issue #188). Capitalized — see
+ *  `REAL_IMAGE_FRAME_CLAUSE` above. */
+const REAL_VIDEO_WINDOW_CLAUSE =
+  "Leave a reserved window empty in the photo area for the real, fetched source video to be " +
+  "composited in afterward, and keep the rest of the background calm and uncluttered, with no other " +
+  "competing focal elements, since the moving video is the slide's own focal point.";
+
 /** Straw Motion's real `unhypped-news` × `news-carousel` Baseline Prompt, as `auditNewsCarouselAuthorPhase` needs it. */
 export const STRAW_MOTION_BASELINE: NewsCarouselBaselineParams = {
   logoReferenceName: LOGO_REFERENCE_NAME,
@@ -121,9 +158,14 @@ export const STRAW_MOTION_BASELINE: NewsCarouselBaselineParams = {
   logoReferencePhrase: LOGO_REFERENCE_PHRASE,
   logoNameGuardrailInstruction: LOGO_NAME_GUARDRAIL_INSTRUCTION,
   fixedClauses: FIXED_CLAUSES,
+  heroLogoClauses: HERO_LOGO_CLAUSES,
   confirmedCardStyles: CONFIRMED_CARD_STYLES,
   topRegionCardStyles: TOP_REGION_CARD_STYLES,
   minDistinctCardStyles: MIN_DISTINCT_CARD_STYLES,
+  heroTextCardMinPctClause: HERO_TEXT_CARD_MIN_PCT_CLAUSE,
+  standardTextCardMinPctClause: STANDARD_TEXT_CARD_MIN_PCT_CLAUSE,
+  realImageFrameClause: REAL_IMAGE_FRAME_CLAUSE,
+  realVideoWindowClause: REAL_VIDEO_WINDOW_CLAUSE,
 };
 
 // ---------------------------------------------------------------------------
@@ -143,13 +185,30 @@ function photoClause(cardStyle: BottomCardStyle): string {
     : "A full frame high quality photograph filling the entire frame edge to edge with no black margins";
 }
 
-function logoClause(edge: "top" | "bottom"): string {
+/**
+ * The Straw Motion logo clause — issue #188: called ONLY for the two hero slides (hook/cta). The hook
+ * slide keeps its EXISTING ~⅓-frame-width scale; the cta slide keeps its EXISTING ~⅙-frame-width scale
+ * (both unchanged by this slice — only the 5 middle slides lose the logo entirely, see `buildImagePrompt`).
+ */
+function logoClause(edge: "top" | "bottom", role: CarouselRole): string {
+  const scale =
+    role === "cta"
+      ? "no wider than roughly a sixth of the frame width"
+      : "no wider than roughly a third of the frame width";
   return (
     `Along the ${edge} edge of the photo, lay ${LOGO_REFERENCE_PHRASE} ${LOGO_REFERENCE_NAME} ` +
-    "horizontally, small and subtle in scale — no wider than roughly a third of the frame width — " +
+    `horizontally, small and subtle in scale — ${scale} — ` +
     "so it stays a quiet brand mark and never competes with the headline or stat callout for " +
-    `attention. ${FIXED_CLAUSES[1]} ${LOGO_NAME_GUARDRAIL_INSTRUCTION} ${FIXED_CLAUSES[2]}`
+    `attention. ${HERO_LOGO_CLAUSES[0]} ${LOGO_NAME_GUARDRAIL_INSTRUCTION} ${HERO_LOGO_CLAUSES[1]}`
   );
+}
+
+/** The text-card minimum-vertical-space clause (issue #188) — the hero slides' (hook/cta) LARGER bar,
+ *  every other slide's smaller (but still majority) bar. Appended as its own sentence to every
+ *  assembled image_prompt, mirroring how `pillClause`/`cardTextClause` are each their own concern. */
+function cardSizeClause(role: CarouselRole): string {
+  const clause = isCarouselHeroRole(role) ? HERO_TEXT_CARD_MIN_PCT_CLAUSE : STANDARD_TEXT_CARD_MIN_PCT_CLAUSE;
+  return `On this slide, ${clause}, so the on-card text reads as the carousel's own visual lead.`;
 }
 
 interface Inset {
@@ -167,13 +226,17 @@ function insetClause(inset: Inset | null): string {
         "No caption text.";
 }
 
+/** The card's own placement description — issue #188 dropped the old, role-blind "~30%"/"compact"
+ *  language in favour of the explicit, role-parameterized `cardSizeClause` sentence below; this clause
+ *  now only describes WHERE the card sits, not how big (that's `cardSizeClause`'s job alone, so the two
+ *  can never state conflicting numbers). */
 function cardClause(cardStyle: BottomCardStyle): string {
   return cardStyle === "full_width"
-    ? "Below the photo, filling the bottom ~30% of the frame, is a solid white rounded card " +
-        "sitting on top of the image like a native app UI panel, full width, edge to edge."
+    ? "Below the photo is a solid white rounded card sitting on top of the image like a native app UI " +
+        "panel, full width, edge to edge, sized per the card-size rule below."
     : "Near the bottom of the frame, inset with a visible margin of photo on all sides (not " +
-        "touching the frame edges), floats a compact solid white rounded card, like a notification " +
-        "toast. A soft dark gradient vignette sits behind the card, in the photo, for legibility and " +
+        "touching the frame edges), floats a solid white rounded card, sized per the card-size rule " +
+        "below. A soft dark gradient vignette sits behind the card, in the photo, for legibility and " +
         "separation — never a hard-edged solid black bar or box — in addition to its own subtle " +
         "drop shadow.";
 }
@@ -201,6 +264,7 @@ function cardTextClause(stat: string, line: string): string {
 }
 
 function buildImagePrompt(input: {
+  readonly role: CarouselRole;
   readonly cardStyle: CardStyle;
   readonly logoEdge: "top" | "bottom";
   readonly subject: string;
@@ -209,33 +273,39 @@ function buildImagePrompt(input: {
   readonly text: string;
   readonly inset: Inset | null;
 }): string {
+  // The logo clause is authored ONLY for the two hero slides (hook/cta) — issue #188: the 5 middle
+  // slides carry NO logo clause at all, not merely a smaller one.
+  const logo = isCarouselHeroRole(input.role) ? logoClause(input.logoEdge, input.role) : "";
+
   if (input.cardStyle === "top_card") {
     // "Top card, photo below" (news-carousel.md Examples variation 3/6, issue #106's top-region
     // style): the card (pill + stat + supporting line) comes FIRST, then the photo, with the logo
     // laid along the photo's OWN free edge below it rather than above it.
     return [
       FIXED_CLAUSES[0],
-      "Across the top ~25-30% of the frame is a solid white rounded card sitting on top of the " +
-        "image like a native app UI panel, full width.",
+      "Across the top of the frame is a solid white rounded card sitting on top of the image like a " +
+        "native app UI panel, full width, sized per the card-size rule below.",
       pillClause(input.companies),
       cardTextClause(input.statCallout, input.text),
-      `Below the card, filling the remaining ~70-75% of the frame, is a full frame high quality ` +
+      cardSizeClause(input.role),
+      `Below the card, filling the remainder of the frame, is a full frame high quality ` +
         `photograph of ${input.subject}.`,
-      logoClause(input.logoEdge),
+      logo,
       insetClause(input.inset),
-      FIXED_CLAUSES[4],
+      FIXED_CLAUSES[2],
     ]
       .filter((clause) => clause.length > 0)
       .join(" ");
   }
   return [
     `${FIXED_CLAUSES[0]} ${photoClause(input.cardStyle)}, of ${input.subject}.`,
-    logoClause(input.logoEdge),
+    logo,
     insetClause(input.inset),
     cardClause(input.cardStyle),
     pillClause(input.companies),
     cardTextClause(input.statCallout, input.text),
-    FIXED_CLAUSES[4],
+    cardSizeClause(input.role),
+    FIXED_CLAUSES[2],
   ]
     .filter((clause) => clause.length > 0)
     .join(" ");

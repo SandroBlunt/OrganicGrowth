@@ -15,6 +15,7 @@ import {
   CAROUSEL_SLIDE_COUNT,
   CAROUSEL_ROLES,
   CAROUSEL_TEXT_MAX_CHARS,
+  CAROUSEL_SLIDE_KINDS,
 } from "./news-carousel-contract.ts";
 import type { ValidationError, ValidationResult } from "./validate.ts";
 
@@ -26,10 +27,20 @@ export type NewsCarouselValidationCode =
   | "slide_shape"
   | "slide_text_too_long"
   | "slide_role_order"
-  | "slide_index_invalid";
+  | "slide_index_invalid"
+  | "slide_kind_invalid"
+  | "slide_source_url_invalid";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** A loose "looks like an http(s) URL" check — permissive on purpose (never rejects a real-world URL
+ *  over query strings/fragments/ports); only catches an obviously-non-URL value. Mirrors
+ *  `news-short-script-validate.ts`'s own `looksLikeUrl`, so the two Recipes' URL-shape bars never
+ *  drift apart. */
+function looksLikeUrl(value: string): boolean {
+  return /^https?:\/\/\S+$/i.test(value.trim());
 }
 
 function err(code: NewsCarouselValidationCode, message: string): ValidationError {
@@ -68,6 +79,47 @@ function slideShapeError(slide: unknown, index: number): string | null {
   }
   if (!slide.companies.every((c: unknown) => typeof c === "string" && c.trim().length > 0)) {
     return `slides[${index}].companies must contain only non-empty strings.`;
+  }
+  return null;
+}
+
+/**
+ * Check one ALREADY SHAPE-VALID slide's `kind`/`source_url` pair (ADR-0024, issue #188) — a SEPARATE
+ * pass from `slideShapeError`, mirroring how text-length/role-order/slide_index alignment are each
+ * their OWN top-level error code rather than folded into the generic `slide_shape` bucket. `kind` is
+ * OPTIONAL (backward compatible — absent means `"generated"`, `news-carousel-contract.ts`'s
+ * `slideKind`); when present it SHALL be one of `CAROUSEL_SLIDE_KINDS`. `source_url` SHALL be present
+ * and look like an http(s) URL exactly when the EFFECTIVE kind is `"image"` or `"video"`. Returns
+ * `{ code, reason }` on the first violation, or `null` when the slide conforms.
+ */
+function slideKindError(
+  slide: Record<string, unknown>,
+  index: number,
+): { readonly code: NewsCarouselValidationCode; readonly reason: string } | null {
+  if ("kind" in slide && slide.kind !== undefined) {
+    if (!(CAROUSEL_SLIDE_KINDS as readonly unknown[]).includes(slide.kind)) {
+      return {
+        code: "slide_kind_invalid",
+        reason:
+          `slides[${index}].kind, when present, must be one of ${JSON.stringify(CAROUSEL_SLIDE_KINDS)} ` +
+          `(got ${JSON.stringify(slide.kind)}).`,
+      };
+    }
+  }
+  const kind = typeof slide.kind === "string" ? slide.kind : "generated";
+  if (kind === "image" || kind === "video") {
+    if (typeof slide.source_url !== "string" || slide.source_url.trim().length === 0) {
+      return {
+        code: "slide_source_url_invalid",
+        reason: `slides[${index}].source_url is required and must be a non-empty string when kind is ${JSON.stringify(kind)}.`,
+      };
+    }
+    if (!looksLikeUrl(slide.source_url)) {
+      return {
+        code: "slide_source_url_invalid",
+        reason: `slides[${index}].source_url must look like an http(s) URL (got ${JSON.stringify(slide.source_url)}).`,
+      };
+    }
   }
   return null;
 }
@@ -139,6 +191,11 @@ export function validateNewsCarouselSpec(spec: unknown): ValidationResult {
         ),
       );
     }
+    const kindError = slideKindError(s, i);
+    if (kindError !== null) {
+      errors.push(err(kindError.code, kindError.reason));
+    }
+
     if (s.slide_index !== i) {
       errors.push(
         err(

@@ -23,6 +23,14 @@ import {
   dashInText,
   allBottomPlacements,
   tooFewDistinctPlacements,
+  standardSlideWronglyCarriesLogo,
+  missingTextCardSizeClause,
+  imageSlideWithFrameClause,
+  imageSlideMissingFrameClause,
+  videoSlideWithWindowClause,
+  videoSlideMissingWindowClause,
+  slideWithInvalidKind,
+  imageSlideMissingSourceUrlForChecklist,
 } from "./fixtures/news-carousel-author-checklist-specs.ts";
 import { sixSlides, rolesOutOfOrder, textTooLong } from "./fixtures/news-carousel-specs.ts";
 import type { ChecklistItemAudit, PhaseAuditResult } from "../recipe/phase-contract.ts";
@@ -35,13 +43,27 @@ function item(result: PhaseAuditResult, id: string): ChecklistItemAudit {
   return found;
 }
 
+/** A document that genuinely carries every ONE of `TEST_BASELINE`'s verbatim-checked facts, including
+ *  the issue #188 additions — shared by every test below that proves `verifyBaselineParamsAgainstDocument`/
+ *  the `baseline-doc-verified` item passes on a genuine hand-copy. */
+function fullDocumentText(): string {
+  return (
+    `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
+    `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.logoReferencePhrase} ` +
+    `${TEST_BASELINE.logoNameGuardrailInstruction} ${TEST_BASELINE.fixedClauses.join(" ")} ` +
+    `${TEST_BASELINE.heroLogoClauses.join(" ")} ` +
+    `${TEST_BASELINE.heroTextCardMinPctClause} ${TEST_BASELINE.standardTextCardMinPctClause} ` +
+    `${TEST_BASELINE.realImageFrameClause} ${TEST_BASELINE.realVideoWindowClause}`
+  );
+}
+
 describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, runs as CODE (issue #85 AC2)", () => {
   it("a baseline-adherent Spec passes every mechanical item; the agent-judged item is flagged, not failed", () => {
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
     assert.equal(result.ok, true);
     assert.equal(result.phase, "author");
     assert.equal(result.recipe, "news-carousel");
-    assert.equal(result.items.length, 12);
+    assert.equal(result.items.length, 15);
 
     const agentJudged = result.items.filter((i) => i.kind === "agent-judged");
     assert.equal(agentJudged.length, 1);
@@ -193,6 +215,83 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
     });
   });
 
+  describe("logo-reference is now HERO-ONLY (hook/cta) — the 5 middle slides carry NO logo at all (issue #188)", () => {
+    it("the baseline-adherent Spec's hero slides reference the logo; every other slide does not — passes cleanly", () => {
+      const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
+      assert.equal(item(result, "logo-reference").ok, true);
+    });
+
+    it("fails logo-reference when a STANDARD slide (then/shift/proof/different/next) wrongly references the logo", () => {
+      const result = auditNewsCarouselAuthorPhase(standardSlideWronglyCarriesLogo(), [], TEST_BASELINE);
+      assert.equal(result.ok, false);
+      assert.equal(item(result, "logo-reference").ok, false);
+      // Every OTHER mechanical item still passes — only the mutated standard slide's logo reference.
+      assert.equal(item(result, "pill-text-caps").ok, true);
+      assert.equal(item(result, "text-card-size").ok, true);
+    });
+  });
+
+  describe("text-card-size — the NEW mechanical item (issue #188)", () => {
+    it("the baseline-adherent Spec's hero slides state the 60% floor; every other slide states the 50% floor", () => {
+      const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
+      assert.equal(item(result, "text-card-size").ok, true);
+    });
+
+    it("fails when a slide's image_prompt never states its role-appropriate text-card-size clause", () => {
+      const result = auditNewsCarouselAuthorPhase(missingTextCardSizeClause(), [], TEST_BASELINE);
+      assert.equal(result.ok, false);
+      assert.equal(item(result, "text-card-size").ok, false);
+      // Every OTHER mechanical item still passes — only this one is isolated by the mutation.
+      assert.equal(item(result, "logo-reference").ok, true);
+    });
+  });
+
+  describe("slide-kind-source + real-media-composited — the NEW mechanical items (ADR-0024, issue #188)", () => {
+    it("a Spec with no kind field at all passes both items cleanly (backward compatible — implied 'generated')", () => {
+      const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
+      assert.equal(item(result, "slide-kind-source").ok, true);
+      assert.equal(item(result, "real-media-composited").ok, true);
+    });
+
+    it("passes real-media-composited when an image-kind slide's image_prompt reserves the frame", () => {
+      const result = auditNewsCarouselAuthorPhase(imageSlideWithFrameClause(), [], TEST_BASELINE);
+      assert.equal(result.ok, true);
+      assert.equal(item(result, "slide-kind-source").ok, true);
+      assert.equal(item(result, "real-media-composited").ok, true);
+    });
+
+    it("fails real-media-composited when an image-kind slide's image_prompt never reserves the frame", () => {
+      const result = auditNewsCarouselAuthorPhase(imageSlideMissingFrameClause(), [], TEST_BASELINE);
+      assert.equal(result.ok, false);
+      assert.equal(item(result, "slide-kind-source").ok, true, "the structural kind/source_url shape is still fine");
+      assert.equal(item(result, "real-media-composited").ok, false);
+    });
+
+    it("passes real-media-composited when a video-kind slide's image_prompt reserves the window and keeps a calmer background", () => {
+      const result = auditNewsCarouselAuthorPhase(videoSlideWithWindowClause(), [], TEST_BASELINE);
+      assert.equal(result.ok, true);
+      assert.equal(item(result, "real-media-composited").ok, true);
+    });
+
+    it("fails real-media-composited when a video-kind slide's image_prompt never reserves the window / states the calmer background", () => {
+      const result = auditNewsCarouselAuthorPhase(videoSlideMissingWindowClause(), [], TEST_BASELINE);
+      assert.equal(result.ok, false);
+      assert.equal(item(result, "real-media-composited").ok, false);
+    });
+
+    it("fails slide-kind-source when a slide's kind is outside generated/image/video", () => {
+      const result = auditNewsCarouselAuthorPhase(slideWithInvalidKind(), [], TEST_BASELINE);
+      assert.equal(result.ok, false);
+      assert.equal(item(result, "slide-kind-source").ok, false);
+    });
+
+    it("fails slide-kind-source when an image-kind slide carries no source_url at all", () => {
+      const result = auditNewsCarouselAuthorPhase(imageSlideMissingSourceUrlForChecklist(), [], TEST_BASELINE);
+      assert.equal(result.ok, false);
+      assert.equal(item(result, "slide-kind-source").ok, false);
+    });
+  });
+
   it("fails the companies item when a slide names a company its own image_prompt never cites", () => {
     const result = auditNewsCarouselAuthorPhase(companyNotCitedInPrompt(), [], TEST_BASELINE);
     assert.equal(result.ok, false);
@@ -258,16 +357,17 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
 
   it("omitting the raw document text skips the baseline-copy-verification item entirely", () => {
     const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE);
-    assert.equal(result.items.length, 12);
+    assert.equal(result.items.length, 15);
   });
 
   it("supplying the raw document text adds one more item, verifying the hand-copy against it", () => {
-    const documentText =
-      `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
-      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.logoReferencePhrase} ` +
-      `${TEST_BASELINE.logoNameGuardrailInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
-    const result = auditNewsCarouselAuthorPhase(baselineAdherentCarouselSpec(), [], TEST_BASELINE, documentText);
-    assert.equal(result.items.length, 13);
+    const result = auditNewsCarouselAuthorPhase(
+      baselineAdherentCarouselSpec(),
+      [],
+      TEST_BASELINE,
+      fullDocumentText(),
+    );
+    assert.equal(result.items.length, 16);
     assert.equal(item(result, "baseline-doc-verified").ok, true);
   });
 
@@ -283,11 +383,7 @@ describe("auditNewsCarouselAuthorPhase — graduated from the #77 prototype, run
 
 describe("verifyBaselineParamsAgainstDocument — cross-checks a hand-copied baseline against the raw document", () => {
   it("passes when every verbatim fact is present in the document", () => {
-    const documentText =
-      `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
-      `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.logoReferencePhrase} ` +
-      `${TEST_BASELINE.logoNameGuardrailInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
-    const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, documentText);
+    const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, fullDocumentText());
     assert.equal(result.ok, true);
     assert.deepEqual(result.mismatches, []);
   });
@@ -299,14 +395,23 @@ describe("verifyBaselineParamsAgainstDocument — cross-checks a hand-copied bas
     assert.ok(result.mismatches.some((m) => m.includes(TEST_BASELINE.logoReferenceName)));
   });
 
-  it("never checks confirmedCardStyles — those are the Skill's own names, not literal document text", () => {
-    // A document naming every OTHER fact verbatim but never using the code-style slug "full_width"
-    // must still pass — confirmedCardStyles is deliberately excluded from this verbatim check.
+  it("reports the four issue #188 additions when they are missing from the document", () => {
     const documentText =
       `${TEST_BASELINE.logoReferenceName} ${TEST_BASELINE.pillText} ` +
       `${TEST_BASELINE.neverAllCapsInstruction} ${TEST_BASELINE.logoReferencePhrase} ` +
       `${TEST_BASELINE.logoNameGuardrailInstruction} ${TEST_BASELINE.fixedClauses.join(" ")}`;
     const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, documentText);
+    assert.equal(result.ok, false);
+    assert.ok(result.mismatches.some((m) => m.includes("heroTextCardMinPctClause")));
+    assert.ok(result.mismatches.some((m) => m.includes("standardTextCardMinPctClause")));
+    assert.ok(result.mismatches.some((m) => m.includes("realImageFrameClause")));
+    assert.ok(result.mismatches.some((m) => m.includes("realVideoWindowClause")));
+  });
+
+  it("never checks confirmedCardStyles — those are the Skill's own names, not literal document text", () => {
+    // A document naming every OTHER fact verbatim but never using the code-style slug "full_width"
+    // must still pass — confirmedCardStyles is deliberately excluded from this verbatim check.
+    const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, fullDocumentText());
     assert.equal(result.ok, true);
   });
 });

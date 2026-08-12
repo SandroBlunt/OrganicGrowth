@@ -261,10 +261,14 @@ SHALL be `{ maxChars: 2200, minEmojis: 0, maxEmojis: 2 }` — DIFFERENT from the
 Cast Recipe's `180`/`1`/`3`; its `canvasInputs` SHALL declare exactly one `brand-asset` media slot named
 `"Brand_Logo"` (image, required, `brandAssetKey: "brand-logo"`) whose `promptNode` equals its sole
 run-point's name; and its `phases` SHALL declare all six phases in order, with its `author` phase's
-checklist carrying exactly 8 items (7 mechanical, 1 agent-judged — the "grounded subject" item), its
-`gate` phase's checklist EMPTY (it declares zero gates), and its `copy` phase's checklist carrying
-exactly one mechanical item referencing `copy/validate.ts`'s `validateCopy` under this Recipe's own
-`copyShape`.
+checklist carrying exactly 10 items (9 mechanical, 1 agent-judged — the "grounded subject" item; grown
+from 8/7 by issue #188's text-card-size + real-media-composited/slide-kind-source additions), its
+`gate` phase's checklist EMPTY (it declares zero gates), its `copy` phase's checklist carrying exactly
+one mechanical item referencing `copy/validate.ts`'s `validateCopy` under this Recipe's own
+`copyShape`, and its `save` phase's checklist carrying a mechanical item referencing
+`production-spec/news-carousel-contract.ts`'s `hasVideoSlide` (issue #188 — the fact
+`schedule-batch/eligibility.ts` reads to keep a video-slide carousel Asset out of the images-only Zoho
+bulk-export path).
 
 `"Brand_Logo"` and `"JSON Master"` (the run-point/prompt-node name below) are the REAL canvas node
 names, verified against the live "Carrousel" Space capture (issue #86,
@@ -321,12 +325,12 @@ own `"JSON Master"` node — the two share only a name, never a canvas.
   brandAssetKey: "brand-logo" }` — the map key IS the real, captured canvas node name (issue #86/#89)
 - **AND** `promptNode` equals `space.nodes.clipRunPoint` (`"JSON Master"`)
 
-#### Scenario: The News Carousel Recipe's author-phase checklist has 8 items, 7 mechanical + 1 agent-judged
+#### Scenario: The News Carousel Recipe's author-phase checklist has 10 items, 9 mechanical + 1 agent-judged (issue #188)
 
 - **GIVEN** the seeded `news-carousel` Recipe's `author` phase
 - **WHEN** its `checklist` is inspected
-- **THEN** it has exactly 8 items
-- **AND** exactly 1 of them is `agent-judged` (the "grounded subject" item) and the remaining 7 are
+- **THEN** it has exactly 10 items
+- **AND** exactly 1 of them is `agent-judged` (the "grounded subject" item) and the remaining 9 are
   `mechanical`
 
 #### Scenario: The News Carousel Recipe's gate-phase checklist is empty — it declares zero gates
@@ -334,6 +338,13 @@ own `"JSON Master"` node — the two share only a name, never a canvas.
 - **GIVEN** the seeded `news-carousel` Recipe's `gate` phase
 - **WHEN** its `checklist` is inspected
 - **THEN** it is `[]`
+
+#### Scenario: The News Carousel Recipe's save-phase checklist references hasVideoSlide (issue #188)
+
+- **GIVEN** the seeded `news-carousel` Recipe's `save` phase
+- **WHEN** its `checklist` is inspected
+- **THEN** at least one item is `kind: "mechanical"` with a `reference` naming
+  `production-spec/news-carousel-contract.ts: hasVideoSlide`
 
 ### Requirement: A Recipe declares two typed canvas inputs — a media-slot map and a prompt node
 

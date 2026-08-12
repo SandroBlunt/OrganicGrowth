@@ -169,3 +169,39 @@ describe("produce-news-carousel Skill — author guidance actively pushes placem
     assert.match(text, /Card placements are spread across the vertical range/i);
   });
 });
+
+describe("produce-news-carousel Skill — logo scoped to hook/cta, bigger text card, real media (ADR-0024, issue #188)", () => {
+  it("instructs the logo appears ONLY on hook/cta, omitted entirely on the 5 middle slides", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /hook\/cta ONLY/);
+    assert.match(text, /[Oo]mit the WHOLE logo clause entirely/);
+  });
+
+  it("instructs the role-dependent text-card-size floor (60% hero / 50% standard)", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /at least 60% of the frame's vertical height/);
+    assert.match(text, /at least 50%/);
+  });
+
+  it("names the per-slide kind field and points at the real-media fetch-first-fallback module", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /"generated"/);
+    assert.match(text, /"image"/);
+    assert.match(text, /"video"/);
+    assert.match(text, /carousel-real-media\.ts/);
+    assert.match(text, /resolveCarouselSlideMedia|resolveCarouselMedia/);
+  });
+
+  it("states the fetch-first-fallback happens with no pause for the Operator, either way (ADR-0024)", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /no pause to ask the Operator, either way/i);
+  });
+
+  it("names the new checklist items in the Author-phase checklist section (issue #188)", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /scoped to the two hero slides only/i);
+    assert.match(text, /hero text-card-size clause/i);
+    assert.match(text, /reserves a frame for the real, fetched photo/i);
+    assert.match(text, /calmer\/less busy than a\s*\n?\s*fully generated slide/i);
+  });
+});

@@ -10,10 +10,16 @@
  * — a future images-based second Recipe extending this export is a later slice's job (out of scope
  * here, matching the issue's own "turns a run's produced News Carousel Assets" framing).
  *
- * Eligible = `recipe === SUPPORTED_RECIPE` AND `status === "produced"` AND no `scheduled_at` yet (issue
- * #145 AC5 — re-running the export after a successful one must schedule nothing twice; excluding an
- * already-`scheduled_at` Asset is what makes a re-run naturally converge to "nothing eligible", the SAME
- * code path as an empty run).
+ * A News Carousel Asset itself is no longer UNCONDITIONALLY images-only (ADR-0024, issue #188): one
+ * carrying `has_video_slide: true` (a real video composited into one of its 7 slides) is a video Asset
+ * too, even though its `recipe` is `SUPPORTED_RECIPE` — skipped with the SAME `"video"` reason and the
+ * SAME manual-publish trade-off any other video Recipe's Asset already gets, mirroring the exact
+ * mechanism above rather than inventing a second one.
+ *
+ * Eligible = `recipe === SUPPORTED_RECIPE` AND NOT `has_video_slide` AND `status === "produced"` AND no
+ * `scheduled_at` yet (issue #145 AC5 — re-running the export after a successful one must schedule
+ * nothing twice; excluding an already-`scheduled_at` Asset is what makes a re-run naturally converge to
+ * "nothing eligible", the SAME code path as an empty run).
  */
 
 import type { LedgerAssetRecord } from "../asset/asset.ts";
@@ -86,6 +92,20 @@ export function selectEligibleAssets(ideas: readonly ScheduleBatchIdea[]): Eligi
           note:
             `${idea.id}: recipe "${asset.recipe}" is not image-carousel-based — Zoho's bulk scheduler ` +
             "is images-only, so this video Asset is skipped (it keeps the manual publish path).",
+        });
+        continue;
+      }
+
+      if (asset.has_video_slide === true) {
+        skipped.push({
+          ideaId: idea.id,
+          title: idea.title,
+          recipe: asset.recipe,
+          reason: "video",
+          note:
+            `${idea.id}: this news-carousel Asset carries a real video slide (ADR-0024) — Zoho's ` +
+            "bulk scheduler is images-only, so this video Asset is skipped (it keeps the manual " +
+            "publish path).",
         });
         continue;
       }
