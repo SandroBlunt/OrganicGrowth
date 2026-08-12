@@ -253,12 +253,12 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
     );
   });
 
-  it("its author-phase checklist has exactly 8 items: 7 mechanical + 1 agent-judged ('grounded subject') — the slice's headline case (issue #85 AC2)", () => {
+  it("its author-phase checklist has exactly 10 items: 9 mechanical + 1 agent-judged ('grounded subject') — the slice's headline case (issue #85 AC2, extended by issue #188)", () => {
     const author = recipe.phases.find((p) => p.phase === "author")!;
-    assert.equal(author.checklist.length, 8);
+    assert.equal(author.checklist.length, 10);
     const mechanical = author.checklist.filter((i) => i.kind === "mechanical");
     const agentJudged = author.checklist.filter((i) => i.kind === "agent-judged");
-    assert.equal(mechanical.length, 7);
+    assert.equal(mechanical.length, 9);
     assert.equal(agentJudged.length, 1);
     assert.match(agentJudged[0]!.description, /grounded subject/i);
   });
@@ -275,6 +275,14 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
     assert.equal(bindMedia.checklist[0]!.kind, "mechanical");
     assert.equal(copy.checklist.length, 1);
     assert.equal(copy.checklist[0]!.kind, "mechanical");
+  });
+
+  it("its save-phase checklist references hasVideoSlide, the fact Schedule Batch eligibility reads (issue #188)", () => {
+    const save = recipe.phases.find((p) => p.phase === "save")!;
+    const hasVideoSlideItem = save.checklist.find(
+      (i) => i.kind === "mechanical" && i.reference.includes("hasVideoSlide"),
+    );
+    assert.ok(hasVideoSlideItem, "expected a mechanical save-phase item referencing hasVideoSlide");
   });
 
   it("every mechanical checklist item across every phase carries a non-empty reference (issue #85 AC3: referenced, not duplicated)", () => {

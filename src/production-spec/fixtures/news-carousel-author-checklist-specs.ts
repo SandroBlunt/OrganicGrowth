@@ -13,7 +13,7 @@
  * placement" as two independently-triggerable failures (issue #106's own OR-condition).
  */
 
-import { CAROUSEL_ROLES, type CarouselSlide } from "../news-carousel-contract.ts";
+import { CAROUSEL_ROLES, isCarouselHeroRole, type CarouselSlide } from "../news-carousel-contract.ts";
 import type { NewsCarouselBaselineParams } from "../news-carousel-author-checklist.ts";
 
 /** A stand-in Baseline Prompt's own strings — see module doc above. */
@@ -29,14 +29,24 @@ export const TEST_BASELINE: NewsCarouselBaselineParams = {
     "only to mark which connected reference to use.",
   fixedClauses: [
     "A vertical viral Instagram news post.",
-    "Render the logo exactly as provided in the reference image.",
     "a solid white rounded card",
     "set in Inter font",
     "Photorealistic, crisp bold typography overlay for the photo, clean flat UI-card typography for the card.",
   ],
+  // Logo-specific fixed clauses (issue #188) — required ONLY on the two hero slides, alongside
+  // `logoNameGuardrailInstruction`; the 5 middle slides carry no logo at all, so none of these either.
+  heroLogoClauses: ["Render the logo exactly as provided in the reference image."],
   confirmedCardStyles: ["full_width", "floating_toast", "small_badge", "top_card"],
   topRegionCardStyles: ["top_card"],
   minDistinctCardStyles: 3,
+  // The four issue #188 additions — deliberately DIFFERENT wording from Straw Motion's real strings,
+  // same reasoning as every other TEST_BASELINE field above.
+  heroTextCardMinPctClause: "the text card fills at least 60% of the frame's vertical height",
+  standardTextCardMinPctClause: "the text card fills at least 50% of the frame's vertical height",
+  realImageFrameClause: "a reserved rectangular frame is left empty for the real fetched photo",
+  realVideoWindowClause:
+    "a reserved window is left empty for the real fetched video, set against a calm, uncluttered " +
+    "background with no other competing focal elements",
 };
 
 /** A stand-in set of companies for the slides that name real ones (the rest name none). */
@@ -44,21 +54,28 @@ const TEST_COMPANIES: readonly string[] = ["Acme", "Globex"];
 
 /** Assembles ONE slide's image_prompt carrying EVERY clause `TEST_BASELINE` declares, verbatim, plus a
  *  logo row citing `companies` (omitted entirely when `companies` is empty — issue #102 finding #1).
- *  Carries the logo reference (via `logoReferencePhrase` + the raw name — issue #110) and the negative
- *  guardrail instruction, so this positive fixture passes the reworked `logo-reference` item AND the
- *  new `logo-name-not-as-text` item cleanly. */
+ *  The logo reference (via `logoReferencePhrase` + the raw name — issue #110) and its negative
+ *  guardrail instruction appear ONLY on the two hero slides (hook/cta — issue #188); every other slide
+ *  carries the text-card-size clause appropriate to its role, but no logo reference at all. */
 function baselineAdherentImagePrompt(role: string, companies: readonly string[]): string {
-  const [clause0, clause1, clause2, clause3, clause4] = TEST_BASELINE.fixedClauses;
+  const [clause0, clause1, clause2, clause3] = TEST_BASELINE.fixedClauses;
   const logoRow =
     companies.length > 0
       ? ` Positioned next to the pill are ${companies.length} tiny real product logos (${companies.join(", ")}) in a row.`
       : "";
+  const cardSizeClause = isCarouselHeroRole(role)
+    ? TEST_BASELINE.heroTextCardMinPctClause
+    : TEST_BASELINE.standardTextCardMinPctClause;
+  const logoClause = isCarouselHeroRole(role)
+    ? ` with ${TEST_BASELINE.logoReferencePhrase} ${TEST_BASELINE.logoReferenceName} placed along the ` +
+      `free edge. ${TEST_BASELINE.logoNameGuardrailInstruction} ${TEST_BASELINE.heroLogoClauses.join(" ")}`
+    : "";
   return (
-    `${clause0} A grounded photographic scene for the "${role}" beat, with ${TEST_BASELINE.logoReferencePhrase} ` +
-    `${TEST_BASELINE.logoReferenceName} placed along the free edge. ${TEST_BASELINE.logoNameGuardrailInstruction} ` +
-    `${clause1} Below it, ${clause2} ` +
-    `carries a pill badge reading "${TEST_BASELINE.pillText}". ${TEST_BASELINE.neverAllCapsInstruction}` +
-    `${logoRow} All card text is ${clause3}. ${clause4}`
+    `${clause0} A grounded photographic scene for the "${role}" beat${logoClause} ` +
+    `Below it, ${clause1} ` +
+    `carries a pill badge reading "${TEST_BASELINE.pillText}". ${TEST_BASELINE.neverAllCapsInstruction} ` +
+    `The card is sized so ${cardSizeClause}.` +
+    `${logoRow} All card text is ${clause2}. ${clause3}`
   );
 }
 
@@ -177,7 +194,7 @@ export function missingCapsGuardrail(): Record<string, unknown> {
 /** Every slide's image_prompt drops ONE fixed clause (the closing style line). */
 export function missingFixedClause(): Record<string, unknown> {
   const s = clone(baselineAdherentCarouselSpec());
-  const closingLine = TEST_BASELINE.fixedClauses[4]!;
+  const closingLine = TEST_BASELINE.fixedClauses[3]!;
   const slides = s.slides as CarouselSlide[];
   s.slides = slides.map((slide) => ({
     ...slide,
@@ -260,5 +277,98 @@ export function tooFewDistinctPlacements(): Record<string, unknown> {
     ...slide,
     card_style: twoStyles[i % twoStyles.length]!,
   }));
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// issue #188 fixtures: hero-only logo scoping, text-card size, and real-media compositing
+// ---------------------------------------------------------------------------
+
+/** A STANDARD slide ("then", slide_index 1) wrongly references the connected logo — the exact thing
+ *  issue #188 forbids (the logo is scoped to the two hero slides, hook/cta, only). */
+export function standardSlideWronglyCarriesLogo(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[1] = {
+    ...slides[1]!,
+    image_prompt: `${slides[1]!.image_prompt} Along the free edge sits ${TEST_BASELINE.logoReferenceName}.`,
+  };
+  return s;
+}
+
+/** Every slide's image_prompt is missing its role-appropriate text-card-size clause. */
+export function missingTextCardSizeClause(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  s.slides = slides.map((slide) => ({
+    ...slide,
+    image_prompt: slide.image_prompt
+      .split(TEST_BASELINE.heroTextCardMinPctClause)
+      .join("")
+      .split(TEST_BASELINE.standardTextCardMinPctClause)
+      .join(""),
+  }));
+  return s;
+}
+
+/** The "proof" slide (slide_index 3) declares kind "image" with a well-formed source_url and carries
+ *  the required reserved-frame clause. */
+export function imageSlideWithFrameClause(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = {
+    ...slides[3]!,
+    kind: "image",
+    source_url: "https://example.com/story/photo.jpg",
+    image_prompt: `${slides[3]!.image_prompt} ${TEST_BASELINE.realImageFrameClause}.`,
+  };
+  return s;
+}
+
+/** The "proof" slide declares kind "image" with a source_url, but its image_prompt never states the
+ *  required reserved-frame clause. */
+export function imageSlideMissingFrameClause(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = { ...slides[3]!, kind: "image", source_url: "https://example.com/story/photo.jpg" };
+  return s;
+}
+
+/** The "proof" slide declares kind "video" with a well-formed source_url and carries the required
+ *  reserved-window + calmer-background clause. */
+export function videoSlideWithWindowClause(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = {
+    ...slides[3]!,
+    kind: "video",
+    source_url: "https://example.com/story/clip.mp4",
+    image_prompt: `${slides[3]!.image_prompt} ${TEST_BASELINE.realVideoWindowClause}.`,
+  };
+  return s;
+}
+
+/** The "proof" slide declares kind "video" with a source_url, but its image_prompt never states the
+ *  required reserved-window + calmer-background clause. */
+export function videoSlideMissingWindowClause(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = { ...slides[3]!, kind: "video", source_url: "https://example.com/story/clip.mp4" };
+  return s;
+}
+
+/** The "proof" slide declares an invalid kind (outside generated/image/video). */
+export function slideWithInvalidKind(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as unknown as Array<Record<string, unknown>>;
+  slides[3] = { ...slides[3]!, kind: "gif" };
+  return s;
+}
+
+/** The "proof" slide declares kind "image" but no source_url at all. */
+export function imageSlideMissingSourceUrlForChecklist(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = { ...slides[3]!, kind: "image" };
   return s;
 }

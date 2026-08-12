@@ -100,3 +100,47 @@ export function missingCompanies(): Record<string, unknown> {
   slides[3] = rest;
   return s;
 }
+
+// ---------------------------------------------------------------------------
+// Per-slide kind fixtures (ADR-0024, issue #188)
+// ---------------------------------------------------------------------------
+
+/** The "proof" slide declares kind "image" with a well-formed source_url. */
+export function imageSlideWithSourceUrl(): Record<string, unknown> {
+  const s = clone(validCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = { ...slides[3]!, kind: "image", source_url: "https://example.com/story/photo.jpg" };
+  return s;
+}
+
+/** The "proof" slide declares kind "video" with a well-formed source_url. */
+export function videoSlideWithSourceUrl(): Record<string, unknown> {
+  const s = clone(validCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = { ...slides[3]!, kind: "video", source_url: "https://example.com/story/clip.mp4" };
+  return s;
+}
+
+/** The "proof" slide declares a kind outside generated/image/video. */
+export function invalidSlideKind(): Record<string, unknown> {
+  const s = clone(validCarouselSpec());
+  const slides = s.slides as unknown as Array<Record<string, unknown>>;
+  slides[3] = { ...slides[3]!, kind: "gif" };
+  return s;
+}
+
+/** The "proof" slide declares kind "image" but carries no source_url at all. */
+export function imageSlideMissingSourceUrl(): Record<string, unknown> {
+  const s = clone(validCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = { ...slides[3]!, kind: "image" };
+  return s;
+}
+
+/** The "proof" slide declares kind "image" with a source_url that doesn't look like an http(s) URL. */
+export function imageSlideMalformedSourceUrl(): Record<string, unknown> {
+  const s = clone(validCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[3] = { ...slides[3]!, kind: "image", source_url: "not-a-url" };
+  return s;
+}

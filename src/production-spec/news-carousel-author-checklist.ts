@@ -91,6 +91,7 @@ import { scanNewsCarouselForBannedWords } from "./news-carousel-brand-safety.ts"
 import { scanTextFieldsForDashes } from "./dash-safety.ts";
 import type { TextField } from "./brand-safety.ts";
 import type { ChecklistItemAudit, PhaseAuditResult } from "../recipe/phase-contract.ts";
+import { isCarouselHeroRole } from "./news-carousel-contract.ts";
 
 /** The Format/Brand-specific strings this checklist checks a candidate Spec against — read from the
  *  Format's Baseline Prompt document (ADR-0015), never hardcoded here. */
@@ -122,12 +123,21 @@ export interface NewsCarouselBaselineParams {
    */
   readonly logoNameGuardrailInstruction: string;
   /**
-   * Every OTHER fixed clause the Baseline Prompt's worked example carries verbatim in each
-   * image_prompt (the "render unaltered" logo clause, the card clause, the card-text clause, the
-   * closing style line...). `pillText`/`neverAllCapsInstruction`/`logoNameGuardrailInstruction` are
-   * checked separately (the issue calls them out by name); this list is everything else.
+   * Every OTHER fixed clause the Baseline Prompt's worked example carries verbatim in EVERY slide's
+   * image_prompt, hero or standard alike (the card clause, the card-text clause, the closing style
+   * line...). `pillText`/`neverAllCapsInstruction`/`logoNameGuardrailInstruction` are checked
+   * separately (the issue calls them out by name); `heroLogoClauses` below covers the clauses that are
+   * ONLY relevant when a logo is actually rendered (issue #188). This list is everything else.
    */
   readonly fixedClauses: readonly string[];
+  /**
+   * The Baseline Prompt's own fixed clauses that describe the LOGO itself (e.g. "render the logo
+   * exactly as provided", the vignette-behind-the-logo clause) — required verbatim ONLY on the two hero
+   * slides (hook/cta), alongside `logoNameGuardrailInstruction` (issue #188: since the 5 middle slides
+   * carry no logo at all, they carry none of these clauses either). Checked as part of the
+   * `logo-reference` item, not `fixedClauses` above (which now applies uniformly to every slide).
+   */
+  readonly heroLogoClauses: readonly string[];
   /** The Baseline Prompt's own confirmed card styles (e.g. `["full_width", "floating_toast"]`). */
   readonly confirmedCardStyles: readonly string[];
   /**
@@ -145,6 +155,32 @@ export interface NewsCarouselBaselineParams {
    * by `verifyBaselineParamsAgainstDocument` (the same exemption `confirmedCardStyles` already has).
    */
   readonly minDistinctCardStyles: number;
+  /**
+   * The Baseline Prompt's own fixed clause declaring the text card's minimum vertical share on a HERO
+   * slide (hook/cta) — `CAROUSEL_HERO_TEXT_CARD_MIN_PCT` (60), stated in prose (e.g. "the text card
+   * occupies at least 60% of the frame's vertical height"). Every hero slide's `image_prompt` SHALL
+   * carry this verbatim (issue #188).
+   */
+  readonly heroTextCardMinPctClause: string;
+  /**
+   * The Baseline Prompt's own fixed clause declaring the text card's minimum vertical share on every
+   * OTHER slide (then/shift/proof/different/next) — `CAROUSEL_STANDARD_TEXT_CARD_MIN_PCT` (50). Every
+   * standard slide's `image_prompt` SHALL carry this verbatim (issue #188).
+   */
+  readonly standardTextCardMinPctClause: string;
+  /**
+   * The Baseline Prompt's own fixed clause instructing the compositor to reserve a frame for a real,
+   * fetched photo (ADR-0024) — required verbatim on every `kind: "image"` slide's `image_prompt`
+   * (issue #188).
+   */
+  readonly realImageFrameClause: string;
+  /**
+   * The Baseline Prompt's own fixed clause instructing the compositor to reserve a window for a real,
+   * fetched video AND to keep the rest of the generated background calmer/less busy than a fully
+   * generated slide (fewer competing focal elements) — required verbatim on every `kind: "video"`
+   * slide's `image_prompt` (ADR-0024, issue #188).
+   */
+  readonly realVideoWindowClause: string;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -163,7 +199,9 @@ export interface BaselineParamsVerification {
  * it was supposedly read from — catches a stale or mistyped hand-copy before the checklist silently
  * checks slides against the wrong facts (issue #102: nothing previously verified this copy step).
  * Checks only the fields meant to be reproduced VERBATIM (ADR-0015): `logoReferenceName`, `pillText`,
- * `neverAllCapsInstruction`, `fixedClauses`. `confirmedCardStyles` is deliberately excluded — those
+ * `neverAllCapsInstruction`, `fixedClauses`, plus the four issue #188 additions
+ * (`heroTextCardMinPctClause`, `standardTextCardMinPctClause`, `realImageFrameClause`,
+ * `realVideoWindowClause`). `confirmedCardStyles` is deliberately excluded — those
  * are the Skill's own short names for styles the document describes in prose, not literal substrings
  * of it, so a plain-text search would always (wrongly) fail them. `topRegionCardStyles` and
  * `minDistinctCardStyles` (issue #106) are excluded for the SAME reason: short style names and a
@@ -196,6 +234,31 @@ export function verifyBaselineParamsAgainstDocument(
       mismatches.push(`fixed clause not found in the document, verbatim: ${JSON.stringify(clause)}`);
     }
   }
+  for (const clause of params.heroLogoClauses) {
+    if (!documentText.includes(clause)) {
+      mismatches.push(`hero logo clause not found in the document, verbatim: ${JSON.stringify(clause)}`);
+    }
+  }
+  if (!documentText.includes(params.heroTextCardMinPctClause)) {
+    mismatches.push(
+      `heroTextCardMinPctClause ${JSON.stringify(params.heroTextCardMinPctClause)} not found in the document`,
+    );
+  }
+  if (!documentText.includes(params.standardTextCardMinPctClause)) {
+    mismatches.push(
+      `standardTextCardMinPctClause ${JSON.stringify(params.standardTextCardMinPctClause)} not found in the document`,
+    );
+  }
+  if (!documentText.includes(params.realImageFrameClause)) {
+    mismatches.push(
+      `realImageFrameClause ${JSON.stringify(params.realImageFrameClause)} not found in the document`,
+    );
+  }
+  if (!documentText.includes(params.realVideoWindowClause)) {
+    mismatches.push(
+      `realVideoWindowClause ${JSON.stringify(params.realVideoWindowClause)} not found in the document`,
+    );
+  }
   return { ok: mismatches.length === 0, mismatches };
 }
 
@@ -210,6 +273,21 @@ function extractSlides(spec: unknown): readonly Record<string, unknown>[] {
 
 function imagePrompt(slide: Record<string, unknown>): string {
   return typeof slide.image_prompt === "string" ? slide.image_prompt : "";
+}
+
+/** This slide's `role`, defensively narrowed (never throws on a malformed Spec — an unreadable role
+ *  simply never matches `isCarouselHeroRole`, so it is treated as a STANDARD slide by the role-aware
+ *  items below; `validateNewsCarouselSpec` is what actually rejects a missing/malformed role). */
+function slideRole(slide: Record<string, unknown>): string {
+  return typeof slide.role === "string" ? slide.role : "";
+}
+
+/** This slide's EFFECTIVE media kind (ADR-0024, issue #188) — `slide.kind`, or `"generated"` when
+ *  absent/malformed (backward compatible, mirrors `news-carousel-contract.ts`'s own `slideKind`;
+ *  duplicated here rather than imported so this module never needs the full `CarouselSlide` shape to
+ *  narrow an untrusted candidate). */
+function slideKindOf(slide: Record<string, unknown>): "generated" | "image" | "video" {
+  return slide.kind === "image" || slide.kind === "video" ? slide.kind : "generated";
 }
 
 /** This slide's `companies` field, defensively narrowed (never throws on a malformed Spec). */
@@ -344,21 +422,52 @@ export function auditNewsCarouselAuthorPhase(
       ok: !hasStructuralCode("slide_text_too_long"),
     },
     {
-      id: "logo-reference",
+      id: "text-card-size",
       description:
-        "Each image_prompt references the connected logo — via the reference name or the Baseline " +
-        "Prompt's own name-free reference phrase — and carries its negative guardrail against ever " +
-        "rendering that reference name/filename as visible on-image text. The raw underscored " +
-        "reference name is no longer required on its own (issue #110).",
+        "Each hero slide's (hook/cta) image_prompt states the text card occupies at least 60% of the " +
+        "frame's vertical height; every other slide's image_prompt states at least 50% (issue #188, " +
+        "replacing the old, role-blind ~25-30%).",
       kind: "mechanical",
       ok:
         hasSlides &&
         slides.every((s) => {
           const prompt = imagePrompt(s);
-          return (
-            referencesConnectedLogo(prompt, baseline) &&
-            prompt.includes(baseline.logoNameGuardrailInstruction)
-          );
+          const clause = isCarouselHeroRole(slideRole(s))
+            ? baseline.heroTextCardMinPctClause
+            : baseline.standardTextCardMinPctClause;
+          return prompt.includes(clause);
+        }),
+    },
+    {
+      id: "slide-kind-source",
+      description:
+        "Each slide's kind, when present, is one of generated/image/video, and a source_url is " +
+        "present and well-formed exactly when kind is image or video (ADR-0024).",
+      kind: "mechanical",
+      ok: !hasStructuralCode("slide_kind_invalid") && !hasStructuralCode("slide_source_url_invalid"),
+    },
+    {
+      id: "logo-reference",
+      description:
+        "A HERO slide's (hook/cta) image_prompt references the connected logo — via the reference " +
+        "name or the Baseline Prompt's own name-free reference phrase — and carries its negative " +
+        "guardrail plus every heroLogoClauses entry verbatim; every OTHER slide's image_prompt " +
+        "references the logo NOWHERE at all — the logo is scoped to the two hero slides only " +
+        "(issue #188). The raw underscored reference name is no longer required on its own for a " +
+        "hero slide (issue #110).",
+      kind: "mechanical",
+      ok:
+        hasSlides &&
+        slides.every((s) => {
+          const prompt = imagePrompt(s);
+          if (isCarouselHeroRole(slideRole(s))) {
+            return (
+              referencesConnectedLogo(prompt, baseline) &&
+              prompt.includes(baseline.logoNameGuardrailInstruction) &&
+              baseline.heroLogoClauses.every((clause) => prompt.includes(clause))
+            );
+          }
+          return !referencesConnectedLogo(prompt, baseline);
         }),
     },
     {
@@ -393,6 +502,28 @@ export function auditNewsCarouselAuthorPhase(
       ok:
         hasSlides &&
         slides.every((s) => baseline.fixedClauses.every((clause) => imagePrompt(s).includes(clause))),
+    },
+    {
+      id: "real-media-composited",
+      description:
+        "An image-kind slide's image_prompt reserves a frame for the real, fetched photo " +
+        "(realImageFrameClause); a video-kind slide's image_prompt reserves a window for the real, " +
+        "fetched video AND keeps the generated background calmer/less busy (realVideoWindowClause); a " +
+        "generated-kind slide carries neither clause requirement (ADR-0024, issue #188).",
+      kind: "mechanical",
+      ok:
+        hasSlides &&
+        slides.every((s) => {
+          const prompt = imagePrompt(s);
+          switch (slideKindOf(s)) {
+            case "image":
+              return prompt.includes(baseline.realImageFrameClause);
+            case "video":
+              return prompt.includes(baseline.realVideoWindowClause);
+            case "generated":
+              return true;
+          }
+        }),
     },
     {
       id: "grounded-subject",

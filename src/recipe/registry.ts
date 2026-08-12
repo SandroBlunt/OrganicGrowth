@@ -585,16 +585,16 @@ if (CAROUSEL_RUN_POINT === undefined) {
 
 /**
  * The News Carousel Recipe's six ordered Phase Contracts (ADR-0017, issue #85). Its "author" phase is
- * the SLICE's headline case: 6 of its 8 checklist items are mechanical, graduated from the #77
+ * the SLICE's headline case: 9 of its 10 checklist items are mechanical, graduated from the #77
  * prototype (`production-spec/news-carousel-author-checklist.ts`'s `auditNewsCarouselAuthorPhase`) —
  * two of those (the 7-slides/role-order item and the text-length item) are literally the SAME
  * `validateNewsCarouselSpec` call this Recipe's own `specShape.validate` already runs; the banned-word
  * item is the SAME `scanNewsCarouselForBannedWords` call `specShape.scanBannedWords` already runs;
- * the remaining three (logo reference, pill text + never-all-caps, fixed baseline clauses, card style)
- * are the NEW checks the #77 prototype proved out, parameterized from the Format's Baseline Prompt
- * (ADR-0015) — never hardcoded. The ONE non-mechanical item ("grounded subject") is agent-judged,
- * flagged for review, never auto-failed (ADR-0017). "gate" is an empty checklist — this Recipe
- * declares zero gates, so nothing pauses here.
+ * the rest (logo reference, pill text + never-all-caps, fixed baseline clauses, card style, text-card
+ * size, real-media compositing — issue #188/ADR-0024) are checks parameterized from the Format's
+ * Baseline Prompt (ADR-0015) — never hardcoded. The ONE non-mechanical item ("grounded subject") is
+ * agent-judged, flagged for review, never auto-failed (ADR-0017). "gate" is an empty checklist — this
+ * Recipe declares zero gates, so nothing pauses here.
  */
 const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
   {
@@ -617,11 +617,12 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
       {
         kind: "mechanical",
         description:
-          "Each image_prompt references the connected logo — the Format's Baseline Prompt reference " +
-          "name OR its name-free generic reference phrase — and carries its negative guardrail " +
-          "against ever rendering that reference name/filename as visible on-image text; the raw " +
-          "reference name is never required on its own (parameterized — never a hardcoded literal; " +
-          "issue #110).",
+          "Each HERO slide's (hook/cta) image_prompt references the connected logo — the Format's " +
+          "Baseline Prompt reference name OR its name-free generic reference phrase — and carries " +
+          "its negative guardrail against ever rendering that reference name/filename as visible " +
+          "on-image text; every OTHER slide's image_prompt references the logo NOWHERE at all — the " +
+          "logo is scoped to the two hero slides only (parameterized — never a hardcoded literal; " +
+          "issue #110/#188).",
         reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
       },
       {
@@ -634,8 +635,9 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
       {
         kind: "mechanical",
         description:
-          "Each image_prompt keeps every other fixed Baseline Prompt clause (the logo guardrail, the " +
-          "card clause, the card-text clause, the closing style line — parameterized).",
+          "Each image_prompt keeps every other fixed Baseline Prompt clause (the card clause, the " +
+          "card-text clause, the closing style line — parameterized; the two logo-specific clauses " +
+          "are checked as part of the hero-only logo-reference item above, issue #188).",
         reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
       },
       {
@@ -648,6 +650,23 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
         kind: "mechanical",
         description:
           "card_style is one of the Baseline Prompt's confirmed styles; stat_callout is non-empty.",
+        reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "Each HERO slide's (hook/cta) image_prompt states the text card occupies at least 60% of " +
+          "the frame's vertical height; every other slide states at least 50% (parameterized — issue " +
+          "#188, replacing the old, role-blind ~25-30%).",
+        reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "Each slide's kind (generated/image/video, defaulting to generated when absent) and " +
+          "source_url are well-formed; an image-kind slide's image_prompt reserves a frame for the " +
+          "real, fetched photo; a video-kind slide's image_prompt reserves a window for the real, " +
+          "fetched video AND keeps the generated background calmer/less busy (ADR-0024, issue #188).",
         reference: "production-spec/news-carousel-author-checklist.ts: auditNewsCarouselAuthorPhase",
       },
       {
@@ -725,6 +744,15 @@ const NEWS_CAROUSEL_PHASES: readonly PhaseContract[] = [
           "Each downloaded file was matched to its slide by the slide's own unique stat_callout " +
           "read off the rendered card — never by the aggregated creation list's position; that " +
           "list's count/order is flaky mid-run (issue #102 finding #4).",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "The Asset's ledger record carries has_video_slide: true when the saved Spec's slides " +
+          "include at least one video-kind slide (ADR-0024, issue #188) — this is the ONE fact " +
+          "src/schedule-batch/eligibility.ts reads to keep such an Asset out of the images-only " +
+          "Zoho bulk-export path, mirroring how any other video Recipe's Asset is already excluded.",
+        reference: "production-spec/news-carousel-contract.ts: hasVideoSlide",
       },
     ],
   },

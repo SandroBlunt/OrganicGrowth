@@ -453,9 +453,35 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
           metrics: { shares: 1, comments: 2, reactions: 3, views: 4 },
         },
       ],
+      has_video_slide: true,
     };
     const a = parseAssetRecord(raw);
     assert.deepEqual(a, raw);
+  });
+
+  // ADR-0024, issue #188: the News Carousel Recipe's own flag — Schedule Batch eligibility's ONE
+  // needed fact for keeping a video-slide carousel Asset out of the images-only bulk-export path.
+  describe("has_video_slide (ADR-0024, issue #188)", () => {
+    it("parses has_video_slide: true", () => {
+      const a = parseAssetRecord({ recipe: "news-carousel", status: "produced", has_video_slide: true });
+      assert.deepEqual(a, { recipe: "news-carousel", status: "produced", has_video_slide: true });
+    });
+
+    it("omits has_video_slide entirely when false — never a stray false key", () => {
+      const a = parseAssetRecord({ recipe: "news-carousel", status: "produced", has_video_slide: false });
+      assert.deepEqual(a, { recipe: "news-carousel", status: "produced" });
+    });
+
+    it("omits has_video_slide when absent or malformed, never throws", () => {
+      const absent = parseAssetRecord({ recipe: "news-carousel", status: "produced" });
+      assert.equal(absent?.has_video_slide, undefined);
+      const malformed = parseAssetRecord({
+        recipe: "news-carousel",
+        status: "produced",
+        has_video_slide: "yes",
+      });
+      assert.equal(malformed?.has_video_slide, undefined);
+    });
   });
 
   it("silently drops malformed optional fields rather than crashing", () => {

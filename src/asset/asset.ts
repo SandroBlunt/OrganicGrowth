@@ -194,6 +194,16 @@ export interface LedgerAssetRecord {
   readonly tracked_at?: string;
   /** Earlier tracking pulls, oldest first — never includes the current reading (see the type doc). */
   readonly history?: readonly AssetMetricsSnapshot[];
+  /**
+   * Recipe-local: the News Carousel Recipe's own flag (ADR-0024, issue #188) — `true` when the saved
+   * Production Spec carries at least one `kind: "video"` slide (`production-spec/news-carousel-
+   * contract.ts`'s `hasVideoSlide`), `false`/absent otherwise. This is the ONE fact
+   * `src/schedule-batch/eligibility.ts` needs to keep such an Asset out of the images-only Zoho
+   * bulk-export path — the same "video" skip reason any other video Recipe's Asset already gets.
+   * Mirrors `cast`/`character` being the *Character Explainer with Cast* Recipe's own extension
+   * fields, not a universal Asset concept.
+   */
+  readonly has_video_slide?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -421,6 +431,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
     ...(metrics !== null ? { metrics } : {}),
     ...(nonEmptyString(raw.tracked_at) ? { tracked_at: raw.tracked_at } : {}),
     ...(history.length > 0 ? { history } : {}),
+    ...(raw.has_video_slide === true ? { has_video_slide: true } : {}),
   };
 }
 

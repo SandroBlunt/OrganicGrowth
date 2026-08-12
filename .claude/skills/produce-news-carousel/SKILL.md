@@ -83,34 +83,61 @@ For each slide, decide:
   `["OpenAI", "Anthropic"]`) — or `[]` when this slide names no real company. A real field, not a
   fact left only inside the prose (issue #102 finding #1); the count and names may — and should —
   vary slide to slide with what the brief actually supports, never padded to match another slide.
-- **logo edge** — whichever edge the chosen `card_style` does not occupy.
+- **logo edge** — whichever edge the chosen `card_style` does not occupy. HOOK AND CTA ONLY (issue
+  #188) — the 5 middle slides carry no logo, so they have no logo edge to decide.
 - **inset** — an optional circular detail shot; include only when it earns its place, never on
   every slide by default.
+- **kind** (ADR-0024, issue #188) — `"generated"` (the default — omit the field entirely when you
+  mean this), `"image"`, or `"video"`. Set `kind` to `"image"`/`"video"` only when the brief itself
+  identifies a SPECIFIC real photo or clip from the story's own source for this slide (mirrors the
+  Shot List's own "specific media URL when one is identifiable" bar, `news-short-script-contract.ts`)
+  — never a generic guess. When you do, also set **source_url** to that exact media URL. You do
+  **not** fetch it yourself here — `src/asset/carousel-real-media.ts`'s `resolveCarouselSlideMedia`
+  is the Producer's own later step that tries the fetch and, if it's unreachable or too low quality,
+  falls back straight to a generated slide — **no pause to ask the Operator, either way** (ADR-0024).
+  Author the slide's `image_prompt` for whichever kind you set, per step 2 below.
 
 Completion: all 7 roles have a ≤140-char `text`, a non-empty `stat_callout`, a grounded subject,
-a confirmed `card_style`, and a `companies` list consistent with what that slide's image_prompt
-actually shows.
+a confirmed `card_style`, a `companies` list consistent with what that slide's image_prompt
+actually shows, and — for any slide typed `image`/`video` — a `source_url` naming the exact source
+media.
 
 ### 2. Assemble each slide's image_prompt
 
 Build each `image_prompt` from the Baseline Prompt document's own reusable template: swap **only**
 the bracketed, per-shot parts (subject, the card clause, the stat, the supporting line, the
-`companies` logo row — omitted entirely when `companies` is `[]` — the optional inset, and the
-logo/pill **scale** bracket — larger on the hook slide, noticeably smaller on every other slide,
-issue #110). Keep every
+`companies` logo row — omitted entirely when `companies` is `[]` — the optional inset, the LOGO
+CLAUSE bracket, the CARD SIZE bracket, and the REAL MEDIA CLAUSE bracket). Keep every
 **fixed clause verbatim** from the
-document — the logo guardrail (laid along the free edge, rendered unaltered — no redraw/restyle/
-recolor — with a vignette behind it, and its negative-prompt instruction never rendering the
-reference name/filename as visible on-image text, issue #110), the pill/eyebrow badge with its
-never-all-caps guardrail, the font notes, and the closing style line. The document's own logo
-reference name or its name-free generic reference phrase is enough to identify the connected
-reference image — never force the raw underscored name in just to satisfy a check. Start from the
-document's own worked example for the `card_style` you chose.
+document — the pill/eyebrow badge with its never-all-caps guardrail, the font notes, and the
+closing style line. Three brackets are now conditional, per issue #188/ADR-0024:
+
+- **LOGO CLAUSE — hook/cta ONLY.** Present, with its own guardrail (laid along the free edge,
+  rendered unaltered — no redraw/restyle/recolor — with a vignette behind it, and its
+  negative-prompt instruction never rendering the reference name/filename as visible on-image text,
+  issue #110), on the hook and cta slides ONLY, at their existing respective scales (~⅓ frame width
+  hook, ~⅙ frame width cta). **Omit the WHOLE logo clause entirely** on the 5 middle slides — no
+  reference to the connected reference image at all, not even a smaller one.
+  The document's own logo reference name or its name-free generic reference phrase identifies the
+  connected reference image — never force the raw underscored name in just to satisfy a check.
+- **CARD SIZE — every slide, role-dependent.** State the document's own hero clause (at least 60% of
+  the frame's vertical height) on the hook/cta slides, or its standard clause (at least 50%) on
+  every other slide — verbatim, never paraphrased (the author-phase checklist matches it literally).
+- **REAL MEDIA CLAUSE — image/video-kind slides only.** For a `kind: "image"` slide, state the
+  document's own reserved-frame clause verbatim; for `kind: "video"`, state its reserved-window +
+  calmer-background clause verbatim (a deliberately CALMER, less busy scene than a fully generated
+  slide — the moving video is the focal point, not the background). Omit this bracket entirely for a
+  `"generated"` slide.
+
+Start from the document's own worked example for the `card_style` you chose, but apply the Card
+size rule above over its old ~25-30% proportions — the Examples section predates issue #188 and is
+a PLACEMENT reference only, never a SIZE reference (see the document's own note atop that section).
 
 **Aspect ratio and model are the canvas's own settings — never write them into the prompt.**
 
-Completion: 7 prompts, each carrying every one of the document's fixed clauses verbatim and its
-own per-slide brackets filled in.
+Completion: 7 prompts, each carrying every one of the document's fixed clauses verbatim, its
+role-appropriate card-size clause, its own per-slide brackets filled in, the logo clause on hook/cta
+ONLY, and — for an image/video-kind slide — its kind-appropriate real-media clause.
 
 ### 3. Self-audit against the author-phase checklist
 
@@ -118,7 +145,9 @@ Run `src/production-spec/news-carousel-author-checklist.ts`'s
 `auditNewsCarouselAuthorPhase(spec, bannedWords, baseline, documentText)` against your 7 slides,
 where `baseline` (a `NewsCarouselBaselineParams`) is built from the SAME Baseline Prompt document
 you just read — its own `logoReferenceName`, `pillText`, `neverAllCapsInstruction`, `fixedClauses`,
-and `confirmedCardStyles` — **never a value read from a different Brand/Format's document.** Pass
+`heroLogoClauses`, `confirmedCardStyles`, `heroTextCardMinPctClause`, `standardTextCardMinPctClause`,
+`realImageFrameClause`, and `realVideoWindowClause` (issue #188) —
+**never a value read from a different Brand/Format's document.** Pass
 `documentText` too — the raw text of that same document, unmodified — so the checklist can verify
 your hand-copy actually matches it; nothing else catches a stale or mistyped copy. Fix and re-audit
 any miss. **A banned word is REJECT-ONLY — STOP and report; never silently swap it for another
@@ -129,34 +158,50 @@ Completion: `auditNewsCarouselAuthorPhase(...).ok` is `true`.
 ### 4. Emit the Production Spec through the spec store
 
 Shape the result to `src/production-spec/news-carousel-contract.ts`'s `NewsCarouselSpec`
-(`{ slides: [{ slide_index, role, card_style, stat_callout, text, companies, image_prompt }] }`,
-ordered by role — `companies` is the real company names cited in that slide's own logo row, or `[]`
-when the slide names none) and independently confirm it with
+(`{ slides: [{ slide_index, role, card_style, stat_callout, text, companies, image_prompt, kind?,
+source_url? }] }`, ordered by role — `companies` is the real company names cited in that slide's
+own logo row, or `[]` when the slide names none; `kind`/`source_url` are present only on an
+image/video-kind slide, issue #188) and independently confirm it with
 `src/production-spec/news-carousel-validate.ts`'s
-`validateNewsCarouselSpec`. Write it via `src/production-spec/store.ts`'s `saveSpec` to the path
+`validateNewsCarouselSpec`. Then, for every slide you set `kind: "image"`/`"video"` on, run
+`src/asset/carousel-real-media.ts`'s `resolveCarouselMedia` (a real, fetch-first-fallback pass — see
+step 1) and fold the outcome back in with that module's own `applyCarouselMediaResolutions`, so the
+Spec you save already carries the RESOLVED kind (a slide that fell back is saved as `"generated"`,
+never left claiming a `kind` it will not actually render — ADR-0024). Write the RESOLVED Spec via
+`src/production-spec/store.ts`'s `saveSpec` to the path
 `specPathFor(ideaId, run, ideasRoot, "news-carousel")` —
 `data/brands/<slug>/ideas/<format>/<run>/idea-NN.news-carousel.spec.json`, sitting beside the
 Brief. The rich reasoning (why this subject, why this card) stays in your working notes, not the
 saved Spec (ADR-0015: the richness lives in the document, the stored Spec stays thin).
 
-Completion: the Spec passes BOTH `validateNewsCarouselSpec` and `auditNewsCarouselAuthorPhase`, and
-is saved at that path.
+Completion: the RESOLVED Spec passes BOTH `validateNewsCarouselSpec` and
+`auditNewsCarouselAuthorPhase`, and is saved at that path.
 
 ## Author-phase checklist (also re-run, unchanged, by a QA pass)
 
 - Exactly 7 slides, roles in fixed order: hook, then, shift, proof, different, next, cta.
 - Each `text` at most 140 characters.
-- Each `image_prompt` references the connected logo — the document's own logo reference name OR its
-  name-free generic reference phrase — AND carries the document's negative guardrail against ever
-  rendering that reference name/filename as visible on-image text. The raw underscored reference
-  name is no longer required on its own (issue #110) — forcing it in was what sometimes made the
-  model print it as text.
+- Each HERO slide's (hook/cta) `image_prompt` references the connected logo — the document's own
+  logo reference name OR its name-free generic reference phrase — AND carries the document's
+  negative guardrail against ever rendering that reference name/filename as visible on-image text.
+  The raw underscored reference name is no longer required on its own (issue #110) — forcing it in
+  was what sometimes made the model print it as text. Every OTHER slide's `image_prompt` references
+  the logo NOWHERE at all — the logo is scoped to the two hero slides only (issue #188).
 - The logo reference name never appears QUOTED as literal on-image text — reject-only; that is the
   specific "draw this as a caption" anti-pattern the negative guardrail forbids (issue #110).
 - Each `image_prompt` contains the document's pill/eyebrow text and its never-all-caps
   instruction.
-- Each `image_prompt` keeps every other fixed Baseline Prompt clause verbatim (the "render
-  unaltered" logo clause, the card clause, the card-text clause, the closing style line).
+- Each `image_prompt` keeps every other fixed Baseline Prompt clause verbatim (the card clause, the
+  card-text clause, the closing style line — the two logo-specific clauses are checked as part of
+  the hero-only logo item above, issue #188).
+- Each HERO slide's (hook/cta) `image_prompt` states the document's own hero text-card-size clause
+  (at least 60% of the frame's vertical height) verbatim; every other slide states the standard
+  clause (at least 50%) verbatim (issue #188, replacing the old, role-blind ~25-30% card).
+- Each slide's `kind` (when present) is one of generated/image/video, and `source_url` is present
+  and well-formed exactly when `kind` is image or video; an image-kind slide's `image_prompt`
+  reserves a frame for the real, fetched photo; a video-kind slide's `image_prompt` reserves a
+  window for the real, fetched video AND keeps the generated background calmer/less busy than a
+  fully generated slide (ADR-0024, issue #188).
 - Each `image_prompt` has a grounded subject — a real product/logo/action, or an intentional
   photographic scene; never an invented UI shown as a real product's own screen. *(Agent-judged —
   flagged for review, never auto-failed; ADR-0017.)*
@@ -171,7 +216,8 @@ is saved at that path.
   reject-only; rewrite as separate short sentences instead (issue #108). `image_prompt` is not
   checked — the Baseline Prompt's own fixed clauses legitimately contain em dashes.
 - When the raw document text is supplied: every hand-copied baseline fact (logo name, pill text,
-  caps guardrail, the name-free reference phrase, the negative guardrail, fixed clauses) actually
+  caps guardrail, the name-free reference phrase, the negative guardrail, fixed clauses, the hero
+  logo clauses, the two text-card-size clauses, the two real-media clauses — issue #188) actually
   appears, verbatim, in that document (issue #102).
 
 ## What this Skill does not do

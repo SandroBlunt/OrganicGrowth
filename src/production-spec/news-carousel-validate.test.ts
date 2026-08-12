@@ -11,7 +11,13 @@ import {
   textTooLong,
   missingImagePrompt,
   missingCompanies,
+  imageSlideWithSourceUrl,
+  videoSlideWithSourceUrl,
+  invalidSlideKind,
+  imageSlideMissingSourceUrl,
+  imageSlideMalformedSourceUrl,
 } from "./fixtures/news-carousel-specs.ts";
+import type { CarouselSlide } from "./news-carousel-contract.ts";
 
 /** Whether the validation result carries an error with the given code. */
 function hasCode(result: ReturnType<typeof validateNewsCarouselSpec>, code: string): boolean {
@@ -102,5 +108,49 @@ describe("validateNewsCarouselSpec — slide_index alignment", () => {
     const result = validateNewsCarouselSpec(slideIndexOffByOne());
     assert.equal(result.ok, false);
     assert.equal(hasCode(result, "slide_index_invalid"), true);
+  });
+});
+
+describe("validateNewsCarouselSpec — per-slide kind (ADR-0024, issue #188)", () => {
+  it("a Spec with no kind field at all is accepted (backward compatible — implied 'generated')", () => {
+    const result = validateNewsCarouselSpec(validCarouselSpec());
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.errors, []);
+  });
+
+  it("accepts an image-kind slide carrying a well-formed source_url", () => {
+    const result = validateNewsCarouselSpec(imageSlideWithSourceUrl());
+    assert.equal(result.ok, true, result.errors.map((e) => e.message).join("; "));
+  });
+
+  it("accepts a video-kind slide carrying a well-formed source_url", () => {
+    const result = validateNewsCarouselSpec(videoSlideWithSourceUrl());
+    assert.equal(result.ok, true, result.errors.map((e) => e.message).join("; "));
+  });
+
+  it("rejects a slide whose kind is not one of generated/image/video", () => {
+    const result = validateNewsCarouselSpec(invalidSlideKind());
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "slide_kind_invalid"), true);
+  });
+
+  it("rejects an image-kind slide missing its source_url", () => {
+    const result = validateNewsCarouselSpec(imageSlideMissingSourceUrl());
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "slide_source_url_invalid"), true);
+  });
+
+  it("rejects an image-kind slide whose source_url doesn't look like an http(s) URL", () => {
+    const result = validateNewsCarouselSpec(imageSlideMalformedSourceUrl());
+    assert.equal(result.ok, false);
+    assert.equal(hasCode(result, "slide_source_url_invalid"), true);
+  });
+
+  it("a generated-kind slide never requires a source_url", () => {
+    const spec = validCarouselSpec();
+    const slides = spec.slides as CarouselSlide[];
+    slides[0] = { ...slides[0]!, kind: "generated" };
+    const result = validateNewsCarouselSpec(spec);
+    assert.equal(result.ok, true);
   });
 });
