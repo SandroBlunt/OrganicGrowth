@@ -17,7 +17,10 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { writeFileAtomic } from "../fs/safe-io.ts";
-import type { NewsShortScriptSpec } from "../production-spec/news-short-script-contract.ts";
+import type {
+  NewsShortScriptBeat,
+  NewsShortScriptSpec,
+} from "../production-spec/news-short-script-contract.ts";
 import type { ShotListBeatResult } from "./shot-list-media.ts";
 
 // ---------------------------------------------------------------------------
@@ -25,14 +28,27 @@ import type { ShotListBeatResult } from "./shot-list-media.ts";
 // ---------------------------------------------------------------------------
 
 /**
+ * The document-only marker `scriptText` inserts BETWEEN two consecutive beats' spoken lines — never
+ * inside a beat's own `text` field, and never itself spoken aloud (CONTEXT.md "Shot List": "The
+ * produced script marks each beat's pairing inline with a `[Next shot]` annotation — never spoken, a
+ * document marker only", 2026-08-12 grilling; issue #187). It makes the beat-to-Shot-List-entry pairing
+ * that already exists in the underlying data (one beat, one Shot List entry) visible when reading the
+ * file — a rendering concern only, so a beat's own `text` is never touched by it.
+ */
+export const NEXT_SHOT_MARKER = "[Next shot]";
+
+/**
  * Render the Spec's beats as ONE clean teleprompter text: each beat's `text`, in order, separated by a
- * blank line — spoken words only, no beat labels, show cues, or URLs (those belong in the Shot List
- * manifest, `shotListText`, a separate file). This is what the Operator copy-pastes straight into a
- * teleprompter app to read aloud.
+ * `NEXT_SHOT_MARKER` line (one between every pair of consecutive beats — issue #187) — spoken words
+ * only, no beat-role labels, show cues, or URLs (those belong in the Shot List manifest, `shotListText`,
+ * a separate file). The marker is a document annotation, never part of any beat's own `text`; the
+ * Operator never reads it aloud when copy-pasting this file into a teleprompter app. This is what the
+ * Operator uses to read the script AND see where each beat's paired Shot List entry (source, show cue,
+ * media) changes.
  */
 export function scriptText(spec: NewsShortScriptSpec): string {
   const lines = spec.beats.map((b) => b.text.trim()).filter((t) => t.length > 0);
-  return `${lines.join("\n\n")}\n`;
+  return `${lines.join(`\n\n${NEXT_SHOT_MARKER}\n\n`)}\n`;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,11 +66,19 @@ function mediaLine(result: ShotListBeatResult | undefined): string {
   return `media: link only (${why}) -> ${media.url}`;
 }
 
+/** One line listing a beat's Curiosity Queries (CONTEXT.md "Curiosity Queries") — the research aid
+ *  helping the Operator find better real source material for this beat; never spoken, never itself the
+ *  beat's own source/media (issue #187). */
+function queriesLine(beat: NewsShortScriptBeat): string {
+  return `queries: ${beat.curiosity_queries.join(" | ")}`;
+}
+
 /**
  * Render a human-readable Shot List manifest (CONTEXT.md "Shot List"): for each beat, its role, show
- * cue, source page, and how its media resolved (a downloaded local filename, or a clearly-marked link
- * and why). `results` is OPTIONAL — when collection hasn't run yet (or a beat's result is missing for
- * any reason), that beat's media line reads `"not collected"` rather than the render crashing.
+ * cue, source page, Curiosity Queries, and how its media resolved (a downloaded local filename, or a
+ * clearly-marked link and why). `results` is OPTIONAL — when collection hasn't run yet (or a beat's
+ * result is missing for any reason), that beat's media line reads `"not collected"` rather than the
+ * render crashing.
  */
 export function shotListText(
   spec: NewsShortScriptSpec,
@@ -66,6 +90,7 @@ export function shotListText(
       `[${beat.role.toUpperCase()}]`,
       `show: ${beat.show_cue}`,
       `source: ${beat.source_url}`,
+      queriesLine(beat),
       mediaLine(byIndex.get(i)),
     ].join("\n");
   });

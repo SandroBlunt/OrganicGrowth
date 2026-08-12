@@ -139,3 +139,39 @@ describe("produce-news-short-script Skill — nothing Brand/Format-specific is h
     assert.doesNotMatch(text, /Link in bio!/, "must not hardcode any one Brand's required CTA");
   });
 });
+
+describe("produce-news-short-script Skill — the graduated author-phase checklist runs Curiosity Queries, no-calendar-dates, and Shot List variety as code (issue #187)", () => {
+  it("points at the graduated checklist module, not the bare validator/scanner pair alone", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /news-short-script-author-checklist\.ts/);
+    assert.match(text, /auditNewsShortScriptAuthorPhase/);
+  });
+
+  it("documents Curiosity Queries: 3-5 per beat, a research aid never spoken", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /curiosity_queries/);
+    assert.match(text, /Curiosity Queries/);
+    assert.match(text, /3-5/);
+    assert.match(text, /never spoken/i);
+  });
+
+  it("documents the calendar-date ban across the whole spoken body, reject-only", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /explicit calendar date/i);
+    assert.match(text, /not just the hook\/intro/i);
+  });
+
+  it("documents no two beats' source_url repeating the same site/company", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /same source page or the same site\/company/i);
+    assert.match(text, /issue #106/);
+  });
+
+  it("documents the closing cta beat as the Sign-off, picked from the Baseline Prompt's fixed rotating family", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /Sign-off/);
+    assert.match(text, /rotating Sign-off family/i);
+    assert.match(text, /never invent a new one per script/i);
+    assert.doesNotMatch(text, /follow us/i, "must not itself hardcode the old generic follow-us direction");
+  });
+});

@@ -16,6 +16,8 @@ import {
   MIN_STORY_BEATS,
   MIN_TOTAL_WORDS,
   MAX_TOTAL_WORDS,
+  MIN_CURIOSITY_QUERIES,
+  MAX_CURIOSITY_QUERIES,
   countWords,
   type NewsShortScriptRole,
 } from "./news-short-script-contract.ts";
@@ -31,6 +33,7 @@ export type NewsShortScriptValidationCode =
   | "beat_role_order"
   | "source_url_invalid"
   | "media_url_invalid"
+  | "curiosity_queries_invalid"
   | "word_count_out_of_range";
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -85,6 +88,20 @@ function beatShapeError(beat: unknown, index: number): string | null {
   if (!isNonEmptyString(beat.show_cue)) {
     return `beats[${index}] must have a non-empty string show_cue.`;
   }
+  if (!Array.isArray(beat.curiosity_queries)) {
+    return `beats[${index}] must have a curiosity_queries array of ${MIN_CURIOSITY_QUERIES}-` +
+      `${MAX_CURIOSITY_QUERIES} suggested search queries.`;
+  }
+  if (
+    beat.curiosity_queries.length < MIN_CURIOSITY_QUERIES ||
+    beat.curiosity_queries.length > MAX_CURIOSITY_QUERIES
+  ) {
+    return `beats[${index}].curiosity_queries must have ${MIN_CURIOSITY_QUERIES}-${MAX_CURIOSITY_QUERIES} ` +
+      `entries (got ${beat.curiosity_queries.length}).`;
+  }
+  if (!beat.curiosity_queries.every((q: unknown) => typeof q === "string" && q.trim().length > 0)) {
+    return `beats[${index}].curiosity_queries must contain only non-empty strings.`;
+  }
   return null;
 }
 
@@ -123,7 +140,9 @@ export function validateNewsShortScriptSpec(spec: unknown): ValidationResult {
           ? "media_url_invalid"
           : shapeReason.includes("must have a role of")
             ? "beat_role_invalid"
-            : "beat_shape";
+            : shapeReason.includes("curiosity_queries")
+              ? "curiosity_queries_invalid"
+              : "beat_shape";
       errors.push(err(code, shapeReason));
     }
   });

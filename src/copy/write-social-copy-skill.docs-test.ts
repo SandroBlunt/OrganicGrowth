@@ -250,3 +250,24 @@ describe("write-social-copy Skill — composes a title + description shape for a
     assert.match(text, /deterministic, testable proof/i);
   });
 });
+
+describe("write-social-copy Skill — the News Short Script Recipe's own CTA aims at the viewer's own life, distinct from the script's Sign-off (issue #187)", () => {
+  it("instructs inviting a comment/question about the viewer's own life/work, tied to the story", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /News Short Script Recipe specifically/i);
+    assert.match(text, /viewer's OWN life/);
+    assert.match(text, /paraphrased fresh every time/i);
+  });
+
+  it("states this is distinct from the script's own Sign-off, which rotates within a fixed family instead", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /Sign-off/);
+    assert.match(text, /rotates within a small fixed family/i);
+    assert.match(text, /produce-news-short-script/);
+  });
+
+  it("states every other Recipe's caption keeps the general CTA direction unchanged", async () => {
+    const text = await readFile(SKILL_PATH, "utf8");
+    assert.match(text, /every other\s+Recipe's caption keeps that general direction unchanged/i);
+  });
+});

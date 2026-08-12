@@ -27,6 +27,14 @@ export const NEWS_SHORT_SCRIPT_ROLES: readonly NewsShortScriptRole[] = ["hook", 
  *  (`"hook → story beats → CTA"` — issue #174's own wording, plural). */
 export const MIN_STORY_BEATS = 1;
 
+/** Every beat SHALL carry between `MIN_CURIOSITY_QUERIES` and `MAX_CURIOSITY_QUERIES` **Curiosity
+ *  Queries** (CONTEXT.md "Curiosity Queries") — suggested search queries that help the Operator find
+ *  better real source material for THAT beat. Not spoken content, and distinct from `source_url`/
+ *  `media_url`/`show_cue` (which describe what the beat actually shows) — issue #187, 2026-08-12
+ *  grilling. */
+export const MIN_CURIOSITY_QUERIES = 3;
+export const MAX_CURIOSITY_QUERIES = 5;
+
 /** The whole Spec's total word count (summed across every beat's `text`) SHALL fall in this closed
  *  range — the issue's own "~120-150 words" target for a 45-60 second, fast-paced read. */
 export const MIN_TOTAL_WORDS = 120;
@@ -50,6 +58,13 @@ export interface NewsShortScriptBeat {
   readonly media_url?: string;
   /** A one-line description of what to show on screen for this beat (CONTEXT.md "Shot List"). */
   readonly show_cue: string;
+  /**
+   * This beat's **Curiosity Queries** (CONTEXT.md "Curiosity Queries") — `MIN_CURIOSITY_QUERIES` to
+   * `MAX_CURIOSITY_QUERIES` suggested search queries that help the Operator find better real source
+   * material for THIS beat. A research aid only — never spoken, never part of what the beat shows
+   * on screen (issue #187).
+   */
+  readonly curiosity_queries: readonly string[];
 }
 
 /** The News Short Script Recipe's whole Production Spec: one ordered `beats` array. Media instructions

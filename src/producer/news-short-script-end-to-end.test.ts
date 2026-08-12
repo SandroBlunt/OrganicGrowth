@@ -27,6 +27,7 @@ import { getRecipe } from "../recipe/registry.ts";
 import { usesSpace } from "./uses-space.ts";
 import { bindMediaSlots } from "./bind-media.ts";
 import { auditAuthorPhase, auditBindMediaPhase, auditCopyPhase } from "../recipe/phase-contract.ts";
+import { auditNewsShortScriptAuthorPhase } from "../production-spec/news-short-script-author-checklist.ts";
 import { specPathFor, saveSpec } from "../production-spec/store.ts";
 import { validNewsShortScriptSpec } from "../production-spec/fixtures/news-short-script-specs.ts";
 import type { NewsShortScriptSpec } from "../production-spec/news-short-script-contract.ts";
@@ -78,6 +79,10 @@ describe("The wired News Short Script Recipe runs author -> bind-media -> gate -
     const spec = validNewsShortScriptSpec();
     const authorAudit = auditAuthorPhase(recipe, { candidateSpec: spec, bannedWords: [] });
     assert.equal(authorAudit.ok, true, JSON.stringify(authorAudit.items));
+    // The Recipe's OWN graduated author-phase checklist (Curiosity Queries, no calendar dates, Shot
+    // List source variety) ALSO passes on the same authored Spec (issue #187).
+    const graduatedAudit = auditNewsShortScriptAuthorPhase(spec, []);
+    assert.equal(graduatedAudit.ok, true, JSON.stringify(graduatedAudit.items));
     const specPath = specPathFor(IDEA_ID, RUN, ideasRoot, recipe.slug);
     await saveSpec(spec, specPath);
 

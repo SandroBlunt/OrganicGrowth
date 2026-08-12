@@ -29,11 +29,21 @@ beats — as long as every beat's content is present and the machinery stays inv
 | 2 | **Story beats** (2–3) | 25–45 each | What happened → how it works or the proof. Real names, real numbers, one stupidly simple explanation. |
 | 3 | **The honest catch** | 15–30 words | The limit, cost, or caveat the announcement glossed over. Mandatory. |
 | 4 | **Verdict** | 10–20 words | What the viewer should do or expect. Blunt, no hedging. |
-| 5 | **Sign-off CTA** | 6–11 words | Follow Straw Motion, anchored to the no-hype promise. |
+| 5 | **Sign-off** | 6–11 words | Invites a comment/question about the viewer's OWN life and how AI is affecting it (2026-08-12 grilling) — never a generic follower-growth line. Rotates within a small fixed family — see §12. |
 
 Each beat pairs with one Shot List entry (source URL + show-cue) — the Recipe's Spec shape carries
 that; the teleprompter text itself contains **only speakable words**. No stage directions, no emoji,
-no headings read aloud.
+no headings read aloud. The produced script file marks each beat's pairing inline with a `[Next shot]`
+annotation between beats — a document marker only, never spoken (issue #187). Every beat also carries
+3-5 **Curiosity Queries** — suggested search queries that help the Operator find better real source
+material for that beat; never spoken, never itself the beat's `source_url`/`media_url`/`show_cue`
+(CONTEXT.md "Curiosity Queries").
+
+**Never an explicit calendar date anywhere in a beat's spoken line** (not just the hook) — the platform
+already shows the date; see "What we deliberately did NOT copy from Fireship" below. **Never let two
+beats' source page repeat the same site/company** — vary the Shot List's own sourcing, beat to beat.
+Both are mechanically checked (`news-short-script-author-checklist.ts`), the same reject-only way as
+the banned-word scan.
 
 ---
 
@@ -182,15 +192,19 @@ test), never invented quotes, never fabricated situations.
 - **Don't (accusation):** anything in the shape of "Snake Oil Sam" — it calls the person a fraud
   and fails the laugh test.
 
-### 12. The close: verdict, then ritual sign-off
+### 12. The close: verdict, then ritual Sign-off
 
-The verdict tells the viewer what to do or expect in one blunt sentence. Then the sign-off: a fixed
-family of Follow-Straw-Motion lines anchored to the no-hype promise, ≤11 words. Rotate within the
-family; don't invent a new close per script — a daily show earns recognition through ritual.
+The verdict tells the viewer what to do or expect in one blunt sentence. Then the **Sign-off**
+(CONTEXT.md "Sign-off") — a fixed, small family of lines, ≤11 words, that invite a comment or question
+about the viewer's OWN life and how AI is affecting them (2026-08-12 grilling) — never a generic
+follower-growth line. Rotate within the family; don't invent a new close per script — a daily show earns
+recognition through ritual repetition, the SAME way this Sign-off's own wording stays fixed while the
+caption's own CTA (composed separately, out of this Recipe, by `write-social-copy`) is paraphrased fresh
+every time.
 
-- "Follow Straw Motion. No hype, just what happened."
-- "Follow Straw Motion. We skip the hype, you get the story."
-- "Follow Straw Motion for AI news that isn't selling you anything."
+- "Did AI change your week? Tell us how."
+- "How is AI touching your life right now? Tell us."
+- "What's one way AI touched your day? Comment below."
 
 ---
 
@@ -233,7 +247,7 @@ document — the teleprompter file carries only the spoken text.
 > retry still decide what you pay.
 > **[verdict]** So that idea you shelved because it cost too much? Price it again. The math changed
 > while you slept.
-> **[cta]** Follow Straw Motion. No hype, just what happened.
+> **[cta]** Did AI change your week? Tell us how.
 
 ### Sample 2 — "The video model that moves a robot's hand" (~147 words ≈ 56s)
 
@@ -248,7 +262,7 @@ document — the teleprompter file carries only the spoken text.
 > **[catch]** The catch. It's early access, and twenty seconds is a clip, not a film. Don't promise
 > a client a movie yet.
 > **[verdict]** But video tools and robots just became the same aisle of the store.
-> **[cta]** Follow Straw Motion for AI news that isn't selling you anything.
+> **[cta]** How is AI touching your life right now? Tell us.
 
 ### Sample 3 — "The free model beat the one you rent" (~148 words ≈ 56s)
 
@@ -263,7 +277,7 @@ document — the teleprompter file carries only the spoken text.
 > **[catch]** The catch. One test, one setup. Eight points is a gap, not a knockout, and no
 > benchmark has ever met your customers.
 > **[verdict]** If you parked an agent idea because of cost, retest it this week on your own tasks.
-> **[cta]** Follow Straw Motion. We skip the hype, you get the story.
+> **[cta]** What's one way AI touched your day? Comment below.
 
 ### How a script pairs with its Shot List (illustration, Sample 2)
 
@@ -273,7 +287,12 @@ document — the teleprompter file carries only the spoken text.
 | beat 1 | bfl.ai/blog/flux-3 | A FLUX 3 sample clip with its native audio audible for a beat |
 | beat 2 | bfl.ai/blog/flux-3-mimic | Mimic demo again, side by side with a FLUX 3 clip |
 | catch | (talking head) | Operator on camera, no overlay |
-| cta | (end card) | Straw Motion logo end card |
+| cta | youtube.com/@strawmotion | Straw Motion logo end card |
 
-The Shot List's real shape (source page URL, media URL when identifiable, downloaded-or-link
-marking) is the Recipe's concern — this table only shows how beats and shots line up one to one.
+Each row's real Shot List entry ALSO carries 3-5 Curiosity Queries (never shown here — a research aid
+for the Operator, never spoken) and, in the produced `script.txt`, a `[Next shot]` marker sits between
+every pair of beats' spoken lines (never inside them). The Shot List's real shape (source page URL,
+media URL when identifiable, downloaded-or-link marking) is the Recipe's concern — this table only shows
+how beats and shots line up one to one. Note the `cta` row now points at Straw Motion's own channel
+rather than a bare `(end card)` placeholder — every beat's `source_url` must be a real, distinct URL, and
+no two beats may point at the same site (issue #187).
