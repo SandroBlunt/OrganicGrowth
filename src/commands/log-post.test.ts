@@ -330,6 +330,39 @@ describe("logPostCommand — refreshes the named Asset's output-bundle post.json
     }
   });
 
+  it("works unchanged against a NESTED daily-Run bundle directory (ADR-0023, issue #185) — post.json is refreshed via the Asset's own recorded asset_paths, never a reconstructed ideas-root path", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-log-post-bundle-"));
+    // Mirrors a real nested daily Run's bundle directory: ideas/<format>/<ISO-week>/<weekday-DD-month>/.
+    const nestedRunDir = join(dir, "ideas", "unhypped-daily", "2026-W33", "wednesday-12-august");
+    const bundleDir = join(nestedRunDir, "idea-01.news-carousel.output");
+    await mkdir(bundleDir, { recursive: true });
+    const ledgerPath = join(dir, "ledger.json");
+    const seed = {
+      ideas: [
+        {
+          id: "idea-2026-08-12-01",
+          run: "2026-08-12",
+          format: "unhypped-daily",
+          status: "accepted",
+          assets: [{ recipe: "news-carousel", status: "produced", asset_paths: [join(bundleDir, "0-hook.png")] }],
+        },
+      ],
+    };
+    await writeFile(ledgerPath, JSON.stringify(seed, null, 2) + "\n", "utf8");
+    try {
+      await logPostCommand("straw-motion", "idea-2026-08-12-01", "news-carousel", FB_URL, POSTED_AT, { ledgerPath });
+      const postJson = JSON.parse(await readFile(join(bundleDir, "post.json"), "utf8")) as PostJson;
+      assert.equal(postJson.post_url, FB_URL);
+      assert.equal(postJson.posted_at, POSTED_AT);
+      assert.equal(postJson.recipe, "news-carousel");
+
+      const assets = await loadIdeaAssets("idea-2026-08-12-01", ledgerPath);
+      assert.equal(assets![0]!.status, "posted");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("an Asset with no local bundle directory yet (no asset_paths) never fails the command — the pre-existing message is unchanged", async () => {
     const seed = { ideas: [{ id: "idea-A", status: "accepted", assets: [{ recipe: RECIPE, status: "produced" }] }] };
     await withLedger(seed, async (ledgerPath) => {

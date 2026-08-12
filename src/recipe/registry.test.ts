@@ -375,7 +375,24 @@ describe("The News Short Script Recipe declares its OWN gates + spec-shape + cop
     const author = recipe.phases.find((p) => p.phase === "author")!;
     assert.ok(author.checklist.length >= 2);
     const mechanical = author.checklist.filter((i) => i.kind === "mechanical");
-    assert.equal(mechanical.length, 2);
+    assert.ok(mechanical.length >= 2);
+  });
+
+  it("its author-phase checklist is graduated with 5 mechanical items + 1 agent-judged item (issue #187)", () => {
+    const author = recipe.phases.find((p) => p.phase === "author")!;
+    assert.equal(author.checklist.length, 6);
+    const mechanical = author.checklist.filter((i) => i.kind === "mechanical");
+    const agentJudged = author.checklist.filter((i) => i.kind === "agent-judged");
+    assert.equal(mechanical.length, 5);
+    assert.equal(agentJudged.length, 1);
+  });
+
+  it("its author-phase checklist's new mechanical items reference the graduated author-checklist module (issue #187)", () => {
+    const author = recipe.phases.find((p) => p.phase === "author")!;
+    const referencingChecklist = author.checklist.filter(
+      (i) => i.kind === "mechanical" && i.reference.includes("news-short-script-author-checklist.ts"),
+    );
+    assert.equal(referencingChecklist.length, 3);
   });
 
   it("every mechanical checklist item across every phase carries a non-empty reference", () => {

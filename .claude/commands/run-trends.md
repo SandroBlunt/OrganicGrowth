@@ -21,7 +21,13 @@ e.g. `2026-W23`), or the current ISO date for `cadence: daily` (e.g. `2026-08-11
    - Brand profile: `data/brands/<slug>/brand-profile.yaml` (Brand-wide hard rules only)
    - Format file: `data/brands/<slug>/formats/<format>.yaml` (this Run's voice, sources, mode,
      `ideas_per_run`, `cadence` — see FormatStore, `src/format/store.ts`)
-   - Ideas root (Format-namespaced): `data/brands/<slug>/ideas/<format>/<run>/`
+   - Ideas root (Format-namespaced): `data/brands/<slug>/ideas/<format>/<run>/` for a weekly Format;
+     for a `cadence: daily` Format this actually resolves to a NESTED directory —
+     `data/brands/<slug>/ideas/<format>/<ISO-week>/<weekday>-<DD>-<month>/` (ADR-0023,
+     `docs/adr/0023-daily-runs-nest-under-their-iso-week-weekday-named.md`) — computed by the ONE deep
+     function `runIdeasDirFor(brand, format, run, cadence)` (`src/format/run-id.ts`), never
+     hand-reconstructed. The Run's own id stays the plain `<run>` (an ISO date for a daily Format) —
+     only the folder it's written under nests.
    - Ledger: `data/brands/<slug>/ledger.json`
    If `data/brands/<slug>/formats/<format>.yaml` does not exist, STOP and list the Brand's actually
    available Formats (the `.yaml` files under `data/brands/<slug>/formats/`) — never guess or fall
@@ -32,7 +38,9 @@ e.g. `2026-W23`), or the current ISO date for `cadence: daily` (e.g. `2026-08-11
    week for a weekly Format, the current ISO date for a daily Format. Either way, VALIDATE the run id
    (`assertValidRunId`, same module) BEFORE creating any directory — it must be a safe path segment
    (letters, digits, `_`/`-` only); a path-traversal value is rejected loudly, before touching disk.
-   Then ensure `data/brands/<slug>/ideas/<format>/<run>/` exists.
+   Then ensure `runIdeasDirFor(brand, format, run, cadence)` exists (create it if not) — this is the
+   Format's flat `<run>/` folder for a weekly Format, or the nested week+weekday folder for a daily
+   one (ADR-0023).
 3. **Check parameters.** Read the Format file. If neither its `sources.seed_pages` nor
    `sources.curated_sources` has any usable entries, pause and ask the Operator to fill them in the
    Format file — don't guess.
@@ -40,10 +48,12 @@ e.g. `2026-W23`), or the current ISO date for `cadence: daily` (e.g. `2026-08-11
    reads the Format file itself and uses its `sources.mode`: `curated` pulls the latest issues from
    `sources.curated_sources`; `peer` scrapes `sources.seed_pages` via Apify and keeps posts that beat
    their own Page's baseline. Either way it clusters the result into Trends and writes
-   `data/brands/<slug>/ideas/<format>/<run>/trends.json` + `trends.md` in the same shape.
+   `data/brands/<slug>/ideas/<format>/<run>/trends.json` + `trends.md` in the same shape — actually
+   under `runIdeasDirFor(brand, format, run, cadence)`, per step 1 above.
 5. **Suggest ideas.** Invoke the **idea-strategist** agent with Brand `<brand>` and Format `<format>`
    on the trends file. It writes ~`ideas_per_run` (read from the Format file) briefs to
-   `data/brands/<slug>/ideas/<format>/<run>/idea-NN.md`, each appended to
+   `data/brands/<slug>/ideas/<format>/<run>/idea-NN.md` (again, under `runIdeasDirFor`'s resolved
+   directory), each appended to
    `data/brands/<slug>/ledger.json` as `status: suggested` with a Fit Score AND its Format slug
    (`format: <format>`) — every Idea is tagged with the Format it belongs to.
 6. **Summarize.** Show a ranked table (id · title · fit_score · trend · one-line why · **source(s)**

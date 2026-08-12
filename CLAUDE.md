@@ -208,7 +208,17 @@ Recipe — never inline YAML; a Recipe's producer Skill reads and interprets it 
 prompt, read via the typed loader `loadBaselinePrompt`; ADR-0015), `ideas/<format>/<run>/
 idea-NN.md` (one Brief each), `ideas/<format>/<run>/idea-NN.<recipe>.spec.json` (a chosen Recipe's
 **Production Spec**, written by the `producer` when that job is produced — there is **no `/produce`**
-command; accepting an Idea with its chosen Recipes adds one job per Recipe to the queue),
+command; accepting an Idea with its chosen Recipes adds one job per Recipe to the queue). **A
+`cadence: daily` Format's Run actually nests one level deeper** (ADR-0023,
+`docs/adr/0023-daily-runs-nest-under-their-iso-week-weekday-named.md`; issue #185):
+`ideas/<format>/<ISO-week>/<weekday>-<DD>-<month>/` — e.g.
+`ideas/unhypped-daily/2026-W33/wednesday-12-august/` — computed by the one deep function
+`runIdeasDirFor(brand, format, run, cadence)` (`src/format/run-id.ts`) every module that reconstructs
+this directory routes through; the Run's own id (the ledger's `run:` field, queue job keys) stays the
+plain ISO date regardless. A weekly Format's Run folder is unaffected — still flat. Straw Motion's
+launch-day Unhypped Daily Run (`2026-08-11`) predates this and was deliberately left on the OLD flat
+`ideas/unhypped-daily/2026-08-11/` shape — its every Idea's `brief_path`/`spec_path` is recorded
+verbatim and stays canonical, exactly like any other legacy path below.
 `ideas/…/idea-NN.<recipe>.output/` (the Save phase's self-contained publish + tracking bundle, renamed
 from `.assets/` — issue #112: the downloaded media, one file per slide/clip, in post order;
 `caption.txt`, the composed Copy's caption + hashtags, paste-ready; and `post.json`, a **generated VIEW

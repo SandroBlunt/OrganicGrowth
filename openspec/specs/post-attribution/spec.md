@@ -102,6 +102,13 @@ output. An Asset with no known local bundle directory yet (e.g. only a legacy re
 be skipped cleanly by `refreshOutputBundle` itself — `logPostCommand` never fails or reports an error
 because of this.
 
+**This requires NO cadence-awareness of its own (ADR-0023, issue #185).** `refreshOutputBundle`
+resolves an Asset's bundle directory from the `dirname` of its OWN recorded `asset_paths` — never by
+reconstructing a directory from `format`/`run`/`cadence` — so `/log-post` works IDENTICALLY whether
+that Asset's bundle happens to sit at a flat weekly path or a nested daily one (ADR-0023's week +
+weekday leaf); the shape of the directory the recorded `asset_paths` happen to point into is
+irrelevant to this command.
+
 #### Scenario: Logging a Post refreshes that Asset's post.json with the new URL and posted_at
 
 - **GIVEN** a `produced` Asset whose `asset_paths` point into a known local bundle directory
@@ -122,4 +129,12 @@ because of this.
 - **WHEN** `logPostCommand` succeeds in writing `post_url`/`posted_at` to the ledger
 - **THEN** the command still returns its normal success message — the output-bundle refresh is skipped
   cleanly, never surfaced as an error
+
+#### Scenario: /log-post works unchanged against an Asset whose bundle sits in a nested daily-Run directory (issue #185 AC4)
+
+- **GIVEN** a `produced` Asset whose `asset_paths` point into a NESTED daily-Run bundle directory
+  (`ideas/<format>/<ISO-week>/<weekday>-<DD>-<month>/idea-NN.<recipe>.output/`)
+- **WHEN** `logPostCommand(brand, ideaId, recipe, url, postedAt, options)` succeeds
+- **THEN** that Asset's status advances to `"posted"`
+- **AND** the SAME nested directory's `post.json` now carries the given `post_url`/`posted_at`
 

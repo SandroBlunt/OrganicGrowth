@@ -67,6 +67,27 @@ describe("specPathFor", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// specPathFor — cadence-aware path nesting (ADR-0023, issue #185)
+// ---------------------------------------------------------------------------
+
+describe("specPathFor — cadence-aware nesting (ADR-0023)", () => {
+  it("defaults to weekly — byte-identical to every pre-existing call site that never passed cadence", () => {
+    const withDefault = specPathFor("idea-2026-W22-01", "2026-W22", "root", RECIPE);
+    const explicitWeekly = specPathFor("idea-2026-W22-01", "2026-W22", "root", RECIPE, "weekly");
+    assert.equal(withDefault, explicitWeekly);
+    assert.equal(withDefault, join("root", "2026-W22", `idea-01.${RECIPE}.spec.json`));
+  });
+
+  it("nests a daily Run's Spec under its ISO week + weekday-DD-month leaf", () => {
+    const path = specPathFor("idea-01", "2026-08-12", "root", RECIPE, "daily");
+    assert.equal(
+      path,
+      join("root", "2026-W33", "wednesday-12-august", `idea-01.${RECIPE}.spec.json`),
+    );
+  });
+});
+
 describe("saveSpec", () => {
   it("writes a Spec to ideas/<run>/idea-NN.<recipe>.spec.json as valid JSON", async () => {
     await withTempDir(async (dir) => {
