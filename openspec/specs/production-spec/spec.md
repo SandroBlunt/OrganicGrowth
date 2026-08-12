@@ -187,6 +187,14 @@ Spec file rather than overwriting the first Recipe's. `recipe` SHALL be a requir
 (never defaulted or inferred) to both `specPathFor` and `composeSpec`'s options. The persisted Spec
 SHALL pass `validate()` and the brand-safety filter; a Spec that fails either SHALL NOT be written.
 
+`specPathFor(ideaId, run, ideasRoot, recipe, cadence?)` SHALL accept an OPTIONAL `cadence`
+(`FormatCadence`, ADR-0023, issue #185) parameter, DEFAULTING to `"weekly"` when omitted — so every
+call site that predates cadence-awareness keeps producing the exact same flat
+`<ideasRoot>/<run>/idea-NN.<recipe>.spec.json` path, byte-for-byte unchanged. WHEN `cadence` is
+`"daily"`, the `<run>` segment SHALL instead expand to `runPathSegments(run, "daily")`
+(`src/format/run-id.ts`) — the Run's ISO week, then its weekday-DD-month leaf — nesting the Spec under
+`<ideasRoot>/<ISO-week>/<weekday>-<DD>-<month>/idea-NN.<recipe>.spec.json`.
+
 `src/production-spec/generate.ts`'s `Brief` (the deterministic author-phase composer's own input, and
 the Character Explainer Recipe's `produce-character-explainer` Skill's real-world counterpart) SHALL
 carry a matching OPTIONAL `companies` field, `readonly string[]`. WHEN `Brief.companies` is supplied
@@ -228,6 +236,19 @@ carry NO `companies` field at all (never invented to fill it).
 - **WHEN** `composeSpec` composes and persists its Production Spec (Recipe
   `character-explainer-with-cast`)
 - **THEN** the written Spec, re-read from disk, has no `companies` field at all
+
+#### Scenario: Omitting cadence is byte-identical to specPathFor's pre-ADR-0023 behavior
+
+- **GIVEN** `specPathFor("idea-2026-W22-01", "2026-W22", "root", "news-carousel")` (no 5th argument)
+- **WHEN** compared against `specPathFor("idea-2026-W22-01", "2026-W22", "root", "news-carousel",
+  "weekly")` (explicit weekly)
+- **THEN** the two calls return the identical string
+
+#### Scenario: A daily cadence nests the Spec under its ISO week + weekday-DD-month leaf (issue #185)
+
+- **GIVEN** `specPathFor("idea-01", "2026-08-12", "root", "news-carousel", "daily")`
+- **WHEN** the path is computed
+- **THEN** it returns `"root/2026-W33/wednesday-12-august/idea-01.news-carousel.spec.json"`
 
 ### Requirement: News Carousel Production Spec validation (map ticket #77's decided shape)
 

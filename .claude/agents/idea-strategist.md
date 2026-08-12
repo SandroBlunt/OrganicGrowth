@@ -77,13 +77,17 @@ human does that. If asked to "just write it," decline and explain.
 7. **Tag every Idea with its Format.** Each brief's front-matter carries `format: <format>` (the
    Format slug), and each ledger record appended in step 8 carries the same `format` field — never
    omit it, and never guess a different Format than the one this Run was invoked with.
-8. Write each as `data/brands/<slug>/ideas/<format>/<run>/idea-NN.md`. In the brief body, the
+8. Write each as `data/brands/<slug>/ideas/<format>/<run>/idea-NN.md` — actually, the directory
+   `runIdeasDirFor(brand, format, run, cadence)` (`src/format/run-id.ts`, ADR-0023) resolves to: flat
+   `ideas/<format>/<run>/` for a weekly Format, or a NESTED `ideas/<format>/<ISO-week>/
+   <weekday>-<DD>-<month>/` folder for a `cadence: daily` Format — never hand-reconstruct the flat
+   shape yourself. In the brief body, the
    production plan is labeled **"Suggested Recipe:"** (e.g. "Suggested Recipe: Character Explainer
    with Cast (Reel, ~30–40s)") — never **"Format:"**, which is reserved for the editorial line above
    (ADR-0009: the word "format" means ONLY the editorial line, never the media/production plan).
    Append each to `data/brands/<slug>/ledger.json` with `status: suggested`, its `fit_score`, its
-   `format`, AND `brief_path` set VERBATIM to the exact path just written in this step
-   (`data/brands/<slug>/ideas/<format>/<run>/idea-NN.md`). Always write `brief_path` — it is what
+   `format`, AND `brief_path` set VERBATIM to the exact path just written in this step (the resolved
+   `runIdeasDirFor(...)/idea-NN.md`). Always write `brief_path` — it is what
    `/review-ideas` trusts to find this Idea's Brief (`src/format/brief-path.ts`); never leave it for
    `/review-ideas` to reconstruct from `format`/`run`.
 

@@ -187,3 +187,70 @@ describe("resolveBriefPathCandidates — priority order (pure)", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// The nested-daily candidate (ADR-0023, issue #185)
+// ---------------------------------------------------------------------------
+
+describe("resolveBriefPathCandidates — gains the nested-daily candidate for a daily-SHAPED run id (ADR-0023)", () => {
+  it("adds the nested week+weekday candidate FIRST when the run id is a real calendar date and format is set", () => {
+    const idea: SuggestedIdeaRef = {
+      id: "idea-2026-08-12-01",
+      run: "2026-08-12",
+      format: "unhypped-daily",
+      briefPath: null,
+    };
+    assert.deepEqual(
+      resolveBriefPathCandidates(idea, "straw-motion", "data/brands"),
+      [
+        "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/wednesday-12-august/idea-01.md",
+        "data/brands/straw-motion/ideas/unhypped-daily/2026-08-12/idea-01.md",
+        "data/brands/straw-motion/ideas/2026-08-12/idea-01.md",
+      ],
+    );
+  });
+
+  it("never adds a nested candidate for a weekly-shaped run id — weekly Formats stay byte-identical", () => {
+    const idea: SuggestedIdeaRef = {
+      id: "idea-2026-W30-01",
+      run: "2026-W30",
+      format: "life-hacks",
+      briefPath: null,
+    };
+    assert.deepEqual(
+      resolveBriefPathCandidates(idea, "mundotip", "data/brands"),
+      [
+        "data/brands/mundotip/ideas/life-hacks/2026-W30/idea-01.md",
+        "data/brands/mundotip/ideas/2026-W30/idea-01.md",
+      ],
+    );
+  });
+
+  it("a recorded brief_path still wins EXCLUSIVELY, even for a daily-shaped run (the real 2026-08-11 launch run)", () => {
+    const idea: SuggestedIdeaRef = {
+      id: "idea-2026-08-11-01",
+      run: "2026-08-11",
+      format: "unhypped-daily",
+      briefPath: "data/brands/straw-motion/ideas/unhypped-daily/2026-08-11/idea-01.md",
+    };
+    assert.deepEqual(resolveBriefPathCandidates(idea, "straw-motion"), [
+      "data/brands/straw-motion/ideas/unhypped-daily/2026-08-11/idea-01.md",
+    ]);
+  });
+
+  it("never adds a nested candidate for a syntactically date-shaped but calendar-invalid run id", () => {
+    const idea: SuggestedIdeaRef = {
+      id: "idea-01",
+      run: "2026-02-30",
+      format: "unhypped-daily",
+      briefPath: null,
+    };
+    assert.deepEqual(
+      resolveBriefPathCandidates(idea, "straw-motion", "data/brands"),
+      [
+        "data/brands/straw-motion/ideas/unhypped-daily/2026-02-30/idea-01.md",
+        "data/brands/straw-motion/ideas/2026-02-30/idea-01.md",
+      ],
+    );
+  });
+});

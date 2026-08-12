@@ -87,7 +87,12 @@ Asset; `status` is `queued | running | awaiting_pick | done | failed`; a resumed
    `resolveIdeaFormat` — it names which Format's voice/Baseline Prompt document governs this
    production. An Idea recorded before multi-format existed carries no `format` at all: that is an
    explicit STOP condition (`resolveIdeaFormat`'s own message names the Idea and explains why) — you
-   never guess or default a Format.
+   never guess or default a Format. **Carry that resolved Format's own `cadence` field forward** (ADR-
+   0023, `docs/adr/0023-daily-runs-nest-under-their-iso-week-weekday-named.md`; issue #185): every path
+   this job saves into below — `specPathFor`, `castCandidatesDirFor`, `outputDirFor` (all
+   `ideaId, run, ideasRoot, recipe, cadence` — the 5th argument) — nests a `cadence: daily` Idea's Spec/
+   cast-candidates/output bundle under `runIdeasDirFor`'s ISO-week + weekday-DD-month leaf; a weekly
+   Idea (cadence omitted, or `"weekly"`) keeps the exact flat path it always had.
 3. **Self-audit every phase before advancing** (ADR-0017): after author, bind-media, and copy, run
    `src/recipe/phase-contract.ts`'s matching generic auditor (`auditAuthorPhase` /
    `auditBindMediaPhase` / `auditCopyPhase`) against your own output — redraft on a soft miss, **STOP**

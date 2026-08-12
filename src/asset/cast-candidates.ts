@@ -31,7 +31,8 @@
 
 import { join } from "node:path";
 import { briefShortName } from "../production-spec/store.ts";
-import { assertValidRunId } from "../format/run-id.ts";
+import { assertValidRunId, runPathSegments } from "../format/run-id.ts";
+import type { FormatCadence } from "../format/store.ts";
 import { downloadAssetFiles, type AssetDownloadTarget } from "./download.ts";
 import type { LedgerCastCandidate } from "./asset.ts";
 
@@ -48,11 +49,20 @@ import type { LedgerCastCandidate } from "./asset.ts";
  * with the `.cast` suffix in place of `.spec.json`/`.output`, so it is never mistaken for either.
  *
  * `run` is validated (`assertValidRunId`, issue #172) BEFORE it is joined into the path — see
- * `specPathFor`'s matching doc comment for why.
+ * `specPathFor`'s matching doc comment for why. `cadence` (ADR-0023, issue #185) works exactly like
+ * `specPathFor`'s own `cadence` parameter — defaults to `"weekly"` (byte-identical flat path) unless
+ * the caller passes `"daily"`, in which case the run nests under its ISO week + weekday-named leaf
+ * (`runPathSegments`, `src/format/run-id.ts`).
  */
-export function castCandidatesDirFor(ideaId: string, run: string, ideasRoot: string, recipe: string): string {
+export function castCandidatesDirFor(
+  ideaId: string,
+  run: string,
+  ideasRoot: string,
+  recipe: string,
+  cadence: FormatCadence = "weekly",
+): string {
   assertValidRunId(run);
-  return join(ideasRoot, run, `${briefShortName(ideaId, run)}.${recipe}.cast`);
+  return join(ideasRoot, ...runPathSegments(run, cadence), `${briefShortName(ideaId, run)}.${recipe}.cast`);
 }
 
 // ---------------------------------------------------------------------------

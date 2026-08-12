@@ -13,10 +13,18 @@
  * current, post-slice convention) and falling back to the legacy Brand-level shape.
  *
  * PURE (no I/O): returns an ORDERED list of candidate paths — `[briefPath]` when the ledger already
- * recorded one, else `[formatNamespaced?, legacy]` — so a caller (the `/review-ideas` prompt, or a
- * test) tries each in order and uses the first that exists on disk. This module does not perform
- * that existence check itself: it only computes the candidates, matching every other pure module in
- * this repo (I/O stays in a thin shell one layer up).
+ * recorded one, else `[formatNamespacedNestedDaily?, formatNamespacedFlat?, legacy]` — so a caller
+ * (the `/review-ideas` prompt, or a test) tries each in order and uses the first that exists on disk.
+ * This module does not perform that existence check itself: it only computes the candidates, matching
+ * every other pure module in this repo (I/O stays in a thin shell one layer up).
+ *
+ * **The nested-daily candidate (ADR-0023, issue #185).** A daily Run's Brief actually lives under a
+ * nested `<ISO-week>/<weekday>-<DD>-<month>/` leaf, not flat under `<run>/`. This module has no I/O
+ * (it never loads the owning Format file), so it can't know a given Idea's Format `cadence` directly —
+ * instead it recognizes a daily-SHAPED Run id structurally (`isDailyRunIdShape`, `./run-id.ts`: a
+ * genuine `YYYY-MM-DD` calendar date, the only shape `defaultRunId` ever produces for a daily Run) and
+ * only then adds the nested candidate. A weekly Run id (`2026-W32`) never matches that shape, so a
+ * weekly Format's candidate list is completely unaffected — still exactly `[flat, legacy]`.
  */
 
 import { join } from "node:path";
@@ -24,7 +32,7 @@ import { join } from "node:path";
 import { resolveBrand } from "../brand/resolver.ts";
 import { briefShortName } from "../production-spec/store.ts";
 import { formatIdeasRoot } from "./store.ts";
-import { isValidRunId } from "./run-id.ts";
+import { isValidRunId, isDailyRunIdShape, runPathSegments } from "./run-id.ts";
 
 /** The subset of a ledger Idea record `resolveBriefPath` needs. */
 export interface SuggestedIdeaRef {
@@ -55,17 +63,18 @@ function nonEmpty(value: string | null | undefined): value is string {
  *
  *   1. `idea.briefPath`, verbatim, if present — the ledger's own record of where the Brief is.
  *      Returned as the ONLY candidate (the ledger is canonical; no need to second-guess it).
- *   2. Otherwise, if `idea.format` is set: the Format-namespaced path
- *      `data/brands/<brand>/ideas/<format>/<run>/idea-NN.md` (today's convention) —
- *      followed by the legacy Brand-level path as a fallback candidate.
+ *   2. Otherwise, if `idea.format` is set: the nested-daily Format-namespaced path (ADR-0023 — ONLY
+ *      when `idea.run` is daily-SHAPED, see module doc above), then the flat Format-namespaced path
+ *      `data/brands/<brand>/ideas/<format>/<run>/idea-NN.md` (today's convention for a weekly Run),
+ *      then the legacy Brand-level path as a final fallback candidate.
  *   3. Otherwise (no `format` either): just the legacy Brand-level path
  *      `data/brands/<brand>/ideas/<run>/idea-NN.md`.
  *
  * PURE: no filesystem access; NEVER throws. `idea.run` is validated (`isValidRunId`, issue #172)
- * before being joined into either reconstructed candidate — a garbled/path-traversal `run` (e.g. from
+ * before being joined into any reconstructed candidate — a garbled/path-traversal `run` (e.g. from
  * a hand-edited ledger record) degrades to `[]` (no reconstructed candidate at all) rather than
  * returning a dangerous path, mirroring how a garbled `format` already degrades to skipping the
- * Format-namespaced candidate below. The caller tries each returned candidate in order and uses the
+ * Format-namespaced candidates below. The caller tries each returned candidate in order and uses the
  * first that exists.
  */
 export function resolveBriefPathCandidates(
@@ -89,12 +98,17 @@ export function resolveBriefPathCandidates(
     // must never crash this resolver — `formatIdeasRoot` throws on an invalid slug, so guard it and
     // just skip straight to the legacy candidate instead of propagating the throw.
     try {
-      const formatNamespacedPath = join(
-        formatIdeasRoot(brand, idea.format.trim(), brandsRoot),
-        idea.run,
-        `${shortName}.md`,
-      );
-      return [formatNamespacedPath, legacyPath];
+      const formatRoot = formatIdeasRoot(brand, idea.format.trim(), brandsRoot);
+      const formatNamespacedPath = join(formatRoot, idea.run, `${shortName}.md`);
+      const candidates: string[] = [];
+      if (isDailyRunIdShape(idea.run)) {
+        // ADR-0023: a genuinely daily-shaped Run id (YYYY-MM-DD) may have been written under the
+        // nested week+weekday leaf — try that FIRST, since it's the current convention going
+        // forward for any Run this shape actually belongs to.
+        candidates.push(join(formatRoot, ...runPathSegments(idea.run, "daily"), `${shortName}.md`));
+      }
+      candidates.push(formatNamespacedPath, legacyPath);
+      return candidates;
     } catch {
       return [legacyPath];
     }

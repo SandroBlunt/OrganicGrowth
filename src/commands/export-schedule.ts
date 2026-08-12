@@ -43,8 +43,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { resolveBrand } from "../brand/resolver.ts";
-import { formatIdeasRoot } from "../format/store.ts";
-import { assertValidRunId } from "../format/run-id.ts";
+import { loadFormat } from "../format/store.ts";
+import { assertValidRunId, runIdeasDirFor } from "../format/run-id.ts";
 import { briefShortName } from "../production-spec/store.ts";
 import { loadZohoConfig } from "../production-spec/brand-profile.ts";
 import { writeFileAtomic } from "../fs/safe-io.ts";
@@ -146,10 +146,21 @@ export async function exportScheduleCommand(
   const brandPaths = resolveBrand(brand, options.brandsRoot);
   const ledgerPath = options.ledgerPath ?? brandPaths.ledger;
   const brandProfilePath = options.brandProfilePath ?? brandPaths.brandProfile;
+  // `runFolder`'s shape is cadence-aware (ADR-0023, issue #185): a `cadence: daily` Format's Run
+  // nests under its ISO week + weekday-named leaf (`runIdeasDirFor`, `src/format/run-id.ts`) rather
+  // than sitting flat. `options.ideasRoot` (a testing seam pointing straight at a fixture run's
+  // Format-parent folder) bypasses the Format lookup entirely and stays flat — every existing test
+  // fixture keeps working byte-for-byte.
   const runFolder =
     options.ideasRoot !== undefined
       ? join(options.ideasRoot, run)
-      : join(formatIdeasRoot(brand, format, options.brandsRoot), run);
+      : runIdeasDirFor(
+          brand,
+          format,
+          run,
+          (await loadFormat(brand, format, options.brandsRoot)).cadence,
+          options.brandsRoot,
+        );
   const now = (options.now ?? (() => new Date().toISOString()))();
   const mediaHost = options.mediaHost ?? DEFAULT_MEDIA_HOST;
   const postsPerDay = options.postsPerDay ?? 1;

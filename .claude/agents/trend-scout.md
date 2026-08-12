@@ -157,7 +157,11 @@ from a default — both must be stated at invocation.
 7. Rank Trends by momentum (editorial prominence, normalised 0–1 — lead stories near 1.0).
 
 ## Output (both modes)
-Write both files to the Format's **Format-namespaced** Ideas directory, in the same shape either way:
+Write both files to the Format's **Format-namespaced** Ideas directory — resolved via
+`runIdeasDirFor(brand, format, run, cadence)` (`src/format/run-id.ts`, ADR-0023), never
+hand-reconstructed: `data/brands/<slug>/ideas/<format>/<run>/` for a weekly Format, or a NESTED
+`data/brands/<slug>/ideas/<format>/<ISO-week>/<weekday>-<DD>-<month>/` folder for a `cadence: daily`
+Format. Same shape either way:
 - `data/brands/<slug>/ideas/<format>/<run>/trends.json` — array of
   `{ id, label, momentum, evidence:[...], example_hooks:[], suggested_recipe }`. In peer-scrape mode
   each evidence entry is `{page, url, overperformance}`. In curated mode each evidence entry is

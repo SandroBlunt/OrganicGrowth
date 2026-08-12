@@ -763,3 +763,175 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Real (non-override) path against a daily-cadence Format — ADR-0023, issue #185.
+//
+// Every test above passes `options.ideasRoot` (a fixture-directory testing seam that bypasses the
+// Format lookup entirely and stays flat). These tests instead exercise the REAL path: no `ideasRoot`
+// override, so `exportScheduleCommand` loads the Format file itself (`loadFormat`) and derives
+// `runFolder` via `runIdeasDirFor` — proving a daily-cadence Format's Run folder actually nests under
+// its ISO week + weekday-DD-month leaf, and that a weekly-cadence Format's real path stays flat.
+// ---------------------------------------------------------------------------
+
+const DAILY_BRAND = "og-daily-export-test-brand";
+const DAILY_FORMAT = "unhypped-daily-test";
+const DAILY_RUN = "2026-08-12"; // Wednesday, ISO week 2026-W33 (ADR-0023's own worked example)
+
+const DAILY_FORMAT_YAML = [
+  'name: "Unhypped Daily Test"',
+  'niche: "test"',
+  'voice: "test voice"',
+  "cadence: daily",
+  "",
+].join("\n");
+
+const WEEKLY_FORMAT_YAML = [
+  'name: "Unhypped Weekly Test"',
+  'niche: "test"',
+  'voice: "test voice"',
+  "cadence: weekly",
+  "",
+].join("\n");
+
+interface RealPathFixture {
+  readonly brandsRoot: string;
+  readonly runFolder: string;
+}
+
+async function withRealFormatFixture(
+  brand: string,
+  format: string,
+  formatYaml: string,
+  runFolder: (brandsRoot: string) => string,
+  fn: (fixture: RealPathFixture) => Promise<void>,
+): Promise<void> {
+  const brandsRoot = await mkdtemp(join(tmpdir(), "og-export-schedule-real-"));
+  try {
+    const base = join(brandsRoot, brand);
+    await mkdir(join(base, "formats"), { recursive: true });
+    await writeFile(join(base, "formats", `${format}.yaml`), formatYaml, "utf8");
+    await writeFile(join(base, "brand-profile.yaml"), ZOHO_PROFILE_YAML, "utf8");
+    const folder = runFolder(brandsRoot);
+    await mkdir(folder, { recursive: true });
+    await fn({ brandsRoot, runFolder: folder });
+  } finally {
+    await rm(brandsRoot, { recursive: true, force: true });
+  }
+}
+
+describe("/export-schedule — real (non-override) path resolves the Format's OWN cadence (ADR-0023, issue #185)", () => {
+  it("a daily-cadence Format's Run folder nests under its ISO week + weekday-DD-month leaf", async () => {
+    const expectedRunFolder = (brandsRoot: string) =>
+      join(brandsRoot, DAILY_BRAND, "ideas", DAILY_FORMAT, "2026-W33", "wednesday-12-august");
+
+    await withRealFormatFixture(DAILY_BRAND, DAILY_FORMAT, DAILY_FORMAT_YAML, expectedRunFolder, async (fx) => {
+      const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01");
+
+      await writeFile(
+        join(fx.brandsRoot, DAILY_BRAND, "ledger.json"),
+        JSON.stringify(
+          {
+            ideas: [
+              {
+                id: `idea-${DAILY_RUN}-01`,
+                title: "A daily story",
+                format: DAILY_FORMAT,
+                run: DAILY_RUN,
+                status: "accepted",
+                assets: [
+                  {
+                    recipe: "news-carousel",
+                    status: "produced",
+                    asset_paths: idea01Paths,
+                    copy: fullCopy("idea-01"),
+                  },
+                ],
+              },
+            ],
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const output = await exportScheduleCommand(DAILY_BRAND, DAILY_FORMAT, DAILY_RUN, START_DATE, {
+        brandsRoot: fx.brandsRoot,
+        now: () => NOW,
+        mediaHost: new FakeMediaHost(),
+      });
+
+      assert.match(output, /Wrote/);
+      assert.match(output, new RegExp(fx.runFolder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+      // The CSVs + manifest actually landed under the NESTED folder — never the flat ideas/<format>/<run>/.
+      const mainCsv = await readFile(join(fx.runFolder, "zoho-main.csv"), "utf8");
+      assert.ok(mainCsv.length > 0);
+      const manifestRaw = await readFile(join(fx.runFolder, "zoho-manifest.json"), "utf8");
+      assert.ok(JSON.parse(manifestRaw));
+
+      const flatRunFolder = join(fx.brandsRoot, DAILY_BRAND, "ideas", DAILY_FORMAT, DAILY_RUN);
+      const flatEntries = await readdir(flatRunFolder).catch(() => null);
+      assert.equal(flatEntries, null, "nothing should ever be written to the OLD flat shape");
+
+      // --- scheduled_at is stamped correctly through the ledger, at the nested-resolved Idea ---
+      const assets = await loadIdeaAssets(
+        `idea-${DAILY_RUN}-01`,
+        join(fx.brandsRoot, DAILY_BRAND, "ledger.json"),
+      );
+      assert.equal(assets!.length, 1);
+      assert.ok(assets![0]!.scheduled_at !== undefined);
+    });
+  });
+
+  it("a weekly-cadence Format's real Run folder stays flat — byte-identical to before ADR-0023", async () => {
+    const weeklyBrand = "og-weekly-export-test-brand";
+    const weeklyFormat = "unhypped-weekly-test";
+    const weeklyRun = "2026-W32";
+    const expectedRunFolder = (brandsRoot: string) =>
+      join(brandsRoot, weeklyBrand, "ideas", weeklyFormat, weeklyRun);
+
+    await withRealFormatFixture(weeklyBrand, weeklyFormat, WEEKLY_FORMAT_YAML, expectedRunFolder, async (fx) => {
+      const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01");
+
+      await writeFile(
+        join(fx.brandsRoot, weeklyBrand, "ledger.json"),
+        JSON.stringify(
+          {
+            ideas: [
+              {
+                id: `idea-${weeklyRun}-01`,
+                title: "A weekly story",
+                format: weeklyFormat,
+                run: weeklyRun,
+                status: "accepted",
+                assets: [
+                  {
+                    recipe: "news-carousel",
+                    status: "produced",
+                    asset_paths: idea01Paths,
+                    copy: fullCopy("idea-01"),
+                  },
+                ],
+              },
+            ],
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      const output = await exportScheduleCommand(weeklyBrand, weeklyFormat, weeklyRun, START_DATE, {
+        brandsRoot: fx.brandsRoot,
+        now: () => NOW,
+        mediaHost: new FakeMediaHost(),
+      });
+
+      assert.match(output, /Wrote/);
+      const mainCsv = await readFile(join(fx.runFolder, "zoho-main.csv"), "utf8");
+      assert.ok(mainCsv.length > 0);
+    });
+  });
+});

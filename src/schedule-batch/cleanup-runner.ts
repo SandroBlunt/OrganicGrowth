@@ -1,9 +1,12 @@
 /**
  * Cleanup runner — the thin I/O shell for the manifest-driven S3 cleanup (issue #147, parent #140).
  *
- * Scans EVERY `zoho-manifest.json` under a Brand's `ideas/` tree (recursively — this covers both
- * Format-namespaced runs, `ideas/<format>/<run>/`, and any legacy pre-Format run, `ideas/<run>/`; see
- * CLAUDE.md's "Legacy layout note"), decides which Asset entries are due (the pure `planManifestCleanup`
+ * Scans EVERY `zoho-manifest.json` under a Brand's `ideas/` tree (recursively — this covers
+ * Format-namespaced weekly runs, `ideas/<format>/<run>/`, a `cadence: daily` Format's NESTED runs,
+ * `ideas/<format>/<ISO-week>/<weekday>-<DD>-<month>/` (ADR-0023, issue #185), and any legacy
+ * pre-Format run, `ideas/<run>/`; see CLAUDE.md's "Legacy layout note" — the recursive walk needs no
+ * code change for the nested shape, it just finds the manifest one level deeper), decides which Asset
+ * entries are due (the pure `planManifestCleanup`
  * in `cleanup.ts`), deletes each due entry's hosted keys through the injected `MediaHostPort`, and
  * records the removal back onto that entry's OWN manifest file as a `cleaned_at` timestamp (issue #147
  * AC1: "the removals are recorded"). Runs BOTH automatically — `/export-schedule` calls this before it

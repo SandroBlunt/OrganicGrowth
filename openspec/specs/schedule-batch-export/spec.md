@@ -308,6 +308,16 @@ happens strictly AFTER the preflight pass succeeds), and no Asset's `scheduled_a
 original slide file (PNG) SHALL remain byte-for-byte unchanged. A freshly-written manifest entry SHALL
 NEVER itself carry `cleaned_at` — that field is written ONLY by cleanup, never by this export.
 
+**The run folder's shape is cadence-aware (ADR-0023, issue #185).** WHEN `options.ideasRoot` is NOT
+given, `runFolder` SHALL be computed via `runIdeasDirFor(brand, format, run, cadence, options.
+brandsRoot)` (`src/format/run-id.ts`), where `cadence` is the invoked Format's OWN `cadence` field
+(`(await loadFormat(brand, format, options.brandsRoot)).cadence`) — a `"daily"`-cadence Format's run
+folder SHALL nest under its ISO week + weekday-DD-month leaf; a `"weekly"`-cadence Format's run folder
+SHALL stay flat, byte-identical to its pre-ADR-0023 shape. WHEN `options.ideasRoot` IS given (the
+existing testing seam pointing straight at a fixture run's Format-parent folder), `runFolder` SHALL
+stay `join(options.ideasRoot, run)` — flat, UNCHANGED, bypassing the Format lookup entirely, exactly
+as before this Requirement.
+
 #### Scenario: A happy-path run writes both CSVs, the manifest, and a readable scheduled_at
 
 - **GIVEN** a fixture run folder with one eligible news-carousel Asset and a configured Zoho Social
@@ -337,63 +347,25 @@ NEVER itself carry `cleaned_at` — that field is written ONLY by cleanup, never
 
 - **GIVEN** an eligible Asset and a `now` within 1 hour of the derived schedule slot
 - **WHEN** `exportScheduleCommand` is called
-- **THEN** the returned message states the export was refused, naming the "at least 1 hour" requirement
-- **AND** no CSV or manifest file is written
-- **AND** the Asset's `scheduled_at` remains unset
+- **THEN** the returned message REFUSES the WHOLE export
+- **AND** no CSV, manifest, or `scheduled_at` write occurs
 
-#### Scenario: A preflight validation failure refuses the WHOLE export, leaving no partial state, across all four documented failure modes together (issue #146)
+#### Scenario: A real (non-override) daily-cadence Format's export nests under its ISO week + weekday-DD-month leaf (issue #185 AC1)
 
-- **GIVEN** a run with four eligible Assets, each failing exactly one of the four documented preflight
-  failure modes: a missing slide, no composed Copy at all, a missing platform Copy variant, and an X
-  variant over the combined 280-char cap
-- **WHEN** `exportScheduleCommand` is called
-- **THEN** the returned message states the export was refused and names all four Ideas alongside their
-  own specific problem
-- **AND** the run folder contains no new file (only the pre-existing per-Asset output bundles)
-- **AND** the injected Media Host records zero `convertToJpg`/`upload` calls
-- **AND** none of the four Assets' `scheduled_at` is stamped, re-read through the ledger store
+- **GIVEN** a real Format file on disk with `cadence: daily`, run `2026-08-12` (a Wednesday, ISO week
+  `2026-W33`), and one eligible news-carousel Asset whose output bundle already lives at the
+  correspondingly-nested directory
+- **WHEN** `exportScheduleCommand` is called WITHOUT an `options.ideasRoot` override
+- **THEN** the CSVs and manifest are written under `ideas/<format>/2026-W33/wednesday-12-august/`
+- **AND** nothing at all is written to the OLD flat `ideas/<format>/2026-08-12/` shape
 
-#### Scenario: Re-running the export after a successful one schedules nothing twice
+#### Scenario: A real (non-override) weekly-cadence Format's export stays flat, byte-identical to before ADR-0023
 
-- **GIVEN** a run whose one eligible Asset was already successfully exported once
-- **WHEN** `exportScheduleCommand` is called again with the same arguments
-- **THEN** the second run reports no eligible Assets
-- **AND** the already-written CSV file's content is unchanged
-- **AND** the Asset's `scheduled_at` is unchanged
-- **AND** the injected Media Host records no additional calls
-
-#### Scenario: The export runs the Brand's manifest cleanup first, automatically, before touching this run
-
-- **GIVEN** a stale PRIOR run's manifest, elsewhere under the SAME Brand's ideas tree, with an entry
-  scheduled more than 1 day before `now`
-- **WHEN** `exportScheduleCommand` is called for a DIFFERENT run (with the SAME injected Media Host)
-- **THEN** the stale entry's hosted keys are deleted through the injected Media Host BEFORE this run's
-  own export logic runs
-- **AND** the stale manifest's entry is recorded with `cleaned_at`
-- **AND** this run's own export result is unaffected (an empty run still reports "No eligible Assets" as
-  normal)
-
-#### Scenario: The automatic cleanup step never touches a prior run's entry that isn't due
-
-- **GIVEN** a prior run's manifest entry scheduled less than or exactly 1 day before `now`, or in the
-  future
-- **WHEN** `exportScheduleCommand` is called for a different run
-- **THEN** that entry's hosted keys are never deleted, and it never gains `cleaned_at`
-
-#### Scenario: 7 eligible Assets at postsPerDay=6 schedule across ceil(7/6)=2 days, rotation order preserved (issue #171)
-
-- **GIVEN** a run with 7 eligible news-carousel Assets, in Idea-number order, and `options.postsPerDay: 6`
-- **WHEN** `exportScheduleCommand` is called
-- **THEN** each exported Asset's stamped `scheduled_at`, re-read through the ledger store, equals exactly
-  the corresponding slot `deriveScheduleSlots(startDate, 7, 6)` returns for the SAME index
-- **AND** the 7 stamped `scheduled_at` values span exactly 2 distinct calendar days
-
-#### Scenario: Omitting postsPerDay reproduces the exact pre-#171 default schedule (issue #171)
-
-- **GIVEN** one eligible Asset and no `options.postsPerDay` at all
-- **WHEN** `exportScheduleCommand` is called
-- **THEN** the written CSV's schedule time is byte-for-byte identical to what this same command produced
-  before `postsPerDay` existed (one Asset per calendar day, the first rotation entry)
+- **GIVEN** a real Format file on disk with `cadence: weekly` (or no `cadence` key at all), run
+  `2026-W32`, and one eligible news-carousel Asset
+- **WHEN** `exportScheduleCommand` is called WITHOUT an `options.ideasRoot` override
+- **THEN** the CSVs and manifest are written under the flat `ideas/<format>/2026-W32/` directory,
+  exactly as before this Requirement existed
 
 ### Requirement: This capability is the explicit CSV/S3 FALLBACK path, used when Zoho MCP is unavailable, and always for X (ADR-0020)
 

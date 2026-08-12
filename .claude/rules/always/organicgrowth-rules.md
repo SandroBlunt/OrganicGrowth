@@ -23,7 +23,9 @@ globs: *
    future suggestions.
 7. **State lives in files, behind a store boundary.** Per Brand under `data/brands/<slug>/`:
    `brand-profile.yaml`, `seeds.yaml`, `formats/<format>.yaml`, `ideas/<format>/<run>/` (legacy
-   pre-Format runs sit at `ideas/<run>/`; a recorded `brief_path`/`spec_path` always wins), and
+   pre-Format runs sit at `ideas/<run>/`; a `cadence: daily` Format's Run instead nests under
+   `ideas/<format>/<ISO-week>/<weekday>-<DD>-<month>/`, ADR-0023, `runIdeasDirFor` — a recorded
+   `brief_path`/`spec_path` always wins over any reconstructed path, either shape), and
    `ledger.json` (the
    global Production Queue is the one exception — `data/queue.json`). Production state lives as
    **per-Recipe Assets** on each Idea, not flat scalars. All reads/writes go through a typed store layer
