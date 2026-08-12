@@ -32,7 +32,8 @@ import { mkdir } from "node:fs/promises";
 
 import { writeFileAtomic } from "../fs/safe-io.ts";
 import { briefShortName } from "../production-spec/store.ts";
-import { assertValidRunId } from "../format/run-id.ts";
+import { assertValidRunId, runPathSegments } from "../format/run-id.ts";
+import type { FormatCadence } from "../format/store.ts";
 import { loadIdeas, findIdea, type LedgerIdea } from "../ledger/ledger.ts";
 import { findAsset } from "./asset.ts";
 import type { AssetMetrics, LedgerAssetRecord } from "./asset.ts";
@@ -80,11 +81,20 @@ function cloneCopy(copy: Copy): Copy {
  * with zero migration.
  *
  * `run` is validated (`assertValidRunId`, issue #172) BEFORE it is joined into the path — see
- * `specPathFor`'s matching doc comment for why.
+ * `specPathFor`'s matching doc comment for why. `cadence` (ADR-0023, issue #185) works exactly like
+ * `specPathFor`'s own `cadence` parameter — defaults to `"weekly"` (byte-identical flat path) unless
+ * the caller passes `"daily"`, in which case the run nests under its ISO week + weekday-named leaf
+ * (`runPathSegments`, `src/format/run-id.ts`).
  */
-export function outputDirFor(ideaId: string, run: string, ideasRoot: string, recipe: string): string {
+export function outputDirFor(
+  ideaId: string,
+  run: string,
+  ideasRoot: string,
+  recipe: string,
+  cadence: FormatCadence = "weekly",
+): string {
   assertValidRunId(run);
-  return join(ideasRoot, run, `${briefShortName(ideaId, run)}.${recipe}.output`);
+  return join(ideasRoot, ...runPathSegments(run, cadence), `${briefShortName(ideaId, run)}.${recipe}.output`);
 }
 
 // ---------------------------------------------------------------------------

@@ -76,6 +76,22 @@ describe("outputDirFor — mirrors specPathFor's id/run/recipe convention, with 
   });
 });
 
+describe("outputDirFor — cadence-aware nesting (ADR-0023, issue #185)", () => {
+  it("defaults to weekly — byte-identical to every pre-existing call site that never passed cadence", () => {
+    const withDefault = outputDirFor("idea-01", "2026-W22", "ideas", "news-carousel");
+    const explicitWeekly = outputDirFor("idea-01", "2026-W22", "ideas", "news-carousel", "weekly");
+    assert.equal(withDefault, explicitWeekly);
+  });
+
+  it("nests a daily Run's output bundle under its ISO week + weekday-DD-month leaf", () => {
+    const dir = outputDirFor("idea-01", "2026-08-12", "ideas/unhypped-daily", "news-carousel", "daily");
+    assert.equal(
+      dir,
+      join("ideas/unhypped-daily", "2026-W33", "wednesday-12-august", "idea-01.news-carousel.output"),
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
 // generatePostJson — the ONE pure ledger -> bundle generator
 // ---------------------------------------------------------------------------

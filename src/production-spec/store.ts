@@ -14,7 +14,8 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ProductionSpec } from "./contract.ts";
 import { writeFileAtomic } from "../fs/safe-io.ts";
-import { assertValidRunId } from "../format/run-id.ts";
+import { assertValidRunId, runPathSegments } from "../format/run-id.ts";
+import type { FormatCadence } from "../format/store.ts";
 
 /**
  * Derive a Brief's SHORT on-disk name (`idea-NN`) from its full ledger id (`idea-<run>-NN`).
@@ -45,10 +46,21 @@ export function briefShortName(ideaId: string, run: string): string {
  * `run` is validated (`assertValidRunId`, issue #172) BEFORE it is joined into the path — a Run id is
  * untrusted input (a raw `/run-trends <brand> <format> [<run-id>]` CLI argument), so a path-traversal
  * value is rejected here, loudly, before any I/O.
+ *
+ * `cadence` (ADR-0023, issue #185) decides how `run` itself expands into path segments
+ * (`runPathSegments`, `src/format/run-id.ts`) — a `"daily"` Run nests under its ISO week and a
+ * weekday-named leaf instead of sitting flat. Defaults to `"weekly"`, so every existing call site
+ * (which never knew about cadence) keeps producing the exact same flat path it always has.
  */
-export function specPathFor(ideaId: string, run: string, ideasRoot: string, recipe: string): string {
+export function specPathFor(
+  ideaId: string,
+  run: string,
+  ideasRoot: string,
+  recipe: string,
+  cadence: FormatCadence = "weekly",
+): string {
   assertValidRunId(run);
-  return join(ideasRoot, run, `${briefShortName(ideaId, run)}.${recipe}.spec.json`);
+  return join(ideasRoot, ...runPathSegments(run, cadence), `${briefShortName(ideaId, run)}.${recipe}.spec.json`);
 }
 
 /**

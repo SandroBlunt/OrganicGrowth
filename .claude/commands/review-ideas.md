@@ -24,7 +24,9 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
    ledger is canonical (always-rules #7), so a recorded `brief_path` (verbatim) is trusted
    **exclusively**: try that path first and only if it does not exist should you fall back to any
    other candidate. Only when a record has NO `brief_path` at all does the resolver reconstruct one
-   — preferring the Format-namespaced path `data/brands/<slug>/ideas/<Idea.format>/<run>/idea-NN.md`
+   — for a run id shaped like a daily Run's ISO date (`YYYY-MM-DD`) it FIRST tries the nested
+   week+weekday path (ADR-0023, issue #185), then preferring the Format-namespaced path
+   `data/brands/<slug>/ideas/<Idea.format>/<run>/idea-NN.md`
    (today's convention for Ideas suggested under this slice), then the legacy Brand-level path
    `data/brands/<slug>/ideas/<run>/idea-NN.md` (pre-multi-format Ideas). This is required because a
    record's `format` field is NOT a reliable indicator of where its Brief physically lives —

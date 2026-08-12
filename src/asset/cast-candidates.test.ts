@@ -77,6 +77,28 @@ describe("castCandidatesDirFor — mirrors outputDirFor's id/run/recipe conventi
   });
 });
 
+describe("castCandidatesDirFor — cadence-aware nesting (ADR-0023, issue #185)", () => {
+  it("defaults to weekly — byte-identical to every pre-existing call site that never passed cadence", () => {
+    const withDefault = castCandidatesDirFor("idea-01", "2026-W22", "ideas", "character-explainer-with-cast");
+    const explicitWeekly = castCandidatesDirFor("idea-01", "2026-W22", "ideas", "character-explainer-with-cast", "weekly");
+    assert.equal(withDefault, explicitWeekly);
+  });
+
+  it("nests a daily Run's cast-candidates directory under its ISO week + weekday-DD-month leaf", () => {
+    const dir = castCandidatesDirFor(
+      "idea-01",
+      "2026-08-12",
+      "ideas/unhypped-daily",
+      "character-explainer-with-cast",
+      "daily",
+    );
+    assert.equal(
+      dir,
+      join("ideas/unhypped-daily", "2026-W33", "wednesday-12-august", "idea-01.character-explainer-with-cast.cast"),
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
 // castCandidateFilename — pure, per-candidate naming
 // ---------------------------------------------------------------------------

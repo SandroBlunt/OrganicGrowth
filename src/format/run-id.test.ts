@@ -16,6 +16,9 @@ import {
   isoWeek,
   isoDateString,
   defaultRunId,
+  isDailyRunIdShape,
+  runPathSegments,
+  runIdeasDirFor,
 } from "./run-id.ts";
 
 // ---------------------------------------------------------------------------
@@ -126,5 +129,96 @@ describe("defaultRunId — weekly Formats default to the ISO week, daily Formats
   it("defaults a daily Format's Run to the current ISO date", () => {
     assert.equal(defaultRunId("daily", date), isoDateString(date));
     assert.equal(defaultRunId("daily", date), "2026-08-11");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isDailyRunIdShape — structural (no cadence needed) daily-Run-id detection (ADR-0023, issue #185)
+// ---------------------------------------------------------------------------
+
+describe("isDailyRunIdShape — recognizes a genuine YYYY-MM-DD calendar date, nothing else", () => {
+  it("accepts real daily Run ids", () => {
+    assert.equal(isDailyRunIdShape("2026-08-11"), true);
+    assert.equal(isDailyRunIdShape("2026-08-12"), true);
+    assert.equal(isDailyRunIdShape("2026-01-01"), true);
+    assert.equal(isDailyRunIdShape("2026-12-31"), true);
+  });
+
+  it("rejects weekly Run ids", () => {
+    assert.equal(isDailyRunIdShape("2026-W32"), false);
+    assert.equal(isDailyRunIdShape("2026-W1"), false);
+  });
+
+  it("rejects a syntactically date-shaped but calendar-invalid date", () => {
+    assert.equal(isDailyRunIdShape("2026-02-30"), false, "February never has a 30th");
+    assert.equal(isDailyRunIdShape("2026-13-01"), false, "month 13 does not exist");
+    assert.equal(isDailyRunIdShape("2026-00-01"), false, "month 0 does not exist");
+  });
+
+  it("rejects hand-typed/garbled run ids", () => {
+    assert.equal(isDailyRunIdShape("smoke-test"), false);
+    assert.equal(isDailyRunIdShape(""), false);
+    assert.equal(isDailyRunIdShape("2026-8-11"), false, "month/day must be zero-padded, matching isoDateString");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runPathSegments — the ONE date-parsing exception (ADR-0023, issue #185)
+// ---------------------------------------------------------------------------
+
+describe("runPathSegments — weekly is BYTE-IDENTICAL (one segment); daily nests under ISO-week + weekday leaf", () => {
+  it("returns exactly [runId] for a weekly cadence, whatever the run id looks like", () => {
+    assert.deepEqual(runPathSegments("2026-W32", "weekly"), ["2026-W32"]);
+    assert.deepEqual(runPathSegments("2026-08-11", "weekly"), ["2026-08-11"]);
+    assert.deepEqual(runPathSegments("smoke-test", "weekly"), ["smoke-test"]);
+  });
+
+  it("nests a daily Run under its ISO week + a lowercase weekday-DD-month leaf", () => {
+    // ADR-0023's own worked example.
+    assert.deepEqual(runPathSegments("2026-08-11", "daily"), ["2026-W33", "tuesday-11-august"]);
+  });
+
+  it("matches issue #185's exact AC1 example for 2026-08-12", () => {
+    assert.deepEqual(runPathSegments("2026-08-12", "daily"), ["2026-W33", "wednesday-12-august"]);
+  });
+
+  it("zero-pads a single-digit day", () => {
+    assert.deepEqual(runPathSegments("2026-08-05", "daily"), ["2026-W32", "wednesday-05-august"]);
+  });
+
+  it("spells out every month in lowercase English", () => {
+    assert.deepEqual(runPathSegments("2026-01-01", "daily"), ["2026-W01", "thursday-01-january"]);
+    assert.deepEqual(runPathSegments("2026-12-31", "daily"), ["2026-W53", "thursday-31-december"]);
+  });
+
+  it("degrades to the flat, single-segment shape for a hand-typed, non-date daily run id (never throws)", () => {
+    assert.doesNotThrow(() => runPathSegments("smoke-test", "daily"));
+    assert.deepEqual(runPathSegments("smoke-test", "daily"), ["smoke-test"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runIdeasDirFor — the one deep function every consumer routes through (ADR-0023, issue #185)
+// ---------------------------------------------------------------------------
+
+describe("runIdeasDirFor — the one deep function every consumer routes through", () => {
+  it("weekly Format: byte-identical to the pre-existing flat ideas/<format>/<run>/ shape", () => {
+    assert.equal(
+      runIdeasDirFor("straw-motion", "unhypped-news", "2026-W32", "weekly", "data/brands"),
+      "data/brands/straw-motion/ideas/unhypped-news/2026-W32",
+    );
+  });
+
+  it("daily Format: nests under ISO week + weekday-DD-month (matches issue #185's AC1 exactly)", () => {
+    assert.equal(
+      runIdeasDirFor("straw-motion", "unhypped-daily", "2026-08-12", "daily", "data/brands"),
+      "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/wednesday-12-august",
+    );
+  });
+
+  it("rejects a path-traversal run id before any join", () => {
+    assert.throws(() =>
+      runIdeasDirFor("straw-motion", "unhypped-daily", "../../evil", "daily", "data/brands"),
+    );
   });
 });
