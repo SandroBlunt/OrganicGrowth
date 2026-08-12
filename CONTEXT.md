@@ -121,21 +121,41 @@ _Avoid_: draft, content, creative, Creation (Magnific's own word), post (a Post 
 The tailored text that ships with one **Asset** — caption, hashtags, mentions, CTA. A **Recipe**'s
 **copy step** composes it from the **Format**'s voice, the **Brand**'s hard rules (required CTA / hashtags,
 banned words), and the **Idea**'s material, in the *shape* the Recipe's medium needs (a Reel caption vs a
-carousel's per-card lines). **One Copy per Asset**, holding **one variant per targeted Channel platform**
-when the Brand targets more than one (`#129`) — each variant tuned to that platform's own tone/length,
-composed from the SAME underlying material; a Brand with a single Channel still gets exactly the one
-caption it always has. Composing is **not** the Space's job — the Space makes media only. (The watermark
+carousel's per-card lines). **One Copy per Asset**, holding **one variant per targeted Channel platform the Recipe's own Copy
+targets** (ADR-0025 — a Recipe declares its own compatible platform list; a Channel platform outside it
+gets no variant) when the Brand targets more than one (`#129`) — each variant tuned to that platform's
+own tone/length, composed from the SAME underlying material; a Brand with a single Channel still gets
+exactly the one caption it always has. Composing is **not** the Space's job — the Space makes media only. (The watermark
 @handle is **not** copy — it is a Space parameter, its value inherited from the Brand; ADR-0012.) A
 single shared, parameterized step produces it; before this change it was a dropped, single-line
 template.
-_Avoid_: caption (that is only one part), post_copy (the old single throwaway field).
+_Avoid_: caption (that is only one part), post_copy (the old single throwaway field), Sign-off (that's
+the script's own spoken closer — a different thing, see below).
+
+**Sign-off** (a *News Short Script* Asset's own spoken closer):
+The last spoken beat of a script, role `cta` in the beat order — **not** part of Copy, and not composed
+by the copy step. Unlike Copy's own CTA, which must be fresh every time, a Sign-off deliberately
+**rotates within a small fixed family** rather than being reinvented per script: a daily show earns
+recognition through ritual repetition. Its content invites a comment/question about the viewer's own
+life and how AI is affecting them, not a generic "follow us" (2026-08-12 grilling).
+_Avoid_: CTA (ambiguous between this and Copy's own closer — say which one), outro.
 
 **Shot List** (a script Asset's on-screen plan):
 The per-beat plan that ships with a Space-less script **Asset** (e.g. *News Short Script*): for each
 beat of the script, what to show on screen — the story's source page and its specific media,
-**downloaded when possible** (video preferred), otherwise a clearly marked link. The Operator records
-and edits against it; re-using collected third-party media stays the Operator's per-clip call.
+**downloaded when possible** (video preferred), otherwise a clearly marked link. **No two beats in one
+script repeat the same source page or the same site/company** — a Shot List must be distinct,
+beat-to-beat. The Operator records and edits against it; re-using collected third-party media stays the
+Operator's per-clip call. The produced script marks each beat's pairing inline with a `[Next shot]`
+annotation — never spoken, a document marker only (2026-08-12 grilling).
 _Avoid_: b-roll list, storyboard, assets (a **Brand Asset** is the Brand's own reusable media).
+
+**Curiosity Queries** (a Shot List entry's research aid):
+A short list of suggested search queries attached to one Shot List beat, meant to help the Operator find
+better real source material for that beat — not content that appears in the video itself. Distinct from
+the Shot List's own `source_url`/`media_url`/`show_cue`, which describe what the beat actually shows;
+Curiosity Queries only exist to make finding that real material easier (2026-08-12 grilling).
+_Avoid_: b-roll suggestions, research notes.
 
 **Space** (Magnific Space; the media engine):
 A pre-defined Magnific pipeline that generates the **media** a **Recipe** needs — a UGC-style video, an
