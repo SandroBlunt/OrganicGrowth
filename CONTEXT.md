@@ -157,6 +157,21 @@ the Shot List's own `source_url`/`media_url`/`show_cue`, which describe what the
 Curiosity Queries only exist to make finding that real material easier (2026-08-12 grilling).
 _Avoid_: b-roll suggestions, research notes.
 
+**Camera Hub Upload** (a *News Short Script* Asset's teleprompter-library offer):
+For a produced *News Short Script* Asset, the **Producer** offers to upload its script (the SAME words as
+`script.txt`, `[Next shot]` marker stripped) into Elgato Camera Hub's own teleprompter content library —
+one JSON file per script plus a pointer list — so the Operator no longer copy-pastes it by hand before
+recording. Offered conversationally, the SAME approval-before-action pattern the Schedule Batch offer
+uses, and sweeps every not-yet-uploaded *News Short Script* Asset across every Run, never only the ones just
+produced (no silent drops). Quitting Camera Hub first is the Operator's OWN manual step — the Producer
+only verifies it, never scripts an automated quit; it does relaunch the app itself once its writes
+succeed. Stamps a plain `camera_hub_uploaded_at` marker (mirrors `scheduled_at`: carries no lifecycle
+meaning of its own — `status` is unchanged, no new `AssetStatus`). A failed upload never blocks the
+Asset's produce/save step; `script.txt` stays available for manual copy-paste regardless (ADR-0027,
+issue #189). Scoped to the *News Short Script* Recipe only — not a generic Recipe hook.
+_Avoid_: Schedule Batch (that's Zoho/Zoho Social Brand-specific, images-only), export (this writes into a
+third-party desktop app's own storage, not a file the Operator uploads elsewhere).
+
 **Space** (Magnific Space; the media engine):
 A pre-defined Magnific pipeline that generates the **media** a **Recipe** needs — a UGC-style video, an
 image carousel, a Pixar-3D character Reel. A Space is **brand-agnostic**: any **Brand** can render

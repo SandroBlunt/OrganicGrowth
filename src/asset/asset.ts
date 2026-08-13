@@ -57,6 +57,14 @@
  * on guessed timing — so it is stored and read back completely VERBATIM, string or array of strings,
  * whatever shape Zoho itself returned. Like `scheduled_at`, it carries no lifecycle meaning of its own:
  * the Asset's `status` stays `produced` (being queued in Zoho is not being posted) until `/log-post`.
+ *
+ * `camera_hub_uploaded_at` (issue #189, ADR-0027) is the *News Short Script* Recipe's own extension
+ * field: the ISO-8601 timestamp the producer's Camera Hub teleprompter upload offer stamps once that
+ * Asset's `script.txt` has actually been written into Elgato Camera Hub's teleprompter library. Same
+ * pattern as `scheduled_at` — a plain, optional marker that carries NO lifecycle meaning of its own
+ * (ADR-0011's six-stage vocabulary is unchanged); its only job is letting the offer's sweep
+ * (`src/camera-hub/news-short-script.ts`'s `selectUnuploadedNewsShortScripts`) skip an Asset already
+ * uploaded, so re-running the offer never double-uploads.
  */
 
 import type { Copy, CopyVariant } from "../copy/contract.ts";
@@ -185,6 +193,13 @@ export interface LedgerAssetRecord {
    * as `scheduled_at`, the Asset's `status` stays `produced` until `/log-post` (ADR-0011 unchanged).
    */
   readonly zoho_schedule_reference?: ZohoScheduleReference;
+  /**
+   * Recipe-local: the *News Short Script* Recipe's own extension field (issue #189, ADR-0027) — the
+   * ISO-8601 timestamp its `script.txt` was uploaded into Elgato Camera Hub's teleprompter library.
+   * Carries no lifecycle meaning of its own, same as `scheduled_at`. Absent until the producer's Camera
+   * Hub upload offer succeeds for this Asset, or on any Recipe the offer never touches.
+   */
+  readonly camera_hub_uploaded_at?: string;
   readonly post_url?: string;
   readonly posted_at?: string;
   readonly performance_score?: number;
@@ -425,6 +440,7 @@ export function parseAssetRecord(raw: unknown): LedgerAssetRecord | null {
     ...(nonEmptyString(raw.produced_at) ? { produced_at: raw.produced_at } : {}),
     ...(nonEmptyString(raw.scheduled_at) ? { scheduled_at: raw.scheduled_at } : {}),
     ...(zohoScheduleReference !== null ? { zoho_schedule_reference: zohoScheduleReference } : {}),
+    ...(nonEmptyString(raw.camera_hub_uploaded_at) ? { camera_hub_uploaded_at: raw.camera_hub_uploaded_at } : {}),
     ...(nonEmptyString(raw.post_url) ? { post_url: raw.post_url } : {}),
     ...(nonEmptyString(raw.posted_at) ? { posted_at: raw.posted_at } : {}),
     ...(isFiniteNumber(raw.performance_score) ? { performance_score: raw.performance_score } : {}),

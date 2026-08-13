@@ -538,6 +538,58 @@ describe("parseAssetRecord — defensive parse of one raw Asset record", () => {
     });
   });
 
+  // issue #189, ADR-0027: `camera_hub_uploaded_at` is the News Short Script Recipe's own extension
+  // field, carrying NO lifecycle meaning of its own — mirrors `scheduled_at` exactly.
+  describe("camera_hub_uploaded_at (issue #189, ADR-0027)", () => {
+    it("parses a well-formed ISO-8601 camera_hub_uploaded_at", () => {
+      const a = parseAssetRecord({
+        recipe: "news-short-script",
+        status: "produced",
+        camera_hub_uploaded_at: "2026-08-13T09:00:00.000Z",
+      });
+      assert.deepEqual(a, {
+        recipe: "news-short-script",
+        status: "produced",
+        camera_hub_uploaded_at: "2026-08-13T09:00:00.000Z",
+      });
+    });
+
+    it("omits camera_hub_uploaded_at when absent", () => {
+      const a = parseAssetRecord({ recipe: "news-short-script", status: "produced" });
+      assert.deepEqual(a, { recipe: "news-short-script", status: "produced" });
+      assert.equal(Object.hasOwn(a as object, "camera_hub_uploaded_at"), false);
+    });
+
+    it("drops a malformed camera_hub_uploaded_at (non-string/blank) rather than crashing", () => {
+      assert.deepEqual(
+        parseAssetRecord({ recipe: "news-short-script", status: "produced", camera_hub_uploaded_at: "" }),
+        { recipe: "news-short-script", status: "produced" },
+      );
+      assert.deepEqual(
+        parseAssetRecord({ recipe: "news-short-script", status: "produced", camera_hub_uploaded_at: 42 }),
+        { recipe: "news-short-script", status: "produced" },
+      );
+    });
+
+    it("adding camera_hub_uploaded_at does not add a new AssetStatus — the six-stage vocabulary is unchanged", () => {
+      const a = parseAssetRecord({
+        recipe: "news-short-script",
+        status: "posted",
+        camera_hub_uploaded_at: "2026-08-13T09:00:00.000Z",
+      });
+      assert.equal(a?.status, "posted");
+    });
+
+    it("a write to one Asset does not erase a sibling Asset's camera_hub_uploaded_at", () => {
+      const assets = [
+        { recipe: "news-short-script", status: "produced" as const, camera_hub_uploaded_at: "2026-08-13T09:00:00.000Z" },
+        { recipe: "news-carousel", status: "produced" as const },
+      ];
+      const next = upsertAsset(assets, "news-carousel", { status: "posted", post_url: "https://example.com/x" });
+      assert.equal(next[0]!.camera_hub_uploaded_at, "2026-08-13T09:00:00.000Z");
+    });
+  });
+
   // issue #161 / ADR-0020: an Asset scheduled via Zoho's MCP path records the EXACT reference (or
   // references) Zoho returned at schedule-time, alongside `scheduled_at` — never re-derived, never
   // normalized. `status` stays `produced`; no new AssetStatus.

@@ -427,6 +427,42 @@ in-conversation checkpoint — never one of the three formal Gates, and never tr
    is no separate manual publish click; the confirmed-live check above is what closes the loop, auto-
    logging the Post once Zoho reports it live.
 
+## Camera Hub teleprompter upload offer — News Short Script Assets only (issue #189, ADR-0027)
+
+Once one or more `news-short-script` Assets exist without an upload marker (`camera_hub_uploaded_at`) —
+whether produced this session or left over from any earlier Run — **offer** the Operator a Camera Hub
+teleprompter upload. This is scoped to the `news-short-script` Recipe ONLY (ADR-0027,
+`docs/adr/0027-producer-offers-camera-hub-teleprompter-upload.md`) — no other Recipe's Asset is ever
+swept, and this is not built as a generic hook for any Recipe. **There is no standalone command** for
+this: the Operator never runs it themselves; you run it yourself, and only after they approve, in the
+SAME conversation — never unprompted, mirroring the Schedule Batch offer above.
+
+1. **Sweep the WHOLE ledger, not just this Run's Assets.** `selectUnuploadedNewsShortScripts`
+   (`src/camera-hub/news-short-script.ts`) finds every `news-short-script` Asset across every Run and
+   every Format that has not yet been uploaded — ADR-0027's "no silent drops": once the Operator approves
+   running this, you are responsible for actually uploading every one it finds, not just today's.
+2. **Wait for the Operator's explicit approval** before doing anything else — the same "no partial
+   approval, no silence" posture as the Schedule Batch offer.
+3. **Quit is semi-manual (ADR-0027) — never scripted.** Ask the Operator to quit Camera Hub themselves.
+   Then run `uploadCameraHubScriptsCommand` (`src/commands/upload-camera-hub-scripts.ts`) via your own
+   Bash tool — e.g. `npx tsx src/commands/upload-camera-hub-scripts.ts <brand>`. It VERIFIES the quit
+   itself — never assumes it — and if it reports back
+   `camera_hub_still_running`, NOTHING was touched (no file written, no relaunch); ask the Operator to
+   quit again and re-run, never proceed on your own guess that it is closed. There is no automated quit
+   anywhere in this codebase (the 2026-08-12 smoke test's own `osascript` quit attempt failed on a
+   confirmation dialog Camera Hub shows) — relaunch, by contrast, IS automatic, handled inside that same
+   command once its writes succeed.
+4. **One batched call, not one per script.** `uploadCameraHubScriptsCommand` drives ONE call to
+   `uploadTeleprompterScripts` (`src/camera-hub/upload.ts`) covering every swept Asset at once — a single
+   quit-verify and a single relaunch across the whole batch, never one pair per script.
+5. **Never blocks anything else.** A failed upload (Camera Hub still running after being asked, not
+   installed, a malformed `AppSettings.json`, …) is reported back to the Operator and changes NOTHING on
+   the ledger — `script.txt` stays exactly where it already is, ready for manual copy-paste, exactly like
+   any other best-effort step in this pipeline (the Shot List media download's own non-fatal failures).
+6. **On success**, each uploaded Asset's `camera_hub_uploaded_at` is stamped automatically inside the
+   command — its `status` is preserved exactly as it was. This is a convenience marker, not a new
+   lifecycle stage (mirrors `scheduled_at`; no new `AssetStatus` is ever introduced by this offer).
+
 ## Guardrails
 - **Brand is explicit.** Only read/write the stated Brand's paths. Restate the Brand at every gate.
 - **Recipe-specific facts live in the registry, not here.** Gates, Space id/nodes, Spec shape, copy
@@ -450,6 +486,12 @@ in-conversation checkpoint — never one of the three formal Gates, and never tr
   above. Never call `ZohoSocial_updateSocialPostApprovalStatus` and never set `isApprovalNeeded` — for
   any Channel, MCP or fallback. MCP unavailable -> offer the CSV/S3 fallback explicitly (never a silent
   switch); X always stays CSV/manual.
+- **Camera Hub upload is News-Short-Script-only, offer-gated, and quit is never scripted (issue #189,
+  ADR-0027).** Offer it only once un-uploaded `news-short-script` Assets exist (any Run, no silent
+  drops); proceed only after the Operator approves; ask them to quit Camera Hub themselves and let
+  `uploadCameraHubScriptsCommand` verify it before touching any file — never assume it, never script an
+  automated quit. A failed upload never blocks anything else; `script.txt` always remains for manual
+  paste. There is no standalone command for this.
 - **Respect the brand profile.** Banned words / brand-safety are hard filters; a Spec or Copy carrying
   one is never injected, rendered, or saved. `required_cta`/`required_hashtags` are live rules too.
 - **The watermark `@handle` is a Space parameter, never Copy.** Set it via `setWatermarkHandle` onto a
