@@ -9,7 +9,7 @@ import { isAssetStatus } from "../asset/asset.ts";
 /**
  * Documentation-conformance suite for issue #148 ("Schedule Batch: producer approval gate + docs and
  * glossary"). This slice is DOCS-ONLY — no production code changes — so its acceptance criteria are
- * proven entirely by pinning the shipped prose (CLAUDE.md, the producer agent doc, the run-pipeline
+ * proven entirely by pinning the shipped prose (GEMINI.md, the producer agent doc, the run-pipeline
  * conductor doc, the export-schedule command doc, CONTEXT.md, and the new S3 setup doc) plus one real
  * code cross-check that no new AssetStatus was introduced by this "feature".
  *
@@ -17,11 +17,11 @@ import { isAssetStatus } from "../asset/asset.ts";
  * "*.docs-test.ts"). Run with `npm run test:docs`. Editing these docs must never break `npm test`.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const CLAUDE_MD = join(REPO_ROOT, "CLAUDE.md");
+const CLAUDE_MD = join(REPO_ROOT, "GEMINI.md");
 const CONTEXT_MD = join(REPO_ROOT, "CONTEXT.md");
-const PRODUCER_AGENT = join(REPO_ROOT, ".claude", "agents", "producer.md");
-const RUN_PIPELINE_CMD = join(REPO_ROOT, ".claude", "commands", "run-pipeline.md");
-const EXPORT_SCHEDULE_CMD = join(REPO_ROOT, ".claude", "commands", "export-schedule.md");
+const PRODUCER_AGENT = join(REPO_ROOT, ".agents", "skills", "producer", "SKILL.md");
+const RUN_PIPELINE_CMD = join(REPO_ROOT, ".agents", "skills", "run-pipeline", "SKILL.md");
+const EXPORT_SCHEDULE_CMD = join(REPO_ROOT, ".agents", "skills", "export-schedule", "SKILL.md");
 const S3_SETUP_DOC = join(REPO_ROOT, "docs", "schedule-batch-s3-setup.md");
 
 describe("CONTEXT.md defines Schedule Batch and Zoho Social Brand (issue #148 AC3)", () => {
@@ -60,7 +60,7 @@ describe("CONTEXT.md defines Schedule Batch and Zoho Social Brand (issue #148 AC
   });
 });
 
-describe("CLAUDE.md documents the Schedule Batch approval step, ordered before export and before Publish (issue #148 AC1/AC2)", () => {
+describe("GEMINI.md documents the Schedule Batch approval step, ordered before export and before Publish (issue #148 AC1/AC2)", () => {
   it("documents the producer offering the export only after in-session approval of ALL outputs and captions", async () => {
     const doc = await readFile(CLAUDE_MD, "utf8");
     assert.match(doc, /Schedule Batch approval/i);

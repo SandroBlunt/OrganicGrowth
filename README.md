@@ -26,7 +26,7 @@ filming, or editing.
 
 **The tools, and what each is for:**
 
-- **Claude Code** — runs the AI agents that scout trends, write ideas, and produce each Asset.
+- **Antigravity** — runs the AI agents that scout trends, write ideas, and produce each Asset.
 - **Apify** — scrapes public metrics: peer trends on the way in, your posts' performance on the way back.
 - **Magnific** — turns an idea into a finished Reel or Carousel. Each Recipe drives its own Magnific
   **Space**, and the **Space's flow picks the models** (the Carousel uses Nano Banana 2; the Reel's
@@ -70,8 +70,8 @@ Magnific calls as they happen — there is no unattended background worker
 
 ## A two-sided solution
 
-**1 · Local — today.** Runs on your machine with **Claude Code** as the agent enabler. Four content
-agents — `trend-scout`, `idea-strategist`, `producer`, `performance-tracker` — run as Claude Code
+**1 · Local — today.** Runs on your machine with **Antigravity** as the agent enabler. Four content
+agents — `trend-scout`, `idea-strategist`, `producer`, `performance-tracker` — run as Antigravity
 subagents/commands over plain-file state. Each Recipe's production procedure is a Skill the
 recipe-generic `producer` loads by slug and runs as its own authoring craft (`produce-news-carousel`,
 `produce-character-explainer`).
@@ -85,7 +85,7 @@ Same agents, same file contracts.
 
 ## Technologies
 
-- **Claude Code** + **Anthropic Claude** (Opus / Sonnet) — the agent runtime.
+- **Antigravity** + **Anthropic Claude** (Opus / Sonnet) — the agent runtime.
 - **Apify** — public-metric scraping (peer trends + your post performance).
 - **Magnific Spaces (via MCP)** — content production; one Space per Recipe (a character-Reel Space and a
   single-lane Carousel Space today).
@@ -94,7 +94,7 @@ Same agents, same file contracts.
 
 ## Quickstart
 
-1. **Install** [Claude Code](https://claude.com/claude-code) and open this folder.
+1. **Install** [Antigravity](https://claude.com/claude-code) and open this folder.
 2. `cp .env.example .env` → paste your **`APIFY_API_TOKEN`**. Connect the **Magnific MCP** for production.
 3. Set up your Brand under `data/brands/<brand>/`: **`brand-profile.yaml`** (Channel, brand-safety),
    **`seeds.yaml`** (the Apify actor slugs per platform), one **`formats/<format>.yaml`** per editorial

@@ -11,16 +11,16 @@ repo's code.
 
 ## Register at LOCAL scope only — never `project` scope, never a committed config
 
-Register the Zoho MCP server with Claude Code's **local** scope:
+Register the Zoho MCP server with Antigravity's **local** scope:
 
 ```
-claude mcp add --scope local zoho-social https://<your-org>.zohomcp.com/...
+agy mcp add --scope local zoho-social https://<your-org>.zohomcp.com/...
 ```
 
 **Never use `--scope project`, and never commit a `.mcp.json` (or any other config file) that carries
 this URL.** The server's own URL embeds what is effectively a bearer token — anyone who has the URL has
 the Operator's live Zoho access, the same way anyone who has an AWS access key has S3 access. `local`
-scope keeps the registration in the Operator's own machine-level Claude Code config, never checked into
+scope keeps the registration in the Operator's own machine-level Antigravity config, never checked into
 git, never shared across a team, never visible in a PR diff. This mirrors the Media Host's own credential
 rule (`docs/schedule-batch-s3-setup.md`'s "Credentials" section): no live secret ever lives in this repo
 or in `data/`.
@@ -32,9 +32,9 @@ tool's scope) **after** the Operator has already authenticated a session against
 existing OAuth token does **not** automatically pick up the new scope. Two things are both required,
 in order:
 
-1. **Restart the Claude Code session** — a running session keeps using its already-negotiated tool list;
+1. **Restart the Antigravity session** — a running session keeps using its already-negotiated tool list;
    it will not discover a newly-added tool mid-session.
-2. **Run a fresh `claude mcp login zoho-social`** (or the equivalent re-auth flow) — a stale token, even
+2. **Run a fresh `agy mcp login zoho-social`** (or the equivalent re-auth flow) — a stale token, even
    after a restart, fails against the new/widened scope.
 
 **The failure mode is misleading.** Skipping step 2 (or both) does not fail with a clear "missing scope"
@@ -44,7 +44,7 @@ than "this token predates the tool you're calling." If the `producer` agent (or 
 whether the server's tool set changed since the last login — re-authenticate before assuming the
 credential itself is broken.
 
-## The tools the `producer` agent uses (see `.claude/agents/producer.md`)
+## The tools the `producer` agent uses (see `GEMINI.md`)
 
 Granted (least privilege — only the tools the documented MCP-scheduling sequence actually calls):
 `ZohoSocial_getSocialPortals`, `ZohoSocial_getSocialBrands`, `ZohoSocial_getSocialChannels`,

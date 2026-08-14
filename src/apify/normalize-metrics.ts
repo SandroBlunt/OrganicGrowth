@@ -8,7 +8,7 @@
  * `apify/instagram-post-scraper` (peer posts / one post), and `streamers/youtube-scraper` (peer
  * videos / one video); see `templates/brand-skeleton/seeds.yaml` for the actor slugs — into the four
  * metrics CONTEXT.md's "Performance" and the Performance Score formula
- * (`.claude/agents/performance-tracker.md`) use everywhere else in this repo: shares, comments,
+ * (`GEMINI.md`) use everywhere else in this repo: shares, comments,
  * reactions, views.
  *
  * Field names were confirmed against live Apify runs for Instagram/YouTube (see the issue #48

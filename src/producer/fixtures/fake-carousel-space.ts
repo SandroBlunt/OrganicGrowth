@@ -1,7 +1,7 @@
 /**
  * FAKE Magnific Space for the **News Carousel** Recipe — THIS IS THE MAGNIFIC FAKE, a second,
  * purpose-built stand-in alongside `space-driver/fixtures/fake-space.ts`'s character-Recipe fake
- * (issue #88; CLAUDE.md build pipeline — hermetic, no live `spaces_*`/`creations_*` calls, no credits,
+ * (issue #88; GEMINI.md build pipeline — hermetic, no live `spaces_*`/`creations_*` calls, no credits,
  * no board mutation).
  *
  * The News Carousel Recipe (`src/recipe/registry.ts`'s `NEWS_CAROUSEL`) drives a genuinely DIFFERENT

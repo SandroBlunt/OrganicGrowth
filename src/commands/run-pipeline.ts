@@ -16,7 +16,7 @@
  * a subprocess or mocking stdin/stdout. The CLI entry point (`main`) iterates the generator and
  * reads readline responses from stdin.
  *
- * Orchestration rules (from the issue and CLAUDE.md):
+ * Orchestration rules (from the issue and GEMINI.md):
  *   1. Resolve the Brand via `resolveBrand` — never a fallback Brand.
  *   2. Run readiness (never cached) via `runReadiness` — stop if research-blocking.
  *   3. Print the `/rename <brand> · <ISO-week>` hint; do NOT rename the session.
@@ -82,7 +82,7 @@ import type { BrandInterviewAnswers } from "../brand/scaffolder.ts";
  * This hint stays week-shaped regardless of a Format's cadence: it prints BEFORE any Format is chosen
  * (Step 3, ahead of Gate 1), and a Brand may run several Formats of different cadences at once, so
  * there is no single "the" cadence to derive it from here — the real cadence-aware default Run naming
- * lives at `/run-trends`, which DOES know the Format (see `.claude/commands/run-trends.md`).
+ * lives at `/run-trends`, which DOES know the Format (see `.agents/skills/run-trends/SKILL.md`).
  */
 export { isoWeek };
 
@@ -144,7 +144,7 @@ export interface RunPipelineOptions {
 
 /**
  * Default Magnific readiness port — wired to live Magnific at runtime. Tests ALWAYS inject a fake.
- * The live adapter is intentionally minimal (CLAUDE.md: tests use the fake; live probes deferred).
+ * The live adapter is intentionally minimal (GEMINI.md: tests use the fake; live probes deferred).
  */
 const DEFAULT_MAGNIFIC_PORT: MagnificReadinessPort = {
   async probeSpace() {

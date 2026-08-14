@@ -1,6 +1,6 @@
 /**
  * A tiny, dependency-free `.env` loader for the live Media Host adapter (issue #144). The repo's ONLY
- * runtime dependency is `yaml` (CLAUDE.md — no new npm dependencies), so this is a deliberately small
+ * runtime dependency is `yaml` (GEMINI.md — no new npm dependencies), so this is a deliberately small
  * hand-rolled parser rather than pulling in `dotenv`.
  *
  * Credential strategy (issue #144's own environment note): the live adapter sources `.env` when

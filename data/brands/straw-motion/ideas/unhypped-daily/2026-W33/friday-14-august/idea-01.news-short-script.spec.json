@@ -1,0 +1,70 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "You integrated Google's new model three weeks ago. It is already last generation.",
+      "show_cue": "The Google AI Studio model selector held on Gemini 3.7 Flash next to the 3.6 entry.",
+      "source_url": "https://x.com/Google/status/2087948901265354817",
+      "curiosity_queries": [
+        "Google Gemini 3.7 Flash release",
+        "Gemini 3.7 Flash vs 3.6",
+        "Gemini 3.7 Flash pricing"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Google dropped Gemini 3.7 Flash exactly 21 days after 3.6 Flash. To make sure you switch, they cut the price fifty percent to 75 cents per million input tokens.",
+      "show_cue": "Google's developer pricing table showing the promotional 50% discount banner.",
+      "source_url": "https://news.smol.ai/issues/26-08-13-not-much/",
+      "curiosity_queries": [
+        "Gemini 3.7 Flash token price",
+        "Gemini 3.7 intro discount",
+        "Google AI developer pricing 2026"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "On benchmarks, Google claims DeepSWE jumped from 49 to 65 percent, and Code Arena Elo hit 1588. A token is the taxi meter AI bills you on, and Google wants to drive the cheapest cab in town.",
+      "show_cue": "The DeepSWE benchmark chart comparison between 3.6 and 3.7 Flash.",
+      "source_url": "https://arstechnica.com/ai/2026/08/google-announces-gemini-3-7-flash-just-three-weeks-after-previous-release/",
+      "curiosity_queries": [
+        "Gemini 3.7 DeepSWE benchmark",
+        "Code Arena Elo Gemini 3.7",
+        "Gemini 3.7 Flash coding evals"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "The catch. That fifty percent cut is an introductory rate through December. Come January, your bill doubles back to normal.",
+      "show_cue": "The pricing footnote highlighting the January price expiration.",
+      "source_url": "https://ai.google.dev/pricing",
+      "curiosity_queries": [
+        "Gemini API price increase January",
+        "Gemini introductory price terms",
+        "Google AI API rate card"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Test the speed on your tough prompts, but budget for the real price, not the honeymoon discount.",
+      "show_cue": "Operator on camera, developer dashboard in corner inset.",
+      "source_url": "https://venturebeat.com/ai/google-gemini-3-7-flash-analysis/",
+      "curiosity_queries": [
+        "evaluating Gemini 3.7 Flash",
+        "LLM API cost projection tips",
+        "Gemini prompt migration"
+      ]
+    },
+    {
+      "role": "cta",
+      "text": "Did AI change your week? Tell us how.",
+      "show_cue": "Straw Motion logo end card, clean background.",
+      "source_url": "https://youtube.com/@strawmotion",
+      "curiosity_queries": [
+        "Straw Motion YouTube",
+        "Straw Motion AI News",
+        "Unhypped News Straw Motion"
+      ]
+    }
+  ]
+}

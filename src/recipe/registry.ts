@@ -285,7 +285,7 @@ export interface Recipe {
   readonly specShape: RecipeSpecShape;
   readonly copyShape: RecipeCopyShape;
   /**
-   * The project Skill slug (`.claude/skills/<slug>/SKILL.md`) the thin Producer loads, via the Skill
+   * The project Skill slug (`.agents/skills/<slug>/SKILL.md`) the thin Producer loads, via the Skill
    * tool, to run this Recipe's shared out-of-canvas copy step (ADR-0012) — mirroring how a Recipe's
    * media-authoring step names its own Skill, but resolved here in the registry rather than hard-coded
    * in `producer.md`'s own prose (issue #111). Both seeded Recipes below point at the SAME Skill,

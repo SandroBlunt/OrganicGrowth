@@ -3,7 +3,7 @@
  *
  * The build is hermetic: the Space driver is exercised entirely through this in-memory fake at the MCP
  * boundary — NO live `spaces_*`/`creations_*` calls, no credits, no board mutation, no network
- * (CLAUDE.md build pipeline; ADR-0003). The live Magnific adapter is a separate, deferred concern (the
+ * (GEMINI.md build pipeline; ADR-0003). The live Magnific adapter is a separate, deferred concern (the
  * attended `producer` content agent drives the real Space directly with the Magnific MCP tools —
  * ADR-0008; there is no background worker seam here to fake).
  *

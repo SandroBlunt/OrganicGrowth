@@ -4,7 +4,7 @@
 ADR-0003, ADR-0004 and PRD issue #1.
 
 > **Amendment (2026-07-09):** The model choice below was written as **Opus** but was never shipped that
-> way. Both agent files (`.claude/agents/developer.md`, `.claude/agents/qa.md`) and `CLAUDE.md` declare
+> way. Both agent files (`GEMINI.md`, `GEMINI.md`) and `GEMINI.md` declare
 > **`model: sonnet`** for `developer` and `qa`. This ADR has been corrected to **Sonnet** to match the
 > shipped agents; the "strongest model" reasoning below is left as originally reasoned but no longer
 > reflects the chosen model.
@@ -20,7 +20,7 @@ Space at runtime)** — the name collision is deliberately avoided everywhere.
 
 - **Hard separation; no vocabulary pollution.** `developer` and `qa` are **not domain vocabulary** and
   are **not** added to `CONTEXT.md`, the Agents table, or the weekly-loop description. They are
-  documented only in a new **Engineering agents** section of `CLAUDE.md`, kept distinct from the content
+  documented only in a new **Engineering agents** section of `GEMINI.md`, kept distinct from the content
   Agents and the pipeline.
 - **One entry point: `/build-issue <issue#>`.** A single slash command is the **only** trigger, handed
   an explicit GitHub issue number (repo `SandroBlunt/OrganicGrowth`). One issue → one branch → one PR.
@@ -80,12 +80,12 @@ content pipeline's "generate but never publish without a human" ethos.
 
 **Consequences**
 
-- New agent files `.claude/agents/developer.md` and `.claude/agents/qa.md`; new command
-  `.claude/commands/build-issue.md`.
+- New agent files `GEMINI.md` and `GEMINI.md`; new command
+  `.agents/skills/build-issue/SKILL.md`.
 - New `openspec/` scaffold (one-time plumbing): `project.md`, `specs/`, and `changes/`. Each run adds
   `openspec/changes/<issue-N-slug>/` (proposal, `tasks.md`, spec deltas, `handoff.md`); on merge the
   deltas fold into `openspec/specs/`.
-- `CLAUDE.md` gains an **Engineering agents** section, explicitly separate from the content Agents table
+- `GEMINI.md` gains an **Engineering agents** section, explicitly separate from the content Agents table
   and weekly loop. **`CONTEXT.md` stays untouched.**
 - A second class of agent now exists in the repo; readers must not confuse the build-time `developer`
   with the runtime content `producer`.

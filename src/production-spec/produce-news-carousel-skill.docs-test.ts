@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
  * `npm test`.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const SKILL_PATH = join(REPO_ROOT, ".claude", "skills", "produce-news-carousel", "SKILL.md");
+const SKILL_PATH = join(REPO_ROOT, ".agents", "skills", "produce-news-carousel", "SKILL.md");
 
 describe("produce-news-carousel Skill — exists, invocable by slug (issue #87 AC1)", () => {
   it("exists and is readable", async () => {

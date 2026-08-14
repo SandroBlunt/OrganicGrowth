@@ -495,7 +495,7 @@ describe("mundotip and straw-motion are migrated to their own Format files (issu
 
   it("listFormatSlugs finds both real Brands' migrated Format", async () => {
     assert.deepEqual(await listFormatSlugs("mundotip"), ["life-hacks"]);
-    assert.deepEqual(await listFormatSlugs("straw-motion"), ["unhypped-news"]);
+    assert.deepEqual(await listFormatSlugs("straw-motion").then(s => s.sort()), ["unhypped-daily", "unhypped-news"]);
   });
 
   it("neither real Brand's brand-profile.yaml carries a formats field any more (media-sense retired)", async () => {

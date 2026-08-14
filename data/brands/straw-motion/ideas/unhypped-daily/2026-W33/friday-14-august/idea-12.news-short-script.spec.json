@@ -1,0 +1,70 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "You can now download a complete spatial physics world model directly to your own computer for zero dollars.",
+      "show_cue": "The Hugging Face repo page for LTX-2.5 showing the open weights download button.",
+      "source_url": "https://theaiinsider.tech/2026/08/14/ltx-releases-open-weights-ltx-2-5-world-model-for-video-robotics-and-simulation/",
+      "curiosity_queries": [
+        "LTX-2.5 open weights download",
+        "Lightricks LTX 2.5 world model",
+        "local video generation GPU"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Lightricks just open-weighted LTX-2.5, an advanced open foundation model designed for real-time video generation, camera control, and robotic physical simulation.",
+      "show_cue": "The official LTX-2.5 announcement post with sample physics simulation clips.",
+      "source_url": "https://github.com/Lightricks/LTX-2.5",
+      "curiosity_queries": [
+        "LTX-2.5 GitHub repo",
+        "Lightricks AI research",
+        "open source video models 2026"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Here is the simple version. Normal video models guess the next flat picture. A world model simulates physical laws in three dimensions, calculating how objects bounce, slide, and collide in real time.",
+      "show_cue": "A simulation video showing simulated object interactions and bouncing physics.",
+      "source_url": "https://huggingface.co/Lightricks/LTX-2.5",
+      "curiosity_queries": [
+        "world models explained AI",
+        "robotics simulation synthetic data",
+        "spatial temporal AI models"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "The catch. You need twenty-four gigabytes of video memory to run inference smoothly, and aggressive camera pans can still soften fine geometric detail.",
+      "show_cue": "The hardware requirements table highlighting the 24GB VRAM recommendation.",
+      "source_url": "https://marktechpost.com/2026/08/14/lightricks-ltx-2-5-open-weights/",
+      "curiosity_queries": [
+        "LTX-2.5 VRAM requirements",
+        "local world model hardware",
+        "real time video generation benchmarks"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "If you build in robotics, game development, or creative pipelines, grab the open weights. Open source AI just entered the physics engine business.",
+      "show_cue": "Operator on camera, 3D simulation demo in corner inset.",
+      "source_url": "https://venturebeat.com/ai/lightricks-open-weights-ltx-world-model/",
+      "curiosity_queries": [
+        "open weights AI video tools",
+        "robotics world models",
+        "LTX-2.5 use cases"
+      ]
+    },
+    {
+      "role": "cta",
+      "text": "Did AI change your week? Tell us how.",
+      "show_cue": "Straw Motion logo end card, studio lighting.",
+      "source_url": "https://youtube.com/@strawmotion",
+      "curiosity_queries": [
+        "Straw Motion YouTube",
+        "Unhypped News",
+        "Straw Motion Channel"
+      ]
+    }
+  ]
+}

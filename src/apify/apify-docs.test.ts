@@ -1,7 +1,7 @@
 /**
  * Prompt/doc-conformance tests for the Instagram + YouTube Apify wiring (issue #48).
  *
- * `trend-scout` and `performance-tracker` are prompt-driven agents (`.claude/agents/*.md`) — there is
+ * `trend-scout` and `performance-tracker` are prompt-driven agents (`.agents/agents/*.md`) — there is
  * no compiled TS runtime for their live scraping behavior to unit-test directly. These assertions pin
  * the SOURCE TEXT of those prompts (and the seeds/brand-profile templates) so the multi-platform
  * requirements this slice adds are provable by `npm test`, not just by hand-reading the docs. Mirrors
@@ -34,24 +34,24 @@ async function readDoc(...parts: string[]): Promise<string> {
 
 describe("trend-scout detects a source's platform per-URL and uses the matching Apify actor (issue #48)", () => {
   it("states peer sources can span Facebook, Instagram, and YouTube", async () => {
-    const doc = await readDoc(".claude", "agents", "trend-scout.md");
+    const doc = await readDoc(".agents", "skills", "trend-scout", "SKILL.md");
     assert.match(doc, /Facebook,\s*Instagram,\s*or YouTube/i);
   });
 
   it("documents detecting each source's platform from its own URL, never assuming the Format's/Channel's", async () => {
-    const doc = await readDoc(".claude", "agents", "trend-scout.md");
+    const doc = await readDoc(".agents", "skills", "trend-scout", "SKILL.md");
     assert.match(doc, /detect(?:s|ed|ing)? .*platform from the URL/i);
     assert.match(doc, /[Nn]ever assume the Format's or (?:the )?Channel's own platform/);
   });
 
   it("names the verified Instagram and YouTube actor slugs", async () => {
-    const doc = await readDoc(".claude", "agents", "trend-scout.md");
+    const doc = await readDoc(".agents", "skills", "trend-scout", "SKILL.md");
     assert.match(doc, /apify\/instagram-scraper/);
     assert.match(doc, /streamers\/youtube-scraper/);
   });
 
   it("documents the defensive field mapping and that shares is always 0 for Instagram and YouTube", async () => {
-    const doc = await readDoc(".claude", "agents", "trend-scout.md");
+    const doc = await readDoc(".agents", "skills", "trend-scout", "SKILL.md");
     assert.match(doc, /videoPlayCount/);
     assert.match(doc, /viewCount/);
     assert.match(doc, /Instagram does not publicly\s+expose a share count/);
@@ -59,12 +59,12 @@ describe("trend-scout detects a source's platform per-URL and uses the matching 
   });
 
   it("references the canonical normalize-metrics module", async () => {
-    const doc = await readDoc(".claude", "agents", "trend-scout.md");
+    const doc = await readDoc(".agents", "skills", "trend-scout", "SKILL.md");
     assert.match(doc, /src\/apify\/normalize-metrics\.ts/);
   });
 
   it("still requires skipping (never fabricating) a page on a not-yet-wired platform", async () => {
-    const doc = await readDoc(".claude", "agents", "trend-scout.md");
+    const doc = await readDoc(".agents", "skills", "trend-scout", "SKILL.md");
     assert.match(doc, /not-yet-scrapable/i);
   });
 });
@@ -75,40 +75,40 @@ describe("trend-scout detects a source's platform per-URL and uses the matching 
 
 describe("performance-tracker detects a post's platform per-URL and uses the matching Apify actor (issue #48)", () => {
   it("states it scrapes posts on Facebook, Instagram, or YouTube", async () => {
-    const doc = await readDoc(".claude", "agents", "performance-tracker.md");
+    const doc = await readDoc(".agents", "skills", "performance-tracker", "SKILL.md");
     assert.match(doc, /Facebook,\s*Instagram,\s*or YouTube/i);
   });
 
   it("documents detecting the platform from post_url, never from the Brand's Channel platform", async () => {
-    const doc = await readDoc(".claude", "agents", "performance-tracker.md");
+    const doc = await readDoc(".agents", "skills", "performance-tracker", "SKILL.md");
     assert.match(doc, /detect(?:s|ed|ing)? the post's platform from `post_url`/i);
     assert.match(doc, /never\*\*\s*assumed from\s*\n?\s*the Brand's Channel platform|never.*assumed from.*Brand's Channel platform/is);
   });
 
   it("names the verified Instagram and YouTube actor slugs", async () => {
-    const doc = await readDoc(".claude", "agents", "performance-tracker.md");
+    const doc = await readDoc(".agents", "skills", "performance-tracker", "SKILL.md");
     assert.match(doc, /apify\/instagram-post-scraper/);
     assert.match(doc, /streamers\/youtube-scraper/);
   });
 
   it("documents the Instagram post-scraper's oddly-named 'username' input field", async () => {
-    const doc = await readDoc(".claude", "agents", "performance-tracker.md");
+    const doc = await readDoc(".agents", "skills", "performance-tracker", "SKILL.md");
     assert.match(doc, /"username":\[/);
   });
 
   it("documents shares is always 0 for Instagram and YouTube posts", async () => {
-    const doc = await readDoc(".claude", "agents", "performance-tracker.md");
+    const doc = await readDoc(".agents", "skills", "performance-tracker", "SKILL.md");
     assert.match(doc, /Instagram does not publicly\s+expose a share count/);
     assert.match(doc, /YouTube does not publicly\s+expose a share count/);
   });
 
   it("references the canonical normalize-metrics module", async () => {
-    const doc = await readDoc(".claude", "agents", "performance-tracker.md");
+    const doc = await readDoc(".agents", "skills", "performance-tracker", "SKILL.md");
     assert.match(doc, /src\/apify\/normalize-metrics\.ts/);
   });
 
   it("still requires skipping (never fabricating) a post on a not-yet-wired platform", async () => {
-    const doc = await readDoc(".claude", "agents", "performance-tracker.md");
+    const doc = await readDoc(".agents", "skills", "performance-tracker", "SKILL.md");
     assert.match(doc, /not-yet-trackable/i);
   });
 });

@@ -2,7 +2,7 @@
 
 OpenSpec is the spec-driven workflow the **engineering** agents (`developer`, `qa`) use to build the
 Producer feature code. It is separate from the weekly content loop and is not domain vocabulary —
-see the engineering section in `../CLAUDE.md`. Read `project.md` for context and conventions.
+see the engineering section in `../GEMINI.md`. Read `project.md` for context and conventions.
 
 Layout:
 

@@ -2,7 +2,7 @@
  * Asset file download — turns a rendered creation's remote, signed/expiring URL into a durable local
  * file (issue #102 finding #3). A remote URL alone is not a usable Asset: it expires, and it can't be
  * opened to inspect or attached to publish a Post. The Operator needs a real file on disk, the same
- * way every other piece of OrganicGrowth's state is a plain file (CLAUDE.md "State").
+ * way every other piece of OrganicGrowth's state is a plain file (GEMINI.md "State").
  *
  * Sequential, not parallel — mirrors the rest of the Producer's one-thing-at-a-time posture (one Space
  * generation at a time; ADR-0008) and keeps a failure attributable to exactly one target instead of a

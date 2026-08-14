@@ -1,0 +1,70 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "Your multi-agent AI system has a dirty secret. It loves running in circles and spending five figures on tokens.",
+      "show_cue": "An enterprise cloud billing dashboard with a spiking token consumption line.",
+      "source_url": "https://techcrunch.com/2026/08/13/writer-introduces-new-ai-model-and-upgraded-harness-to-contain-token-costs/",
+      "curiosity_queries": [
+        "Writer enterprise AI token harness",
+        "agent token cost containment",
+        "Z.ai GLM 5.2 Writer"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Enterprise startup Writer took an open Chinese model called GLM-5.2 and built a custom harness specifically designed to stop runaway API bills.",
+      "show_cue": "The Writer platform architecture page highlighting the token budget harness.",
+      "source_url": "https://writer.com/blog/enterprise-glm-harness",
+      "curiosity_queries": [
+        "Writer GLM-5.2 enterprise",
+        "prompt compression harness",
+        "open weights enterprise AI"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "The harness enforces strict per-task token budgets, automatic context caching, and real-time prompt compression. Here is the simple version. It puts a taxi meter inside the car that cuts the engine when the fare gets too high.",
+      "show_cue": "The token governor configuration screen showing custom budget caps per task.",
+      "source_url": "https://news.smol.ai/issues/26-08-13-not-much/",
+      "curiosity_queries": [
+        "context caching token savings",
+        "automated prompt compression",
+        "agent loop governance"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "The catch. Aggressive compression can strip subtle instructions. If your prompt has strict legal rules, trimming tokens might trim the rule.",
+      "show_cue": "A prompt comparison view highlighting trimmed instructions in red.",
+      "source_url": "https://arstechnica.com/ai/2026/08/enterprise-ai-token-bloat-solutions/",
+      "curiosity_queries": [
+        "prompt compression edge cases",
+        "token compression risks",
+        "LLM context trimming errors"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "If you manage enterprise AI spend, look into execution harnesses. The frontier models are cheap, but sloppy loops are not.",
+      "show_cue": "Operator on camera, budget report summary in corner inset.",
+      "source_url": "https://venturebeat.com/ai/writer-cost-containment-glm/",
+      "curiosity_queries": [
+        "enterprise AI cost governance",
+        "managing agent API bills",
+        "open weights vs closed API cost"
+      ]
+    },
+    {
+      "role": "cta",
+      "text": "What's one way AI touched your day? Comment below.",
+      "show_cue": "Straw Motion logo end card with smooth motion.",
+      "source_url": "https://youtube.com/@strawmotion",
+      "curiosity_queries": [
+        "Straw Motion YouTube",
+        "Unhypped News",
+        "Straw Motion Channel"
+      ]
+    }
+  ]
+}

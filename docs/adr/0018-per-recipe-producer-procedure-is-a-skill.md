@@ -10,7 +10,7 @@ Skill vs a plain instruction file, and it hinged on one fact: can a sub-agent in
 
 ## Decision
 
-- **A sub-agent CAN invoke the Skill tool** (map ticket #76: Claude Code sub-agents inherit `Skill`; the
+- **A sub-agent CAN invoke the Skill tool** (map ticket #76: Antigravity sub-agents inherit `Skill`; the
   `skills:` frontmatter only *preloads*). So the per-Recipe procedure is **a Skill** — the earlier lean
   toward an instruction file rested on the opposite, now-disproven, assumption.
 - The Skill is the **interpreter**: it reads the Brand's hard rules + the Format's **baseline prompt**

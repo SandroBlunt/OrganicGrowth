@@ -1,0 +1,70 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "You can now feed 500,000 tokens to Grok for two dollars, and it just tied OpenAI's best model.",
+      "show_cue": "The xAI API playground showing a massive 500k context prompt loading.",
+      "source_url": "https://x.ai/news/grok-4-6",
+      "curiosity_queries": [
+        "Grok 4.6 release notes",
+        "xAI Grok 4.6 500k context",
+        "Grok 4.6 vs GPT-5.6"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "xAI shipped Grok 4.6 as a post-training upgrade. They expanded the context window to 500,000 tokens while freezing API pricing at two dollars per million input tokens.",
+      "show_cue": "The official Grok 4.6 pricing card held on the $2/$6 rates.",
+      "source_url": "https://marktechpost.com/2026/08/12/spacexai-releases-grok-4-6/",
+      "curiosity_queries": [
+        "Grok 4.6 API pricing",
+        "xAI developer platform rates",
+        "Grok 4.6 benchmark evaluation"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "On the Artificial Analysis Intelligence Index, Grok 4.6 scored 61, tying GPT-5.6 Sol Max for top rank. That is frontier intelligence at a budget price.",
+      "show_cue": "The Artificial Analysis leaderboard showing Grok 4.6 tied with Sol Max.",
+      "source_url": "https://tldr.tech/ai/2026-08-13",
+      "curiosity_queries": [
+        "Artificial Analysis Intelligence Index leaderboard",
+        "Grok 4.6 score",
+        "frontier LLM price to performance index"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "The catch. This is a fine-tune polish, not a new brain. At 500K tokens, needle in a haystack retrieval still drops when you ask it to reason across ten documents at once.",
+      "show_cue": "A multi-document context retrieval accuracy graph showing degradation at 500K.",
+      "source_url": "https://artificialanalysis.ai/models/grok-4-6",
+      "curiosity_queries": [
+        "Grok 4.6 needle in a haystack",
+        "500k context retrieval degradation",
+        "long context LLM limitations"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "For heavy document search it is a bargain, but verify your complex queries before firing your old pipeline.",
+      "show_cue": "Operator on camera, terminal window in corner inset.",
+      "source_url": "https://theverge.com/ai/2026/08/13/xai-grok-4-6-release/",
+      "curiosity_queries": [
+        "Grok 4.6 migration guide",
+        "xAI API integration",
+        "testing long context models"
+      ]
+    },
+    {
+      "role": "cta",
+      "text": "How is AI touching your life right now? Tell us.",
+      "show_cue": "Straw Motion logo end card, clean studio backdrop.",
+      "source_url": "https://youtube.com/@strawmotion",
+      "curiosity_queries": [
+        "Straw Motion YouTube",
+        "Unhypped News",
+        "Straw Motion Channel"
+      ]
+    }
+  ]
+}

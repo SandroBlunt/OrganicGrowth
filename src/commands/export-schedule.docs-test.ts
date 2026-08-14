@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
  * "*.docs-test.ts"). Run with `npm run test:docs`. Editing this doc must never break `npm test`.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const EXPORT_SCHEDULE_CMD = join(REPO_ROOT, ".claude", "commands", "export-schedule.md");
+const EXPORT_SCHEDULE_CMD = join(REPO_ROOT, ".agents", "skills", "export-schedule", "SKILL.md");
 
 describe("export-schedule.md — describes the code-backed Schedule Batch export (issue #145)", () => {
   it("exists and documents all four arguments as required", async () => {

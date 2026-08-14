@@ -3,7 +3,7 @@
  * points — reflected in its output guidance/shape and covered by tests") + epic #106 item 4's upstream
  * half ("give the idea-strategist richer inputs so briefs carry more punch").
  *
- * `idea-strategist` is a prompt-driven agent (`.claude/agents/idea-strategist.md`) — there is no
+ * `idea-strategist` is a prompt-driven agent (`GEMINI.md`) — there is no
  * compiled TS brief schema/parser anywhere in `src/` (confirmed: `production-spec/generate.ts`'s
  * `Brief` interface only mirrors a Brief's FRONT-MATTER, never its markdown body). So the richer-brief
  * requirement is proven the same way `src/format/format-docs.test.ts` proves issue #53's own
@@ -26,7 +26,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
 
 async function readIdeaStrategistDoc(): Promise<string> {
-  return readFile(join(REPO_ROOT, ".claude", "agents", "idea-strategist.md"), "utf8");
+  return readFile(join(REPO_ROOT, ".agents", "skills", "idea-strategist", "SKILL.md"), "utf8");
 }
 
 describe("idea-strategist's Hard Boundary requires a specific angle, a specific hook concept, and concrete talking points (issue #111 AC1)", () => {

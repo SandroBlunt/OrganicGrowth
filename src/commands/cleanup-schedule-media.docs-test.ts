@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
  * "*.docs-test.ts"). Run with `npm run test:docs`. Editing this doc must never break `npm test`.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const CLEANUP_CMD = join(REPO_ROOT, ".claude", "commands", "cleanup-schedule-media.md");
+const CLEANUP_CMD = join(REPO_ROOT, ".agents", "skills", "cleanup-schedule-media", "SKILL.md");
 
 describe("cleanup-schedule-media.md — describes the code-backed manifest cleanup (issue #147)", () => {
   it("exists and documents <brand> as the one required argument", async () => {

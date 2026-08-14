@@ -13,8 +13,8 @@ import { fileURLToPath } from "node:url";
  * "*.docs-test.ts"). Run with `npm run test:docs`. Editing a doc must never break `npm test`.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const TRACK_PERFORMANCE_CMD = join(REPO_ROOT, ".claude", "commands", "track-performance.md");
-const PERFORMANCE_TRACKER_AGENT = join(REPO_ROOT, ".claude", "agents", "performance-tracker.md");
+const TRACK_PERFORMANCE_CMD = join(REPO_ROOT, ".agents", "skills", "track-performance", "SKILL.md");
+const PERFORMANCE_TRACKER_AGENT = join(REPO_ROOT, ".agents", "skills", "performance-tracker", "SKILL.md");
 
 describe("track-performance.md — describes the code-backed per-Asset grain (issue #84)", () => {
   it("exists and documents <brand> as required", async () => {

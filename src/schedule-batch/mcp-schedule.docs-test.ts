@@ -7,15 +7,15 @@ import { fileURLToPath } from "node:url";
 /**
  * Documentation-conformance suite for issue #163 ("ADR-0020 slice: Producer schedules Posts via Zoho
  * MCP after the conversational approval; CSV becomes the fallback"). Pins the shipped prose
- * (`.claude/agents/producer.md`, `.claude/commands/export-schedule.md`, and the new
+ * (`GEMINI.md`, `.agents/skills/export-schedule/SKILL.md`, and the new
  * `docs/zoho-mcp-server-setup.md`) this slice's docs-only acceptance criteria (AC3, AC5, AC6) depend on.
  *
  * Kept OUT of the unit suite (the `npm test` glob is "src/**\/*.test.ts", which does NOT match
  * "*.docs-test.ts"). Run with `npm run test:docs`.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const PRODUCER_AGENT = join(REPO_ROOT, ".claude", "agents", "producer.md");
-const EXPORT_SCHEDULE_CMD = join(REPO_ROOT, ".claude", "commands", "export-schedule.md");
+const PRODUCER_AGENT = join(REPO_ROOT, ".agents", "skills", "producer", "SKILL.md");
+const EXPORT_SCHEDULE_CMD = join(REPO_ROOT, ".agents", "skills", "export-schedule", "SKILL.md");
 const ZOHO_MCP_SETUP_DOC = join(REPO_ROOT, "docs", "zoho-mcp-server-setup.md");
 
 describe("producer.md documents the MCP-primary Zoho scheduling sequence (issue #163, ADR-0020)", () => {

@@ -7,7 +7,7 @@ import { getRecipe } from "../recipe/registry.ts";
 
 /**
  * Documentation-conformance suite. Proves the content `producer` agent definition exists, is model
- * Opus, and describes its role per CLAUDE.md / CONTEXT.md (acceptance criterion: "A producer agent
+ * Opus, and describes its role per GEMINI.md / CONTEXT.md (acceptance criterion: "A producer agent
  * definition exists (Opus)").
  *
  * These assertions read the `producer.md` agent doc and pin its current front-matter/wording, so they
@@ -17,7 +17,7 @@ import { getRecipe } from "../recipe/registry.ts";
  * The repo root is two levels up from src/production-spec/.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const PRODUCER_AGENT = join(REPO_ROOT, ".claude", "agents", "producer.md");
+const PRODUCER_AGENT = join(REPO_ROOT, ".agents", "skills", "producer", "SKILL.md");
 
 describe("producer agent definition", () => {
   it("exists and is readable", async () => {

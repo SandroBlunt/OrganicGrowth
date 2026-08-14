@@ -1,0 +1,251 @@
+[
+  {
+    "id": "trend-01",
+    "label": "Google releases Gemini 3.7 Flash with aggressive 50% introductory pricing",
+    "momentum": 1,
+    "evidence": [
+      {
+        "source": "Google Official Announcement (X/@Google)",
+        "url": "https://x.com/Google/status/2087948901265354817",
+        "primary": true
+      },
+      {
+        "source": "AINews smol.ai",
+        "url": "https://news.smol.ai/issues/26-08-13-not-much/"
+      },
+      {
+        "source": "Ars Technica AI",
+        "url": "https://arstechnica.com/ai/2026/08/google-announces-gemini-3-7-flash-just-three-weeks-after-previous-release/"
+      }
+    ],
+    "example_hooks": [
+      "Google just dropped Gemini 3.7 Flash three weeks after 3.6, and cut the price in half. Here is the unhypped read.",
+      "Three weeks. That is how long Google's last model stayed current before 3.7 Flash replaced it."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-02",
+    "label": "OpenAI previews Ultrafast tier running GPT-5.6 Sol at 14x speed via Cerebras",
+    "momentum": 0.95,
+    "evidence": [
+      {
+        "source": "OpenAI Official Blog",
+        "url": "https://openai.com/index/previewing-ultrafast",
+        "primary": true
+      },
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/13/openai-introduces-ultrafast-a-new-mode-that-makes-gpt-5-6-sol-work-at-14x-the-speed/"
+      }
+    ],
+    "example_hooks": [
+      "750 tokens per second: OpenAI just previewed a 14x speed tier for GPT-5.6 Sol. Here is what it actually changes.",
+      "OpenAI teamed up with Cerebras to run GPT-5.6 Sol 14 times faster. The speed is real, but does it make the model smarter?"
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-03",
+    "label": "xAI releases Grok 4.6 with 500K context and ties GPT-5.6 Sol Max on intelligence index",
+    "momentum": 0.92,
+    "evidence": [
+      {
+        "source": "xAI Official Announcement",
+        "url": "https://x.ai/news/grok-4-6",
+        "primary": true
+      },
+      {
+        "source": "MarkTechPost",
+        "url": "https://www.marktechpost.com/2026/08/12/spacexai-releases-grok-4-6/"
+      },
+      {
+        "source": "TLDR AI",
+        "url": "https://tldr.tech/ai/2026-08-13"
+      }
+    ],
+    "example_hooks": [
+      "Grok 4.6 just dropped with a 500k context window and tied OpenAI's flagship. Here is the plain read.",
+      "xAI shipped Grok 4.6 at the same $2 price with 500k tokens. A real upgrade or a benchmark tune?"
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-04",
+    "label": "Anthropic upgrades Claude in Chrome into a full ambient Cowork session",
+    "momentum": 0.88,
+    "evidence": [
+      {
+        "source": "Anthropic Official Announcement",
+        "url": "https://claude.com/claude-in-chrome",
+        "primary": true
+      },
+      {
+        "source": "TLDR AI",
+        "url": "https://tldr.tech/ai/2026-08-13"
+      }
+    ],
+    "example_hooks": [
+      "Claude just moved from a side panel into a full browser coworker that clicks and reads across tabs.",
+      "Anthropic turned Claude's Chrome extension into an active coworker. Here is the catch before you hand over your browser."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-05",
+    "label": "Writer debuts enterprise model on GLM-5.2 with custom harness to slash token costs",
+    "momentum": 0.85,
+    "evidence": [
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/13/writer-introduces-new-ai-model-and-upgraded-harness-to-contain-token-costs/",
+        "primary": true
+      }
+    ],
+    "example_hooks": [
+      "Writer took an open Chinese model and built a harness to stop runaway API bills. Here is how it works.",
+      "The biggest headache in enterprise AI is the monthly token invoice. Writer claims this new harness fixes it."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-06",
+    "label": "Liquid AI launches LFM2.5-VL-3B for on-device screen reading and tool use in 3GB",
+    "momentum": 0.82,
+    "evidence": [
+      {
+        "source": "Liquid AI / Hugging Face Blog",
+        "url": "https://huggingface.co/blog/LiquidAI/lfm2-5-vl-3b",
+        "primary": true
+      },
+      {
+        "source": "MarkTechPost",
+        "url": "https://www.marktechpost.com/2026/08/13/liquid-ai-lfm2-5-vl-3b-on-device-vision-language-model/"
+      }
+    ],
+    "example_hooks": [
+      "A 3GB model that reads your screen and calls tools locally: Liquid AI just dropped LFM2.5-VL.",
+      "You don't need a cloud server to parse UI screens anymore. Liquid AI fit screen-reading into 3GB."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-07",
+    "label": "Databricks raises $5B at $190B valuation as AI infrastructure demand explodes",
+    "momentum": 0.8,
+    "evidence": [
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/13/databricks-wanted-to-raise-1b-investors-wanted-15b-it-settled-on-5b-at-a-190b-valuation/",
+        "primary": true
+      }
+    ],
+    "example_hooks": [
+      "Databricks asked for $1B, investors offered $15B, and they settled on $5B. What that tells you about AI infrastructure.",
+      "$190 billion valuation for Databricks: why AI data pipelines are soaking up so much capital right now."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-08",
+    "label": "DeepSeek open-sources DeepSeek Harness under MIT and prices v4-Pro at $0.87/1M tokens",
+    "momentum": 0.78,
+    "evidence": [
+      {
+        "source": "AINews smol.ai (DeepSeek Preview)",
+        "url": "https://news.smol.ai/issues/26-08-13-not-much/",
+        "primary": true
+      },
+      {
+        "source": "TLDR AI",
+        "url": "https://tldr.tech/ai/2026-08-13"
+      }
+    ],
+    "example_hooks": [
+      "DeepSeek open-sourced its recursive agent harness and priced frontier tokens at 87 cents. The price war is not over.",
+      "87 cents per million tokens: DeepSeek just dropped pricing again while open-sourcing its internal harness."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-09",
+    "label": "Microsoft AI launches MAI-Thinking-1 reasoning model and MAI-Image-2.6",
+    "momentum": 0.75,
+    "evidence": [
+      {
+        "source": "Microsoft AI Official Blog (MAI-Thinking-1)",
+        "url": "https://microsoft.ai/news/introducing-mai-thinking-1/",
+        "primary": true
+      },
+      {
+        "source": "Microsoft AI Official Blog (MAI-Image-2.6)",
+        "url": "https://microsoft.ai/news/mai-image-2-6-launches-at-no-2-on-arena-ahead-of-google-meta-and-xai/",
+        "primary": true
+      },
+      {
+        "source": "TLDR AI",
+        "url": "https://tldr.tech/ai/2026-08-13"
+      }
+    ],
+    "example_hooks": [
+      "Microsoft just quietly launched its own in-house reasoning model and hit #2 on the image Arena.",
+      "Microsoft is no longer just reselling OpenAI: MAI-Thinking-1 and MAI-Image-2.6 are live."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-10",
+    "label": "Twitch faces creator backlash over default AI training opt-in for Amazon",
+    "momentum": 0.72,
+    "evidence": [
+      {
+        "source": "Ars Technica AI",
+        "url": "https://arstechnica.com/ai/2026/08/twitch-content-has-trained-amazon-ai-for-years-but-users-can-opt-out-now/",
+        "primary": true
+      },
+      {
+        "source": "The AI Insider",
+        "url": "https://theaiinsider.tech/2026/08/13/twitch-faces-backlash-over-default-opt-in-to-ai-training-using-creator-content/"
+      }
+    ],
+    "example_hooks": [
+      "Amazon quietly trained AI on years of Twitch streams by defaulting everyone in. Here is what happened when creators found out.",
+      "Your gaming stream is now Amazon's training dataset: the backlash forcing Twitch to add an opt-out toggle."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-11",
+    "label": "LG and Nvidia team up on Isaac GR00T humanoid factory robots",
+    "momentum": 0.7,
+    "evidence": [
+      {
+        "source": "The AI Insider (LG/Nvidia MOU)",
+        "url": "https://theaiinsider.tech/2026/08/14/lg-nvidia-expand-robotics-collaboration-with-new-humanoid-factory-robot-plans/",
+        "primary": true
+      }
+    ],
+    "example_hooks": [
+      "LG and Nvidia just signed a deal to put humanoid AI robots into appliance factories next year.",
+      "Nvidia's GR00T model is moving into real factories with LG: the timeline and the reality check."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-12",
+    "label": "LTX releases open-weights LTX-2.5 world model for video and robotics",
+    "momentum": 0.68,
+    "evidence": [
+      {
+        "source": "The AI Insider",
+        "url": "https://theaiinsider.tech/2026/08/14/ltx-releases-open-weights-ltx-2-5-world-model-for-video-robotics-and-simulation/",
+        "primary": true
+      }
+    ],
+    "example_hooks": [
+      "An open-weights world model for video and robot simulation: LTX-2.5 is now free to download.",
+      "World models used to stay locked in research labs. LTX-2.5 just went open-weights for local download."
+    ],
+    "suggested_recipe": "news-carousel"
+  }
+]

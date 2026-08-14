@@ -184,7 +184,11 @@ export async function composeCopyForChannels(
     const woven = mentionsSupported
       ? await weaveLinkedInMentions(injected.caption, input, options.mentionHandlesPath)
       : { caption: injected.caption, unresolvedMentions: [] as readonly string[] };
-    const candidate: Copy = { caption: woven.caption, hashtags: injected.hashtags };
+    const candidate: Copy = { 
+      caption: woven.caption, 
+      hashtags: injected.hashtags,
+      ...(injected.title !== undefined ? { title: injected.title } : {})
+    };
 
     // The primary Channel keeps using ITS Recipe's own copyShape for length/emoji bounds (issue #128
     // AC3), never platform-shape.ts's own table — but a platform declaring capIncludesHashtags: true

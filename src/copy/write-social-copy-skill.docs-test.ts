@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
  * `npm test`. Mirrors `produce-news-carousel-skill.docs-test.ts`'s own structure exactly.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const SKILL_PATH = join(REPO_ROOT, ".claude", "skills", "write-social-copy", "SKILL.md");
+const SKILL_PATH = join(REPO_ROOT, ".agents", "skills", "write-social-copy", "SKILL.md");
 
 describe("write-social-copy Skill — exists, invocable by slug (issue #111 AC2)", () => {
   it("exists and is readable", async () => {

@@ -6,7 +6,7 @@
  * is incidental documentation-wording conformance, not a core behavioral acceptance criterion (that
  * one is `src/format/format-docs.test.ts`'s cadence describe block, which IS in the default suite).
  * Mirrors the existing pattern in `src/schedule-batch/approval-gate.docs-test.ts` /
- * `src/commands/report.docs-test.ts` (pinning exact `.claude/rules/always/*.md` / `CLAUDE.md` prose).
+ * `src/commands/report.docs-test.ts` (pinning exact `.agents/rules/*.md` / `GEMINI.md` prose).
  */
 
 import { describe, it } from "node:test";
@@ -21,7 +21,7 @@ const REPO_ROOT = join(HERE, "..", "..");
 describe("always-rule 10 states cadence, not a flat weekly rule (ADR-0022, issue #172 AC4)", () => {
   it("organicgrowth-rules.md's rule 10 reads 'one Run per cadence period per Format'", async () => {
     const doc = await readFile(
-      join(REPO_ROOT, ".claude", "rules", "always", "organicgrowth-rules.md"),
+      join(REPO_ROOT, ".agents", "rules", "organicgrowth-rules.md"),
       "utf8",
     );
     assert.match(
@@ -44,15 +44,15 @@ describe("always-rule 10 states cadence, not a flat weekly rule (ADR-0022, issue
   });
 });
 
-describe("CLAUDE.md's pipeline intro states cadence, not a flat weekly rule (ADR-0022, issue #172 AC4)", () => {
-  it("CLAUDE.md reads 'Run once per Format per cadence period'", async () => {
-    const doc = await readFile(join(REPO_ROOT, "CLAUDE.md"), "utf8");
+describe("GEMINI.md's pipeline intro states cadence, not a flat weekly rule (ADR-0022, issue #172 AC4)", () => {
+  it("GEMINI.md reads 'Run once per Format per cadence period'", async () => {
+    const doc = await readFile(join(REPO_ROOT, "GEMINI.md"), "utf8");
     assert.match(
       doc,
       /Run once per \*\*Format\*\* per cadence period/,
-      "CLAUDE.md's pipeline intro must state cadence-period wording, not the old flat 'per week'",
+      "GEMINI.md's pipeline intro must state cadence-period wording, not the old flat 'per week'",
     );
-    assert.match(doc, /ADR-0022/, "CLAUDE.md's pipeline intro must cite ADR-0022");
+    assert.match(doc, /ADR-0022/, "GEMINI.md's pipeline intro must cite ADR-0022");
     assert.doesNotMatch(
       doc,
       /Run once per \*\*Format\*\* per week \(running/,

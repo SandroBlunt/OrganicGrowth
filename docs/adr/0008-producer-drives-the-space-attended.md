@@ -13,7 +13,7 @@ async renders. Building that runtime was scoped as epic #39 (slices #40–43). W
 
 - The pipeline already pauses at the **Cast gate** (the Operator picks the Character mid-production), so
   production was never truly hands-off — a human is present partway through every job.
-- The Magnific Space is designed for a human in the loop. In Claude Code's `auto` mode the permission
+- The Magnific Space is designed for a human in the loop. In Antigravity's `auto` mode the permission
   classifier re-blocks Space mutations (`spaces_edit` / `spaces_run`) as "modifying shared
   infrastructure" **even when the tool is allow-listed**; an unattended worker only clears that by
   running headless in a locked-down mode (`dontAsk` / `bypassPermissions`) — deliberately disabling the
@@ -51,11 +51,11 @@ async renders. Building that runtime was scoped as epic #39 (slices #40–43). W
 
 - Serialization is natural — one attended run at a time — so ADR-0004's single-active-run lock and the
   C16 cross-process race are moot (no second writer).
-- `.claude/agents/producer.md` carries the Magnific MCP tools and the Phase A (cast → Cast gate) /
+- `GEMINI.md` carries the Magnific MCP tools and the Phase A (cast → Cast gate) /
   Phase B (pick → render) drive loop. (Under ADR-0010/0013 the Space a Recipe drives is named on the
   **Recipe** in-repo, so a per-Brand `production.space_id` in `brand-profile.yaml` is superseded; only
   brand-specific bits — the watermark @handle, Spec content — are injected at run time.)
 - The Production Queue is a convenience list, not a scheduler. Removing it (and `/queue`) would be a
   separate change if we ever decide the ledger's status field is enough.
-- CLAUDE.md and `.claude/rules/always/organicgrowth-rules.md` describe the attended model; the
+- GEMINI.md and `.agents/rules/organicgrowth-rules.md` describe the attended model; the
   "background / unattended / self-draining" phrasing was removed.

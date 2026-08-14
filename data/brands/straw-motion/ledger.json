@@ -37,13 +37,13 @@
           },
           "asset_url": "https://pikaso.cdnpk.net/private/production/4946554655/render.png?token=exp=1784851200~hmac=8a4c4a56e3cc031aa32487010f18362baedcaf9aded97aaf79c390ef6cb9afe1",
           "asset_paths": [
-            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/0-hook.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/1-then.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/2-shift.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/3-proof.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/4-different.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/5-next.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/6-cta.png"
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/slide-0.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/slide-1.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/slide-2.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/slide-3.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/slide-4.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/slide-5.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/slide-6.jpg"
           ],
           "produced_at": "2026-07-21T16:05:55.032Z"
         }
@@ -116,26 +116,80 @@
           "status": "produced",
           "spec_path": "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.spec.json",
           "copy": {
-            "caption": "Grok 4.5 vs Claude Opus 4.8, and the cheaper one reportedly came out ahead. Here is the no-hype read for whoever actually pays the bill.\n\nThe old rule was simple. If you wanted the best code, you paid up for the priciest flagship model.\n\nThat rule just cracked. xAI's Grok 4.5 posted a higher coding score than Anthropic's Claude Opus 4.8, and it runs at roughly half the price per token.\n\nThe catch nobody leads with: a coding benchmark is one lab test. Set tasks, clean prompts. It is not your messy real codebase at 5pm on a Friday.\n\nWhere the price gap actually bites: at scale, half price is real money, and big automated jobs feel it fast. For a few prompts a day, you won't even notice.\n\nThe smart move is not a blind switch. Run a quick side-by-side trial on your own real project first, then decide.\n\nVerdict: worth a look for builders watching cost. Not a reason to switch blind. We keep handing you the buyer's-eye read, never the fan war.\n\nSwipe through the breakdown 👉",
+            "caption": "xAI just matched OpenAI's flagship for two dollars a million tokens. Grok 4.6 dropped today with a massive 500,000 token context window. It scored 61 on the Artificial Analysis Intelligence Index, tying GPT-5.6 Sol Max for the top spot. But they didn't raise the API price to pay for it. The catch here is this is a post-training polish, not a new base model architecture. And deep context retrieval still drops off when you ask for complex multi-document reasoning. Have you hit limits with your current model context? Let us know in the comments.",
             "hashtags": [
-              "#Grok",
-              "#Claude",
-              "#AInews",
-              "#AIcoding",
-              "#ModelComparison"
+              "#xAI",
+              "#Grok46",
+              "#LLMs"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "xAI just matched OpenAI's flagship for two dollars a million tokens. Grok 4.6 dropped today with a massive 500,000 token context window. It scored 61 on the Artificial Analysis Intelligence Index, tying GPT-5.6 Sol Max for the top spot. But they didn't raise the API price to pay for it. The catch here is this is a post-training polish, not a new base model architecture. And deep context retrieval still drops off when you ask for complex multi-document reasoning. Have you hit limits with your current model context? Let us know in the comments.",
+                "hashtags": [
+                  "#xAI",
+                  "#Grok46",
+                  "#LLMs"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "xAI just matched OpenAI's flagship for two dollars a million tokens. Grok 4.6 dropped today with a massive 500,000 token context window. It scored 61 on the Artificial Analysis Intelligence Index, tying GPT-5.6 Sol Max for the top spot. But they didn't raise the API price to pay for it. The catch here is this is a post-training polish, not a new base model architecture. And deep context retrieval still drops off when you ask for complex multi-document reasoning. Have you hit limits with your current model context? Let us know in the comments.",
+                "hashtags": [
+                  "#xAI",
+                  "#Grok46",
+                  "#LLMs"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "xAI just matched OpenAI's flagship for two dollars a million tokens. Grok 4.6 dropped today with a massive 500,000 token context window. It scored 61 on the Artificial Analysis Intelligence Index, tying GPT-5.6 Sol Max for the top spot. But they didn't raise the API price to pay for it. The catch here is this is a post-training polish, not a new base model architecture. And deep context retrieval still drops off when you ask for complex multi-document reasoning. Have you hit limits with your current model context? Let us know in the comments.",
+                "hashtags": [
+                  "#xAI",
+                  "#Grok46",
+                  "#LLMs"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "xAI just matched OpenAI's flagship for two dollars a million tokens. Grok 4.6 dropped today with a massive 500,000 token context window.",
+                "hashtags": [
+                  "#xAI",
+                  "#Grok46",
+                  "#LLMs"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "xAI just matched OpenAI's flagship for two dollars a million tokens. Grok 4.6 dropped today with a massive 500,000 to...",
+                "hashtags": [
+                  "#xAI",
+                  "#Grok46",
+                  "#LLMs"
+                ]
+              },
+              {
+                "platform": "youtube",
+                "caption": "xAI just matched OpenAI's flagship for two dollars a million tokens. Grok 4.6 dropped today with a massive 500,000 token context window. It scored 61 on the Artificial Analysis Intelligence Index, tying GPT-5.6 Sol Max for the top spot. But they didn't raise the API price to pay for it. The catch here is this is a post-training polish, not a new base model architecture. And deep context retrieval still drops off when you ask for complex multi-document reasoning. Have you hit limits with your current model context? Let us know in the comments.",
+                "hashtags": [
+                  "#xAI",
+                  "#Grok46",
+                  "#LLMs"
+                ]
+              }
             ]
           },
           "asset_url": "https://pikaso.cdnpk.net/private/production/4952562798/render.png?token=exp=1785110400~hmac=5bb5ea7c5116b2cbdc5892d7d95c0de7592ddff8916b9b555aa1d0ee7aba367f",
           "asset_paths": [
-            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.output/0-hook.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.output/1-then.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.output/2-shift.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.output/3-proof.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.output/4-different.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.output/5-next.png",
-            "data/brands/straw-motion/ideas/2026-W29/idea-03.news-carousel.output/6-cta.png"
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/slide-0.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/slide-1.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/slide-2.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/slide-3.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/slide-4.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/slide-5.jpg",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/slide-6.jpg"
           ],
-          "produced_at": "2026-07-22T07:46:59.978Z"
+          "produced_at": "2026-08-14T14:12:44.621Z"
         }
       ],
       "recipes": [
@@ -169,7 +223,86 @@
       "status": "suggested",
       "brief_path": "data/brands/straw-motion/ideas/2026-W29/idea-05.md",
       "created_at": "2026-07-13T16:15:56Z",
-      "assets": []
+      "assets": [
+        {
+          "status": "produced",
+          "copy": {
+            "caption": "Enterprise agent loops are generating surprise five-figure API bills. Writer just released a custom execution harness to stop the bleeding. They wrapped Z.ai's open GLM-5.2 model in a system that enforces strict token budgets, context caching, and automatic prompt compression. It actively stops runaway recursion loops in flight to keep your costs predictable. The catch is that aggressive context trimming can strip subtle edge-case instructions from complex compliance prompts. Are runaway agents a problem your team is facing yet? Sound off in the comments.",
+            "hashtags": [
+              "#EnterpriseAI",
+              "#AgenticAI",
+              "#WriterAI"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "Enterprise agent loops are generating surprise five-figure API bills. Writer just released a custom execution harness to stop the bleeding. They wrapped Z.ai's open GLM-5.2 model in a system that enforces strict token budgets, context caching, and automatic prompt compression. It actively stops runaway recursion loops in flight to keep your costs predictable. The catch is that aggressive context trimming can strip subtle edge-case instructions from complex compliance prompts. Are runaway agents a problem your team is facing yet? Sound off in the comments.",
+                "hashtags": [
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#WriterAI"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "Enterprise agent loops are generating surprise five-figure API bills. Writer just released a custom execution harness to stop the bleeding. They wrapped Z.ai's open GLM-5.2 model in a system that enforces strict token budgets, context caching, and automatic prompt compression. It actively stops runaway recursion loops in flight to keep your costs predictable. The catch is that aggressive context trimming can strip subtle edge-case instructions from complex compliance prompts. Are runaway agents a problem your team is facing yet? Sound off in the comments.",
+                "hashtags": [
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#WriterAI"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "Enterprise agent loops are generating surprise five-figure API bills. Writer just released a custom execution harness to stop the bleeding. They wrapped Z.ai's open GLM-5.2 model in a system that enforces strict token budgets, context caching, and automatic prompt compression. It actively stops runaway recursion loops in flight to keep your costs predictable. The catch is that aggressive context trimming can strip subtle edge-case instructions from complex compliance prompts. Are runaway agents a problem your team is facing yet? Sound off in the comments.",
+                "hashtags": [
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#WriterAI"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "Enterprise agent loops are generating surprise five-figure API bills. Writer just released a custom execution harness to stop the bleeding.",
+                "hashtags": [
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#WriterAI"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "Enterprise agent loops are generating surprise five-figure API bills. Writer just released a custom e...",
+                "hashtags": [
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#WriterAI"
+                ]
+              },
+              {
+                "platform": "youtube",
+                "caption": "Enterprise agent loops are generating surprise five-figure API bills. Writer just released a custom execution harness to stop the bleeding. They wrapped Z.ai's open GLM-5.2 model in a system that enforces strict token budgets, context caching, and automatic prompt compression. It actively stops runaway recursion loops in flight to keep your costs predictable. The catch is that aggressive context trimming can strip subtle edge-case instructions from complex compliance prompts. Are runaway agents a problem your team is facing yet? Sound off in the comments.",
+                "hashtags": [
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#WriterAI"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-carousel.output/0-hook.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-carousel.output/1-then.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-carousel.output/2-shift.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-carousel.output/3-proof.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-carousel.output/4-different.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-carousel.output/5-next.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-14T14:12:47.741Z",
+          "recipe": "news-carousel"
+        }
+      ]
     },
     {
       "id": "idea-06",
@@ -3704,6 +3837,524 @@
             "data/brands/straw-motion/ideas/unhypped-daily/2026-08-11/idea-12.news-short-script.output/beat-01-media.jpg"
           ],
           "produced_at": "2026-08-11T18:02:49.163Z"
+        }
+      ],
+      "recipes": [
+        "news-carousel",
+        "news-short-script"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-08-14-01",
+      "run": "2026-08-14",
+      "title": "Google shipped Gemini 3.7 Flash three weeks after 3.6 — and cut the price in half",
+      "trend_id": "trend-01",
+      "trend_label": "Google releases Gemini 3.7 Flash with aggressive 50% introductory pricing",
+      "format": "unhypped-daily",
+      "fit_score": 0.74,
+      "fit_basis": "Dead-center AI news beat: rapid model release cadence plus a developer pricing angle. momentum 1.00 (lead story across smol.ai and Ars Technica), brand_fit 0.95 (direct, skeptical about release fatigue), relevance 0.5 (no measured performance on channel yet). No penalties.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "queued",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.spec.json",
+          "copy": {
+            "caption": "Google dropped Gemini 3.7 Flash just 21 days after 3.6 Flash.\n\nHere is the simple version. Major frontier updates used to run on six month schedules, giving engineering teams time to benchmark and deploy. Google cut that down to three weeks, dropped the introductory rate to 75 cents per million input tokens, and claims a jump to 65.3% on DeepSWE.\n\nThe catch. That fifty percent discount is an introductory rate through December. Come January, your bill doubles back to normal.\n\nTest the speed on your tough prompts, but budget for the real price, not the honeymoon discount.\n\nHow fast are your model migrations right now? Tell us in the comments. 👇",
+            "hashtags": [
+              "#AInews",
+              "#Gemini",
+              "#GoogleAI",
+              "#DeveloperTools"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "Google dropped Gemini 3.7 Flash just 21 days after 3.6 Flash.\n\nHere is the simple version. Major frontier updates used to run on six month schedules, giving engineering teams time to benchmark and deploy. Google cut that down to three weeks, dropped the introductory rate to 75 cents per million input tokens, and claims a jump to 65.3% on DeepSWE.\n\nThe catch. That fifty percent discount is an introductory rate through December. Come January, your bill doubles back to normal.\n\nTest the speed on your tough prompts, but budget for the real price, not the honeymoon discount.\n\nHow fast are your model migrations right now? Tell us in the comments. 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#Gemini",
+                  "#GoogleAI",
+                  "#DeveloperTools"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "Google dropped Gemini 3.7 Flash exactly 21 days after 3.6 Flash.\n\nThe timeline is the headline. Frontier model upgrades used to take 6 months. Google shipped this in 3 weeks, halved the intro price to 75 cents per million input tokens, and claimed 65.3% on DeepSWE.\n\nThe catch. That fifty percent cut is an intro rate through December. In January, the price doubles back to normal.\n\nWould you migrate your production pipeline for a 3-week update? Drop your take in the comments. 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#Gemini",
+                  "#GoogleAI",
+                  "#DeveloperTools"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "Google released Gemini 3.7 Flash on August 13, exactly 21 days after shipping 3.6 Flash.\n\nThe release cycle itself is the story. Frontier iterations once followed six-month cadences, allowing engineering teams predictable evaluation windows. Google compressed that cycle to three weeks while introducing a temporary fifty percent discount to 75 cents per million input tokens. On benchmarks, Google reports DeepSWE scores increasing from 49.0% to 65.3% and Code Arena Elo reaching 1588.\n\nThe constraint to note. The 75-cent pricing is an introductory rate expiring in December, after which standard pricing resumes.\n\nFor teams managing LLM infrastructure, the operational challenge is managing rapid endpoint deprecation while budgeting against post-promotional API rates.",
+                "hashtags": [
+                  "#AInews",
+                  "#Gemini",
+                  "#GoogleAI",
+                  "#DeveloperTools"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "Google released Gemini 3.7 Flash 21 days after 3.6 Flash with a 50% intro discount to 75c/1M tokens. DeepSWE hits 65.3%. The catch: intro rate expires in December.",
+                "hashtags": [
+                  "#AInews",
+                  "#Gemini"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "Google dropped Gemini 3.7 Flash just 3 weeks after 3.6 Flash. It cuts API costs in half, but only until December 👀",
+                "hashtags": [
+                  "#AInews",
+                  "#Gemini",
+                  "#GoogleAI",
+                  "#DeveloperTools"
+                ]
+              }
+            ]
+          },
+          "asset_paths": [
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/0-hook.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/1-then.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/2-shift.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/3-proof.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/4-different.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/5-next.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-carousel.output/6-cta.png"
+          ]
+        },
+        {
+          "recipe": "news-short-script",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-short-script.spec.json",
+          "copy": {
+            "caption": "Google dropped Gemini 3.7 Flash just 21 days after 3.6 Flash with a 50% intro discount. Here is the unhypped breakdown of what changed and what it costs.",
+            "hashtags": [
+              "#AInews",
+              "#Gemini",
+              "#GoogleAI",
+              "#TechNews",
+              "#Developers"
+            ],
+            "title": "Google's 3-Week Model Update & The 50% Price Trap"
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-short-script.output/script.txt",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-short-script.output/shot-list.txt"
+          ]
+        }
+      ],
+      "recipes": [
+        "news-carousel",
+        "news-short-script"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-08-14-02",
+      "run": "2026-08-14",
+      "title": "OpenAI's new Ultrafast mode runs GPT-5.6 Sol at 750 tokens per second — but does it think any better?",
+      "trend_id": "trend-02",
+      "trend_label": "OpenAI previews Ultrafast tier running GPT-5.6 Sol at 14x speed via Cerebras",
+      "format": "unhypped-daily",
+      "fit_score": 0.73,
+      "fit_basis": "Core AI news and model-infrastructure beat: extreme throughput speedup for agents. momentum 0.95, brand_fit 0.94 (highlights the distinction between generation speed and reasoning quality), relevance 0.5. No penalties.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-02.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [],
+      "rejection_reason": "Not selected by operator in daily review batch"
+    },
+    {
+      "id": "idea-2026-08-14-03",
+      "run": "2026-08-14",
+      "title": "Grok 4.6 lands with 500K context and ties OpenAI's flagship at $2 a million tokens",
+      "trend_id": "trend-03",
+      "trend_label": "xAI releases Grok 4.6 with 500K context and ties GPT-5.6 Sol Max on intelligence index",
+      "format": "unhypped-daily",
+      "fit_score": 0.72,
+      "fit_basis": "Model comparison lane with clear pricing metrics builders care about. momentum 0.92, brand_fit 0.92 (evaluates post-training claims without fanboy hype), relevance 0.5. No penalties.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.spec.json",
+          "copy": {
+            "caption": "xAI released Grok 4.6 with 500,000 tokens of context. It ties OpenAI's top flagship on the intelligence index. Swipe through for the unhypped breakdown.",
+            "hashtags": [
+              "#AInews",
+              "#Grok46",
+              "#xAI"
+            ]
+          },
+          "asset_paths": [
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/0-hook.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/1-then.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/2-shift.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/3-proof.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/4-different.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/5-next.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-carousel.output/6-cta.png"
+          ],
+          "produced_at": "2026-08-14T15:52:03.260Z"
+        },
+        {
+          "recipe": "news-short-script",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-short-script.spec.json",
+          "copy": {
+            "caption": "xAI released Grok 4.6 with 500,000 context tokens at $2, tying GPT-5.6 Sol Max. Here is the unhypped breakdown of what works and what degrades.",
+            "hashtags": [
+              "#AInews",
+              "#Grok",
+              "#xAI",
+              "#OpenAI",
+              "#TechNews"
+            ],
+            "title": "xAI Grok 4.6 Hits 500K Context & Ties OpenAI"
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-short-script.output/script.txt",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-03.news-short-script.output/shot-list.txt"
+          ]
+        }
+      ],
+      "recipes": [
+        "news-carousel",
+        "news-short-script"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-08-14-04",
+      "run": "2026-08-14",
+      "title": "Claude in Chrome turns into an active coworker that reads across your tabs",
+      "trend_id": "trend-04",
+      "trend_label": "Anthropic upgrades Claude in Chrome into a full ambient Cowork session",
+      "format": "unhypped-daily",
+      "fit_score": 0.71,
+      "fit_basis": "Agentic workflow lane: moving AI from a text box to an ambient browser operator. momentum 0.88, brand_fit 0.92 (balances productivity gains with security realities), relevance 0.5. No penalties.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-04.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [],
+      "rejection_reason": "Not selected by operator in daily review batch"
+    },
+    {
+      "id": "idea-2026-08-14-05",
+      "run": "2026-08-14",
+      "title": "Writer built a harness around an open Chinese model to stop runaway enterprise AI bills",
+      "trend_id": "trend-05",
+      "trend_label": "Writer debuts enterprise model on GLM-5.2 with custom harness to slash token costs",
+      "format": "unhypped-daily",
+      "fit_score": 0.7,
+      "fit_basis": "Cost containment and enterprise reality lane: solving real-world token bloat. momentum 0.85, brand_fit 0.91 (speaks directly to founders and budget holders), relevance 0.5. No penalties.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "queued",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-carousel.spec.json",
+          "copy": {
+            "caption": "Enterprise startup Writer built an execution harness around an open GLM model to contain runaway token costs.\n\nHere is the simple version. Multi-agent loops can quietly rack up thousands of redundant recursive calls, causing unexpected monthly billing spikes. Writer wrapped Z.ai's open GLM-5.2 in a governance harness that enforces strict token budgets, context caching, and real-time prompt compression.\n\nThe catch. Aggressive compression can strip subtle edge-case instructions. If your system prompt contains strict legal compliance rules, trimming tokens might trim the rule.\n\nIf you manage enterprise AI spend, look into execution harnesses. The frontier models are cheap, but sloppy agent loops are not.\n\nHave agent loops ever blown your API budget? Tell us your war stories in the comments. 👇",
+            "hashtags": [
+              "#AInews",
+              "#EnterpriseAI",
+              "#AgenticAI",
+              "#AIagents"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "Enterprise startup Writer built an execution harness around an open GLM model to contain runaway token costs.\n\nHere is the simple version. Multi-agent loops can quietly rack up thousands of redundant recursive calls, causing unexpected monthly billing spikes. Writer wrapped Z.ai's open GLM-5.2 in a governance harness that enforces strict token budgets, context caching, and real-time prompt compression.\n\nThe catch. Aggressive compression can strip subtle edge-case instructions. If your system prompt contains strict legal compliance rules, trimming tokens might trim the rule.\n\nIf you manage enterprise AI spend, look into execution harnesses. The frontier models are cheap, but sloppy agent loops are not.\n\nHave agent loops ever blown your API budget? Tell us your war stories in the comments. 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#AIagents"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "Writer built a cost-containment harness around open GLM-5.2 to stop agent API bills from exploding.\n\nAutonomous loops love running in circles. Writer's harness adds strict token budgets, context caching, and automatic prompt compression before calls hit the model.\n\nThe catch. Aggressive compression can accidentally trim subtle prompt rules and compliance edge cases.\n\nAre you managing agent token spend with hard limits? Let us know below. 👇",
+                "hashtags": [
+                  "#AInews",
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#AIagents"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "Enterprise AI startup Writer introduced a cost-containment execution harness built on top of Z.ai's open GLM-5.2 foundation model.\n\nAs multi-agent architectures proliferate, recursive execution loops frequently create unpredictable token bloat and budget overruns. Writer's harness enforces active governance through per-task token limits, automated context caching, and real-time prompt compression.\n\nThe tradeoff to consider. Token compression algorithms can occasionally eliminate nuanced boundary constraints in complex enterprise prompts.\n\nExecution-layer governance is becoming a mandatory component of enterprise agent deployments as organizations scale beyond pilot projects.",
+                "hashtags": [
+                  "#AInews",
+                  "#EnterpriseAI",
+                  "#AgenticAI"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "Writer launched an enterprise harness around open GLM-5.2 to stop runaway agent loops from spiking API bills. Enforces token budgets and prompt compression.",
+                "hashtags": [
+                  "#EnterpriseAI",
+                  "#AIagents"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "Writer built an AI harness that stops agent loops from spending five figures on API tokens 👀",
+                "hashtags": [
+                  "#AInews",
+                  "#EnterpriseAI",
+                  "#AgenticAI",
+                  "#AIagents"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "recipe": "news-short-script",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-short-script.spec.json",
+          "copy": {
+            "caption": "Enterprise startup Writer built a governance harness around open GLM-5.2 to cap runaway agent loops. Here is the unhypped analysis.",
+            "hashtags": [
+              "#AInews",
+              "#EnterpriseAI",
+              "#AgenticAI",
+              "#AIagents",
+              "#TechNews"
+            ],
+            "title": "How To Stop Runaway AI Agent Token Bills"
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-short-script.output/script.txt",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-05.news-short-script.output/shot-list.txt"
+          ]
+        }
+      ],
+      "recipes": [
+        "news-carousel",
+        "news-short-script"
+      ],
+      "declined_recipes": []
+    },
+    {
+      "id": "idea-2026-08-14-06",
+      "run": "2026-08-14",
+      "title": "Liquid AI fit an on-device screen reader and tool caller into just 3 gigabytes",
+      "trend_id": "trend-06",
+      "trend_label": "Liquid AI launches LFM2.5-VL-3B for on-device screen reading and tool use in 3GB",
+      "format": "unhypped-daily",
+      "fit_score": 0.69,
+      "fit_basis": "Local AI / generative edge workflows lane: moving vision-agent capabilities onto local laptops. momentum 0.82, brand_fit 0.90 (technical yet accessible to non-engineers), relevance 0.5. No penalties.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-06.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [],
+      "rejection_reason": "Not selected by operator in daily review batch"
+    },
+    {
+      "id": "idea-2026-08-14-07",
+      "run": "2026-08-14",
+      "title": "Databricks wanted $1B, got offered $15B, and took $5B: why enterprise data is the real AI bottleneck",
+      "trend_id": "trend-07",
+      "trend_label": "Databricks raises $5B at $190B valuation as AI infrastructure demand explodes",
+      "format": "unhypped-daily",
+      "fit_score": 0.68,
+      "fit_basis": "Big-picture industry economics lane: explains why companies spend more on cleaning data for AI than on the models themselves. momentum 0.80, brand_fit 0.88, relevance 0.5. No penalties.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-07.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [],
+      "rejection_reason": "Not selected by operator in daily review batch"
+    },
+    {
+      "id": "idea-2026-08-14-08",
+      "run": "2026-08-14",
+      "title": "DeepSeek open-sourced its internal agent harness and dropped token prices to 87 cents",
+      "trend_id": "trend-08",
+      "trend_label": "DeepSeek open-sources DeepSeek Harness under MIT and prices v4-Pro at $0.87/1M tokens",
+      "format": "unhypped-daily",
+      "fit_score": 0.68,
+      "fit_basis": "Open-source tools and cost-collapse lane: developer tools for recursive self-improving agents. momentum 0.78, brand_fit 0.90, relevance 0.5. No penalties.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-08.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [],
+      "rejection_reason": "Not selected by operator in daily review batch"
+    },
+    {
+      "id": "idea-2026-08-14-09",
+      "run": "2026-08-14",
+      "title": "Microsoft is building its own AI models again — and its image generator just hit #2 on Arena",
+      "trend_id": "trend-09",
+      "trend_label": "Microsoft AI launches MAI-Thinking-1 reasoning model and MAI-Image-2.6",
+      "format": "unhypped-daily",
+      "fit_score": 0.67,
+      "fit_basis": "Tech giant strategy & generative media lane: Microsoft hedging OpenAI with in-house models. momentum 0.75, brand_fit 0.89, relevance 0.5. No penalties.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-09.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [],
+      "rejection_reason": "Not selected by operator in daily review batch"
+    },
+    {
+      "id": "idea-2026-08-14-10",
+      "run": "2026-08-14",
+      "title": "Amazon quietly trained AI on years of Twitch streams by opting everyone in by default",
+      "trend_id": "trend-10",
+      "trend_label": "Twitch faces creator backlash over default AI training opt-in for Amazon",
+      "format": "unhypped-daily",
+      "fit_score": 0.66,
+      "fit_basis": "Creator economy and AI data ethics lane: how platforms harvest user content for AI training. momentum 0.72, brand_fit 0.89, relevance 0.5. No penalties.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-10.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [],
+      "rejection_reason": "Not selected by operator in daily review batch"
+    },
+    {
+      "id": "idea-2026-08-14-11",
+      "run": "2026-08-14",
+      "title": "LG and Nvidia are putting humanoid AI robots into appliance factories next year",
+      "trend_id": "trend-11",
+      "trend_label": "LG and Nvidia team up on Isaac GR00T humanoid factory robots",
+      "format": "unhypped-daily",
+      "fit_score": 0.65,
+      "fit_basis": "Physical AI and robotics lane: grounding futuristic robot hype in factory floor timelines. momentum 0.70, brand_fit 0.87, relevance 0.5. No penalties.",
+      "status": "rejected",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-11.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [],
+      "rejection_reason": "Not selected by operator in daily review batch"
+    },
+    {
+      "id": "idea-2026-08-14-12",
+      "run": "2026-08-14",
+      "title": "LTX-2.5 just went open-weights: video and robotics world models you can run yourself",
+      "trend_id": "trend-12",
+      "trend_label": "LTX releases open-weights LTX-2.5 world model for video and robotics",
+      "format": "unhypped-daily",
+      "fit_score": 0.64,
+      "fit_basis": "Generative media & open-weights video lane: moving spatial world models to open download. momentum 0.68, brand_fit 0.87, relevance 0.5. No penalties.",
+      "status": "accepted",
+      "brief_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.md",
+      "created_at": "2026-08-14T12:00:00Z",
+      "assets": [
+        {
+          "recipe": "news-carousel",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-carousel.spec.json",
+          "copy": {
+            "caption": "A true world model is now free to download. Lightricks just released LTX-2.5 with open weights. This means you can run an AI that understands 3D physics and object persistence on your own hardware. It generates real-time video and simulates physical dynamics fast enough to use for synthetic robotic training. The catch is you still need serious VRAM. Running this locally requires a 24GB card, and fine physical details can still blur when the camera moves fast. Does open-source physical simulation change your roadmap? Tell us your thoughts below.",
+            "hashtags": [
+              "#LTX25",
+              "#OpenSourceAI",
+              "#WorldModels"
+            ],
+            "variants": [
+              {
+                "platform": "facebook",
+                "caption": "A true world model is now free to download. Lightricks just released LTX-2.5 with open weights. This means you can run an AI that understands 3D physics and object persistence on your own hardware. It generates real-time video and simulates physical dynamics fast enough to use for synthetic robotic training. The catch is you still need serious VRAM. Running this locally requires a 24GB card, and fine physical details can still blur when the camera moves fast. Does open-source physical simulation change your roadmap? Tell us your thoughts below.",
+                "hashtags": [
+                  "#LTX25",
+                  "#OpenSourceAI",
+                  "#WorldModels"
+                ]
+              },
+              {
+                "platform": "instagram",
+                "caption": "A true world model is now free to download. Lightricks just released LTX-2.5 with open weights. This means you can run an AI that understands 3D physics and object persistence on your own hardware. It generates real-time video and simulates physical dynamics fast enough to use for synthetic robotic training. The catch is you still need serious VRAM. Running this locally requires a 24GB card, and fine physical details can still blur when the camera moves fast. Does open-source physical simulation change your roadmap? Tell us your thoughts below.",
+                "hashtags": [
+                  "#LTX25",
+                  "#OpenSourceAI",
+                  "#WorldModels"
+                ]
+              },
+              {
+                "platform": "linkedin",
+                "caption": "A true world model is now free to download. Lightricks just released LTX-2.5 with open weights. This means you can run an AI that understands 3D physics and object persistence on your own hardware. It generates real-time video and simulates physical dynamics fast enough to use for synthetic robotic training. The catch is you still need serious VRAM. Running this locally requires a 24GB card, and fine physical details can still blur when the camera moves fast. Does open-source physical simulation change your roadmap? Tell us your thoughts below.",
+                "hashtags": [
+                  "#LTX25",
+                  "#OpenSourceAI",
+                  "#WorldModels"
+                ]
+              },
+              {
+                "platform": "x",
+                "caption": "A true world model is now free to download. Lightricks just released LTX-2.5 with open weights.",
+                "hashtags": [
+                  "#LTX25",
+                  "#OpenSourceAI",
+                  "#WorldModels"
+                ]
+              },
+              {
+                "platform": "tiktok",
+                "caption": "A true world model is now free to download. Lightricks just released LTX-2.5 with open weights.",
+                "hashtags": [
+                  "#LTX25",
+                  "#OpenSourceAI",
+                  "#WorldModels"
+                ]
+              },
+              {
+                "platform": "youtube",
+                "caption": "A true world model is now free to download. Lightricks just released LTX-2.5 with open weights. This means you can run an AI that understands 3D physics and object persistence on your own hardware. It generates real-time video and simulates physical dynamics fast enough to use for synthetic robotic training. The catch is you still need serious VRAM. Running this locally requires a 24GB card, and fine physical details can still blur when the camera moves fast. Does open-source physical simulation change your roadmap? Tell us your thoughts below.",
+                "hashtags": [
+                  "#LTX25",
+                  "#OpenSourceAI",
+                  "#WorldModels"
+                ]
+              }
+            ]
+          },
+          "produced_at": "2026-08-14T15:42:49.829Z",
+          "asset_paths": [
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-carousel.output/0-hook.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-carousel.output/1-then.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-carousel.output/2-shift.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-carousel.output/3-proof.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-carousel.output/4-different.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-carousel.output/5-next.png",
+            "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-carousel.output/6-cta.png"
+          ]
+        },
+        {
+          "recipe": "news-short-script",
+          "status": "produced",
+          "spec_path": "data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-short-script.spec.json",
+          "copy": {
+            "caption": "Lightricks open-weighted LTX-2.5, bringing real-time spatial physics world models to local GPUs. Here is the unhypped breakdown.",
+            "hashtags": [
+              "#AInews",
+              "#LTX",
+              "#WorldModels",
+              "#OpenWeights",
+              "#Robotics"
+            ],
+            "title": "Lightricks Open-Weights LTX-2.5 World Model"
+          },
+          "asset_paths": [
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-short-script.output/script.txt",
+            "/Users/CaxtonTaylor/Developer/OrganicGrowth/data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-12.news-short-script.output/shot-list.txt"
+          ]
         }
       ],
       "recipes": [

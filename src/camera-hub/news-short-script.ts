@@ -68,7 +68,7 @@ export function selectUnuploadedNewsShortScripts(
 
 /**
  * The output bundle directory a `news-short-script` Asset's `script.txt` lives in, derived from its OWN
- * recorded `spec_path` — never reconstructed from the Idea/Run/Format (mirrors CLAUDE.md's "a recorded
+ * recorded `spec_path` — never reconstructed from the Idea/Run/Format (mirrors GEMINI.md's "a recorded
  * `brief_path`/`spec_path` is canonical" rule). `specPathFor` (`src/production-spec/store.ts`) and
  * `outputDirFor` (`src/asset/output-bundle.ts`) name these as siblings by construction —
  * `idea-NN.<recipe>.spec.json` next to `idea-NN.<recipe>.output` — so a plain suffix swap is exact, not
