@@ -2,39 +2,69 @@
   "beats": [
     {
       "role": "hook",
-      "text": "You can't un-download a file. A senator asked the AI industry to pause, and the same day 500 billion dollars said otherwise.",
-      "source_url": "https://huggingface.co/meta-models/Muse-Glimmer-30B",
-      "show_cue": "The Muse Glimmer model page's Files tab full frame, a downloadable model literally a list of files on screen."
-    },
-    {
-      "role": "story",
-      "text": "Bernie Sanders wrote to the bosses of OpenAI, Anthropic and Meta, asking them to pause development, and the ask arrives with no bill behind it, no regulator named and no deadline attached. On its own it changes nothing.",
+      "text": "You can't recall a download once it's out. A senator asked the AI industry to pause. The same day, half a trillion dollars said no.",
       "source_url": "https://www.sanders.senate.gov/wp-content/uploads/AI-Pause-Letter-FINAL.pdf",
-      "show_cue": "The letter PDF held on the addressee block with the three names. sanders.senate.gov blocks automated fetches, open it in a browser before recording."
+      "show_cue": "The letter PDF's addressee block with the three names, held full frame.",
+      "curiosity_queries": [
+        "Bernie Sanders AI pause letter PDF",
+        "Sanders letter Altman Amodei Zuckerberg",
+        "Bernie Sanders Senate podium photo"
+      ]
     },
     {
       "role": "story",
-      "text": "The same day, lenders were reportedly lining up about 500 billion dollars for AI, and Meta published a model anyone can download. Stopping the lab used to stop the model. That door is gone.",
-      "source_url": "https://www.sanders.senate.gov/press-releases/news-sanders-calls-on-tech-giants-to-pause-development-of-out-of-control-ai/",
-      "show_cue": "The press release page beside the model page tab, then an Operator-built text card stating about 500 billion dollars reported for AI infrastructure. The senate page blocks robots too, browser first."
+      "text": "Bernie Sanders wrote to the heads of OpenAI, Anthropic and Meta, asking them to stop, warning of disaster if they don't. No bill sits behind it. No regulator, no deadline, just a letter.",
+      "source_url": "https://www.theguardian.com/technology/2026/aug/10/bernie-sanders-ai-development-pause-letter",
+      "show_cue": "The Guardian headline crop with pause AI development legible, then push to a Sanders photo.",
+      "curiosity_queries": [
+        "Guardian Bernie Sanders AI pause headline",
+        "NYT Sanders AI companies disaster article",
+        "Bernie Sanders Senate speech video AI"
+      ]
     },
     {
       "role": "story",
-      "text": "And before you call the pause naive, labs already pause themselves. OpenAI froze parts of a model days earlier, its own criteria, nobody outside checking.",
-      "source_url": "https://openai.com/index/responding-next-frontier-critical-cyber-capabilities/",
-      "show_cue": "OpenAI's own August 7 post held on its date, so the days-earlier gap is visible. openai.com blocks automated fetchers, browser first."
+      "text": "That same day, Wall Street lenders were lining up roughly 500 billion dollars for AI data centers. Money that size doesn't pause to read a letter.",
+      "source_url": "https://www.ft.com/content/98a8fd17-15b6-4f67-9cb4-825722b11348?syn-25a6b1a6=1",
+      "show_cue": "An Operator-built text card stating roughly 500 billion dollars reported for AI infrastructure financing.",
+      "curiosity_queries": [
+        "500 billion AI infrastructure financing Apollo Blackstone Goldman",
+        "Nvidia AI data center financing news",
+        "AI data center construction photo 2026"
+      ]
     },
     {
       "role": "story",
-      "text": "Every stop button here belongs to the companies being asked to stop. The question is who else should hold one.",
-      "source_url": "https://www.sanders.senate.gov/wp-content/uploads/AI-Pause-Letter-FINAL.pdf",
-      "show_cue": "Operator on camera, no inserts."
+      "text": "Meta published open model weights anyone on earth can already download. That's the part a pause can't touch. Once the file's out, there's no button left to press.",
+      "source_url": "https://arstechnica.com/ai/2026/08/with-new-open-models-meta-pitches-another-reboot-of-its-struggling-ai-strategy/",
+      "show_cue": "The Hugging Face Muse Glimmer Files tab, a downloadable model shown as a literal file list.",
+      "curiosity_queries": [
+        "Meta Muse Glimmer 30B open weights Hugging Face",
+        "Ars Technica Meta open model reboot article",
+        "open weights model download page screenshot"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Before you call the ask naive, labs already pause themselves quietly, by their own rules, nobody outside checking. Every stop button here belongs to the company being asked to stop.",
+      "source_url": "https://theaiinsider.tech/2026/08/10/openai-pauses-parts-of-astra-model-over-cybersecurity-concerns-confirms-earlier-nextslide-acquisition/",
+      "show_cue": "OpenAI's own pause post held on its date line, so the same-week timing is visible.",
+      "curiosity_queries": [
+        "OpenAI Astra pause cybersecurity announcement",
+        "OpenAI Daybreak blog post Astra",
+        "AI lab voluntary pause self regulation news"
+      ]
     },
     {
       "role": "cta",
-      "text": "Follow Straw Motion. We skip the hype, you get the story.",
-      "source_url": "https://www.sanders.senate.gov/press-releases/news-sanders-calls-on-tech-giants-to-pause-development-of-out-of-control-ai/",
-      "show_cue": "Straw Motion logo end card, no overlay."
+      "text": "Did AI change your week? Tell us how.",
+      "source_url": "https://www.youtube.com/@strawmotion",
+      "show_cue": "Straw Motion logo end card, no overlay.",
+      "curiosity_queries": [
+        "Straw Motion logo animation asset",
+        "Straw Motion YouTube channel trailer",
+        "Straw Motion end card template"
+      ]
     }
   ]
 }

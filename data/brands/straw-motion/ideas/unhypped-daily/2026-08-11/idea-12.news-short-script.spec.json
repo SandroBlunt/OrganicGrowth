@@ -2,40 +2,59 @@
   "beats": [
     {
       "role": "hook",
-      "text": "Your rent has a new suspect. About 7 billion dollars of OpenAI shares reportedly just turned into money staff can spend.",
-      "source_url": "https://techcrunch.com/2026/08/10/openai-reportedly-completed-a-7-billion-employee-tender-offer/",
+      "text": "Your rent has a new reported suspect. About seven billion dollars of OpenAI stock just turned into real money in staff's bank accounts.",
+      "source_url": "https://www.cnbc.com/2026/08/10/openai-wraps-7-billion-share-sale-ahead-of-potential-ipo-.html",
       "media_url": "https://techcrunch.com/wp-content/uploads/2026/07/OpenAI-logo-green.jpg?w=1024",
-      "show_cue": "The coverage's lead art with the OpenAI logo, then real San Francisco street footage the Operator shoots, a steep street with Victorians."
+      "show_cue": "The coverage's lead art with the OpenAI logo, then real San Francisco street footage, a steep street with Victorians.",
+      "curiosity_queries": [
+        "CNBC OpenAI 7 billion share sale article",
+        "OpenAI logo San Francisco office photo",
+        "San Francisco street housing photo Mission SoMa"
+      ]
     },
     {
       "role": "story",
-      "text": "Shares in a private company are paper until somebody organises a sale, and that's what a tender offer is: the company lines up new investors, staff sell them existing shares, and nobody waits for an IPO. OpenAI hasn't confirmed a word of it.",
-      "source_url": "https://www.cnbc.com/2026/08/10/openai-wraps-7-billion-share-sale-ahead-of-potential-ipo-.html",
-      "show_cue": "The open coverage headline with its August 10 date, then an Operator-built three box diagram, staff shares to new investors to cash. Credit the original financial outlet in a small text card only, it is paywalled."
+      "text": "Here's the stupidly simple version. A tender offer is the company throwing its own staff a garage sale. Existing shares get sold to new investors, nobody waits for an IPO, and OpenAI hasn't confirmed a word of it.",
+      "source_url": "https://www.bloomberg.com/news/articles/2026-08-10/openai-buys-back-7-billion-of-employee-shares-in-tender-offer",
+      "show_cue": "An Operator-built three box diagram, staff shares to new investors to cash. Credit Bloomberg in a small text card only, it is paywalled.",
+      "curiosity_queries": [
+        "Bloomberg OpenAI tender offer employee shares",
+        "OpenAI tender offer explainer diagram",
+        "private company tender offer employees explained"
+      ]
     },
     {
       "role": "story",
-      "text": "For scale, about 500 billion dollars was reportedly lined up for data centres the same day. Machine money dwarfs people money. People money lands on one city's streets.",
-      "source_url": "https://www.nytimes.com/2026/08/10/business/ai-nvidia-lenders-500-billion.html",
-      "show_cue": "An Operator-built comparison card, 7 billion beside 500 billion. Credit the papers by name in small text, never screen record them, both are paywalled."
-    },
-    {
-      "role": "story",
-      "text": "The San Francisco rent panic, though, is a headline's leap, not a study. Nobody's measured where this money went, and rents move on rates, supply and construction all at once.",
+      "text": "One outlet ties that payout to fresh trouble in San Francisco's housing market. Reportedly is doing the heavy lifting in that sentence. Nobody's counted how many sold, or how much of it ever touched a lease.",
       "source_url": "https://techcrunch.com/2026/08/10/openai-reportedly-completed-a-7-billion-employee-tender-offer/",
-      "show_cue": "The coverage's housing paragraph held long enough to read as one news sentence, not a finding."
+      "show_cue": "The coverage's housing paragraph held long enough to read as one news sentence, not a finding.",
+      "curiosity_queries": [
+        "TechCrunch OpenAI 7 billion housing market article",
+        "San Francisco rent listing screenshot 2026",
+        "San Francisco apartment listing price screenshot"
+      ]
     },
     {
       "role": "story",
-      "text": "And a tender puts no new money into OpenAI, so it tells you nothing about the business.",
-      "source_url": "https://www.cnbc.com/2026/08/10/openai-wraps-7-billion-share-sale-ahead-of-potential-ipo-.html",
-      "show_cue": "Operator on camera, one plain text caption, no graphs."
+      "text": "The same week, roughly 500 billion dollars was reportedly being lined up for AI data centers. Machine money and people money aren't playing the same game, and only one of them shows up on your street.",
+      "source_url": "https://www.nytimes.com/2026/08/10/business/ai-nvidia-lenders-500-billion.html",
+      "show_cue": "An Operator-built comparison card, 7 billion beside 500 billion, both papers credited in small text.",
+      "curiosity_queries": [
+        "NYT Wall Street 500 billion AI financing article",
+        "Apollo Blackstone Goldman Sachs AI data center financing",
+        "AI infrastructure financing comparison graphic"
+      ]
     },
     {
       "role": "cta",
-      "text": "Follow Straw Motion. We skip the hype, you get the story.",
-      "source_url": "https://www.cnbc.com/2026/08/10/openai-wraps-7-billion-share-sale-ahead-of-potential-ipo-.html",
-      "show_cue": "Straw Motion logo end card, no overlay."
+      "text": "How is AI touching your life right now? Tell us.",
+      "source_url": "https://www.youtube.com/@strawmotion",
+      "show_cue": "Straw Motion logo end card, no overlay.",
+      "curiosity_queries": [
+        "Straw Motion logo animation asset",
+        "Straw Motion YouTube channel trailer",
+        "Straw Motion end card template"
+      ]
     }
   ]
 }

@@ -2,42 +2,60 @@
   "beats": [
     {
       "role": "hook",
-      "text": "Your voice assistant takes turns like a walkie talkie. Last week, four models from three labs stopped waiting for the beep.",
+      "text": "You know the pause after you finish talking to an AI? Three labs erased it this week, one reply lands in 450 milliseconds.",
       "source_url": "https://seed.bytedance.com/en/blog/seedrealtime-audio-visual-full-duplex-llm-released-toward-omni-modal-natural-interaction",
-      "show_cue": "Operator on camera holding a real walkie talkie, then swapping it for a phone mid sentence."
+      "show_cue": "Operator on camera holding a real walkie talkie, then swapping it for a phone mid sentence.",
+      "curiosity_queries": [
+        "ByteDance Seed SeedRealtime demo video",
+        "SeedRealtime full duplex voice AI clip",
+        "walkie talkie versus phone call stock footage"
+      ]
     },
     {
       "role": "story",
-      "text": "ByteDance shipped one model that watches, listens and speaks at once, Nvidia put out an open voice model that answers in about 450 milliseconds plus voice weights in 12 languages, and MiniMax shipped video with its own sound. Nobody called it a moment.",
-      "source_url": "https://seed.bytedance.com/en/blog/seedrealtime-audio-visual-full-duplex-llm-released-toward-omni-modal-natural-interaction",
-      "media_url": "https://lf3-static.bytednsdoc.com/obj/eden-cn/lapzild-tss/ljhwZthlaukjlkulzlp/user-upload/4xfa4msffa7qt.mp4",
-      "show_cue": "The four model pages in quick sequence, release dates visible, then ByteDance's own live demo clip where the model cuts in unprompted. Trim the demo before editing, the source file is heavy."
-    },
-    {
-      "role": "story",
-      "text": "The speed isn't magic. Old voice stacks chained three models, transcribe, think, speak, and the lag lived in the handoffs. These go straight from speech to speech, so the queue feeling dies.",
+      "text": "Nvidia's new voice model answers in about 450 milliseconds, fast enough to check something mid sentence without losing the thread. The same team also open sourced voices in twelve languages. Both are downloads, not subscriptions.",
       "source_url": "https://huggingface.co/nvidia/NVIDIA-NemotronLabs-VoiceChat-11B",
       "media_url": "https://huggingface.co/nvidia/NVIDIA-NemotronLabs-VoiceChat-11B/resolve/main/turn_taking.wav",
-      "show_cue": "The Nvidia model card held on the 450 millisecond turn-taking line, then play Nvidia's own turn_taking audio sample over it."
+      "show_cue": "The Nvidia model card held on the 450 millisecond turn-taking line, then the Magpie TTS languages list.",
+      "curiosity_queries": [
+        "Nvidia NemotronLabs VoiceChat 11B demo video",
+        "Nvidia Magpie TTS multilingual voice agent demo",
+        "450 millisecond voice AI turn taking sample"
+      ]
     },
     {
       "role": "story",
-      "text": "Every number is the lab's own, no outside test yet. The open one is research licence only, and a live call keeps a GPU busy, billing by talk time.",
-      "source_url": "https://huggingface.co/nvidia/NVIDIA-NemotronLabs-VoiceChat-11B",
-      "show_cue": "The model card's licence block held on the research-only wording, then a live nvidia-smi readout in a terminal for the GPU line."
-    },
-    {
-      "role": "story",
-      "text": "Try one this week, they're downloads. Just don't hand it your phone lines yet.",
-      "source_url": "https://huggingface.co/MiniMaxAI/MiniMax-H3",
+      "text": "Then MiniMax shipped a model that makes video with the sound already inside it, nothing bolted on after. Old voice AI is a walkie talkie: talk, wait, talk. This is a phone call, both sides can jump in.",
+      "source_url": "https://github.com/MiniMax-AI/MiniMax-H3",
       "media_url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/resolve/main/assets/i2va.mp4",
-      "show_cue": "MiniMax's own generated sample clip, then Operator on camera for the verdict."
+      "show_cue": "MiniMax's own generated sample clip with native audio, then the GitHub repo page.",
+      "curiosity_queries": [
+        "MiniMax H3 video audio generation sample",
+        "MiniMax H3 GitHub repository demo",
+        "MiniMax H3 ComfyUI pipeline screenshot"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Every number here is the lab's own, nobody outside has run these live yet. The open model is licensed for research only, and a live call holds a whole GPU open the entire time. Worth trying this week, not on your phone lines yet.",
+      "source_url": "https://www.marktechpost.com/2026/08/09/nvidia-releases-nemotronlabs-voicechat-11b-an-open-full-duplex-speech-to-speech-model-with-450-ms-turn-taking-and-live-tool-calling/",
+      "show_cue": "The model card's research only licence line, then a live nvidia-smi terminal readout for the GPU cost.",
+      "curiosity_queries": [
+        "voice AI GPU cost live call inference",
+        "open weights research license terms explained",
+        "real time voice AI independent benchmark"
+      ]
     },
     {
       "role": "cta",
-      "text": "Follow Straw Motion. No hype, just what happened.",
-      "source_url": "https://huggingface.co/blog/nvidia/magpie-tts-multilingual-voice-agents",
-      "show_cue": "Straw Motion logo end card, no overlay."
+      "text": "How is AI touching your life right now? Tell us.",
+      "source_url": "https://www.youtube.com/@strawmotion",
+      "show_cue": "Straw Motion logo end card, no overlay.",
+      "curiosity_queries": [
+        "Straw Motion logo animation asset",
+        "Straw Motion YouTube channel trailer",
+        "Straw Motion end card template"
+      ]
     }
   ]
 }

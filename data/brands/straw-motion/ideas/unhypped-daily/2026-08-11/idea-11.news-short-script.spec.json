@@ -2,40 +2,59 @@
   "beats": [
     {
       "role": "hook",
-      "text": "Your coding agent asks permission before it runs anything. On Friday August 14 that prompt is gone, and the company's pitch is that you were the problem.",
-      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
-      "show_cue": "Operator's own screen showing a real Claude Code permission prompt, the thing that is about to disappear."
+      "text": "Your coding agent asks before it touches anything. Starting Friday, Anthropic is turning that prompt off by default, and its argument is that the prompt was the risky part.",
+      "source_url": "https://techcrunch.com/2026/08/09/anthropic-is-turning-claude-codes-auto-mode-on-by-default/",
+      "show_cue": "Operator's own screen showing a real Claude Code permission prompt, the thing that is about to disappear.",
+      "curiosity_queries": [
+        "TechCrunch Anthropic Claude Code auto mode article",
+        "Claude Code permission prompt screenshot",
+        "Claude Code terminal approval prompt demo"
+      ]
     },
     {
       "role": "story",
-      "text": "Anthropic makes auto mode the default for new Claude Code sessions on paid plans, so the agent edits files and runs commands while a built in checker screens each one.",
-      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
-      "show_cue": "The vendor's own post held on the Starting on August 14 line and the plan names."
-    },
-    {
-      "role": "story",
-      "text": "Its case is its own study. Across 1,053 paid testers, the checker caught 89 percent of dangerous commands, and the humans clicking allow caught 13.6 percent, because the humans approve 97 percent of everything.",
+      "text": "From now, the agent edits files and runs commands while a built in checker screens every move. Anthropic's own test watched 1,053 people use it. The checker caught 89 percent of risky commands. The humans clicked allow on almost everything, catching 13.6.",
       "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
       "media_url": "https://cdn.prod.website-files.com/68a44d4040f98a4adf2207b6/6a7551c77738b3678fdde0ce_image4.png",
-      "show_cue": "The post's own results chart, the 13.6 versus 89 bars and the 1,053 testers footnote visible, then scroll to the line reporting users approve 97 percent of permission prompts."
+      "show_cue": "The vendor's own post held on the plan names, then the results chart, 13.6 versus 89, with the 1,053 testers footnote visible.",
+      "curiosity_queries": [
+        "Anthropic auto mode default blog post",
+        "Claude Code auto mode results chart 1053 testers",
+        "Claude Code auto mode announcement screenshot"
+      ]
     },
     {
       "role": "story",
-      "text": "That's the company grading its own homework against a student who wasn't reading. And after three blocks in a row, auto mode steps aside and asks again.",
-      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
-      "show_cue": "Scroll to the fallback paragraph, three blocks in a row or twenty in a session, hold on it."
+      "text": "The team's own lead posted the change himself, no hedge needed there. Click yes two hundred times and the two hundred and first isn't a decision anymore. It's a reflex.",
+      "source_url": "https://x.com/bcherny/status/2085807103382519872",
+      "show_cue": "The first party post held full frame, then a fast cut of a hand clicking allow, allow, allow.",
+      "curiosity_queries": [
+        "Boris Cherny Claude Code auto mode post",
+        "Claude Code lead X post auto mode",
+        "Anthropic Claude Code social media announcement"
+      ]
     },
     {
       "role": "story",
-      "text": "Open your permission settings before Friday and decide what it may touch unasked. A default decides for everyone who doesn't.",
-      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
-      "show_cue": "Operator's own screen, opening the permission settings and setting one rule on camera."
+      "text": "But that's the company's own study, on the company's own product, with no outside audit anyone can check. And a default that removes a prompt also removes the moment you'd have noticed something wrong.",
+      "source_url": "https://theaiinsider.tech/2026/08/10/anthropic-sets-claude-codes-auto-mode-as-default-citing-improved-safety-over-manual-review/",
+      "show_cue": "Operator's own screen, opening the permission settings and setting one rule on camera.",
+      "curiosity_queries": [
+        "AI Insider Claude Code auto mode safety article",
+        "Claude Code permission settings allow list screenshot",
+        "AI agent approval fatigue research"
+      ]
     },
     {
       "role": "cta",
-      "text": "Follow Straw Motion. No hype, just what happened.",
-      "source_url": "https://claude.com/blog/auto-mode-default-in-claude-code",
-      "show_cue": "Straw Motion logo end card, no overlay."
+      "text": "Did AI change your week? Tell us how.",
+      "source_url": "https://www.youtube.com/@strawmotion",
+      "show_cue": "Straw Motion logo end card, no overlay.",
+      "curiosity_queries": [
+        "Straw Motion logo animation asset",
+        "Straw Motion YouTube channel trailer",
+        "Straw Motion end card template"
+      ]
     }
   ]
 }
