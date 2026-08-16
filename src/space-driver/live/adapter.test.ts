@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { LiveSpaceAdapter, SELECTED_CHARACTER_NODE_NAME, VIDEO_COMBINER_NODE_NAME } from "./adapter.ts";
 import type { LiveMcpTransport } from "./transport.ts";
 import { syntheticFailedEditStatus, syntheticFailedRunStatus } from "./replay/synthetic.ts";
+import { SPACES_EDIT_WRITE_LIMIT_CHARS, WriteLimitExceededError } from "./write-limit.ts";
 
 const CAPTURES_DIR = fileURLToPath(new URL("../fixtures/live-captures/", import.meta.url));
 
@@ -25,6 +26,10 @@ class StubTransport implements LiveMcpTransport {
   public creationsGetCalls: string[] = [];
   public runStatusOverride: string | undefined;
   public editStatusOverride: string | undefined;
+  /** Every `threadId` `spacesEdit` was called with, in order (issue #207). */
+  public editThreadIds: string[] = [];
+  /** Every raw `goal` `spacesEdit` was called with, in order. */
+  public editCalls: string[] = [];
 
   async spacesState(): Promise<string> {
     return readCapture("01-spaces_state.board.txt");
@@ -42,7 +47,9 @@ class StubTransport implements LiveMcpTransport {
       ? readCapture("05-spaces_run_status.running.json")
       : readCapture("06-spaces_run_status.terminal.json");
   }
-  async spacesEdit(): Promise<string> {
+  async spacesEdit(_spaceId: string, goal: string, threadId: string): Promise<string> {
+    this.editCalls.push(goal);
+    this.editThreadIds.push(threadId);
     return readCapture("09-spaces_edit.start.json");
   }
   async spacesEditStatus(): Promise<string> {
@@ -161,6 +168,66 @@ describe("LiveSpaceAdapter.edit / editStatus — real operationId + workflowStat
     const status = await adapter.editStatus("some-edit-id");
     assert.equal(status.phase, "failed");
     assert.ok(status.error);
+  });
+});
+
+describe("LiveSpaceAdapter.edit — the write limit is checked FIRST (issue #207)", () => {
+  it("forwards a goal at/under the modelled limit to the transport unchanged", async () => {
+    const stub = new StubTransport();
+    const adapter = new LiveSpaceAdapter(stub, SPACE_ID);
+    const goal = "x".repeat(SPACES_EDIT_WRITE_LIMIT_CHARS);
+    await adapter.edit(goal);
+    assert.deepEqual(stub.editCalls, [goal]);
+  });
+
+  it("refuses a goal over the limit WITHOUT ever calling the transport — zero live calls, zero credits", async () => {
+    const stub = new StubTransport();
+    const adapter = new LiveSpaceAdapter(stub, SPACE_ID);
+    const oversized = "x".repeat(SPACES_EDIT_WRITE_LIMIT_CHARS + 1);
+
+    await assert.rejects(
+      () => adapter.edit(oversized),
+      (error: unknown) => {
+        assert.ok(error instanceof WriteLimitExceededError);
+        assert.equal(error.length, SPACES_EDIT_WRITE_LIMIT_CHARS + 1);
+        assert.equal(error.limit, SPACES_EDIT_WRITE_LIMIT_CHARS);
+        return true;
+      },
+    );
+    assert.equal(stub.editCalls.length, 0, "the transport must never be called for an oversized goal");
+  });
+
+  it("a ~17 KB carousel-sized goal is refused, never silently truncated to fit", async () => {
+    const stub = new StubTransport();
+    const adapter = new LiveSpaceAdapter(stub, SPACE_ID);
+    const seventeenKbGoal = "y".repeat(17_000);
+
+    await assert.rejects(() => adapter.edit(seventeenKbGoal), WriteLimitExceededError);
+    assert.equal(stub.editCalls.length, 0);
+  });
+});
+
+describe("LiveSpaceAdapter.edit — a FRESH threadId is generated for every injection (issue #207)", () => {
+  it("uses crypto.randomUUID() by default, and two consecutive edits get two DIFFERENT thread ids", async () => {
+    const stub = new StubTransport();
+    const adapter = new LiveSpaceAdapter(stub, SPACE_ID);
+    await adapter.edit("first edit goal");
+    await adapter.edit("second edit goal");
+
+    assert.equal(stub.editThreadIds.length, 2);
+    assert.notEqual(stub.editThreadIds[0], stub.editThreadIds[1]);
+    // A real UUID shape, not an empty/placeholder string.
+    assert.match(stub.editThreadIds[0]!, /^[0-9a-f-]{36}$/);
+  });
+
+  it("threads a caller-injected thread-id generator through to the transport, never reusing one", async () => {
+    const stub = new StubTransport();
+    let seq = 0;
+    const adapter = new LiveSpaceAdapter(stub, SPACE_ID, () => `thread-${++seq}`);
+    await adapter.edit("first");
+    await adapter.edit("second");
+    await adapter.edit("third");
+    assert.deepEqual(stub.editThreadIds, ["thread-1", "thread-2", "thread-3"]);
   });
 });
 

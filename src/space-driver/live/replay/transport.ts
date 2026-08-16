@@ -112,7 +112,7 @@ export class ReplayMcpTransport implements LiveMcpTransport {
       : readCapture("06-spaces_run_status.terminal.json");
   }
 
-  async spacesEdit(_spaceId: string, goal: string): Promise<string> {
+  async spacesEdit(_spaceId: string, goal: string, _threadId: string): Promise<string> {
     this.lastEditGoal = goal;
     return readCapture("09-spaces_edit.start.json");
   }

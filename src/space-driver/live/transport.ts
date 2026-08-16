@@ -20,8 +20,13 @@ export interface LiveMcpTransport {
   spacesRun(spaceId: string, startNodeId: string, mode: string): Promise<string>;
   /** `spaces_run_status` — poll a run's status. Raw JSON text. */
   spacesRunStatus(spaceId: string, runId: string): Promise<string>;
-  /** `spaces_edit` — issue a natural-language edit goal. Raw JSON text. */
-  spacesEdit(spaceId: string, goal: string): Promise<string>;
+  /**
+   * `spaces_edit` — issue a natural-language edit goal. Raw JSON text. `threadId` is a FRESH id the
+   * adapter generates for every single call (issue #207) — a shared thread reused across many edits was
+   * found, live, to truncate the JSON node after roughly 40 edits, so the transport is handed a new
+   * thread identity every time rather than ever continuing a prior one.
+   */
+  spacesEdit(spaceId: string, goal: string, threadId: string): Promise<string>;
   /** `spaces_edit_status` — poll an edit's status. Raw JSON text. */
   spacesEditStatus(spaceId: string, editId: string): Promise<string>;
   /** `creations_get` — fetch one creation by identifier (one at a time). A key/value text block. */

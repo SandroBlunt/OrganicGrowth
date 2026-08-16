@@ -19,10 +19,17 @@
  *   - `readNodeTextRobust` (an adapter-level extra, not part of `SpaceMcpPort`) guards against the
  *     ~1,900-char read-API truncation for any single node, resolving from a linked document when one is
  *     available rather than silently trusting a partial read.
+ *   - `edit(goal)` checks `goal` against the modelled `spaces_edit` WRITE limit (`./write-limit.ts`,
+ *     issue #207) BEFORE calling the transport — an oversized goal is refused with a clear
+ *     `WriteLimitExceededError`, never forwarded, never silently truncated. Every call also generates a
+ *     FRESH thread id (`newThreadId`, default `crypto.randomUUID()`) — a shared thread reused across many
+ *     edits was found, live, to truncate the JSON node after roughly 40 edits (issue #207).
  *
  * This adapter makes NO live MCP call itself — every call is delegated to the injected
  * `LiveMcpTransport`. Tests inject `ReplayMcpTransport` (fixture replay) or a hand-rolled stub.
  */
+
+import { randomUUID } from "node:crypto";
 
 import type { Creation, EditStatus, RunStatus, SpaceMcpPort } from "../port.ts";
 import type { SpaceStateLike, SpaceStateNode } from "../../execution-protocol/parse.ts";
@@ -33,6 +40,7 @@ import { parseSpaceStateNodes } from "./space-state.ts";
 import { parseCreationBlock } from "./creation.ts";
 import type { RobustTextOptions, RobustTextResult } from "./text-truncation.ts";
 import { readNodeTextRobust } from "./text-truncation.ts";
+import { assertWithinWriteLimit } from "./write-limit.ts";
 
 /** The real live board's Character-pin creation node (README gotcha #3 — NOT the fake's "Character #2"). */
 export const SELECTED_CHARACTER_NODE_NAME = "Selected Character";
@@ -77,9 +85,15 @@ function stringArrayField(obj: Record<string, unknown>, key: string): readonly s
 }
 
 export class LiveSpaceAdapter implements SpaceMcpPort {
+  /**
+   * @param newThreadId Generates a FRESH thread id for every `edit()` call (issue #207) — defaults to a
+   *   real `crypto.randomUUID()`. Tests inject a deterministic sequence to assert no two edits ever share
+   *   a thread; production never overrides this.
+   */
   constructor(
     private readonly transport: LiveMcpTransport,
     private readonly spaceId: string,
+    private readonly newThreadId: () => string = randomUUID,
   ) {}
 
   async readState(): Promise<SpaceStateLike> {
@@ -107,7 +121,10 @@ export class LiveSpaceAdapter implements SpaceMcpPort {
   }
 
   async edit(goal: string): Promise<{ readonly editId: string }> {
-    const raw = await this.transport.spacesEdit(this.spaceId, goal);
+    // The write limit is checked FIRST — before any transport call, so an oversized goal never reaches
+    // the live MCP tool at all (issue #207: zero credits, zero board mutation, zero silent truncation).
+    assertWithinWriteLimit(goal, "edit() goal");
+    const raw = await this.transport.spacesEdit(this.spaceId, goal, this.newThreadId());
     const json = parseJson(raw, "spaces_edit");
     const editId = stringField(json, "operationId");
     if (editId === undefined) {
