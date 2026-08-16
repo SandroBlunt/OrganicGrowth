@@ -17,9 +17,10 @@ omitting any one is a usage error, never a silent default. `[posts-per-day]` is 
 Daily's ~6 Assets/day) passes a higher value so several Assets share one calendar day instead of each
 falling a day further behind (issue #171).
 
-**The Publish gate stays human (ADR-0002).** This command writes files and hosts media on unlisted
-public S3 URLs — hosting is not publishing. The Operator reviews the CSVs, uploads them to Zoho Social,
-and inspects the queued posts inside Zoho before they go live.
+**The Publish gate stays human (ADR-0002).** This command writes files and hosts media behind signed,
+expiring S3 links (private bucket, unguessable keys — issue #198) — hosting is not publishing. The
+Operator reviews the CSVs, uploads them to Zoho Social, and inspects the queued posts inside Zoho before
+they go live.
 
 **The CSV/S3 FALLBACK path (ADR-0020).** Zoho's MCP tools (`scheduleViaZohoMcpCommand`,
 `src/commands/schedule-via-zoho-mcp.ts`) are the PRIMARY way a Run's produced News Carousel Assets get
@@ -84,13 +85,14 @@ credits, hermetic build.
      is at least 1 hour in the future (`validateSlotsFuture`) — a past or too-soon time REFUSES the
      WHOLE export loudly (Zoho would otherwise silently grey out its own upload button, live-verified).
    - **Hosts** every eligible Asset's slides ONCE via the injected Media Host (`convertToJpg` then
-     `upload`, per slide) — the resulting links are shared across that Asset's rows. Original PNGs are
-     never touched (a copy-and-convert, never in-place).
+     `upload`, per slide, each under an unguessable key and a signed link expiring shortly after that
+     Asset's own scheduled time — issue #198) — the resulting links are shared across that Asset's rows.
+     Original PNGs are never touched (a copy-and-convert, never in-place).
    - **Writes** two CSVs — one per configured Zoho Social Brand grouping, in the live-verified dialect
      (no header row; `MM/DD/YYYY HH:mm`; quoted Channels/Post Content with literal `\n` breaks; one bare
      UNQUOTED field per media URL, ragged row width; empty Link/GMB columns; max 350 rows) — plus
      `zoho-manifest.json` (the cleanup contract: per Asset, its scheduled time, hosted S3 keys, and
-     public URLs), into the run folder next to the output bundles.
+     signed URLs), into the run folder next to the output bundles.
    - Carousel-capable platforms (Facebook, Instagram, TikTok, LinkedIn) carry all 7 slides in narrative
      order; **X** rows carry only the first 4.
    - Each row carries that platform's OWN composed Copy variant (issue #129). The bracketed LinkedIn

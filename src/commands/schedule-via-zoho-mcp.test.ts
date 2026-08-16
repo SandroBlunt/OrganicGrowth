@@ -9,6 +9,7 @@ import { loadIdeaAssets } from "../asset/store.ts";
 import { FakeMediaHost } from "../media-host/fixtures/fake-media-host.ts";
 import { FakeZohoSchedulePort } from "../schedule-batch/fixtures/fake-zoho-schedule-port.ts";
 import { deriveScheduleSlots } from "../schedule-batch/schedule.ts";
+import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
 
 const BRAND = "straw-motion";
 const FORMAT = "unhypped-news";
@@ -226,6 +227,21 @@ describe("scheduleViaZohoMcpCommand — happy path (issue #163)", () => {
       assert.ok(asset.zoho_schedule_reference !== undefined);
       assert.equal(Array.isArray(asset.zoho_schedule_reference), true);
       assert.equal((asset.zoho_schedule_reference as readonly string[]).length, 4); // fb/ig/tiktok/linkedin
+
+      // --- issue #198 AC2: every hosted key folds in an unguessable token, unique per slide ---
+      assert.match(
+        mediaHost.uploadCalls[0]!.key,
+        /^straw-motion\/2026-W32\/idea-01\/[A-Za-z0-9_-]{10,}\/0-hook\.jpg$/,
+      );
+      const tokenSegment = (key: string): string => key.split("/")[3]!;
+      assert.notEqual(
+        tokenSegment(mediaHost.uploadCalls[0]!.key),
+        tokenSegment(mediaHost.uploadCalls[1]!.key),
+      );
+
+      // --- issue #198 AC4: the signed link's expiry is derived from THIS Asset's own scheduled_at ---
+      const expectedExpiry = computeMediaExpiry(asset.scheduled_at!, NOW).expiresInSeconds;
+      assert.ok(mediaHost.uploadCalls.every((c) => c.expiresInSeconds === expectedExpiry));
     });
   });
 

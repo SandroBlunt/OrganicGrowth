@@ -19,6 +19,9 @@ function stubRunner(): { runner: CommandRunner; calls: RecordedCall[] } {
   const calls: RecordedCall[] = [];
   const runner: CommandRunner = async (command, args, options) => {
     calls.push({ command, args, env: options?.env });
+    if (args.includes("presign")) {
+      return { stdout: "https://example-signed.invalid/a.jpg?X-Amz-Signature=fixture-not-real\n", stderr: "" };
+    }
     return { stdout: "", stderr: "" };
   };
   return { runner, calls };
@@ -31,8 +34,8 @@ describe("LiveMediaHost (issue #144) — composes sips + the AWS CLI behind Medi
     const { runner } = stubRunner();
     const host: MediaHostPort = new LiveMediaHost({ config: CONFIG, runner, env: {} });
     await host.convertToJpg("/tmp/a.png", "/tmp/a.jpg");
-    const result = await host.upload("/tmp/a.jpg", "a.jpg");
-    assert.equal(result.url, "https://strawmotion-schedule-media.s3.us-east-1.amazonaws.com/a.jpg");
+    const result = await host.upload("/tmp/a.jpg", "a.jpg", { expiresInSeconds: 3600 });
+    assert.match(result.url, /^https:\/\/example-signed\.invalid/);
     await host.delete("a.jpg");
   });
 
@@ -53,13 +56,13 @@ describe("LiveMediaHost (issue #144) — composes sips + the AWS CLI behind Medi
     ]);
   });
 
-  it("upload delegates to the AWS CLI, using the PRESET env verbatim (no .env load)", async () => {
+  it("upload delegates to the AWS CLI (cp then presign), using the PRESET env verbatim (no .env load)", async () => {
     const { runner, calls } = stubRunner();
     const presetEnv = { AWS_ACCESS_KEY_ID: "preset-value" };
     const host = new LiveMediaHost({ config: CONFIG, runner, env: presetEnv });
-    await host.upload("/tmp/a.jpg", "straw-motion/a.jpg");
+    await host.upload("/tmp/a.jpg", "straw-motion/a.jpg", { expiresInSeconds: 3600 });
 
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 2);
     assert.equal(calls[0]?.command, "aws");
     assert.deepEqual(calls[0]?.args, [
       "s3",
@@ -72,6 +75,16 @@ describe("LiveMediaHost (issue #144) — composes sips + the AWS CLI behind Medi
       "image/jpeg",
     ]);
     assert.equal(calls[0]?.env, presetEnv);
+    assert.deepEqual(calls[1]?.args, [
+      "s3",
+      "presign",
+      "s3://strawmotion-schedule-media/straw-motion/a.jpg",
+      "--region",
+      "us-east-1",
+      "--expires-in",
+      "3600",
+    ]);
+    assert.equal(calls[1]?.env, presetEnv);
   });
 
   it("delete delegates to the AWS CLI with the exact rm argv", async () => {
@@ -100,7 +113,7 @@ describe("LiveMediaHost (issue #144) — composes sips + the AWS CLI behind Medi
         runner,
         envFilePath: envPath,
       });
-      await host.upload("/tmp/a.jpg", "a.jpg");
+      await host.upload("/tmp/a.jpg", "a.jpg", { expiresInSeconds: 3600 });
       assert.equal(calls[0]?.env?.AWS_ACCESS_KEY_ID, "from-dotenv-fixture");
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -116,7 +129,7 @@ describe("LiveMediaHost (issue #144) — composes sips + the AWS CLI behind Medi
         runner,
         envFilePath: join(dir, "does-not-exist.env"),
       });
-      await host.upload("/tmp/a.jpg", "a.jpg");
+      await host.upload("/tmp/a.jpg", "a.jpg", { expiresInSeconds: 3600 });
       assert.equal(calls[0]?.env?.PATH, process.env.PATH);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -130,11 +143,12 @@ describe("LiveMediaHost (issue #144) — composes sips + the AWS CLI behind Medi
       await writeFile(envPath, "AWS_ACCESS_KEY_ID=only-once\n", "utf8");
       const { runner, calls } = stubRunner();
       const host = new LiveMediaHost({ config: CONFIG, runner, envFilePath: envPath });
-      await host.upload("/tmp/a.jpg", "a.jpg");
+      await host.upload("/tmp/a.jpg", "a.jpg", { expiresInSeconds: 3600 });
       await host.delete("a.jpg");
-      assert.equal(calls.length, 2);
-      // Same resolved env object reference reused for the second call.
+      assert.equal(calls.length, 3); // cp + presign (upload) + rm (delete)
+      // Same resolved env object reference reused across every call.
       assert.equal(calls[0]?.env, calls[1]?.env);
+      assert.equal(calls[1]?.env, calls[2]?.env);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

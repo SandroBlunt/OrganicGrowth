@@ -14,7 +14,9 @@
  * issue #171, passed straight through to the SAME shared `deriveScheduleSlots` the CSV path uses), run
  * the SAME preflight validation the CSV path runs (`validateAssetsForExport`, defense in depth — never
  * trusted blindly), host each planned Asset's slides via the injected `MediaHostPort` (issue #144 —
- * unchanged infrastructure, the SAME Media Host the CSV export already uses), then drive `runMcpSchedule`
+ * unchanged infrastructure, the SAME Media Host the CSV export already uses, now under an unguessable
+ * key with a signed, expiring link derived from that Asset's own scheduled time — issue #198), then
+ * drive `runMcpSchedule`
  * (`src/schedule-batch/mcp-schedule.ts`) — which itself enforces AC1 (no Zoho write-tool before
  * approval) and AC2 (upload, then validate, then schedule). Every successfully-scheduled Asset's
  * `scheduled_at` + `zoho_schedule_reference` (issue #161) is stamped via `AssetStore.writeAsset`
@@ -49,6 +51,7 @@ import { selectEligibleAssets, describeSkippedAssets } from "../schedule-batch/e
 import { buildMcpSchedulePlan } from "../schedule-batch/mcp-plan.ts";
 import { validateAssetsForExport } from "../schedule-batch/plan.ts";
 import { slideBaseName, scheduleMediaKey } from "../schedule-batch/media-key.ts";
+import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
 import {
   runMcpSchedule,
   mcpUnavailableFallbackMessage,
@@ -56,6 +59,7 @@ import {
 } from "../schedule-batch/mcp-schedule.ts";
 import type { ZohoSchedulePort } from "../schedule-batch/mcp-schedule-port.ts";
 import type { MediaHostPort } from "../media-host/port.ts";
+import { randomMediaKeyToken } from "../media-host/token.ts";
 
 // ---------------------------------------------------------------------------
 // Default Media Host (deferred live wiring — mirrors export-schedule.ts's own DEFAULT_MEDIA_HOST)
@@ -189,13 +193,18 @@ export async function scheduleViaZohoMcpCommand(
       const source = byIdeaId.get(planned.ideaId);
       if (source === undefined) continue; // defensive — plan.assets is always drawn from `eligible`
       const ideaShortName = briefShortName(planned.ideaId, run);
+      // The link's expiry is derived from THIS Asset's own scheduled time (issue #198) — never a fixed
+      // default. In practice Zoho's own `uploadMediaFromUrl` fetches this SAME link moments later, in
+      // this same call (`runMcpSchedule`, step 6 below) — but the expiry still tracks `scheduledAtUtc`
+      // exactly like the CSV/S3 fallback path, so both paths derive expiry the same way.
+      const { expiresInSeconds } = computeMediaExpiry(planned.scheduledAtUtc, now);
       const urls: string[] = [];
       for (const slidePath of source.asset.asset_paths ?? []) {
         const base = slideBaseName(slidePath);
-        const key = scheduleMediaKey(brand, run, ideaShortName, base);
+        const key = scheduleMediaKey(brand, run, ideaShortName, base, randomMediaKeyToken());
         const destPath = join(stagingDir, `${ideaShortName}-${base}.jpg`);
         await mediaHost.convertToJpg(slidePath, destPath);
-        const { url } = await mediaHost.upload(destPath, key);
+        const { url } = await mediaHost.upload(destPath, key, { expiresInSeconds });
         urls.push(url);
       }
       assetsInput.push({

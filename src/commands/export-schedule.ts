@@ -9,8 +9,11 @@
  * validation before touching any I/O (`src/schedule-batch/plan.ts`'s `validateAssetsForExport`), derive
  * + validate a deterministic schedule (`src/schedule-batch/schedule.ts`), host each eligible Asset's
  * slides via the injected `MediaHostPort` (issue #144 — the fake in every test, never live in `npm
- * test`), assemble the whole plan PURELY (`src/schedule-batch/plan.ts`'s `buildSchedulePlan`), write the
- * CSVs + manifest into the run folder, and stamp `scheduled_at` on each exported Asset via
+ * test`) under an UNGUESSABLE key (`src/media-host/token.ts`'s `randomMediaKeyToken`) with a SIGNED,
+ * EXPIRING link whose lifetime is derived from that Asset's OWN `scheduled_at`
+ * (`src/schedule-batch/media-expiry.ts`'s `computeMediaExpiry`, issue #198 — the bucket is no longer
+ * public-read), assemble the whole plan PURELY (`src/schedule-batch/plan.ts`'s `buildSchedulePlan`),
+ * write the CSVs + manifest into the run folder, and stamp `scheduled_at` on each exported Asset via
  * `AssetStore.writeAsset` (ledger-as-source-of-truth, always-rules #7) — the Asset's `status` stays
  * `"produced"` (ADR-0011's lifecycle is unchanged; `/log-post` is still what moves it to `posted`).
  *
@@ -56,8 +59,10 @@ import { sortEligible } from "../schedule-batch/order.ts";
 import { deriveScheduleSlots, validateSlotsFuture } from "../schedule-batch/schedule.ts";
 import { validateAssetsForExport, buildSchedulePlan, type AssetHostedMedia } from "../schedule-batch/plan.ts";
 import { slideBaseName, scheduleMediaKey } from "../schedule-batch/media-key.ts";
+import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
 import { runScheduleCleanup, type CleanupResult } from "../schedule-batch/cleanup-runner.ts";
 import type { MediaHostPort } from "../media-host/port.ts";
+import { randomMediaKeyToken } from "../media-host/token.ts";
 
 const MANIFEST_FILE_NAME = "zoho-manifest.json";
 
@@ -233,16 +238,22 @@ export async function exportScheduleCommand(
   let hostedMedia: AssetHostedMedia[];
   try {
     hostedMedia = [];
-    for (const { ideaId, asset } of sorted) {
+    for (let i = 0; i < sorted.length; i++) {
+      const { ideaId, asset } = sorted[i]!;
       const ideaShortName = briefShortName(ideaId, run);
+      // The link's expiry is derived from THIS Asset's own scheduled time (issue #198) — never a fixed
+      // default. `slots[i]` is the SAME slot `buildSchedulePlan` (step 6, below) stamps onto this exact
+      // Asset's manifest entry and ledger `scheduled_at`.
+      const scheduledAtIso = new Date(slots[i]!.utcMs).toISOString();
+      const { expiresInSeconds } = computeMediaExpiry(scheduledAtIso, now);
       const keys: string[] = [];
       const urls: string[] = [];
       for (const slidePath of asset.asset_paths ?? []) {
         const base = slideBaseName(slidePath);
-        const key = scheduleMediaKey(brand, run, ideaShortName, base);
+        const key = scheduleMediaKey(brand, run, ideaShortName, base, randomMediaKeyToken());
         const destPath = join(stagingDir, `${ideaShortName}-${base}.jpg`);
         await mediaHost.convertToJpg(slidePath, destPath);
-        const { url } = await mediaHost.upload(destPath, key);
+        const { url } = await mediaHost.upload(destPath, key, { expiresInSeconds });
         keys.push(key);
         urls.push(url);
       }

@@ -8,6 +8,7 @@ import { exportScheduleCommand, main as exportScheduleMain, parsePostsPerDayArg 
 import { loadIdeaAssets } from "../asset/store.ts";
 import { FakeMediaHost } from "../media-host/fixtures/fake-media-host.ts";
 import { deriveScheduleSlots } from "../schedule-batch/schedule.ts";
+import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
 
 const BRAND = "straw-motion";
 const FORMAT = "unhypped-news";
@@ -197,6 +198,24 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
       assert.equal(mediaHost.convertCalls[0]!.sourcePath, idea01Paths[0]);
       assert.ok(mediaHost.uploadCalls[0]!.key.startsWith("straw-motion/2026-W32/idea-01/"));
       assert.ok(mediaHost.uploadCalls[0]!.key.endsWith(".jpg"));
+
+      // --- issue #198 AC2: every hosted key folds in an unguessable token — never the old, fully
+      //     deterministic pre-#198 shape, and never the same token twice across sibling slides ---
+      assert.notEqual(mediaHost.uploadCalls[0]!.key, "straw-motion/2026-W32/idea-01/0-hook.jpg");
+      assert.match(
+        mediaHost.uploadCalls[0]!.key,
+        /^straw-motion\/2026-W32\/idea-01\/[A-Za-z0-9_-]{10,}\/0-hook\.jpg$/,
+      );
+      const tokenSegment = (key: string): string => key.split("/")[3]!;
+      assert.notEqual(
+        tokenSegment(mediaHost.uploadCalls[0]!.key),
+        tokenSegment(mediaHost.uploadCalls[1]!.key),
+      );
+
+      // --- issue #198 AC4: the signed link's expiry is derived from THIS Asset's own scheduled_at,
+      //     and covered by a test — every slide of the same Asset shares the SAME derived expiry ---
+      const expectedExpiry = computeMediaExpiry(assets![0]!.scheduled_at!, NOW).expiresInSeconds;
+      assert.ok(mediaHost.uploadCalls.every((c) => c.expiresInSeconds === expectedExpiry));
 
       // --- The original PNGs are byte-for-byte untouched ---
       const afterBytes = await Promise.all(idea01Paths.map((p) => readFile(p)));
