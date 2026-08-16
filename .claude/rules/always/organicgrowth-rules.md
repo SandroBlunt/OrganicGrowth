@@ -29,8 +29,10 @@ globs: *
    `ledger.json` (the
    global Production Queue is the one exception — `data/queue.json`). Production state lives as
    **per-Recipe Assets** on each Idea, not flat scalars. All reads/writes go through a typed store layer
-   so files can later swap for a database (see `docs/adr/0011`, `docs/adr/0014`). Update the Brand's
-   `ledger.json` on every status change; keep it the source of truth.
+   so files can swap for a database without changing callers (see `docs/adr/0011`, `docs/adr/0014`) — a
+   local SQLite foundation now exists under `data/` (`docs/adr/0029`), but is not yet the backing of any
+   store (that swap is a separate slice). Update the Brand's `ledger.json` on every status change; keep
+   it the source of truth.
 8. **Never fabricate.** If Apify returns nothing or errors, say so and stop — don't invent trends,
    ideas, or metrics.
 9. **Respect the brand profile.** Banned words and brand-safety rules in `brand-profile.yaml` are hard

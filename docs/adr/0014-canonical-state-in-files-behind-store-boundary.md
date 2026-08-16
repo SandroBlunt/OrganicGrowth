@@ -6,6 +6,13 @@ in the 2026-07 grilling.
 > **Extended by ADR-0016 (map #70):** the store list gains a **`BrandAssetStore`** for per-Brand reusable
 > media (image/video/audio) under `data/brands/<slug>/assets/`.
 
+> **Superseded by ADR-0029** (issue #201, Operator decision 2026-08-16): the choice below to KEEP
+> JSON/YAML files behind the store boundary for the MVP is reversed — canonical relational state (the
+> ledger, the queue) moves to a local SQLite database, still opened in-process, still no service. This
+> ADR's own store-boundary + relational-modeling + stable-id principles are KEPT and FULFILLED, not
+> abandoned — ADR-0029 is exactly the "one new adapter behind the same stores" productization path this
+> ADR named and deliberately deferred.
+
 All state is plain files today (ADR-0006). Multi-format makes the data **relational** (Idea → many
 Assets → many Posts; Formats; Performance). The question raised was whether to move to a database now
 for a productizable foundation, while keeping an MVP scope.

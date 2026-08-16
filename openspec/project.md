@@ -20,11 +20,15 @@ ideas is sharper. It **generates the Asset but never publishes it** — a human 
 ## Tech stack
 
 - **Runtime/language:** Node + TypeScript.
-- **State:** plain files only — **no database**. State is scoped per Brand under
-  `data/brands/<slug>/`: `brand-profile.yaml`, `seeds.yaml`, `ideas/<run>/*.{md,json}`, and
-  `ledger.json` (the canonical index for that Brand). The one brand-agnostic exception is the global
-  Production Queue at `data/queue.json` (ADR-0006). The ledger is the source of truth; update it on
-  every status change.
+- **State:** plain files, per Brand under `data/brands/<slug>/` (`brand-profile.yaml`, `seeds.yaml`,
+  `ideas/<run>/*.{md,json}`, `ledger.json` — the canonical index for that Brand) plus the one
+  brand-agnostic global Production Queue at `data/queue.json` (ADR-0006). The ledger is the source of
+  truth; update it on every status change. A **local SQLite database** foundation also exists under
+  `data/`, opened in-process by Node's built-in `node:sqlite` (`src/db/`) — schema, migration runner,
+  and the closed-vocabulary reference tables (ADR-0029, issue #201). It is **not yet** the backing of
+  any store: every store above still reads/writes the plain files described above until issue #202
+  swaps each store's `{ ledgerPath }` option for `{ db }`. No hosted service, no HTTP API, no container,
+  no cloud database, ever (ADR-0029).
 - **External muscle:** Apify (public-metric scraping) and a Magnific Space via MCP (production).
   Engineering builds and tests against a **fake/stand-in for the Magnific Space** — never the live
   Space (no credits, no board mutation; hermetic CI).
