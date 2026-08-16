@@ -6,7 +6,7 @@
  * `spaces_edit_status`; TOON text for `spaces_state`/`spaces_get_nodes`; a key/value block for
  * `creations_get`). The adapter owns all parsing; this interface owns none — it is a pure transport.
  *
- * The `developer` build agent has no `magnific` MCP tools (hermetic build, GEMINI.md). Tests inject
+ * The `developer` build agent has no `magnific` MCP tools (hermetic build, CLAUDE.md). Tests inject
  * `ReplayMcpTransport` (`live/replay/transport.ts`) — which returns the sanctioned live capture's fixture
  * files verbatim — or a hand-rolled stub for isolated unit tests. Nothing in this package calls a live
  * `spaces_*`/`creations_*` MCP tool.

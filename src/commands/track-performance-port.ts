@@ -4,7 +4,7 @@
  * Mirrors `src/commands/run-pipeline-ports.ts`'s `ApifyReadinessPort` pattern: a narrow seam between
  * the orchestration shell and Apify, so the build stays hermetic — no live Apify HTTP calls, no
  * credits — tests ALWAYS inject a fake. The REAL adapter (a live Apify HTTP call, mirroring the
- * `curl` commands documented in `GEMINI.md`) is deferred, exactly like
+ * `curl` commands documented in `.claude/agents/performance-tracker.md`) is deferred, exactly like
  * `run-pipeline-ports.ts`'s `DEFAULT_APIFY_PORT`/`DEFAULT_MAGNIFIC_PORT` placeholders.
  */
 

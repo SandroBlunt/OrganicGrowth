@@ -1,6 +1,6 @@
 /**
  * Proves issue #111 AC2 ("A swappable copywriting Skill exists and is invoked by the producer's copy
- * step to compose the caption and sharpen on-slide text") on the `GEMINI.md` side:
+ * step to compose the caption and sharpen on-slide text") on the `.claude/agents/producer.md` side:
  * the Copy-phase section resolves the copywriting Skill FROM `Recipe.copySkill`
  * (`src/recipe/registry.ts`) — never a hard-coded Skill name — mirroring how the Author phase already
  * resolves its own Skill by the job's Recipe slug.
@@ -25,7 +25,7 @@ import { getRecipe } from "../recipe/registry.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
-const PRODUCER_AGENT = join(REPO_ROOT, ".agents", "skills", "producer", "SKILL.md");
+const PRODUCER_AGENT = join(REPO_ROOT, ".claude", "agents", "producer.md");
 
 async function readProducerDoc(): Promise<string> {
   return readFile(PRODUCER_AGENT, "utf8");

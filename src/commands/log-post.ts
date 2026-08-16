@@ -48,7 +48,7 @@ export type LogPostPlan =
 
 /**
  * Pure predicate: is `url` a `facebook.com` (or `*.facebook.com`) permalink? Rejects anything that does
- * not parse as an absolute http(s) URL. Mirrors `.agents/skills/log-post/SKILL.md`'s guardrail — the
+ * not parse as an absolute http(s) URL. Mirrors `.claude/commands/log-post.md`'s guardrail — the
  * Operator states the URL; this command never accepts a guess.
  */
 export function isFacebookPermalink(url: string): boolean {

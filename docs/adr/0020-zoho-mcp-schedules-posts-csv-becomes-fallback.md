@@ -72,12 +72,12 @@ feedback loop.
   fallback) rather than only the CSV path.
 - A future build slice implements: the Producer's MCP-calling code (portal/brand/channel lookups,
   validate-then-schedule, the conversational-approval gate, the confirmed-live check before auto-logging),
-  the one-time W32 heuristic-matching closeout, and updates to `GEMINI.md` and the
+  the one-time W32 heuristic-matching closeout, and updates to `.claude/agents/producer.md` and the
   `schedule-batch-*` OpenSpec capabilities to describe the new primary path (CSV's spec becomes the
   fallback-only description). None of this is built yet — this ADR is the design handoff, not the slice.
 - Whoever builds it should register the Zoho MCP server at **local** scope (never `project`/`.mcp.json` —
   the server URL carries what is effectively a bearer token) and remember that adding new tools to an
-  already-authenticated server needs both a session restart *and* a fresh `agy mcp login` to pick up
+  already-authenticated server needs both a session restart *and* a fresh `claude mcp login` to pick up
   the new OAuth scope — a stale token fails with a misleading `401 INVALID_OAUTHSCOPE` rather than a clear
   "missing scope" message.
 - Not decided here, flagged for a future conversation: the Character Explainer Recipe (fully manual today,

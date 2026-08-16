@@ -19,8 +19,8 @@ Evidence: **CONFIRMED** = both sides verified in this audit · **PLAUSIBLE** = s
 | C4 | High | Missing fn | Failed jobs are unrecoverable and permanently block their Idea from production | `src/production-queue/queue.ts:91` | CONFIRMED |
 | C5 | High | Boundary | Root `data/your-data/` is not gitignored while three docs direct private Meta exports there | `.gitignore:7` | CONFIRMED |
 | C6 | High | Correctness | Queue dedupe and lock key on `idea_id` alone — a cross-Brand id collision silently drops the second Brand's job | `src/production-queue/queue.ts:69` | CONFIRMED |
-| C7 | High | Docs | `/review-ideas` documents an `enqueueOnAccept(<idea-id>)` call that omits the required `brand` argument | `.agents/skills/review-ideas/SKILL.md:28` | CONFIRMED |
-| C8 | High | Docs | Performance-tracking status filters contradict each other; nothing ever sets `tracking`; `posted` Ideas dead-end | `.agents/skills/track-performance/SKILL.md:19` | CONFIRMED |
+| C7 | High | Docs | `/review-ideas` documents an `enqueueOnAccept(<idea-id>)` call that omits the required `brand` argument | `.claude/commands/review-ideas.md:28` | CONFIRMED |
+| C8 | High | Docs | Performance-tracking status filters contradict each other; nothing ever sets `tracking`; `posted` Ideas dead-end | `.claude/commands/track-performance.md:19` | CONFIRMED |
 | C9 | High | Incoherence | Fake-only conventions are baked into the production driver (`PINNED:` readback, hardcoded `cast-1…6` fallback ids) | `src/space-driver/driver.ts:250` | CONFIRMED |
 | C10 | High | Correctness | Driver polls 50× back-to-back with no delay — any real multi-minute Space op would always "fail" | `src/space-driver/driver.ts:128` | CONFIRMED |
 | C11 | High | DX | The `/run-pipeline` CLI buffers every message until the session ends; prompts appear with no context | `src/commands/run-pipeline.ts:889` | CONFIRMED |
@@ -43,11 +43,11 @@ Evidence: **CONFIRMED** = both sides verified in this audit · **PLAUSIBLE** = s
 | C28 | Medium | DX | `engines` permits Node 20 but the `npm test` glob needs the Node ≥21 test runner | `package.json:12` | BLOCKED |
 | C29 | Medium | DX | The report tool prints `usage: npm run report` — that script does not exist (verified); none for run-pipeline either | `src/commands/report.ts:144` | CONFIRMED |
 | C30 | Medium | Tests | Tests assert documentation prose and grep source text — editing a doc or refactoring an import breaks `npm test` | `src/commands/report.test.ts:183` | CONFIRMED |
-| C31 | Medium | Docs | The always-loaded rule files and the openspec store name four dead pre-migration state paths | `.agents/rules/organicgrowth-rules.md` | CONFIRMED |
-| C32 | Medium | Docs | Conductor doc/spec drift: the shipped no-arg onboarding is forbidden by its own command doc; two more spec contradictions | `.agents/skills/run-pipeline/SKILL.md:10` | CONFIRMED |
-| C33 | Medium | Docs | `/queue` doc says Brand filtering is a "future slice" — it shipped; doc also contradicts its own guardrail | `.agents/skills/queue/SKILL.md:13` | CONFIRMED |
+| C31 | Medium | Docs | The always-loaded rule files and the openspec store name four dead pre-migration state paths | `.claude/rules/always/organicgrowth-rules.md` | CONFIRMED |
+| C32 | Medium | Docs | Conductor doc/spec drift: the shipped no-arg onboarding is forbidden by its own command doc; two more spec contradictions | `.claude/commands/run-pipeline.md:10` | CONFIRMED |
+| C33 | Medium | Docs | `/queue` doc says Brand filtering is a "future slice" — it shipped; doc also contradicts its own guardrail | `.claude/commands/queue.md:13` | CONFIRMED |
 | C34 | Medium | Docs | README and CONTEXT.md name different video models; README Quickstart edits files that don't exist | `README.md:24` | CONFIRMED |
-| C35 | Medium | Docs | Agent docs use flat `apify.trends_actor` keys; every real seeds file nests them per platform | `GEMINI.md:32` | CONFIRMED |
+| C35 | Medium | Docs | Agent docs use flat `apify.trends_actor` keys; every real seeds file nests them per platform | `.claude/agents/trend-scout.md:32` | CONFIRMED |
 | C36 | Medium | Alt paths | The agent-fallback cast can return `ok` with an empty or misaligned Cast (ids/urls diverge) | `src/space-driver/driver.ts:305` | CONFIRMED |
 | C37 | Low | Boundary | `resolveBrand`/`scaffoldBrand` accept unvalidated slugs — path traversal from CLI args or `queue.json` | `src/brand/resolver.ts:100` | CONFIRMED |
 | C38 | Low | DX | `parseJob` drops jobs with a bad phase/status/timestamp silently — unlike id/brand, which warn | `src/production-queue/store.ts:34` | CONFIRMED |
@@ -96,9 +96,9 @@ Two systems share one repo:
 
 ## 3. Coverage accounting
 
-**Read line-by-line by the lead auditor (100%):** all 32 non-test `.ts` files under `src/` (every module in `brand/`, `commands/`, `execution-protocol/`, `ledger/`, `phase-resolver/`, `production-queue/`, `production-spec/`, `readiness/`, `space-driver/`, including the two fake fixtures), `package.json`, both tsconfigs, `data/queue.json`, `data/brands/mundotip/ledger.json` (head), `.env.example`, `.gitignore`, `.claude/permissions/producer-worker.json`, `GEMINI.md`, `.agents/skills/pick-cast/SKILL.md`, `.agents/skills/run-pipeline/SKILL.md`.
+**Read line-by-line by the lead auditor (100%):** all 32 non-test `.ts` files under `src/` (every module in `brand/`, `commands/`, `execution-protocol/`, `ledger/`, `phase-resolver/`, `production-queue/`, `production-spec/`, `readiness/`, `space-driver/`, including the two fake fixtures), `package.json`, both tsconfigs, `data/queue.json`, `data/brands/mundotip/ledger.json` (head), `.env.example`, `.gitignore`, `.claude/permissions/producer-worker.json`, `.claude/agents/producer.md`, `.claude/commands/pick-cast.md`, `.claude/commands/run-pipeline.md`.
 
-**Read by sweep agents (findings independently spot-verified):** README, GEMINI.md, CONTEXT.md, ADRs 0001–0006, `docs/producer-spikes-results.md`, `docs/producer-worker-permissions.md`, all 9 command docs, all 6 agent docs, both rules files, `openspec/project.md` + all 10 durable specs, all 25 test files (524 tests), all templates, all mundotip data files, git history of `data/`.
+**Read by sweep agents (findings independently spot-verified):** README, CLAUDE.md, CONTEXT.md, ADRs 0001–0006, `docs/producer-spikes-results.md`, `docs/producer-worker-permissions.md`, all 9 command docs, all 6 agent docs, both rules files, `openspec/project.md` + all 10 durable specs, all 25 test files (524 tests), all templates, all mundotip data files, git history of `data/`.
 
 **Commands run:** `npm test` (×2, clean-tree verified after), `npm run build`, `npm run report mundotip` (expected failure, verified), `git check-ignore -v`, `git log`/`git stash list`, `tsc` via the test script, read-only greps.
 
@@ -202,7 +202,7 @@ Two fake-only conventions live in *production* code: pin confirmation searches f
 *Fix:* move both conventions behind the port (e.g. `port.verifyPinned(character)`, and have the fallback edit return the produced creation ids) so the contract is implementable live; keep the markers in the fake.
 
 **C19 · Medium · CONFIRMED — Two naming schemes for the same Spec file.**
-`specPathFor` builds `<ideaId>.spec.json` from the *ledger* id → `idea-2026-W22-01.spec.json` (`store.ts:21-27`), while the briefs on disk are `idea-01.md` and GEMINI.md/producer.md promise `idea-NN.spec.json` beside them. store.ts's own docstring ("sitting beside the Brief (`<ideaId>.md`)") is false for real data.
+`specPathFor` builds `<ideaId>.spec.json` from the *ledger* id → `idea-2026-W22-01.spec.json` (`store.ts:21-27`), while the briefs on disk are `idea-01.md` and CLAUDE.md/producer.md promise `idea-NN.spec.json` beside them. store.ts's own docstring ("sitting beside the Brief (`<ideaId>.md`)") is false for real data.
 *Failure scenario:* the producer agent writes `idea-01.spec.json` per its instructions; code using `specPathFor` looks for the long name, misses it, and re-composes or reports it missing.
 *Fix:* one convention, asserted by a test against the real mundotip tree.
 
@@ -238,7 +238,7 @@ Four independent absences compound into "the core workflow is impossible as ship
 1. **No live `SpaceMcpPort`/`SpaceSession` adapter exists** — grep confirms the only implementations are test fakes (`port.ts:15-21` says the live adapter "is deferred to the worker slice"; the worker slice shipped without it).
 2. **No production code or script ever calls `drain`/`tick`** — `worker.ts` is imported only by the fake fixture and tests; there is no CLI entry, no npm script, no cron/loop host.
 3. **No production code calls `composeSpec`** — the Spec-composition shell (`compose.ts:54`) has zero callers outside tests; the producer agent doc tells the agent to compose Specs but its "This slice's job" section (`producer.md:48-50`) explicitly stops there.
-4. **The unattended-permission story is fiction** — `.claude/permissions/producer-worker.json` uses a schema (`mode: allowlist`, `magnific:spaces_edit`, `auto_approve`, `scope.space`) that no tool reads; Antigravity permissions live in `settings.json` `permissions.allow` with `mcp__<server>__<tool>` rules. The spike-identified blocker (auto-denied `spaces_edit`/`spaces_run`, `docs/producer-spikes-results.md`) is therefore still unsolved, while `docs/producer-worker-permissions.md:24-32` claims it is what "lets `drain` and `tick` run … unattended".
+4. **The unattended-permission story is fiction** — `.claude/permissions/producer-worker.json` uses a schema (`mode: allowlist`, `magnific:spaces_edit`, `auto_approve`, `scope.space`) that no tool reads; Claude Code permissions live in `settings.json` `permissions.allow` with `mcp__<server>__<tool>` rules. The spike-identified blocker (auto-denied `spaces_edit`/`spaces_run`, `docs/producer-spikes-results.md`) is therefore still unsolved, while `docs/producer-worker-permissions.md:24-32` claims it is what "lets `drain` and `tick` run … unattended".
 Meanwhile `run-pipeline.md:38-45` promises "the conductor auto-drains the Production Queue … generating character images unattended" and pick-cast.md promises an unattended render — and the CLI conductor's default Magnific probe hardcodes `accessible: false` (`run-pipeline.ts:145-151`), so even *its* production phase is permanently blocked.
 *Failure scenario:* the Operator does everything right — accepts Ideas, waits. Nothing ever moves to `casting`. This is exactly the on-disk state of mundotip today (5 Ideas `accepted` since 2026-05-31, queue empty, zero `.spec.json` files).
 *Fix:* build the live adapter + a worker entry point (a `npm run tick`/`drain` command hosted by `/loop` or a daemon), wire real ports into the conductor's `main()`, express the permission allowlist in real `settings.json` syntax, and update `producer.md` to own the whole flow — or, until then, rewrite the docs to say production is manual/not yet wired.
@@ -253,7 +253,7 @@ Meanwhile `run-pipeline.md:38-45` promises "the conductor auto-drains the Produc
 ### 4.6 Boundary & safety
 
 **C5 · High · CONFIRMED — Private exports have a documented path straight into git.**
-Source → sink: GEMINI.md ("Meta Content export (in `data/your-data/`)"), `.agents/rules/data-handling.md` rule 3, and `performance-tracker.md`'s example all direct the Operator to `data/your-data/` — the *pre-migration root path*. `.gitignore` covers only `data/brands/*/your-data/*` (line 7). Verified: `git check-ignore data/your-data/export.zip` matches nothing.
+Source → sink: CLAUDE.md ("Meta Content export (in `data/your-data/`)"), `.claude/rules/always/data-handling.md` rule 3, and `performance-tracker.md`'s example all direct the Operator to `data/your-data/` — the *pre-migration root path*. `.gitignore` covers only `data/brands/*/your-data/*` (line 7). Verified: `git check-ignore data/your-data/export.zip` matches nothing.
 *Failure scenario:* Operator follows the always-on rule file literally, drops a Meta export (may contain non-public Insights) at the root path, runs `git add -A` — private data is committed and pushed. History is currently clean (verified); the trap is armed, not sprung.
 *Fix:* add `data/your-data/` to `.gitignore` *and* fix the three docs to the per-brand path.
 
@@ -277,11 +277,11 @@ All persistence is a direct `writeFile` (no temp-file + rename): `store.ts:76`, 
 *Fix:* document the full call — `enqueueOnAccept(ideaId, brand, { ledgerPath: resolveBrand(brand).ledger })`.
 
 **C8 · High · CONFIRMED — The feedback loop's entry condition is self-contradictory.**
-`track-performance.md:12,19` selects Ideas "with a post_url and status `tracking` or `scored`"; `performance-tracker.md:19,26` selects "`posted` or `tracking`". `/log-post` sets `posted` (`log-post.md:26`); **nothing in any doc or code ever sets `tracking`** (code writes only `casting`/`produced`, `ledger.ts:169-172`; the tracker doc jumps `posted → scored`). Under the command doc's filter, a freshly posted Idea is never selected — the documented feedback loop dead-ends at its first step. The `tracking` status in GEMINI.md's lifecycle has no setter anywhere.
+`track-performance.md:12,19` selects Ideas "with a post_url and status `tracking` or `scored`"; `performance-tracker.md:19,26` selects "`posted` or `tracking`". `/log-post` sets `posted` (`log-post.md:26`); **nothing in any doc or code ever sets `tracking`** (code writes only `casting`/`produced`, `ledger.ts:169-172`; the tracker doc jumps `posted → scored`). Under the command doc's filter, a freshly posted Idea is never selected — the documented feedback loop dead-ends at its first step. The `tracking` status in CLAUDE.md's lifecycle has no setter anywhere.
 *Fix:* align both docs on `posted | tracking`; either give `tracking` a real writer or remove it from the lifecycle.
 
 **C31 · Medium · CONFIRMED — The always-loaded rules bind agents to a dead layout.**
-`organicgrowth-rules.md` rule 7 names `data/brand-profile.yaml`, `data/seeds.yaml`, `ideas/<run>/`, `data/ledger.json` — none exist post-migration (ADR-0006). `data-handling.md` rules 2–3 repeat `data/seeds.yaml` (with a wrong flat `apify.*` key shape) and `data/your-data/` (the C5 trap). GEMINI.md itself contradicts its own State section twice ("Data sources" and pipeline step 1 use root paths). `openspec/project.md:23-25` grounds the *developer agent* in the same dead layout, and four durable specs still mandate writes to `data/ledger.json` / root `ideas/` (`production-queue`, `cast-render`, `report-surface`, `production-spec` specs) — the very store `qa` verifies against.
+`organicgrowth-rules.md` rule 7 names `data/brand-profile.yaml`, `data/seeds.yaml`, `ideas/<run>/`, `data/ledger.json` — none exist post-migration (ADR-0006). `data-handling.md` rules 2–3 repeat `data/seeds.yaml` (with a wrong flat `apify.*` key shape) and `data/your-data/` (the C5 trap). CLAUDE.md itself contradicts its own State section twice ("Data sources" and pipeline step 1 use root paths). `openspec/project.md:23-25` grounds the *developer agent* in the same dead layout, and four durable specs still mandate writes to `data/ledger.json` / root `ideas/` (`production-queue`, `cast-render`, `report-surface`, `production-spec` specs) — the very store `qa` verifies against.
 *Fix:* one sweep replacing every root state path with the `data/brands/<slug>/…` form; these files are loaded into every session, so drift here propagates into every future slice.
 
 **C32 · Medium · CONFIRMED — The conductor's contract exists in three disagreeing versions.**
@@ -294,7 +294,7 @@ All persistence is a direct `writeFile` (no temp-file + rename): `store.ts:76`, 
 
 **C35 · Medium · CONFIRMED —** `trend-scout.md:32`, `performance-tracker.md:20,27`, `track-performance.md:21` read actor slugs from flat `apify.trends_actor`/`apify.post_actor`; both real seeds files and the template nest per-platform (`apify.facebook.trends_actor`). An agent following its doc finds no actor and (per always-rule 8) must stop the Run.
 
-**C42 · Low · CONFIRMED —** ADR-0005 (accepted, lines 45/62) states both engineering agents run on Opus, "model: opus"; both `GEMINI.md` and `qa.md` declare `model: sonnet` (GEMINI.md agrees with sonnet). The ADR was never amended.
+**C42 · Low · CONFIRMED —** ADR-0005 (accepted, lines 45/62) states both engineering agents run on Opus, "model: opus"; both `.claude/agents/developer.md` and `qa.md` declare `model: sonnet` (CLAUDE.md agrees with sonnet). The ADR was never amended.
 
 **C45 · Low · CONFIRMED —** all 10 W22 briefs end "OrganicGrowth stops here. The Operator writes the caption and shoots the Reel." — the pre-ADR-0002 model. An agent reading a brief verbatim could conclude no production step exists for it. The current template footer is correct.
 
@@ -302,7 +302,7 @@ All persistence is a direct `writeFile` (no temp-file + rename): `store.ts:76`, 
 
 **C47 · Low · CONFIRMED —** `.env.example:7-9` says actor defaults "also live in `data/seeds.yaml`" (dead path) and offers `APIFY_TRENDS_ACTOR`/`APIFY_POST_ACTOR` overrides that appear nowhere else in the repo — dead documentation. (Notably, *zero* `process.env` reads exist in `src/`; env is consumed only by agents via Bash.)
 
-**C48 · Low · CONFIRMED — grouped doc nits.** `producer.md`'s frontmatter example invokes `/pick-cast idea-2026-W22-01 2` without the required brand (the body has it right). `docs/producer-spikes-results.md:99-100` ends with literal `</content>`/`</invoke>` tool-call artifacts. ADR-0001:19 uses the root `data/your-data/` path (and is cited by README/GEMINI.md as current). `developer.md:72,85` and `qa.md:57` cite `data/ledger.json`/root `ideas/` in their binding instructions.
+**C48 · Low · CONFIRMED — grouped doc nits.** `producer.md`'s frontmatter example invokes `/pick-cast idea-2026-W22-01 2` without the required brand (the body has it right). `docs/producer-spikes-results.md:99-100` ends with literal `</content>`/`</invoke>` tool-call artifacts. ADR-0001:19 uses the root `data/your-data/` path (and is cited by README/CLAUDE.md as current). `developer.md:72,85` and `qa.md:57` cite `data/ledger.json`/root `ideas/` in their binding instructions.
 
 ### 4.8 Developer experience
 
@@ -322,7 +322,7 @@ All persistence is a direct `writeFile` (no temp-file + rename): `store.ts:76`, 
 *Fix:* add the scripts (they're one line each) or fix the usage strings.
 
 **C30 · Medium · CONFIRMED — `npm test` breaks when documentation is edited.**
-`report.test.ts:183-264` asserts prose in GEMINI.md and nine `.claude/**.md` files; `producer-agent.test.ts` asserts `producer.md` front-matter and wording; `run-pipeline.test.ts:626-667` regex-greps `run-pipeline.ts`'s *source text* for import statements. Consequences: fixing the doc drift in this report (C31/C32/C33) may fail the suite from test files nobody would associate with docs; a behavior-preserving refactor (renaming an import) fails AC7/AC8; and popping the known `stash@{0}` producer.md rewrite may immediately break `producer-agent.test.ts`. Doc-conformance checks belong in a separate, clearly-named suite (or `openspec validate`), not interleaved with unit tests.
+`report.test.ts:183-264` asserts prose in CLAUDE.md and nine `.claude/**.md` files; `producer-agent.test.ts` asserts `producer.md` front-matter and wording; `run-pipeline.test.ts:626-667` regex-greps `run-pipeline.ts`'s *source text* for import statements. Consequences: fixing the doc drift in this report (C31/C32/C33) may fail the suite from test files nobody would associate with docs; a behavior-preserving refactor (renaming an import) fails AC7/AC8; and popping the known `stash@{0}` producer.md rewrite may immediately break `producer-agent.test.ts`. Doc-conformance checks belong in a separate, clearly-named suite (or `openspec validate`), not interleaved with unit tests.
 
 **C38 · Low · CONFIRMED —** `parseJob` warns when dropping a job for missing `idea_id`/`brand` but silently drops for invalid `phase`/`status`/`enqueued_at` (`store.ts:34-36`) — a hand-typo'd status makes a job vanish from `/queue` with no trace.
 
@@ -365,14 +365,14 @@ All persistence is a direct `writeFile` (no temp-file + rename): `store.ts:76`, 
 - **Spec generator/validator round-trip**: the generator provably emits only validator-passing Specs (shared constants), code-point-safe truncation, grapheme-cluster emoji counting — within the validator's (incomplete, C18) scope, solid.
 - **The phase resolver and readiness classifier**: pure, deterministic, priority logic and phase-scoped gating match their specs exactly.
 - **Test hygiene**: 524/524 pass in ~2s; every filesystem test uses `mkdtemp` + cleanup; two full runs left the tree byte-clean; no `.env` needed (zero `process.env` reads in `src/`); `dist/` inert and ignored.
-- **Data integrity today**: ledger ⇄ brief cross-reference is 10/10 exact; all timestamps ISO-8601; queue file byte-matches `emptyQueue()`; git history contains no private data; tsconfig strictness matches GEMINI.md's claims exactly.
+- **Data integrity today**: ledger ⇄ brief cross-reference is 10/10 exact; all timestamps ISO-8601; queue file byte-matches `emptyQueue()`; git history contains no private data; tsconfig strictness matches CLAUDE.md's claims exactly.
 
 ---
 
 ## 8. Open questions (need a maintainer, not the code)
 
 1. **What is the intended host for the worker?** ADR-0004 and `worker.ts` gesture at `/loop` as the tick host, but nothing invokes `drain`/`tick`. Is a daemon/CLI planned, or is the producer *agent* meant to call these functions ad hoc via `tsx`?
-2. **What is the real permission mechanism** for unattended `spaces_edit`/`spaces_run`, given `.claude/permissions/producer-worker.json` is in a format Antigravity does not read? Was it ever exercised?
+2. **What is the real permission mechanism** for unattended `spaces_edit`/`spaces_run`, given `.claude/permissions/producer-worker.json` is in a format Claude Code does not read? Was it ever exercised?
 3. **Which conductor is canonical** — `run-pipeline.md` (agent behavior) or `run-pipeline.ts` (CLI)? The answer decides which side of every C32 divergence is the bug.
 4. **Where should the Character pick live** — on the render `QueueJob`, or as a ledger field written at pick time? (C1 needs one of the two.)
 5. **Is the idea-id scheme guaranteed brand-unique** by some convention not written down (e.g. one Brand per ISO week), or is C6 a real multi-brand collision risk?

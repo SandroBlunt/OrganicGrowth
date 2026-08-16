@@ -4,7 +4,7 @@
  * Scans EVERY `zoho-manifest.json` under a Brand's `ideas/` tree (recursively — this covers
  * Format-namespaced weekly runs, `ideas/<format>/<run>/`, a `cadence: daily` Format's NESTED runs,
  * `ideas/<format>/<ISO-week>/<weekday>-<DD>-<month>/` (ADR-0023, issue #185), and any legacy
- * pre-Format run, `ideas/<run>/`; see GEMINI.md's "Legacy layout note" — the recursive walk needs no
+ * pre-Format run, `ideas/<run>/`; see CLAUDE.md's "Legacy layout note" — the recursive walk needs no
  * code change for the nested shape, it just finds the manifest one level deeper), decides which Asset
  * entries are due (the pure `planManifestCleanup`
  * in `cleanup.ts`), deletes each due entry's hosted keys through the injected `MediaHostPort`, and

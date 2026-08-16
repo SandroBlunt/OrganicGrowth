@@ -71,7 +71,7 @@ describe("AC8: Conductor reuses existing modules — no duplicated pipeline logi
 
 describe("run-pipeline.md is honest that production is attended (ADR-0008)", () => {
   it("run-pipeline.md documents the attended runtime and the deliberate absence of an unattended one", async () => {
-    const doc = await readFile(join(REPO_ROOT, ".agents", "skills", "run-pipeline", "SKILL.md"), "utf8");
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "run-pipeline.md"), "utf8");
     assert.match(doc, /attended/i, "run-pipeline.md must name the attended production runtime");
     assert.match(
       doc,
@@ -98,7 +98,7 @@ describe("run-pipeline.md is honest that production is attended (ADR-0008)", () 
   });
 
   it("run-pipeline.md describes gates as per-Recipe (ADR-0009/0010) without calling the model unbuilt", async () => {
-    const doc = await readFile(join(REPO_ROOT, ".agents", "skills", "run-pipeline", "SKILL.md"), "utf8");
+    const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "run-pipeline.md"), "utf8");
     assert.match(doc, /per-Recipe/, "run-pipeline.md must describe gates as per-Recipe");
     assert.match(doc, /ADR-0009/, "run-pipeline.md must cite ADR-0009 for the per-Recipe gate model");
     assert.doesNotMatch(

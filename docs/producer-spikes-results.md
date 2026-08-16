@@ -24,7 +24,7 @@ to terminal, then verify with `spaces_get_nodes`.
 Character) are both achievable via `spaces_edit` — across **both** node types (text *and* creation).
 ADR-0003's Fallback Protocol stands.
 
-> Process note: each `spaces_edit` (and `spaces_run`) is auto-denied by the Antigravity permission
+> Process note: each `spaces_edit` (and `spaces_run`) is auto-denied by the Claude Code permission
 > classifier as "modifying shared infrastructure" and needs explicit per-action operator approval —
 > even with blanket verbal consent. Relevant for any **unattended/background** Producer run (ADR-0004):
 > a headless queue worker will hit this gate. Flag for the build: the Producer needs a permission path

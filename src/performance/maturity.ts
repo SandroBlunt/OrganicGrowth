@@ -4,7 +4,7 @@
  * The `posted → tracking → scored` transition is decided PER ASSET, from that Asset's OWN
  * `posted_at` (never a Brand- or Idea-wide clock): a Post younger than 7 days is `tracking` (measured,
  * but the numbers are still climbing); once it is 7+ days old its numbers have effectively settled, so
- * it becomes `scored` (final for the feedback loop) — `.agents/skills/track-performance/SKILL.md`.
+ * it becomes `scored` (final for the feedback loop) — `.claude/commands/track-performance.md`.
  */
 
 /** A Post is considered settled ("scored") once it is this many days old. */

@@ -4,14 +4,14 @@
  *
  * Mirrors two existing seams so the build stays hermetic: `src/space-driver/port.ts` (the Magnific
  * seam, `SpaceMcpPort`) and `src/media-host/port.ts` (the S3 seam, `MediaHostPort`). The build is
- * hermetic: no live Zoho MCP call, no network, no credits (GEMINI.md build pipeline) — tests ALWAYS
+ * hermetic: no live Zoho MCP call, no network, no credits (CLAUDE.md build pipeline) — tests ALWAYS
  * inject a FAKE implementing this interface (`fixtures/fake-zoho-schedule-port.ts`).
  *
  * Unlike the S3 seam, there is deliberately NO live TS adapter for this port. S3 is a real,
  * Node-callable AWS API; Zoho's MCP tools are only reachable from INSIDE the attended `producer`
  * agent's own tool-calling loop (real tool names — `ZohoSocial_uploadSocialMediaFromUrl`,
  * `ZohoSocial_validateSocialPost`, `ZohoSocial_createSocialSchedule` — documented in
- * `GEMINI.md`). The "real implementation" of this port is the agent itself, acting out
+ * `.claude/agents/producer.md`). The "real implementation" of this port is the agent itself, acting out
  * each method by calling the matching live MCP tool with the request this module built — exactly the
  * same relationship `src/space-driver/driver.ts`'s Fallback Protocol has to the live Space: a documented
  * procedure the agent follows, never a literal subprocess call from this codebase.

@@ -10,7 +10,7 @@
  *   - start a `spaces_run` at a node (`run`) and poll it to terminal (`runStatus`) — Spike 2,
  *   - fetch creations by identifier (`fetchCreations`) — for the Cast image URLs.
  *
- * --- WHY A PORT (hermetic build, GEMINI.md build pipeline) ---
+ * --- WHY A PORT (hermetic build, CLAUDE.md build pipeline) ---
  *
  * The build is hermetic: NO live `spaces_*`/`creations_*` calls, no credits, no board mutation, no
  * network. Tests pass a FAKE implementing this interface (see `fixtures/fake-space.ts`), so the driver

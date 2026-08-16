@@ -1,3 +1,8 @@
+---
+description: Non-negotiable rules for every agent and command in OrganicGrowth
+globs: *
+---
+
 # OrganicGrowth Rules
 
 1. **Generate the Asset, never publish it.** The `producer` renders an accepted Idea into an **Asset** —
