@@ -378,3 +378,145 @@ npx openspec validate --all --strict   # 44/44 passed
   Known Limits.
 - CI runs on `ubuntu-latest`; still verified only on macOS locally (no docker available in this
   sandbox) — unchanged from Round 1.
+
+---
+
+## QA Verdict — Round 2: PASS
+
+Verified inside `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-199-suites-green-ci-one-agent-tree`,
+branch `issue-199-suites-green-ci-one-agent-tree`, HEAD `d96c554`. `main` untouched throughout. Round-1's
+Build Report and QA Verdict above are byte-for-byte unchanged (`git diff 614166b..d96c554 --
+openspec/changes/issue-199-suites-green-ci-one-agent-tree/handoff.md` shows only additions after the
+Round-1 Verdict's final line) — confirming the append-only rule was actually followed, not just claimed.
+
+### Suite result
+
+| Command | Reported | Reproduced independently | Match |
+|---|---|---|---|
+| `npm test` (this branch) | 2714 / 675 / 0 fail | 2714 / 675 / 0 fail | Yes |
+| `npm run test:docs` (this branch) | 259 / 66 / 0 fail | 259 / 66 / 0 fail | Yes |
+| `npx openspec validate --all --strict` | 44/44 | 44/44 passed | Yes |
+| `npm run build` (`tsc -p tsconfig.build.json`) | claimed clean | clean, 0 errors | Yes |
+
+**+20 delta accounted for exactly, nothing silently dropped.** `git diff --stat 614166b..d96c554 -- src/
+package.json .github/` shows only 4 files touched: `src/ci/package-scripts.ts` (new),
+`src/ci/package-scripts.test.ts` (new), `src/ci/workflow.ts` (+12 lines), `src/ci/workflow.test.ts`
+(+42 lines) — `package.json` and `.github/workflows/ci.yml` are untouched this round (already correct
+from Round 1). Running `node --import tsx --test src/ci/package-scripts.test.ts` alone: **14 tests / 4
+suites / 0 fail**. Running `node --import tsx --test src/ci/workflow.test.ts` alone: **30 tests / 7
+suites / 0 fail** (was 24/6 at Round 1 — exactly +6/+1, matching the D2 fix). 14 + 6 = 20;
+2670 (Round-1's disjoint pre-existing baseline) + 24 (Round-1's workflow tests) + 20 (this round) = 2714.
+Main baseline re-confirmed unchanged at 2411/598 (not re-run this round — already independently verified
+against a scratch clone in Round 1, and nothing in `main`'s own history changed between rounds).
+
+### D1 re-verification — the guard-on-the-guard
+
+**Reads the REAL `package.json`, not a fixture copy.** `PACKAGE_JSON_PATH = join(REPO_ROOT,
+"package.json")`, `REPO_ROOT` resolved via `fileURLToPath(new URL("../../", import.meta.url))` —
+same pattern as Round 1's `workflow.test.ts`, applied consistently as asked. The "This repository's real
+package.json test script is guarded" describe block (3 tests) does an `await readFile(PACKAGE_JSON_PATH,
+...)` and parses that, never a string literal.
+
+**Both halves independently demonstrated, without mutating the branch.** Imported the pure functions
+directly (`parsePackageJsonScripts`, `runsTypecheckFirst`, `coversTestGlob`) via `node --import tsx -e`
+and ran them against synthetic strings simulating both cases, leaving `package.json` itself untouched:
+
+- **Harmless reformatting does NOT break it** — fed a script with different quote style (`'...'` instead
+  of `"..."`) and irregular `&&` whitespace: `runsTypecheckFirst` → `true`, `coversTestGlob` for both
+  globs → `true`, `true`. Confirms the "robust to reformatting" half QA asked for.
+- **A real revert DOES break it** — fed a script with the `*.docs-test.ts` glob dropped entirely (the
+  literal Round-1 D1 regression scenario): `coversTestGlob(..., "src/**/*.docs-test.ts")` → `false`
+  (caught). Fed a script with `tsc` moved to run second instead of first:
+  `runsTypecheckFirst(...)` → `false` (caught). Both halves hold — this is a genuine regression guard,
+  not a test that would rubber-stamp anything.
+
+D1 is **FIXED**.
+
+### D2 re-verification — order genuinely asserted, not just co-presence
+
+`runsNpmCiBeforeNpmTest` implementation:
+```
+const ciIndex = commands.indexOf("npm ci");
+const testIndex = commands.indexOf("npm test");
+return ciIndex !== -1 && testIndex !== -1 && ciIndex < testIndex;
+```
+This is a genuine order comparison (`ciIndex < testIndex`), not a "both present somewhere" check. The
+reversed-order test in `workflow.test.ts` (`fixtureWithSteps(["npm test", "npm ci"])` → expects `false`)
+directly proves this — a co-presence-only check would have returned `true` for that fixture. Confirmed
+by reading the diff line-by-line and by running the full 6-test describe block myself (all pass, 0 fail,
+matching the developer's claim). The real-file assertion (`runsNpmCiBeforeNpmTest(parseWorkflow(raw))`
+→ `true` against `.github/workflows/ci.yml`) is present as the reported 6th test. D2 is **FIXED**.
+
+### D3 re-verification — the git-history account is genuinely true, not a convenient story
+
+Checked directly, not taken on faith:
+
+- `git diff-tree --no-commit-id --name-status -r e01eeb7 -- .claude/commands/` → 12 files added, ALL
+  status `A`, and `backup-media.md` is **not** among them.
+- `git ls-tree -r --name-only e01eeb7 -- .claude/commands/ | wc -l` → **12**, confirming the directory
+  held exactly 12 files immediately after PR #213 landed.
+- `git log --follow --diff-filter=A --oneline -- .claude/commands/backup-media.md` → one hit:
+  `6a0b06b Issue #197: credential scanner in the test suite, and a verifiable media backup (#215)` —
+  `backup-media.md` was added by that commit alone, never by `e01eeb7`/#213.
+- Current directory: `ls .claude/commands/ | wc -l` → **13**.
+
+The account ("#213 restored exactly the 12 files the migration deleted; #197/PR #215 later added a 13th,
+`backup-media.md`, unrelated to the migration") is exactly, verifiably true — both halves checked
+independently against git history, not just re-stated. **Confirmed, not a convenient story.**
+
+**The append-only call was the right one for this repo's convention.** Diffing the handoff file itself
+(`git diff 614166b..d96c554 -- .../handoff.md`) shows the Round-1 Build Report and Round-1 QA Verdict are
+untouched — the correction was made in `proposal.md`/`tasks.md` (regular OpenSpec artifacts, correctly
+editable in place) and recorded as a fresh statement in the new Round-2 Build block, exactly matching
+this agent's own stated rule ("nothing is ever overwritten... append a new Round-N block") and the same
+convention this agent's own Round-1 Verdict followed for its own defect-list corrections. Right call.
+
+### D4 — confirmed nothing was scrubbed
+
+`git diff 614166b..d96c554` touches only `src/ci/package-scripts.ts` (new), `src/ci/package-scripts.test.ts`
+(new), `src/ci/workflow.ts`, `src/ci/workflow.test.ts`, `specs/ci-pipeline/spec.md`, `proposal.md`,
+`tasks.md`, and `handoff.md` — none of the pre-existing `.agents/`-referencing forensic files
+(`src/secrets-scan/historical-incident.test.ts`, `src/secrets-scan/scanner.ts`,
+`.github/workflows/ci.yml`'s comment) were touched. `git grep -n "\.agents/"` still returns the same
+class of hits as Round 1 (forensic/historical only) — re-run this round, same shape. D4 stands as
+correctly requiring no action.
+
+### Per-criterion / per-scenario status (delta from Round 1 only — full tables unchanged, see Round-1
+Verdict above for the seven acceptance criteria, all of which remain PASS and are untouched by this
+round's diff)
+
+| Scenario (new or changed this round) | Result | Covering test |
+|---|---|---|
+| npm test's combined count equals the disjoint sum (D1) | PASS — now persisted | `package-scripts.test.ts`'s real-file block, test 2 (`coversTestGlob` for both globs against the real `test` script) |
+| npm test still type-checks first (D1) | PASS — now persisted | Same block, test 1 (`runsTypecheckFirst` against the real `test` script) |
+| runsTypecheckFirst pins ordering, robust to reformatting | PASS | `package-scripts.test.ts`, 4 synthetic-fixture tests |
+| coversTestGlob is quote-style-robust, never confuses the two globs | PASS | `package-scripts.test.ts`, 4 synthetic-fixture tests |
+| This repository's real package.json test script satisfies the guard | PASS | `package-scripts.test.ts`'s real-file block, 3 tests |
+| The workflow uses Node 22+ and runs npm ci then exactly npm test, in that order (D2) | PASS — now fully covered | `workflow.test.ts`'s `runsNpmCiBeforeNpmTest` describe block (5 tests, including reversed-order) + the real-file assertion (6th test) |
+
+### Always-rules + Magnific-fake checks (re-confirmed this round)
+
+- **Hermetic, no live Magnific/Zoho/Apify/AWS calls** — PASS. `grep -n "spaces_\|creations_\|http://\|
+  https://\|fetch(\|exec\|spawn" src/ci/package-scripts.ts src/ci/package-scripts.test.ts
+  src/ci/workflow.ts src/ci/workflow.test.ts` → zero matches. Both new/changed files do nothing but
+  `JSON.parse`/`readFile`/string comparison. `.github/workflows/ci.yml` is untouched this round (still
+  the 4-step, no-secret shape verified in Round 1).
+- **`## ADDED Requirements` header shape, still safe against the archive trap** — PASS.
+  `grep -n "^## " specs/ci-pipeline/spec.md` → only `## ADDED Requirements`, still no `## MODIFIED`
+  header despite this round adding a new Requirement and editing an existing Scenario's text (an
+  in-place edit of an ADDED Requirement stays ADDED; it does not need a MODIFIED header until this
+  change is merged against a prior archived spec).
+
+### Defect list (Round 2)
+
+No new defects found. D1, D2, D3 confirmed genuinely fixed (not just claimed) by direct re-verification
+above. D4 confirmed to require no action, and confirmed nothing was scrubbed.
+
+### What the Operator must do by hand
+
+- This branch is still committed but **not pushed**; no PR exists yet. Once pushed, confirm the GitHub
+  Actions tab shows the workflow running and green — unchanged advice from Round 1, still outstanding.
+- No other manual action required. Both coverage gaps flagged in Round 1 (D1, D2) are now closed with
+  genuine, order-and-content-aware regression tests, independently re-verified in this round.
+
+**This passes. Nothing here should block a merge.**
