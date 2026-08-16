@@ -159,8 +159,12 @@ function err(code: DriverErrorCode, message: string): DriverError {
   return { code, message };
 }
 
-/** Find a node's text value by name in a Space-state snapshot, or undefined if absent. */
-function nodeText(state: SpaceStateLike, name: string): string | undefined {
+/**
+ * Find a node's text value by name in a Space-state snapshot, or undefined if absent. Exported (beyond
+ * this module's own use) so `live/carousel-inject.ts`'s chunked-inject readback confirm can reuse the
+ * SAME lookup `injectSpec` uses, rather than re-implementing it.
+ */
+export function nodeText(state: SpaceStateLike, name: string): string | undefined {
   return state.nodes.find((n) => n.name === name)?.value;
 }
 
@@ -212,7 +216,13 @@ function resolvePoll(poll: PollOptions): ResolvedPoll {
   };
 }
 
-async function pollEdit(port: SpaceMcpPort, editId: string, poll: PollOptions): Promise<EditStatus> {
+/**
+ * Poll a previously-issued edit's status to terminal (running -> succeeded/failed), honoring the
+ * injected poll budget/backoff. Exported (beyond this module's own use in `injectSpec`/`pinPick`/etc.)
+ * so a sibling orchestration — e.g. `live/carousel-inject.ts`'s chunked multi-edit sequence — can reuse
+ * the SAME poll-to-terminal behavior for each edit in its sequence, rather than re-implementing it.
+ */
+export async function pollEdit(port: SpaceMcpPort, editId: string, poll: PollOptions): Promise<EditStatus> {
   const { sleep, intervalMs, budgetMs, now } = resolvePoll(poll);
   const deadline = now() + budgetMs;
   for (;;) {

@@ -144,3 +144,45 @@ export function imageSlideMalformedSourceUrl(): Record<string, unknown> {
   slides[3] = { ...slides[3]!, kind: "image", source_url: "not-a-url" };
   return s;
 }
+
+/**
+ * A ~17 KB, realistically-sized News Carousel Spec (issue #207) — every slide's `image_prompt` is padded
+ * to a real-world length (roughly what a fully-authored carousel Idea produces; see the Build Report for
+ * comparison against actually-committed Straw Motion carousel Specs, which run 15-30 KB). Otherwise a
+ * fully valid Spec (`validateNewsCarouselSpec` accepts it): `text` stays under `CAROUSEL_TEXT_MAX_CHARS`,
+ * roles/slide_index stay in fixed order. Used to prove the write-limit-respecting chunked-injection
+ * mechanism actually gets a realistically-large Spec's data onto the canvas intact, one within-limit edit
+ * at a time (`src/space-driver/live/carousel-inject.ts`), never a single oversized `spaces_edit` call.
+ */
+export function largeCarouselSpec(): Record<string, unknown> {
+  const promptFiller =
+    "A grounded, real photographic scene composited into the reserved frame, naming the real " +
+    "companies/products the story concerns, with the pill badge and stat callout placed per the " +
+    "Baseline Prompt's card-style rules and the Brand_Logo reference held to the hero-slide sizing bar. ";
+  const slides: CarouselSlide[] = CAROUSEL_ROLES.map((role, i) => ({
+    slide_index: i,
+    role,
+    card_style: i % 2 === 0 ? "full_width" : "floating_toast",
+    stat_callout: `Stat ${i + 1} of 7 for the (${role}) slide.`,
+    text: `Slide ${i + 1} (${role}): a short on-card supporting line in the Format's own brand voice.`,
+    companies: ["OpenAI", "Anthropic", "Google DeepMind"],
+    image_prompt:
+      `A vertical viral Instagram news post, slide ${i + 1} of 7 (${role}). ` +
+      promptFiller.repeat(7) +
+      `This is the (${role}) slide's own distinct framing, camera angle, and lighting choice.`,
+  }));
+  return { slides };
+}
+
+/**
+ * `largeCarouselSpec()` with slide index 4 (role "different") blown out to a single `image_prompt` far
+ * larger than the modelled write limit ALONE — i.e. even one slide's own surgical replace goal cannot fit
+ * (issue #207). Used to prove the chunked planner fails clearly, before issuing any edit, rather than
+ * attempting a truncated write for a slide that structurally cannot fit.
+ */
+export function oversizedSlideCarouselSpec(): Record<string, unknown> {
+  const s = clone(largeCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  slides[4] = { ...slides[4]!, image_prompt: "z".repeat(4500) };
+  return s;
+}
