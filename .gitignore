@@ -18,7 +18,10 @@ data/brands/*/ideas/**/*.output/
 data/brands/*/ideas/**/*.assets/
 
 # Node / TypeScript build
-node_modules/
+# No trailing slash. `node_modules/` matches a directory only, so a `node_modules`
+# SYMLINK — the usual way to share one install across git worktrees — slips past it
+# and gets committed. Matching the bare name covers both shapes.
+node_modules
 dist/
 *.tsbuildinfo
 
