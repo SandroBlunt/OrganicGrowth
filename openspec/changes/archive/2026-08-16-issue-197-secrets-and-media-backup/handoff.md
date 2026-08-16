@@ -451,3 +451,168 @@ branch's scope (now moot for the first two — `e01eeb7` already deleted `.agent
 independent of this branch); the named-secret-field pattern is a heuristic, not a parser or entropy
 analysis; the real ~800 MB production backup run remains the Operator's own, by hand; `copy.ts`/
 `checksum.ts` read whole files into memory rather than streaming.
+
+---
+
+## QA Verdict — Round 2: PASS
+
+Verified in worktree `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-197-secrets-and-media-backup`,
+branch `issue-197-secrets-and-media-backup`, HEAD `8bd2ccb` (stacked on Round-1's `20a0855`, both on
+`main` `e01eeb7`). Round-1's FAIL verdict and both Round-1 defects are addressed; re-verified from
+scratch, not taken on the Build Report's word.
+
+### Suite result (my own runs)
+
+| Command | Round 1 (my run) | Round 2 (my run) | Developer's claim |
+|---|---|---|---|
+| `npx tsc -p tsconfig.json --noEmit` | Clean | **Clean** | Clean |
+| `npm test` | 2409 / 597 / 0 fail | **2411 tests / 598 suites / 0 fail** | 2411/598/0 — match |
+| `npm run test:docs` | 249 / 65 / 0 fail | **259 tests / 66 suites / 0 fail** (+10/+1 over Round 1, exactly `backup-media.docs-test.ts`) | 259/66/0 — match |
+| `openspec validate --all --strict` | 42/42 | **42/42**, including `change/issue-197-secrets-and-media-backup` | 42/42 — match |
+| `openspec validate issue-197-secrets-and-media-backup --strict` | valid | **valid** | — |
+
+Isolated re-run of just this change's unit tests (`src/secrets-scan/**/*.test.ts`
+`src/media-backup/**/*.test.ts` `src/commands/backup-media.test.ts`): **101 tests / 23 suites / 0
+fail** — matches 2411 − 2310 exactly (+2 over Round 1's 99, exactly `self-scan.test.ts`'s 2 new tests;
+`backup-media.docs-test.ts`'s 10 tests correctly do NOT appear here or in the `npm test` count — the
+`src/**/*.test.ts` glob does not match a `*.docs-test.ts` filename, confirmed both by inspection and by
+the arithmetic: 2411 − 2310 = 101, not 111).
+
+Both spec deltas remain `## ADDED Requirements` only (confirmed via `grep -n "^## "` on both files) —
+still brand-new capabilities, still no MODIFIED-header shape for `openspec archive` to trip on.
+
+`git diff e01eeb7..HEAD --stat` (whole branch, both rounds): 34 files changed, 3917 insertions, 0
+deletions — confirmed untouched: `data/`, `docs/`, `.agents/` (doesn't exist). `git status --porcelain`
+in this worktree: empty — no stray uncommitted state from anything, including the developer's own
+manual `README.md` experiment (see below).
+
+### The strongest single check: independently proving a future credential commit turns `npm test` red
+
+Demonstrated this **without mutating the branch at all**, in two independent parts, both importing the
+REAL, unmodified functions straight from this branch's own source (not reimplemented, not copied):
+
+1. **`scanRepo` genuinely detects a committed credential.** Built a disposable throwaway git repo
+   (`mkdtemp`, outside this worktree entirely), committed a file carrying a synthetic-but-real-shaped
+   32-hex URL-path-token credential, and called this branch's actual
+   `src/secrets-scan/tracked-files.ts`'s `scanRepo()` (imported directly via `tsx`, unmodified) against
+   it. Result: exactly one finding, `kind: "url-path-token"`, matching the committed value exactly.
+2. **Composed with what I confirmed by reading `self-scan.test.ts` and watching it in the green run
+   above**: it calls this exact `scanRepo(REPO_ROOT)` — `REPO_ROOT` resolved from its own on-disk
+   location, confirmed to resolve correctly to this worktree by its own passing "genuinely scans a
+   non-trivial number of real tracked files" test (I re-ran it: found >100 tracked files) — and hard
+   `assert.deepEqual`s the result to `[]`, and this test file is part of `npm test`'s
+   `src/**/*.test.ts` glob (confirmed: it ran and passed in the 2411-test green run above).
+
+Chaining (1) and (2): a credential-shaped string committed to any tracked file in this repository
+tomorrow would make `scanRepo(REPO_ROOT)` inside `self-scan.test.ts` return a non-empty array, which
+its `assert.deepEqual` throws on, which `node --test`/`npm test` reports as a failing test. **This is
+proven, not inferred from reading the code alone** — the detection half is empirically exercised
+against a real git commit in a throwaway repo; only the "this exact composition is what `npm test`
+runs" half rests on (verified) code-reading, because actually planting a credential in this branch's
+own tracked files to watch it fail live was avoidable and I did not do it.
+
+Separately, I independently verified the redaction property the same way: imported the real
+`redactSecret` and built the exact failure-summary line `self-scan.test.ts` would produce for that same
+synthetic finding — `some-config.json:1 [url-path-token] dead…cdef` — confirming it never contains the
+raw value.
+
+### The developer's own manual experiment (README.md) — independently verified clean
+
+- `git diff origin/main -- README.md` → **no output** — byte-identical to `origin/main`'s copy.
+- `git status --porcelain` → **empty** — no staged/unstaged/untracked residue anywhere in the tree from
+  that experiment (or anything else).
+- `git log --oneline -1 -- README.md` → `e01eeb7`, the migration-undo merge — no commit on top of it
+  touches `README.md`. The revert left zero trace, exactly as claimed.
+
+### Round-1 Defect 1 (critical) — re-verified FIXED
+
+- `src/secrets-scan/self-scan.test.ts` exists, calls `scanRepo(REPO_ROOT)` against the real repo root
+  (not a fixture, not historical `git show` content), asserts `[]`. Ran in isolation: **2/2 pass**.
+- **Fixture-defanging check (the coordinator's specific concern) — NOT defanged.** Diffed
+  `scanner.test.ts` between rounds: the three affected named-secret-field tests
+  (`"catches a secret-shaped value..."`, `"matches token/secret/password/..."`,
+  `"does not flag an unrelated key name..."`) still build and pass the FULL, unmodified 20-character
+  realistic value (`"sK9v2LmQ" + "7xR4nT8wYh3B"`, concatenated once at module load, then interpolated
+  whole into each test's `content` string) into the real `findCredentialShapedStrings`. Ran
+  `scanner.test.ts` in isolation: all three still assert `findings.length === 1`/`0` exactly as before,
+  confirmed green. The concatenation only changes what the file's own TRACKED SOURCE TEXT contains (two
+  sub-16-character halves, never a contiguous 20-char run) — the runtime string the function under test
+  actually receives is untouched. This is the correct distinction: a real accidentally-committed secret
+  is always one contiguous literal in source (exactly what the original historical incident was, and
+  exactly what `historical-incident.test.ts` still proves detection against); a build-time-assembled
+  test fixture is not, and this fix exploits exactly that difference rather than weakening the pattern
+  or the tests.
+- `specs/secrets-scan/spec.md`'s two rewritten Scenarios now describe the value's shape in prose instead
+  of a literal — read both; they still name the concrete constraints (`api_key`/`identifier` key,
+  20-character, letters+digits only, not placeholder-shaped) needed to reproduce the fixture, so no
+  scenario meaning was lost, only the literal string.
+- New Requirement + 3 Scenarios added to `specs/secrets-scan/spec.md` documenting the guard,
+  the fail-on-injection property, and the worktree-correct `REPO_ROOT` resolution — all three map to
+  `self-scan.test.ts`'s two tests plus the reasoning verified above (git itself, not this module,
+  handles worktree `.git`-pointer-file resolution, confirmed correct by the passing `>100 tracked
+  files` sanity test in this actual worktree).
+- **Verdict: Defect 1 is closed.** `npm test` now provides real, empirically-demonstrated protection
+  against the incident recurring.
+
+### Round-1 Defect 2 (low) — re-verified FIXED
+
+- `.claude/commands/backup-media.md` exists, matches `export-schedule.md`/`cleanup-schedule-media.md`'s
+  shape (frontmatter, Usage, code-backed paragraph, Steps, Guardrails) — read in full.
+- `src/commands/backup-media.docs-test.ts` — read in full and diffed structurally against
+  `cleanup-schedule-media.docs-test.ts`: same `REPO_ROOT`/`fileURLToPath(import.meta.url)` pattern, same
+  "reads the doc at its real, registered path" posture, same `npm run test:docs`-only placement
+  (confirmed the `src/**/*.test.ts` glob does not pick it up, both by naming-pattern inspection and by
+  the exact 2411 − 2310 = 101 arithmetic above). Every assertion pins a REAL substring: real file paths
+  (`src/media-backup/ledger-media-refs.ts` etc.), the real function names (`backupMediaCommand`,
+  `runMediaBackup`, `verifyMediaBackup`), the real env var (`MEDIA_BACKUP_DEST`), the real default
+  (`OrganicGrowth-Backups`), and the real three mismatch-reason strings
+  (`missing-at-destination`/`checksum-mismatch`/`size-mismatch`) — never free-floating prose that isn't
+  checked against what ships. Ran in isolation: **10/10 pass**.
+- New Requirement + 2 Scenarios added to `specs/media-backup/spec.md`, matching.
+- **Verdict: Defect 2 is closed.**
+
+### Per-criterion results (in-scope criteria; unchanged criteria carried forward from Round 1, re-run not just re-stated)
+
+| # | Criterion | Verdict | Test / evidence |
+|---|---|---|---|
+| 1 | (out of scope, Operator/migration-undo owned) | independently re-confirmed PASS | `.agents/` still absent; `git ls-files -z \| xargs -0 grep -l zohomcp` still the same 8 shape-only/synthetic-fixture files, no live value; `git status --porcelain` clean |
+| 2 | Zoho credential rotated | out of scope, Operator action | not re-checked, unchanged from Round 1 |
+| 3 | MCP creds from untracked/env config, servers connect | independently true of repo state (not this branch's diff) | unchanged from Round 1: no MCP config file anywhere; "servers still connect" remains an Operator-only live-session fact |
+| 4 | Automated check fails on a tracked credential, runs in test suite | **PASS (was FAIL)** | `src/secrets-scan/self-scan.test.ts` (2/2), independently re-proven per "strongest single check" above |
+| 5 | Backup copies ledger media (both Brands) + produced-media tree, durable destination | PASS (unchanged) | `backup-runner.test.ts` (10/10), `destination.test.ts` (12/12) — re-ran, still green |
+| 6 | Manifest with checksum/size, per-Brand counts | PASS (unchanged) | `manifest.test.ts` (9/9) — re-ran, still green |
+| 7 | 8 straw-motion / 0 mundotip missing paths, listed not skipped | PASS (unchanged, not re-derived this round — real ledger data did not change between rounds) | Round-1 independent re-derivation stands; no ledger file touched by either round's diff |
+| 8 | `--verify` re-checks manifest, zero mismatches | PASS (unchanged) | `verify-runner.test.ts` (5/5) — re-ran, still green |
+| — | `/backup-media` is Operator-invocable as a slash command | **PASS (new this round)** | `.claude/commands/backup-media.md` + `backup-media.docs-test.ts` (10/10) |
+
+### Always-rules + Magnific-fake checks (re-run)
+
+| Rule | Verdict | Evidence |
+|---|---|---|
+| Generate-never-publish / Public-metrics-only / Relative-not-absolute / Explicit-attribution | N/A / holds | Round-2 diff is `self-scan.test.ts`, `scanner.test.ts` (fixture-only edit), two spec deltas, `.claude/commands/backup-media.md`, `backup-media.docs-test.ts`, `tasks.md`, `handoff.md` — no content-generation/publish/metrics/scoring/attribution code touched |
+| Ledger-as-source-of-truth | PASS | No `ledger.json` in the Round-2 diff; `git diff e01eeb7..HEAD --stat -- 'data/*'` → empty |
+| Magnific fake / no live calls | PASS | `grep -rn "spaces_\|creations_\|zoho-social\|zohomcp\|magnific" src/secrets-scan/self-scan.test.ts .claude/commands/backup-media.md src/commands/backup-media.docs-test.ts` → no matches |
+
+### Defect list
+
+None remaining. Both Round-1 defects are closed and independently re-verified, not taken on the Build
+Report's word.
+
+### Summary
+
+Round 2 is a **PASS**. Both defects from Round 1 are genuinely fixed: the credential scanner is now
+actually wired as a live guard against this repository's real tracked files (independently proven, not
+just read), the fixture rewrite that made that possible does not weaken any existing detection test,
+the developer's own manual proof-and-revert experiment left the tree byte-clean, the failure path is
+confirmed redacted, and `/backup-media` is now a properly documented, doc-conformance-tested slash
+command matching its siblings. All numbers match the developer's claims exactly on independent re-run.
+
+### What the Operator must do by hand (unchanged from Round 1)
+
+- Confirm the Zoho MCP server and any other MCP servers still connect in a live Claude Code session
+  after `e01eeb7`'s migration-undo (AC3's "servers still connect" clause) — not verifiable hermetically
+  from this worktree.
+- Run the real `/backup-media` (or `npm run backup-media --`) from the **actual working checkout**
+  (`/Users/CaxtonTaylor/Developer/OrganicGrowth`), not from a fresh worktree — the ~813 MB of produced
+  media under `.output`/`.assets` bundles is gitignored and per-checkout, so a worktree (including this
+  QA one) never has it materialized.
