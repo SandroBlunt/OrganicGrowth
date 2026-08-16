@@ -173,3 +173,182 @@ node --import tsx --test src/vocabulary/*.test.ts src/vocabulary/*.docs-test.ts 
   (the seeded-table design was chosen partly to make that cheap).
 - **Backfilling `hook_type`/`theme` onto the 61 existing Briefs** is explicitly issue #206's job, not
   this ticket's.
+
+---
+
+## QA Verdict — Round 1: PASS
+
+Verified inside `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-201-adrs-vocabularies-sqlite-foundation`
+only, branch `issue-201-adrs-vocabularies-sqlite-foundation`, HEAD `58126d0` (rebased onto `main` at
+`bd7cc35`). `/Users/CaxtonTaylor/Developer/OrganicGrowth` was never touched (this worktree's
+`node_modules` is a symlink into it, confirmed via `readlink`, so nothing that would trigger a
+reinstall was run).
+
+### Suite result (all commands re-run from scratch, not taken from the Build Report)
+
+| Command | Result |
+|---|---|
+| `npx tsc -p tsconfig.json --noEmit` | clean, exit 0 |
+| `npm test` | **2773 tests / 699 suites / 0 fail** — matches the post-rebase expected count exactly |
+| `npm run test:docs` | **275 tests / 75 suites / 0 fail** |
+| `npx openspec validate --all --strict` | **45 passed, 0 failed** (44 pre-existing specs + this change's own `change/issue-201-adrs-vocabularies-sqlite-foundation` entry = 45; consistent with the change being newly added) |
+| Slice-scoped: `node --import tsx --test src/vocabulary/*.test.ts src/vocabulary/*.docs-test.ts src/db/*.test.ts src/db/*.docs-test.ts src/recipe/registry-wired-count.docs-test.ts` | **59 tests / 24 suites / 0 fail** |
+
+`git status --porcelain` was empty before and after every run, including inside `/tmp` (no
+`og-sqlite-*`/`og-connection-*` directories left behind) — no test leaves a real file, temp dir, or
+tracked-file change behind.
+
+### Per-criterion results (issue #201, verbatim)
+
+| # | Criterion | Result | Proving test |
+|---|---|---|---|
+| 1 | ADR supersedes ADR-0011, records the Post reversal, Operator decision date | PASS | `docs/adr/0028-post-is-its-own-record.md`; `src/db/adr.docs-test.ts` ("ADR-0028 records the Post-becomes-its-own-entity reversal (AC1)", 2 `it`s) |
+| 2 | ADR supersedes ADR-0014, keeps store-boundary principle, local SQLite reasoning | PASS | `docs/adr/0029-local-sqlite-behind-the-store-boundary.md`; `src/db/adr.docs-test.ts` ("ADR-0029 records the local-SQLite decision (AC2)", 3 `it`s) |
+| 3 | CONTEXT.md defines closed `hook_type`/`theme`, each term with a one-line meaning | PASS | `src/vocabulary/hook-type.test.ts`, `theme.test.ts` (closed sets); `src/vocabulary/context-md.docs-test.ts` (doc lists every value + exact meaning) |
+| 4 | Doc-conformance checks assert both vocabularies and both ADRs | PASS | `context-md.docs-test.ts` + `adr.docs-test.ts` + `registry-wired-count.docs-test.ts`, all under `npm run test:docs` (with one quality note below, not a failure) |
+| 5 | One SQLite DB under `data/`, in-process, no service/API/container/cloud DB | PASS | `src/db/connection.test.ts` (creates file+dirs, enables FK enforcement); read `connection.ts`/`docs/adr/0029` directly — no HTTP/server code anywhere in the slice |
+| 6 | Schema covers all 18 named entities | PASS | `src/db/migrate.test.ts` — "creates every entity table AND every vocabulary table", generic over `ENTITY_TABLES`; read `schema.ts` DDL directly, confirmed all 18 names present |
+| 7 | Three Recipes trusted from the registry, not CONTEXT.md's stale count | PASS | `migrate.test.ts` (seeds `news-short-script`); `schema.test.ts` ("asset.recipe_slug trusts the registry (AC7)"); `registry-wired-count.docs-test.ts` |
+| 8 | Every table carries id/created_at/updated_at/schema_version | PASS | `migrate.test.ts`, generic `PRAGMA table_info` loop over `ENTITY_TABLES` |
+| 9 | Migration runner creates/upgrades schema, records version | PASS | `migrate.test.ts` — version-0-start, idempotency, rollback-on-failure, all against a real file |
+| 10 | Media by root-relative key + mime/bytes/checksum; media root is config | PASS | `schema.ts` DDL (`storage_key`/`mime`/`bytes`/`checksum` on both media tables, `brand.media_root`); `media-ref.test.ts` round-trips all four fields |
+| 11 | Absolute path rejected at the store boundary, with a test | PASS | `storage-key.test.ts` (POSIX/Windows/UNC/home/empty/`..`); `media-ref.test.ts` (real DB, `COUNT(*)` proves no partial insert for `asset_media`) — see low-severity note below re: `insertBrandAsset`'s equivalent count check |
+| 12 | Tests open a real, empty file per test, drop it after — no `:memory:` | PASS | `grep -rn ":memory:" src/db/*.test.ts src/vocabulary/*.test.ts` → only the one negative assertion in `test-support.test.ts` (`assert.notEqual(path, ":memory:")`); every DB test goes through `withTempDb` |
+| 13 | Schema leaves room for account/user/connection, doesn't build them | PASS | `migrate.test.ts` — explicit absence test; `schema.ts` has no columns anticipating them beyond a documented comment |
+
+All 13 acceptance criteria are PASS, each backed by a test that actually exercises the claim (verified
+by reading the test bodies, not just their names — `schema.test.ts` and `migrate.test.ts` in particular
+assert against a real migrated database with `PRAGMA foreign_keys = ON`, not mocks).
+
+### Per-scenario results (spec deltas)
+
+**`sqlite-foundation`** (11 Requirements, 22 scenarios) — every scenario traced to a passing test in
+`connection.test.ts`, `migrate.test.ts`, `schema.test.ts`, `storage-key.test.ts`, `media-ref.test.ts`,
+`test-support.test.ts`. All PASS. Read each spec Requirement against its cited file directly; every
+`GIVEN`/`WHEN`/`THEN` has a literal counterpart test (e.g. the partial-unique-index scenarios map 1:1
+onto `schema.test.ts`'s "Exactly one primary Channel per Brand" describe block).
+
+**`domain-vocabulary`** (2 Requirements, 4 scenarios) — all PASS, `hook-type.test.ts` + `theme.test.ts`
+cover length/distinctness/meaning-non-emptiness and `isHookType`/`isTheme` membership both ways.
+
+**`docs-conformance`** (5 Requirements, 9 scenarios) — all PASS via `context-md.docs-test.ts` (2 Reqs),
+`registry-wired-count.docs-test.ts` (1 Req, 3 scenarios), `adr.docs-test.ts` (2 Reqs covering both ADRs
++ rule 7 + CONTEXT.md's Post entry). One quality note (not a scenario failure — see Defect list, low
+severity): the Recipe-wired-count scenario's own doc-comment claims the count is "never hardcoded", but
+the actual assertion is a fixed regex for the literal string "Today three Recipes are wired" rather than
+one derived from `listWiredRecipeSlugs().length` — it will not itself re-fail if a fourth Recipe is
+wired and CONTEXT.md is left saying "three". The scenario as written for THIS state (three wired,
+CONTEXT.md says three) is genuinely satisfied.
+
+### Always-rules + Magnific-fake checks
+
+| Rule | Result | Evidence |
+|---|---|---|
+| Generate-never-publish | PASS | No content-generation or publish code touched; `grep -rn "spaces_\|creations_\|zoho\|apify" -i src/db src/vocabulary` → zero hits (only `zoho_schedule_ref`/`magnific_creation_id` as inert column names) |
+| Public-metrics-only | PASS | `metric_snapshot`/`performance_score` are schema only in this slice — no scrape code added or touched |
+| Relative-not-absolute | PASS | `channel_baseline` table exists as schema only; no scoring logic in this slice |
+| Explicit-attribution | PASS, strengthened | ADR-0028 gives Post its own explicit `(asset_id, channel_id)` key; rule 5 (`.claude/rules/always/organicgrowth-rules.md`) is untouched and still accurately describes today's real, unchanged `/log-post` behavior (the file ledger is not touched by this slice) |
+| Ledger-as-source-of-truth | PASS | `grep -rn "ledger.json\|queue.json" src/db src/vocabulary --include="*.ts"` → zero real-path references (only fixture *string literals* like `"data/brands/test-brand"` used as a fake `media_root` value in tests); rule 7 correctly states the new DB "is not yet the backing of any store" |
+| Magnific fake (hard requirement) | PASS | No `spaces_*`/`creations_*` MCP call anywhere in this slice; no import of `src/space-driver/fixtures/fake-space.ts`; the only "magnific" string in the whole slice is the inert `asset_media.magnific_creation_id` column name, populated in tests only as a plain optional string or omitted |
+
+### Defect list
+
+No defects block this round. Two low-severity test-quality notes for the developer's awareness (do not
+require a re-round):
+
+1. **Low — `registry-wired-count.docs-test.ts` doesn't actually self-heal on future drift.** The file's
+   own doc-comment says the count is "DERIVED from the registry itself — never a hardcoded '3'", but
+   `it("names every currently-wired Recipe slug's human name...")` asserts a fixed regex
+   `/Today three Recipes are wired/` rather than building the expected phrase from
+   `listWiredRecipeSlugs().length`. Repro: wire a fourth Recipe in `src/recipe/registry.ts` without
+   touching `CONTEXT.md` — this test keeps passing (it only checks `wired.length >= 3`, and the literal
+   "three" string is unaffected), silently missing exactly the drift the epic's problem statement calls
+   out ("CONTEXT.md's own count had gone stale"). Suggest deriving the expected word from
+   `wired.length` the next time this file is touched.
+2. **Low — `insertBrandAsset`'s rejection test doesn't assert zero rows the way `insertAssetMedia`'s
+   does.** `src/db/media-ref.test.ts`'s "rejects an absolute storage key BEFORE any row is written" test
+   (for `insertAssetMedia`) checks `COUNT(*) FROM asset_media` is `0` after the throw; the sibling
+   "rejects a home-directory-shorthand storage key" test (for `insertBrandAsset`) only asserts the
+   throw, not a matching `COUNT(*) FROM brand_asset` check — even though the spec's own Scenario text
+   ("insertBrandAsset rejects a home-directory-shorthand storage key before writing any row") explicitly
+   claims that "no row" property. Reading `media-ref.ts` confirms the validator genuinely runs before
+   any `db.prepare(...).run(...)` call, so this is not a live bug — just an unproven half of the spec
+   scenario. Repro: read `src/db/media-ref.test.ts` lines ~117–139 and compare against the
+   `insertAssetMedia` test immediately above it.
+
+### Design concerns for whoever builds #202/#204/#206 next (do not block this merge)
+
+1. **HIGH — `idea.hook_type`/`idea.theme` are `NOT NULL` foreign keys, and the real import order may
+   not be able to satisfy that.** Verified against the real data and the real ticket graph, not just the
+   schema text:
+   - Of the 61 real Briefs (51 straw-motion + 10 mundotip), only 51 carry ANY hook heading at all
+     (`## Hook concept` / `## Hook Concept`); the other 10 are exactly the 10 MundoTip Briefs
+     (`data/brands/mundotip/ideas/2026-W22/idea-0{1..9,10}.md`) — verified they carry no hook heading of
+     any spelling and no `format` field, matching the epic's own "10 Ideas with no format field" claim.
+     None of the 61 carries a value from the new closed vocabulary today — that classification judgment
+     is issue #206's whole job, not #204's.
+   - `gh issue view 206` is explicitly **"Blocked by #204, #205"**, and #206's own body says "This ticket
+     classifies the 61 Briefs already written" (present tense — implying they are NOT yet classified
+     when #204 runs) and is listed in epic #195 as an item that "can be **dropped** if phase 02 runs
+     long."
+   - `gh issue view 204`'s own acceptance criteria require importing "all 61 Briefs" and end with a
+     reconciliation that "accounts for all 54 Assets, all 61 Briefs and all 66 queue jobs" — i.e. #204
+     must succeed in importing every legacy Idea, including the 10 with no hook signal whatsoever,
+     while `idea.hook_type`/`idea.theme` are `NOT NULL` and #206 (the ticket that actually classifies
+     them) runs strictly *after* #204 and is explicitly droppable.
+   - This schema already handled the analogous case correctly once: `idea.trend_id` is deliberately
+     nullable, with a doc-comment explaining exactly this kind of import-compatibility reasoning ("a
+     future importer... may meet a legacy Idea with no recorded Trend"). The same reasoning was not
+     extended to `hook_type`/`theme`, despite the real data showing an even larger gap (10 Briefs with
+     zero signal, and all 61 needing genuine classification judgment #206 alone performs).
+   - I am not asserting #204 is unbuildable as a result — the developer or the epic's next slice may
+     resolve this by resequencing #206 before #204, by having #204 do its own first-pass classification
+     (duplicating part of #206's job), or by making the columns nullable at the DB level with `NOT NULL`
+     enforced only at the future command-surface layer for newly-created Ideas (mirroring `trend_id`'s
+     precedent). I'd want this made an explicit decision, in writing, before #204 is built — right now
+     it is an unstated assumption sitting on top of a hard SQL constraint.
+2. **`node-sqlite.d.ts` vs bumping `@types/node` — assessed on the merits, as asked.** I independently
+   verified the ambient declaration against the real Node 22.23.0 runtime
+   (`Object.getOwnPropertyNames(DatabaseSync.prototype)` / `StatementSync.prototype`, plus live
+   `run`/`get`/`all` return-shape checks): it covers exactly `exec`/`prepare`/`close` on `DatabaseSync`
+   and `run`/`get`/`all` on `StatementSync`, matching the real API precisely for everything this
+   codebase calls — no wrong signatures found. I also confirmed via `npm view` and a disposable install
+   in `/private/tmp/.../scratchpad` (never in this worktree — its `node_modules` is a live symlink to
+   `/Users/CaxtonTaylor/Developer/OrganicGrowth/node_modules`, confirmed by `readlink`) that
+   `@types/node@20.19.43` (latest 20.x) has **no** `sqlite.d.ts`, while `@types/node@22.20.1` **does**
+   ship one today — so bumping to `^22.x` (matching `engines.node: ">=22"` this repo already requires)
+   is available right now, not blocked on waiting for a future release. On the narrow technical
+   question: **yes, I'd rather see `@types/node` bumped to `^22.x`** eventually — it deletes this file
+   for free and removes a devDependency/engines mismatch that predates this ticket. But the developer's
+   stated operational reason for not doing it *in this PR* is not "questionable" as framed — I verified
+   this worktree's `node_modules` really is a symlink into the main checkout other live sessions are
+   using, so an `npm install` here would genuinely touch shared state. I'd recommend the bump as a small,
+   isolated, separately-timed follow-up (once no concurrent worktree session is mid-run) rather than
+   folded into a future ticket's unrelated diff.
+3. **The migration path for the 191 real absolute paths IS written down, not left dangling** — confirmed
+   good. `docs/adr/0029` states the storage-key rule "is how the 191 machine-welded absolute paths are
+   prevented from **recurring**", and issue #204's own acceptance criteria explicitly own the conversion:
+   "The 191 absolute paths are converted to root-relative storage keys; no absolute path survives into
+   the database." No gap here — flagged in the task brief as something to check, and it checks out.
+4. **Real-data sanity-check on the 10 Hook Types, against all 51 Briefs that do carry a heading:** I read
+   the actual "Hook concept" text of all 51 (both Brands, all weeks). The great majority map cleanly onto
+   one of the ten values (e.g. `irony` for the literal "Note the irony of Microsoft funding OpenAI...",
+   `surprising_number` for "$0.20 figure... 80% cut", `contradiction` for "record profits, and about
+   $590 billion gone in two days"). A handful of the newest batch
+   (`unhypped-daily/2026-W33/friday-14-august/idea-04`, `idea-12`) are pure "explain what X means"/
+   "highlight the shift from X to Y" framings without a clear surprise-tension, and are a stretch against
+   all ten values — not a hard miss, but worth the Operator's eye during #206 rather than assuming 100%
+   coverage. This is a minor observation, not a defect — the vocabulary is genuinely well-calibrated
+   against the bulk of the real sample.
+
+### Overall
+
+**PASS.** Every acceptance criterion is proven by a real, passing test against a real database; the two
+ADRs faithfully and explicitly reverse/extend exactly what the issue and the epic asked, in the repo's
+established forward-pointer style; the vocabularies and schema are single-sourced with a docs-test that
+would actually catch drift (with one noted quality gap, non-blocking); the storage-key boundary rejects
+absolute paths against a real insert; every DB test uses a real throwaway file, never `:memory:`, and
+cleans up after itself; no live Magnific/Zoho/Apify call exists anywhere in the slice; and the file
+ledger stays untouched and canonical. The one design item I would want resolved in writing before #204
+is built is the `hook_type`/`theme` `NOT NULL` constraint against the real, unclassified 61-Brief import
+sequencing described above — a real foundation-level question, not a defect in this slice's own scope.
