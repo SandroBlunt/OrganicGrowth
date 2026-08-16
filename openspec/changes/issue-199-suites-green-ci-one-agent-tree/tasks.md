@@ -3,8 +3,10 @@
 - [x] 0.1 Confirm `npm run test:docs` on `main`/this branch's base commit (`6a0b06b`): 259 tests, 66
   suites, 0 fail. Confirm the historical 30-failure baseline was measured against `8f7c8f6` (migration
   in place) vs `e01eeb7` (migration undone), per the issue's own comment.
-- [x] 0.2 Confirm `.claude/commands/` holds all 12 command docs, `wc -w` totals 10,475 words (over the
-  ~7,300-word figure).
+- [x] 0.2 Confirm `.claude/commands/` holds all 12 of the docs the Antigravity migration deleted, `wc -w`
+  totals 10,475 words (over the ~7,300-word figure). The directory holds **13** files today (re-measured,
+  not assumed): a 13th, `backup-media.md`, was added afterward by the unrelated issue #197 (PR #215),
+  never touched by the migration or its undo (QA Round-1 Defect D3 — corrected from an earlier "12").
 - [x] 0.3 Confirm `.agents/` does not exist on disk and `git grep` for `\.agents/`, `Antigravity`,
   `GEMINI.md` across tracked files returns zero matches; `.claude/agents/` holds exactly 6 definitions.
 - [x] 0.4 Confirm `.claude/skills/` is restored (16 Recipe Skill directories) so `src/recipe/registry.ts`
@@ -67,3 +69,28 @@
   comment on issue #199 via `gh issue comment 199`.
 - [x] 4.5 Write the Build Report into `handoff.md`, including the four already-satisfied criteria (with
   evidence) and the three actually built here.
+
+## 5. Round-2 fixes — QA Round-1 Defects D1, D2, D3 (D4: no action, see handoff)
+
+- [x] 5.1 **D1.** Write failing tests (`src/ci/package-scripts.test.ts`) for `parsePackageJsonScripts`,
+  `runsTypecheckFirst`, `coversTestGlob`: parses a valid `scripts` map; returns `{}` for a missing/
+  malformed `scripts` key; ordering pinned robustly to extra `&&` whitespace; glob coverage robust to
+  quote style, never confusing the unit glob with the docs glob; a real-file block reading this
+  repository's actual `package.json` and asserting `test` runs the typecheck step first and covers both
+  globs, and `test:docs` covers only the docs glob.
+- [x] 5.2 Implement `src/ci/package-scripts.ts` — pure, no filesystem, no `git`, no clock.
+- [x] 5.3 **D2.** Write failing tests in `workflow.test.ts` for `runsNpmCiBeforeNpmTest`: true only when
+  `npm ci` precedes `npm test`; false when either step is missing; false when the order is reversed;
+  false when neither exists. Add a real-file assertion to the "real ci.yml" block.
+- [x] 5.4 Implement `runsNpmCiBeforeNpmTest` in `src/ci/workflow.ts`.
+- [x] 5.5 **D3.** Corrected the stale "12 files" figure to the actually-measured 13 (`backup-media.md`
+  was added afterward by the unrelated issue #197, never touched by the Antigravity migration or its
+  undo) in `proposal.md` and this file. The Round-1 `handoff.md` Build Report text is left unedited (the
+  Slice Handoff is append-only); the correction is recorded in the Round-2 Build block instead.
+- [x] 5.6 Update `specs/ci-pipeline/spec.md`: new Requirement + 3 Scenarios for the D1 guard; updated
+  Requirement/Scenario text for D2's `runsNpmCiBeforeNpmTest` (presence AND order); re-run
+  `openspec validate --strict` until green.
+- [x] 5.7 Run `npx tsc -p tsconfig.json --noEmit`, `npm test`, `npm run test:docs`,
+  `openspec validate --all --strict` — all green, more tests than the Round-1 count (2694/670/0).
+- [x] 5.8 Append a `Round-2 Build` block to `handoff.md` (never overwrite the Round-1 report or the QA
+  Verdict).

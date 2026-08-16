@@ -105,6 +105,18 @@ export function runsExactNpmTest(workflow: ParsedWorkflow): boolean {
   return runCommands(workflow).some((command) => command.trim() === "npm test");
 }
 
+/** True only when an exact `npm ci` step appears, in step order, BEFORE an exact `npm test` step —
+ *  asserting the ORDER (install before test), not merely that both commands are present somewhere in
+ *  the workflow (QA Round-1 Defect D2: a step order violation, or a missing `npm ci` step entirely,
+ *  would previously have gone uncaught by this module even though the spec's own Scenario claimed both
+ *  were checked). */
+export function runsNpmCiBeforeNpmTest(workflow: ParsedWorkflow): boolean {
+  const commands = runCommands(workflow).map((command) => command.trim());
+  const ciIndex = commands.indexOf("npm ci");
+  const testIndex = commands.indexOf("npm test");
+  return ciIndex !== -1 && testIndex !== -1 && ciIndex < testIndex;
+}
+
 /** Credential-shaped name fragments this build must stay hermetic against (ADR-0005): the four live
  *  external services the build/CI loop never calls. Checked case-insensitively, and independently of
  *  a `secrets.` reference — an env var merely NAMED after one of these is enough to flag, since a

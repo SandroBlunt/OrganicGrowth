@@ -11,10 +11,16 @@ already satisfied on `main`** — not by this slice, but as a side effect of #21
   against — undoing it (`e01eeb7`) recovered the prose rather than papering over the checks, and the
   suite is green at its original count (249/249).
 - the ~7,300 words of command documentation the migration deleted are recovered: `.claude/commands/`
-  holds all 12 files again (`build-issue.md`, `run-trends.md`, `review-ideas.md`, `queue.md`, `pick.md`,
-  `pick-cast.md`, `log-post.md`, `track-performance.md`, `report.md`, `run-pipeline.md`,
-  `export-schedule.md`, `cleanup-schedule-media.md`), 10,475 words by `wc -w`, well over the ~7,300-word
-  figure.
+  holds all 12 of the files the migration deleted (`build-issue.md`, `run-trends.md`, `review-ideas.md`,
+  `queue.md`, `pick.md`, `pick-cast.md`, `log-post.md`, `track-performance.md`, `report.md`,
+  `run-pipeline.md`, `export-schedule.md`, `cleanup-schedule-media.md`) again. The directory holds **13**
+  files today, not 12 — `wc -w .claude/commands/*.md` and `ls .claude/commands/ | wc -l`, re-measured
+  directly rather than assumed, both confirm it — because a 13th, `backup-media.md`, was added afterward
+  by the unrelated issue #197 (PR #215, `6a0b06b`), never touched by the Antigravity migration or its
+  undo. `wc -w` across all 13 totals 10,475 words, well over the ~7,300-word figure. (QA Round-1 Defect
+  D3: an earlier draft of this proposal stated "12" for the current total, inherited unchecked from the
+  coordinator's own issue comment rather than recounted against the directory listing sitting right next
+  to it — corrected here.)
 - exactly one agent-definition tree remains: `.agents/` no longer exists on disk, and `git grep` for
   `\.agents/`, `Antigravity`, and `GEMINI.md` across every tracked file returns zero matches. Only
   `.claude/agents/` (6 definitions: `developer.md`, `idea-strategist.md`, `performance-tracker.md`,
@@ -48,7 +54,12 @@ therefore scopes ONLY the three criteria PR #213 did not touch:
   **2670 tests / 664 suites / 0 fail** against the `main` baseline of 2411+259 tests and 598+66 suites.
   `tsc -p tsconfig.json --noEmit` still runs first, unchanged — a doc-conformance failure now fails the
   same command that gates type-checking, which is the point: prose drift becomes a build failure, exactly
-  like a type error does today.
+  like a type error does today. **Guarded by a persisted test, not just true-today behaviour**
+  (`src/ci/package-scripts.ts` + `.test.ts`, added Round 2 for QA Round-1 Defect D1): reads the REAL
+  `package.json`, parses it, and pins that the typecheck step runs first and that both globs are covered
+  — so a future silent revert (someone quietly dropping the `*.docs-test.ts` glob back out) fails this
+  suite instead of staying green forever unnoticed, which is exactly the class of drift #199 itself was
+  filed to close.
 - **A GitHub Actions workflow** (`.github/workflows/ci.yml`, new — there is no `.github` directory
   today) that runs on every `push` and `pull_request` (no branch filter, no path filter — every push,
   every PR, per the acceptance criterion's own wording), installs with `npm ci` against the committed
@@ -70,10 +81,12 @@ therefore scopes ONLY the three criteria PR #213 did not touch:
   drop `fetch-depth: 0`, or add a secret without any other test noticing. `src/ci/workflow.ts` is a pure
   module (a `yaml`-backed parser plus small structural checks: does it trigger on both `push` and
   `pull_request`; what `fetch-depth` does its checkout step declare; what Node version does its
-  `setup-node` step declare; does any `run:` step's command equal exactly `npm test`; does the raw YAML
-  text reference `secrets.` or a Magnific/Zoho/Apify/AWS-shaped credential name) proven first against
-  synthetic fixture YAML, then proven a second time against THIS repository's actual
-  `.github/workflows/ci.yml` on disk — the same "prove it against the real file" pattern
+  `setup-node` step declare; does any `run:` step's command equal exactly `npm test`; does an exact
+  `npm ci` step appear, in step order, BEFORE an exact `npm test` step (`runsNpmCiBeforeNpmTest`, added
+  Round 2 for QA Round-1 Defect D2 — the presence AND the order are both checked, not merely presence);
+  does the raw YAML text reference `secrets.` or a Magnific/Zoho/Apify/AWS-shaped credential name)
+  proven first against synthetic fixture YAML, then proven a second time against THIS repository's
+  actual `.github/workflows/ci.yml` on disk — the same "prove it against the real file" pattern
   `docs-conformance` and `secrets-scan`'s `self-scan.test.ts` already use elsewhere in this repo.
 - **The baseline posted on issue #199** via `gh issue comment 199`, giving the *before* (measured fresh
   from `main` at the moment this slice started) and the *after* (this branch, both suites merged).
@@ -97,14 +110,15 @@ therefore scopes ONLY the three criteria PR #213 did not touch:
 
 ### Added Capabilities
 
-- `ci-pipeline`: both test suites merged into `npm test` (with `npm run test:docs` still standalone), a
-  GitHub Actions workflow that runs `npm test` on every push and pull request, and a regression test
-  proving that workflow's own shape (trigger, checkout depth, Node version, exact command, no live
-  credentials).
+- `ci-pipeline`: both test suites merged into `npm test` (with `npm run test:docs` still standalone,
+  guarded by a persisted test against the real `package.json`), a GitHub Actions workflow that runs
+  `npm test` on every push and pull request, and a regression test proving that workflow's own shape
+  (trigger, checkout depth, Node version, exact command in the correct order, no live credentials).
 
 ## Impact
 
-- **New code:** `.github/workflows/ci.yml`; `src/ci/workflow.ts` (+`workflow.test.ts`).
+- **New code:** `.github/workflows/ci.yml`; `src/ci/workflow.ts` (+`workflow.test.ts`);
+  `src/ci/package-scripts.ts` (+`.test.ts`, added Round 2 for QA Round-1 Defect D1).
 - **Modified code:** `package.json` — the `test` script's glob list grows by one entry
   (`"src/**/*.docs-test.ts"`); `test:docs` is untouched.
 - **Hermetic, no live Space/Zoho/Apify/AWS calls anywhere.** `src/ci/workflow.ts` and its tests never

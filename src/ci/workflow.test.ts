@@ -10,6 +10,7 @@ import {
   checkoutFetchDepth,
   setupNodeVersion,
   runsExactNpmTest,
+  runsNpmCiBeforeNpmTest,
   referencesLiveCredentials,
 } from "./workflow.ts";
 
@@ -170,6 +171,42 @@ jobs:
   });
 });
 
+describe("runsNpmCiBeforeNpmTest — asserts presence of BOTH steps AND their order (QA Round-1 D2)", () => {
+  const fixtureWithSteps = (steps: string[]) => `
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+${steps.map((command) => `      - run: ${command}`).join("\n")}
+`;
+
+  it("returns true when npm ci runs before npm test", () => {
+    const yamlText = fixtureWithSteps(["npm ci", "npm test"]);
+    assert.equal(runsNpmCiBeforeNpmTest(parseWorkflow(yamlText)), true);
+  });
+
+  it("returns false when npm ci is missing (npm test runs against no install step)", () => {
+    const yamlText = fixtureWithSteps(["npm test"]);
+    assert.equal(runsNpmCiBeforeNpmTest(parseWorkflow(yamlText)), false);
+  });
+
+  it("returns false when npm test is missing (npm ci with nothing to run)", () => {
+    const yamlText = fixtureWithSteps(["npm ci"]);
+    assert.equal(runsNpmCiBeforeNpmTest(parseWorkflow(yamlText)), false);
+  });
+
+  it("returns false when the order is reversed — npm test before npm ci", () => {
+    const yamlText = fixtureWithSteps(["npm test", "npm ci"]);
+    assert.equal(runsNpmCiBeforeNpmTest(parseWorkflow(yamlText)), false);
+  });
+
+  it("returns false when neither step exists", () => {
+    const yamlText = fixtureWithSteps(["echo hello"]);
+    assert.equal(runsNpmCiBeforeNpmTest(parseWorkflow(yamlText)), false);
+  });
+});
+
 describe("referencesLiveCredentials — catches a secrets. reference or a live-service-shaped name", () => {
   it("returns true for a ${{ secrets.* }} reference", () => {
     assert.equal(referencesLiveCredentials("env:\n  TOKEN: ${{ secrets.SOME_TOKEN }}\n"), true);
@@ -230,6 +267,11 @@ describe("This repository's real .github/workflows/ci.yml satisfies every check 
   it("runs exactly npm test", async () => {
     const raw = await readFile(WORKFLOW_PATH, "utf8");
     assert.equal(runsExactNpmTest(parseWorkflow(raw)), true);
+  });
+
+  it("runs npm ci BEFORE npm test, not merely both present somewhere (QA Round-1 D2)", async () => {
+    const raw = await readFile(WORKFLOW_PATH, "utf8");
+    assert.equal(runsNpmCiBeforeNpmTest(parseWorkflow(raw)), true);
   });
 
   it("references no live credential of any kind", async () => {
