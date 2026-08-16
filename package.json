@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "test": "tsc -p tsconfig.json --noEmit && node --import tsx --test \"src/**/*.test.ts\"",
+    "test": "tsc -p tsconfig.json --noEmit && node --import tsx --test \"src/**/*.test.ts\" \"src/**/*.docs-test.ts\"",
     "test:docs": "node --import tsx --test \"src/**/*.docs-test.ts\"",
     "queue": "tsx src/commands/queue.ts",
     "pick-cast": "tsx src/commands/pick-cast.ts",

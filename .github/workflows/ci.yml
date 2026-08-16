@@ -1,0 +1,27 @@
+name: CI
+
+# Every push, every pull request — no branch filter, no path filter (issue #199).
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, not the action's shallow (fetch-depth: 1) default. Required by
+          # src/secrets-scan/historical-incident.test.ts, part of the regular `npm test` suite, which
+          # shells to `git show <sha>:.agents/mcp_config.json` for two specific historical commits
+          # (bb955eb, 8f7c8f6) — real ancestors of origin/main, but unreachable from a shallow clone.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npm test
