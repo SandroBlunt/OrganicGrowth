@@ -2,7 +2,7 @@
  * FAKE Magnific Space — a synthetic `spaces_state` fixture standing in for the live "JSON master"
  * Space. THIS IS THE MAGNIFIC FAKE: the build is hermetic, so the parser is driven entirely through
  * this captured/synthetic state at the MCP read boundary — NO live `spaces_*` calls, no credits, no
- * board mutation (GEMINI.md build pipeline; ADR-0003/0004).
+ * board mutation (CLAUDE.md build pipeline; ADR-0003/0004).
  *
  * Shape mirrors the relevant slice of a `spaces_state` read: a `nodes` array where each node has an
  * `id` (the Space's internal identifier) and a `name`. The `Producer Protocol` node additionally

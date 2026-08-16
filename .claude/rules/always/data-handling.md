@@ -1,3 +1,8 @@
+---
+description: Secrets, external data, and defensive parsing for OrganicGrowth
+globs: *
+---
+
 # Data Handling
 
 1. **Secrets in `.env` only.** `APIFY_API_TOKEN` lives in `.env` (git-ignored). Load it in Bash with

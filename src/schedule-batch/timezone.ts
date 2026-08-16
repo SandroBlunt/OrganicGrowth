@@ -4,7 +4,7 @@
  * and the absolute UTC instant it represents, and formats an instant back into Zoho's own
  * `MM/DD/YYYY HH:mm` dialect for a given zone.
  *
- * Uses only `Intl.DateTimeFormat` (standard library, full ICU — no new dependency, per GEMINI.md) via
+ * Uses only `Intl.DateTimeFormat` (standard library, full ICU — no new dependency, per CLAUDE.md) via
  * the classic two-pass "guess, measure the offset, correct" technique: DST transitions mean a zone's
  * UTC offset is itself a function of the instant, so a single Date.UTC() construction cannot be trusted
  * blindly — `zonedTimeToUtcMs` measures the offset at an initial guess, corrects once, then re-measures

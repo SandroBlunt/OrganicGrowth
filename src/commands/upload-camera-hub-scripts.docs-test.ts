@@ -6,14 +6,14 @@ import { fileURLToPath } from "node:url";
 
 /**
  * Documentation-conformance suite for issue #189 / ADR-0027 (producer offers a Camera Hub teleprompter
- * upload for News Short Script Assets). Pins the shipped prose (`GEMINI.md`,
+ * upload for News Short Script Assets). Pins the shipped prose (`.claude/agents/producer.md`,
  * `docs/adr/0027-...md`) this slice's docs-only acceptance criteria depend on.
  *
  * Kept OUT of the unit suite (the `npm test` glob is "src/**\/*.test.ts", which does NOT match
  * "*.docs-test.ts"). Run with `npm run test:docs`.
  */
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const PRODUCER_AGENT = join(REPO_ROOT, ".agents", "skills", "producer", "SKILL.md");
+const PRODUCER_AGENT = join(REPO_ROOT, ".claude", "agents", "producer.md");
 const ADR_0027 = join(REPO_ROOT, "docs", "adr", "0027-producer-offers-camera-hub-teleprompter-upload.md");
 
 describe("producer.md documents the Camera Hub teleprompter upload offer (issue #189, ADR-0027)", () => {

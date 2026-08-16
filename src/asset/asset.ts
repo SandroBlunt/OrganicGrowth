@@ -37,7 +37,7 @@
  * `metrics` / `tracked_at` / `history` are the per-Asset Performance fields `/track-performance`
  * writes (issue #84, ADR-0011): the four public Apify metrics behind the stored `performance_score`,
  * when they were last measured, and a small trail of earlier reads (a Post's numbers keep climbing
- * until it matures — `.agents/skills/track-performance/SKILL.md`). Attribution stays keyed on THIS Asset
+ * until it matures — `.claude/commands/track-performance.md`). Attribution stays keyed on THIS Asset
  * alone — a sibling Recipe's Asset on the same Idea has its own independent `metrics`/
  * `performance_score`/`history` (always-rules #5).
  *
@@ -124,7 +124,7 @@ export interface AssetMetrics {
 
 /**
  * One earlier tracking pull's result for an Asset, kept in `LedgerAssetRecord.history` so a Post's
- * still-climbing numbers have a visible trail until it matures (`GEMINI.md`:
+ * still-climbing numbers have a visible trail until it matures (`.claude/agents/performance-tracker.md`:
  * "Performance is a moving number until a Post matures"). A fresh pull pushes the Asset's PRE-write
  * `metrics`/`performance_score`/`tracked_at` here before overwriting them — `history` therefore never
  * includes the CURRENT reading, only past ones.

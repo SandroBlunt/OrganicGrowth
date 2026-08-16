@@ -2,7 +2,7 @@
  * `/review-ideas` Recipe-offering: prompt-conformance tests (issue #54 AC3/AC4; the enqueue call
  * updated for issue #56's Recipe-aware queue).
  *
- * `/review-ideas` is a prompt-driven command (`.agents/skills/review-ideas/SKILL.md`) — there is no
+ * `/review-ideas` is a prompt-driven command (`.claude/commands/review-ideas.md`) — there is no
  * compiled TS runtime for its conversational behavior to unit-test directly. These assertions pin the
  * SOURCE TEXT of that prompt so the Recipe-offering requirements this slice adds are provable by
  * `npm test`, not just by hand-reading the doc. Deliberately kept as a REGULAR `.test.ts` (not
@@ -23,7 +23,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
 
 async function readReviewIdeasDoc(): Promise<string> {
-  return readFile(join(REPO_ROOT, ".agents", "skills", "review-ideas", "SKILL.md"), "utf8");
+  return readFile(join(REPO_ROOT, ".claude", "commands", "review-ideas.md"), "utf8");
 }
 
 describe("/review-ideas pre-fills Recipes from the Idea's Format default_recipes (issue #54 AC3)", () => {

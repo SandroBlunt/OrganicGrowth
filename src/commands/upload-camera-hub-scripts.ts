@@ -7,7 +7,7 @@
  * mirroring Schedule Batch... There is no standalone command.") — the Operator never runs this directly.
  * The producer runs it itself, via its own `Bash` tool, ONLY after asking the Operator to quit Camera
  * Hub and getting their confirmation — mirroring how `scheduleViaZohoMcpCommand` is the real code the
- * producer's own documented sequence follows (`GEMINI.md`).
+ * producer's own documented sequence follows (`.claude/agents/producer.md`).
  *
  * Thin: sweep the WHOLE Brand ledger for un-uploaded `news-short-script` Assets
  * (`src/camera-hub/news-short-script.ts`'s `selectUnuploadedNewsShortScripts` — no Run/Format scoping,
@@ -166,7 +166,7 @@ export async function uploadCameraHubScriptsCommand(
 /**
  * CLI entry: print the upload result. Only runs when invoked directly, e.g.
  * `npx tsx src/commands/upload-camera-hub-scripts.ts <brand>` — deliberately NOT wired to an `npm run`
- * alias or a `.agents/commands/*.md` doc (ADR-0027: "there is no standalone command"). This exists so
+ * alias or a `.claude/commands/*.md` doc (ADR-0027: "there is no standalone command"). This exists so
  * the `producer` agent's own `Bash` tool has a concrete way to run the REAL upload, after the Operator
  * has approved and confirmed they quit Camera Hub — the Operator never invokes this directly.
  *

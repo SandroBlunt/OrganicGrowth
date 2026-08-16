@@ -19,7 +19,7 @@ Operator to browse and doesn't read as "a week of the daily show" the way the we
   the folder people actually browse changes.
 - This is a **display-path change, not an id change** — consistent with the existing rule that a
   recorded `brief_path`/`spec_path` is canonical and always wins over a path reconstructed from the Run
-  id (see legacy-layout note in `GEMINI.md`'s State section). Legacy flat runs (the 2026-08-11 launch
+  id (see legacy-layout note in `CLAUDE.md`'s State section). Legacy flat runs (the 2026-08-11 launch
   run) are left in place, untouched, and keep resolving via their recorded paths.
 - One deep function (`runIdeasDirFor` in `src/format/`) is the single place this nesting is computed;
   every module that currently reconstructs `ideas/<format>/<run>/…` routes through it. Weekly Formats

@@ -2,7 +2,7 @@
  * Trackable-Asset selection — pure deep module (issue #84, ADR-0011).
  *
  * `/track-performance <brand> [idea-id]` operates at the ledger's real grain: ONE selection per
- * `(Idea, Recipe)` Asset, never per Idea (`.agents/skills/track-performance/SKILL.md`). This module picks
+ * `(Idea, Recipe)` Asset, never per Idea (`.claude/commands/track-performance.md`). This module picks
  * exactly which Assets a run should pull metrics for, from the Brand's already-loaded ledger Ideas:
  *
  *   - Default (no `idea-id`): every Asset, across every Idea and every chosen Recipe, that has a

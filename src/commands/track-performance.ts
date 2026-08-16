@@ -29,7 +29,7 @@
  * `DEFAULT_APIFY_PORT`/`DEFAULT_MAGNIFIC_PORT` placeholders): `DEFAULT_PERFORMANCE_SCRAPE_PORT` always
  * returns `null` and is never exercised in tests. Until a live adapter is wired, the
  * `performance-tracker` agent's own Bash-tool-driven Apify calls
- * (`GEMINI.md`) remain the sanctioned way to pull real metrics — this
+ * (`.claude/agents/performance-tracker.md`) remain the sanctioned way to pull real metrics — this
  * module is the canonical, tested reference for the SELECTION/SCORING/STATUS/LEDGER-WRITE logic that
  * process must match.
  *
@@ -255,7 +255,7 @@ export async function trackPerformanceCommand(
     .map((a) => a.metrics!);
   const anyMetrics = allAssets.filter((a) => a.metrics !== undefined).map((a) => a.metrics!);
   // Prefer settled (`scored`) readings; before anything has matured, seed the baseline from whatever
-  // has been measured so far (`GEMINI.md`: "If baseline is null (first
+  // has been measured so far (`.claude/agents/performance-tracker.md`: "If baseline is null (first
   // run), seed it from this batch's medians").
   const baselineSamples = scoredMetrics.length > 0 ? scoredMetrics : anyMetrics;
 

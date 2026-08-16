@@ -9,7 +9,7 @@
  *
  * Never crashes, never guesses/defaults a Format (data-handling rule 4; always-rule 8 "never
  * fabricate"): a missing/blank `format` is an explicit STOP condition the caller (the Producer's
- * conductor, `GEMINI.md`) reports to the Operator, exactly like a missing required
+ * conductor, `.claude/agents/producer.md`) reports to the Operator, exactly like a missing required
  * media slot (ADR-0016) or a missing Space.
  */
 

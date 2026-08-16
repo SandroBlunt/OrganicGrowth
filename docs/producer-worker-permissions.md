@@ -13,7 +13,7 @@ behaviour. The permission section has been corrected to say so plainly.
 
 `docs/producer-spikes-results.md` flagged a hard constraint for any unattended Producer run:
 
-> each `spaces_edit` (and `spaces_run`) is auto-denied by the Antigravity permission classifier as
+> each `spaces_edit` (and `spaces_run`) is auto-denied by the Claude Code permission classifier as
 > "modifying shared infrastructure" and needs explicit per-action operator approval — **even with blanket
 > verbal consent**. … a headless queue worker will hit this gate. … the Producer needs a permission path
 > (allowlist rule / non-auto permission mode) or it cannot drain the queue unattended.
@@ -42,7 +42,7 @@ have stalled at the first Space op. That file has been replaced with a clearly-l
 
 ### The syntax that WOULD be needed (future step)
 
-Real Antigravity tool permissions live in **`.claude/settings.json`** under `permissions.allow`, as
+Real Claude Code tool permissions live in **`.claude/settings.json`** under `permissions.allow`, as
 `mcp__<server>__<tool>` rules. To let the worker call the Magnific Space-mutating tools without a prompt,
 that file would need a block like:
 
