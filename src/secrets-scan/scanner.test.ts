@@ -18,6 +18,16 @@ import type { ScannableFile } from "./scanner.ts";
  */
 const FAKE_TOKEN = "0123456789abcdef0123456789abcdef"; // 32 hex chars — same shape/length as the real one
 
+/**
+ * A plausible named-secret-field VALUE for the fixtures below — built via concatenation, not one
+ * contiguous literal, so this file's own tracked SOURCE TEXT never carries a full credential-shaped
+ * run next to a secret-shaped key (each half is under `MIN_NAMED_SECRET_VALUE_LENGTH`). This is what
+ * keeps `self-scan.test.ts` (which scans this repository's real tracked files) clean, while the
+ * RUNTIME string these tests build from it is still the full, realistic value the function under
+ * test actually receives.
+ */
+const PLAUSIBLE_SECRET_VALUE = "sK9v2LmQ" + "7xR4nT8wYh3B";
+
 function file(path: string, content: string): ScannableFile {
   return { path, content };
 }
@@ -83,7 +93,7 @@ describe("findCredentialShapedStrings — url-path-token pattern (issue #197)", 
 
 describe("findCredentialShapedStrings — named-secret-field pattern", () => {
   it("catches a secret-shaped value under a key literally named like a secret", () => {
-    const content = `{"api_key": "sK9v2LmQ7xR4nT8wYh3B"}`;
+    const content = `{"api_key": "${PLAUSIBLE_SECRET_VALUE}"}`;
     const findings = findCredentialShapedStrings([file("config.json", content)]);
     assert.equal(findings.length, 1);
     assert.equal(findings[0]?.kind, "named-secret-field");
@@ -92,7 +102,7 @@ describe("findCredentialShapedStrings — named-secret-field pattern", () => {
   it("matches token/secret/password/client_secret/authorization key variants", () => {
     const keys = ["token", "access_token", "client_secret", "password", "authorization", "apiKey"];
     for (const key of keys) {
-      const content = `{"${key}": "sK9v2LmQ7xR4nT8wYh3B"}`;
+      const content = `{"${key}": "${PLAUSIBLE_SECRET_VALUE}"}`;
       const findings = findCredentialShapedStrings([file("f.json", content)]);
       assert.equal(findings.length, 1, `expected a match for key "${key}"`);
     }
@@ -117,7 +127,7 @@ describe("findCredentialShapedStrings — named-secret-field pattern", () => {
   });
 
   it("does not flag an unrelated key name even with a token-shaped value", () => {
-    const content = `{"identifier": "sK9v2LmQ7xR4nT8wYh3B"}`;
+    const content = `{"identifier": "${PLAUSIBLE_SECRET_VALUE}"}`;
     assert.equal(findCredentialShapedStrings([file("f.json", content)]).length, 0);
   });
 });

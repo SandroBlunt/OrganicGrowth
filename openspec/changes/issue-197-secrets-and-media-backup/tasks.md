@@ -119,3 +119,34 @@
   in-scope issue #197 acceptance criterion maps to a specific test.
 - [x] 12.4 Write the Build Report into `handoff.md`, including the coordinator's mid-build scope
   narrowing and the Known Limits it implies.
+
+## 13. Round-2 fixes — QA Round 1 Defect 1 (critical) and Defect 2 (low)
+
+- [x] 13.1 **Defect 1.** Write `src/secrets-scan/self-scan.test.ts`: calls `scanRepo(REPO_ROOT)` — with
+  `REPO_ROOT` resolved from the test's own on-disk location via `import.meta.url`, exactly like
+  `historical-incident.test.ts` — against THIS repository's real, currently-tracked file set, and
+  asserts zero findings (redacted on failure, never the raw value); a companion sanity check that a
+  real, non-trivial number of tracked files was actually scanned.
+- [x] 13.2 Found and fixed two of this branch's OWN fixture files that tripped the new real self-scan
+  (a realistic named-secret-field example literal appeared, by design, in `scanner.test.ts` and in
+  `specs/secrets-scan/spec.md`'s prose): rebuilt `scanner.test.ts`'s fixture value via string
+  concatenation (`PLAUSIBLE_SECRET_VALUE`) so the file's own tracked source never carries the matching
+  string as one contiguous run, while the RUNTIME value the function under test receives is unchanged;
+  rewrote the two affected spec Scenarios to describe the value's shape in prose instead of giving a
+  concrete literal.
+- [x] 13.3 Manually, temporarily, and safely proved the new guard genuinely fails: appended a
+  credential-shaped line to an already-tracked, unrelated file (`README.md`), re-ran
+  `self-scan.test.ts`, confirmed it failed with a REDACTED value in the failure message, then reverted
+  the file via `git checkout --` and confirmed a byte-identical, clean revert.
+- [x] 13.4 Add a matching Requirement + 3 Scenarios to `specs/secrets-scan/spec.md` for the new guard.
+- [x] 13.5 **Defect 2.** Write `.claude/commands/backup-media.md`, matching the shape/depth of sibling
+  granular commands (`export-schedule.md`, `cleanup-schedule-media.md`): frontmatter, Usage, a
+  code-backed paragraph naming every real module by full path, Steps, Guardrails.
+- [x] 13.6 Write `src/commands/backup-media.docs-test.ts`, mirroring
+  `cleanup-schedule-media.docs-test.ts`'s own pattern — every assertion reads the doc at its real,
+  registered path (`.claude/commands/backup-media.md`) and pins real, checkable substrings, never
+  free-floating prose. Add a matching Requirement + 2 Scenarios to `specs/media-backup/spec.md`.
+- [x] 13.7 Run `openspec validate --all --strict`, `npx tsc --noEmit`, `npm test`, and `npm run
+  test:docs` — all green, more tests than both the `main` baseline and this branch's own Round-1 count.
+- [x] 13.8 Append a `Round-2 Build` block to `handoff.md` (never overwrite the Round-1 report or the QA
+  Verdict).

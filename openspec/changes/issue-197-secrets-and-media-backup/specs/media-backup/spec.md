@@ -261,3 +261,35 @@ and either "0 mismatches" or each mismatch's path and reason. The destination SH
   once after one backed-up file is corrupted
 - **THEN** the first report states 0 mismatches, and the second names the corrupted file with reason
   `checksum-mismatch`
+
+### Requirement: /backup-media is registered as an invocable slash command, matching sibling granular commands
+
+`.claude/commands/backup-media.md` SHALL exist and document `/backup-media` in the same shape and
+depth as its sibling granular commands (e.g. `export-schedule.md`, `cleanup-schedule-media.md`):
+frontmatter (`name`, `description`), a Usage line, a "code-backed" paragraph naming the real
+orchestration shell and every real deep module it wraps, a numbered Steps section, and a Guardrails
+section. It SHALL document that both `<destination>` and `--verify` are optional, the destination
+resolution precedence and its no-hardcoded-personal-path rule, that every Brand is discovered via
+`listBrands` rather than a hardcoded pair, that a missing ledger media path is listed rather than
+silently skipped, the manifest's checksum+size shape, `--verify`'s three mismatch reasons, that tests
+always use temp directories and fixture ledgers (never the real corpus), and that a fresh worktree's
+report of missing files is a filesystem-locality fact rather than a defect. A docs-conformance test
+(`src/commands/backup-media.docs-test.ts`, run via `npm run test:docs`, kept OUT of `npm test`) SHALL
+read this file at its real, registered path and pin every one of these claims against the actual
+shipped text — never against free-floating prose that is not checked against what ships.
+
+#### Scenario: backup-media.md exists, documents optional arguments, and names the real code
+
+- **GIVEN** `.claude/commands/backup-media.md` as shipped
+- **WHEN** it is read
+- **THEN** it documents `<destination>` and `--verify` as optional
+- **AND** it names `src/commands/backup-media.ts`, `backupMediaCommand`, and every real
+  `src/media-backup/*.ts` module the command wraps, each by its full path
+
+#### Scenario: backup-media.md documents the no-hardcoded-personal-path destination rule and the missing-path reporting rule
+
+- **GIVEN** `.claude/commands/backup-media.md` as shipped
+- **WHEN** it is read
+- **THEN** it documents the `MEDIA_BACKUP_DEST` env var, the `~/OrganicGrowth-Backups` default, and
+  states the destination is never a hardcoded personal path
+- **AND** it states a missing ledger media path is listed in the report, never silently skipped

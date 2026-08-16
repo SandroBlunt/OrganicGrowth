@@ -73,7 +73,10 @@ case-insensitively, one of `token`, `secret`, `password`, `passwd`, `api[-_]?key
 
 #### Scenario: A secret-shaped key with a plausible live value is caught
 
-- **GIVEN** `{"api_key": "sK9v2LmQ7xR4nT8wYh3B"}`
+- **GIVEN** a JSON `"<key>": "<value>"` pair whose key is `api_key` and whose value is a 20-character
+  token-shaped string (letters and digits only, no spaces, not placeholder-shaped) — described here
+  rather than given as a literal example, so this spec's own tracked text never carries a
+  credential-shaped string itself (issue #197's own self-scan test would otherwise flag this file)
 - **WHEN** `findCredentialShapedStrings` is called
 - **THEN** it returns exactly one `"named-secret-field"` finding
 
@@ -99,7 +102,8 @@ case-insensitively, one of `token`, `secret`, `password`, `passwd`, `api[-_]?key
 
 #### Scenario: An unrelated key name is never flagged even with a token-shaped value
 
-- **GIVEN** `{"identifier": "sK9v2LmQ7xR4nT8wYh3B"}`
+- **GIVEN** a JSON pair whose key is `identifier` and whose value is the same shape of 20-character
+  token described above
 - **WHEN** `findCredentialShapedStrings` is called
 - **THEN** it returns no finding
 
@@ -195,3 +199,42 @@ than embedding the value as a string literal anywhere in this repository's track
   at `8f7c8f6`, each read via `git show <sha>:.agents/mcp_config.json` at test run time
 - **WHEN** `findCredentialShapedStrings` is called on each
 - **THEN** each call returns at least one finding with `kind: "url-path-token"`
+
+### Requirement: The scanner is actually WIRED as a guard against THIS repository's real, currently-tracked files, not only proven to work in isolation
+
+A test in this repository's `npm test` suite SHALL call `scanRepo` against THIS repository's own real
+root — resolved from the test file's own on-disk location (`fileURLToPath(new URL("../../",
+import.meta.url))`), never from `process.cwd()` or any assumption pinned to one specific checkout path
+— and SHALL assert the result is empty. This is DISTINCT from every other proof in this capability:
+`scanner.test.ts` proves the pure detection logic is correct against fixtures; `tracked-files.test.ts`
+proves the `git ls-files`-driven shell is correct against a disposable temp repo;
+`historical-incident.test.ts` proves detection against the real incident's historical CONTENT read via
+`git show`. None of those calls `scanRepo` against the CURRENT tree, so none of them alone proves the
+guard is actually wired into `npm test` — this Requirement closes that gap. On a failure, the
+assertion's own failure message SHALL NEVER print a caught finding's raw, un-redacted `value` — only a
+`redactSecret`-redacted form — so that a real future incident is not additionally leaked into test
+output/CI logs at the exact moment it is caught.
+
+#### Scenario: The real repository's current tracked-file set has zero credential-shaped findings
+
+- **GIVEN** this repository's own root, resolved from the test's own on-disk location
+- **WHEN** `scanRepo` is called against it
+- **THEN** the returned findings array is empty
+
+#### Scenario: A credential-shaped string added to any real tracked file causes this test to fail
+
+- **GIVEN** an already-tracked file in this repository temporarily carrying a credential-shaped string
+  (e.g. a URL-path-token-shaped line appended to it)
+- **WHEN** the same guard test is run against the real repository root
+- **THEN** it fails, and the failure output names the file and line but shows only a REDACTED form of
+  the matched value, never the value itself
+
+#### Scenario: REPO_ROOT resolution does not depend on process.cwd() or a hardcoded checkout path
+
+- **GIVEN** the guard test's `REPO_ROOT` constant, derived from `import.meta.url`
+- **WHEN** the test suite is invoked from within a git worktree whose on-disk path differs from any
+  other checkout of the same repository
+- **THEN** `REPO_ROOT` resolves to THAT worktree's own root (the directory the test file's own bytes
+  physically sit inside), and `scanRepo`'s underlying `git ls-files` call — run with that root as its
+  working directory — resolves the worktree's tracked files correctly, exactly as it would for a
+  primary checkout
