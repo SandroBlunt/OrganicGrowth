@@ -426,3 +426,189 @@ node --import tsx --test src/idea/store.test.ts
 - **The two-error-shape caller experience** (`IdeaValidationError` vs. a raw FK error) is now a
   documented, tested, deliberate fact of `createIdea`'s contract — but #204 itself still has to design
   around it; this slice only confirms and pins the fact, it does not change or paper over it.
+
+---
+
+## QA Verdict — Round 2: PASS
+
+Re-verified from scratch, in the same worktree, at commit `0612147` (one commit on top of Round 1's
+`9166491`, itself on top of `main` at `db11f7d`). Round 1's Verdict and the original Build Report above
+are untouched.
+
+### Suite result
+
+| Command | Result |
+|---|---|
+| `npm test` | **3005 / 764 suites / 0 fail** — matches the Round-2 Build claim exactly. Delta from Round 1 (3000/764/0) is **exactly +5 tests, +0 suites**, and the +5 is exactly the 5 new `it(...)` blocks added to `src/idea/store.test.ts`'s existing "the openly-readable-source rule is enforced at the store boundary" `describe` block this round (dangling-`trendId`-FK regression, blank-string, whitespace-only, all-blank-mixed, one-blank-one-real) — confirmed by `git diff 9166491..HEAD -- src/idea/store.test.ts`, which adds exactly 5 `it(` blocks and 0 new `describe(` blocks. |
+| `npm run test:docs` | **289 / 77 suites / 0 fail** — unchanged from Round 1, as claimed. `git diff 9166491..HEAD -- src/idea/openly-readable-source-rule.docs-test.ts .claude/agents/idea-strategist.md src/trend/store.test.ts` is empty — confirmed no docs-test file was touched this round. |
+| `openspec validate issue-228-openly-readable-source-enforcement --strict` | `Change 'issue-228-openly-readable-source-enforcement' is valid` |
+| `openspec validate --all --strict` | **Totals: 54 passed, 0 failed (54 items)** — unchanged, as claimed (this round only edits an existing spec delta's Requirement/Scenario text, it does not add or remove a capability). |
+| Targeted: `node --import tsx --test src/idea/store.test.ts` | **32 tests / 6 suites / 0 fail** |
+
+All green, actually run this round, not carried over from Round 1's numbers.
+
+### Round-1 finding: FIXED
+
+The Round-1 low-severity finding — `assertOpenlyReadableSource` accepting `sourceUrls: [""]`/`["   "]`
+as if it carried a real source — is genuinely closed, not just claimed closed:
+
+- Read `src/idea/store.ts`'s diff directly: `hasAtLeastOneReadableSource` now gates on
+  `sourceUrls.some((url) => url.trim().length > 0)`, replacing the old `sourceUrls.length === 0` check.
+  This is the correct fix — it treats "blank after trimming" as absent, not merely "array is empty."
+- Re-ran my own Round-1 scratch repro (a standalone script calling the real `createIdea` against a
+  `withTempDb`-backed database, not committed) against this round's code: `sourceUrls: [""]` and
+  `sourceUrls: ["   "]` against a paywalled `trendId` now both throw `IdeaValidationError`, where Round 1
+  let them through. Confirmed by direct execution, not by reading the diff alone.
+- **Both directions genuinely hold**, proven by real tests, not merely absence of a throw:
+  - **Reject direction**: `"rejects...only a single blank string"`, `"rejects...only a whitespace-only
+    entry"`, `"rejects...EVERY sourceUrls entry is blank or whitespace-only (mixed blanks)"` — all three
+    assert `IdeaValidationError` via `assert.throws`, and all three additionally assert
+    `listIdeasForRun(db, fixture.runId)` stays `[]` after the throw (the same "no write happened" proof
+    used throughout this store's test suite).
+  - **Accept direction (the mirror-trap case)**: `"accepts a paywalled trendId when sourceUrls mixes one
+    blank entry with one real entry"` uses `sourceUrls: ["   ", "https://an-open-outlet.example/..."]` —
+    exactly the case a naive "reject if ANY entry is blank" implementation would break. I re-read
+    `hasAtLeastOneReadableSource`'s implementation line by line: `.some(...)` means ANY non-blank entry
+    passes the whole check, so a blank sibling can never veto a real one — the logic is structurally
+    incapable of the naive-reject bug. The test itself proves this is not merely "didn't throw": it
+    re-fetches the Idea via `getIdea` and asserts `idea.sourceUrls` deep-equals the full original array
+    **including the blank entry** — proving the blank entry was stored as-is, not silently stripped, and
+    the Idea was genuinely created.
+- I also independently re-ran the two Round-1 edge-case scripts (unpaywalled Trend + empty `sourceUrls`;
+  no `trendId` at all) against this round's code to confirm neither regressed — both still never block,
+  exactly as before.
+
+**Verdict on this finding: FIXED, correctly, in both directions, with real proof — not just an assertion
+that nothing threw.**
+
+### Per-criterion results (Round-2-specific acceptance criteria, from the coordinator's brief)
+
+| # | Criterion | Result | Proving test |
+|---|---|---|---|
+| 1 | Blank (`""`) and whitespace-only (`"   "`) entries are treated as absent | PASS | `store.test.ts` → `"rejects...only a single blank string"`, `"rejects...only a whitespace-only entry"`, `"rejects...EVERY...entry is blank or whitespace-only (mixed blanks)"` |
+| 2 | Mixed case (`["   ", "https://real.example"]`) is still accepted — the naive-implementation trap | PASS, genuinely proven (round-trip check, not "didn't throw") | `store.test.ts` → `"accepts a paywalled trendId when sourceUrls mixes one blank entry with one real entry"` |
+| 3 | Still the existing `IdeaValidationError`, no new error type | PASS | `git diff 9166491..HEAD -- src/idea/store.ts` shows zero new `class`/`Error` declarations — `hasAtLeastOneReadableSource` returns a `boolean`, `assertOpenlyReadableSource` still throws only `IdeaValidationError` |
+| 4 | Dangling-`trendId` FK behavior confirmed deliberate, with a regression test | PASS | `store.test.ts` → `"never pre-validates trendId itself..."` asserts `/FOREIGN KEY/`, matching the pre-existing `runId`/`brandId`/`formatId` convention; independently re-verified by my own Round-1 manual repro re-run against this round's code (still throws a raw FK error, never `IdeaValidationError`) |
+| 5 | `specs/idea-store/spec.md` updated to match, with Scenarios corresponding to the new tests | PASS | See spec-delta check below — 1:1 correspondence confirmed |
+| 6 | Scope stayed clean — only `src/idea/` and this change's own `openspec/` dir | PASS | `git diff 9166491..HEAD --stat` → only `src/idea/store.ts`, `src/idea/store.test.ts`, and the 2 files inside this change's `openspec/` dir (`specs/idea-store/spec.md`, `handoff.md`) |
+
+### Spec-delta check (`specs/idea-store/spec.md`)
+
+Read the Round-2 diff directly (`git diff 9166491..HEAD -- openspec/changes/.../specs/idea-store/spec.md`).
+The Requirement text was edited (not merely appended-to) to state the trimmed-blank definition and the
+deliberate no-URL-shape-check decision — this is a genuine `MODIFIED`-shape edit to an
+already-in-flight, unarchived change's own delta file (not a live spec), which is a normal, safe
+operation (the change has not been archived; there is nothing to reconcile against a live spec yet).
+Three new/changed Scenarios, each with a 1:1 test:
+
+| Scenario | Covering test |
+|---|---|
+| "createIdea rejects a paywalled trendId when every sourceUrls entry is blank or whitespace-only" | the 3 reject-direction tests above (single blank / whitespace-only / mixed-all-blank all satisfy this one Scenario's `GIVEN`/`WHEN` variants) |
+| "createIdea accepts a paywalled trendId when sourceUrls mixes one blank entry with one real entry" | `"accepts...mixes one blank entry with one real entry"` |
+| "createIdea never pre-validates a dangling trendId — it falls through to the schema's own FOREIGN KEY" | `"never pre-validates trendId itself..."` |
+
+All three PASS. The two pre-existing Scenarios this Requirement already carried ("accepts...carries its
+own sourceUrls", "rejects...sourceUrls is empty") still read correctly under the new trimmed definition
+— re-checked their prose against the new Requirement text and confirmed no contradiction (an entry that
+is a real, non-blank URL still "carries its own sourceUrls"; omitted/`[]` is still "empty"). No scenario
+was silently dropped or weakened; the change is a strict tightening, not a rewrite of intent.
+
+### Always-rules + Magnific-fake checks (re-confirmed this round)
+
+| Rule | Result | Evidence |
+|---|---|---|
+| Generate-never-publish / Public-metrics-only / Relative-not-absolute / Explicit-attribution | PASS (untouched by construction) | Round 2 touches only `src/idea/store.ts`, `src/idea/store.test.ts`, and this change's own `openspec/` dir — no generation/publish/metrics/scoring/attribution code anywhere in the Round-2 diff. |
+| Ledger-as-source-of-truth | PASS | `grep -n "ledger\." src/idea/store.ts src/idea/store.test.ts` (re-run this round) → only the same pre-existing doc-comment mention from Round 1; no new ledger read/write introduced. |
+| Magnific fake (hard requirement) | PASS | `grep -n "spaces_\|creations_\|magnific\|zoho-social\|mcp__" src/idea/store.ts src/idea/store.test.ts` → no matches. All 5 new tests use `withTempDb` (confirmed by reading each new test block directly in the diff) — zero `:memory:` usage introduced. |
+
+### Judgement call: no URL-shape validation — RULE
+
+**The spot-check confirms the survey is accurate, not merely asserted.** I independently walked the real
+data myself rather than trusting the summary:
+
+- Confirmed **51 Briefs** carry a `## Source(s)` section (`grep -rl "## Source(s)" data/brands/*/ideas/`
+  → 51 files), and the section content across all of them totals **268 raw lines**
+  (`awk`-extracted section text, `wc -l` → 268) — the exact counts the Round-2 report claims.
+  Independently, of those 268 lines, **229** contain an `http(s)://` substring — the remaining ~39 are a
+  mix of note-only bullets and wrapped continuation lines of multi-line bullets.
+- Confirmed both quoted example strings are real, verbatim text in real Brief files —
+  `"No distinct official X corporate blog post was found for this specific feature."` appears in
+  `data/brands/straw-motion/ideas/2026-W29/idea-06.md`, and `"sanders.senate.gov returns 403 to
+  automated fetchers"` appears in `data/brands/straw-motion/ideas/unhypped-daily/2026-08-11/idea-06.md`
+  — I read both files in full, not just the grep hit. **These are genuine, legitimate content**: real,
+  human-authored verification/editorial notes that sit alongside real `https://` citation bullets in the
+  same `## Source(s)` section, exactly as characterized.
+- I went further than the survey and checked the one thing it doesn't state outright: **whether any real
+  Brief's `## Source(s)` section has ZERO `http(s)://` links at all** — i.e., whether the all-notes,
+  no-real-link worst case already exists in real data. I checked all 51 files programmatically: **none
+  of them has zero URLs** — every real Brief today carries at least one genuine `https://` link alongside
+  any notes. So today, for the 51 real Briefs that exist, a strict "the array needs at least one
+  URL-shaped entry" check would not have rejected any of them. The survey's conclusion — "a strict
+  URL-shape check would risk rejecting real data" — is technically about the future (what #204's importer
+  might do with the note bullets, e.g. dumping the raw note text verbatim into `sourceUrls` as its own
+  entry alongside the real URLs), not about today's Briefs failing outright. Either way, the underlying
+  judgement — don't invent a validation shape ahead of the thing that will actually produce the data — is
+  sound, and I confirm the evidence behind it is real, not fabricated or cherry-picked.
+
+**Given that, I agree with the decision not to build URL-shape validation now.** This is good
+engineering: the importer's parsing/extraction logic does not exist yet, there is no real precedent for
+what shape `sourceUrls` will actually take, and a premature format check is exactly the kind of
+speculative scope #228 never asked for.
+
+**But the coordinator's deeper question stands, and I want it on the record plainly, not softened:**
+**the rule is no longer fully self-enforcing against its own intent.** `hasAtLeastOneReadableSource`
+checks "is there a non-blank string here", not "is there a source a human could actually open." Today
+that gap is invisible because every real Brief happens to carry a genuine URL alongside its notes. But
+the check itself does not know that, and does not depend on it. Concretely: if `sourceUrls` ever ends up
+holding **only** a non-URL string — e.g. a future Brief whose only "source" really is a verification note
+like `"(No source could be found for this claim.)"`, or a bug in #204's importer that extracts a note
+bullet's prose instead of skipping it — `hasAtLeastOneReadableSource` returns `true`, the paywalled gate
+opens, and the Idea is treated as briefable. **Trimming blanks closes the "empty-disguised-as-content"
+hole from Round 1. It does not close the "non-empty-but-not-actually-a-source" hole** — and structurally
+cannot, because "is this string an openly readable source" is a strictly harder question than "is this
+string non-blank," and this store was never asked, in this ticket, to answer the harder question.
+
+**Is that acceptable for now? Yes, with the limitation named, not papered over** — which is exactly what
+the coordinator asked me to do instead of letting it pass silently:
+
+- It is acceptable **because** no real data today exercises the gap (confirmed above, not assumed), the
+  importer that will actually decide what goes into `sourceUrls` has not been built, and building a
+  format check ahead of that importer risks guessing wrong about a shape nobody has designed yet — a real
+  , not hypothetical, risk given the note bullets' variety (parenthetical asides, "Verification note:"
+  prefixes, "Thin sourcing:" prefixes — no single regex would cleanly separate "note" from "URL" across
+  all 51 files without also needing to handle the multi-line-wrapped bullets I found in the raw line
+  count).
+- It is **not** acceptable to leave unstated. The Round-2 Build Report's "Known limits" section says
+  "URL-shape/format validation is explicitly deferred to issue #204" — true, but stated as a scope
+  decision, not as the specific mechanism-level risk the coordinator is asking about (that the check is
+  now satisfiable by *any* non-empty string, including a string that is itself an admission no source
+  exists). I am recording that framing explicitly here so it is not lost.
+- **What #204 (or a follow-up ticket) needs to do about it**: #204's importer must not treat "extract
+  every bullet's trailing text into `sourceUrls`" as safe by default — it needs its own decision about
+  which bullets are citations versus commentary (the Round-2 report's own guess — extracting the
+  substring after each bullet's `): ` marker and discarding non-URL notes — is a reasonable starting
+  point, but is *not yet built*, and until it is, nothing stops a naive importer from writing a note's
+  prose straight into `sourceUrls`). Once the importer's real, produced shape exists, either (a) the
+  importer itself should filter to only URL-shaped strings before ever calling `createIdea`, or (b) a
+  follow-up ticket should extend `hasAtLeastOneReadableSource` to require URL-shape (e.g. an `https?://`
+  prefix check) once that real shape is known well enough to design against safely. I recommend this be
+  captured as an explicit follow-up (a ticket or an item on #204's own task list), not left as an
+  implicit assumption a future reader has to rediscover.
+
+### Overall verdict: PASS
+
+Both directions of the blank/whitespace fix genuinely hold, proven by real tests including a full
+round-trip check on the mixed-acceptance case, not merely absence of a throw. The dangling-`trendId`
+FK-error behavior is confirmed deliberate and now has a regression test. The spec delta was updated with
+Scenarios that correspond 1:1 to the new tests, and does not weaken or drop any prior Scenario. Scope
+stayed clean (`src/idea/` + this change's own `openspec/` dir only). Numbers confirmed exactly:
+**3005/764/0 fail** (a real, accounted-for +5 over Round 1), `test:docs` unchanged at 289/77/0,
+`openspec validate --all --strict` unchanged at 54/0 failed. The URL-shape judgement call is sound
+engineering, backed by evidence I verified myself rather than accepted on trust — but the residual gap
+(the check is satisfiable by any non-blank string, not only a genuine source) is real and should not be
+allowed to fade from view; it is named here explicitly and should travel forward as a #204 (or follow-up)
+task, not be treated as closed.
+
+**Nothing here should block merge.** This round has no new defect, critical or otherwise — the one item
+worth carrying forward (URL-shape validation, deferred) is a scope decision already made deliberately and
+correctly by this round, not a bug in it.
