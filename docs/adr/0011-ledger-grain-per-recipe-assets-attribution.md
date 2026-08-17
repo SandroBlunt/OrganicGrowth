@@ -2,6 +2,13 @@
 
 **Status:** accepted — **amends ADR-0006** (ledger/queue layout). Captured in the 2026-07 grilling.
 
+> **Partially superseded by ADR-0028** (issue #201, Operator decision 2026-08-16): the decision below to
+> keep `post_url`/`posted_at`/`performance_score` as SCALAR FIELDS ON THE ASSET (rather than a separate
+> Post record) is reversed — Post becomes its own record, keyed `(asset_id, channel_id)`. Everything
+> else here — the per-Recipe Asset grain, the Asset's own six-stage lifecycle, `pending_gate` as a pause
+> not a stage, and attribution keyed on `(Idea, Recipe)` — is UNCHANGED and carried forward into
+> ADR-0028's schema.
+
 Today production state is flat scalars on the one Idea record (`status`, `cast`, `character`,
 `asset_url`, `post_url`, `performance_score`). With one Idea → many Assets (ADR-0009), a scalar status
 can't say "Reel in production while carousel already posted", and a single `asset_url`/`post_url` is

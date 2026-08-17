@@ -75,6 +75,46 @@ _Avoid_: draft, post, content piece (those imply finished/published work).
 The rendered, human-readable form of an Idea (what the human actually receives). Same thing as an
 Idea, viewed as a deliverable.
 
+**Hook Type** (a closed vocabulary; one per Idea):
+The one storytelling technique an Idea's Hook concept uses to earn the first three seconds — filled in
+by idea-strategist when the Brief is written, alongside **Theme** below (`docs/adr/0029`'s schema:
+`idea.hook_type`). **Closed**, not free text — an open field would reproduce today's problem (hook type
+living only as prose inside a Brief markdown heading, spelled two different ways across the two Brands)
+in a new location. The ten values:
+
+- `counter_intuitive` — The outcome runs against what you'd expect, and that gap is the hook.
+- `surprising_number` — One stark figure — a price, a count, a stat — carries the whole open.
+- `reframe` — A familiar thing is recast as something categorically different.
+- `contradiction` — Two facts that seem to conflict are placed side by side.
+- `underdog_upset` — A lesser-known challenger beats the established name at its own game.
+- `reversal` — Something assumed settled or safe is undone, walked back, or removed.
+- `skeptics_question` — Opens on doubt and promises an honest verdict, not the marketing.
+- `collision` — Two unrelated events landing in the same moment force a comparison.
+- `oddity` — One specific strange detail, out of pattern, demands an explanation.
+- `irony` — An actor's own action undercuts the thing they claim to stand for.
+
+_Avoid_: free-text hook description (the Brief's prose Hook concept stays free text; Hook Type is its
+closed *category*, a separate field), sub-hook, angle (that's the Idea's own, broader term).
+
+**Theme** (a closed vocabulary; one per Idea):
+The subject category an Idea's story falls under — filled in alongside **Hook Type**, above
+(`idea.theme`). Spans every Brand's Format (a household-tips Idea and an AI-news Idea both pick from
+this SAME closed set, at this more abstract level) so the vocabulary stays useful across Formats rather
+than needing a new list per Format. The nine values:
+
+- `product_or_tool` — A new or updated product, model, app, or device is the subject.
+- `pricing_or_cost` — Money is the throughline: a price, a discount, a valuation, or a spend.
+- `safety_or_risk` — A danger, a failure, a leak, or a safety finding is the subject.
+- `how_to_or_technique` — A concrete method or trick the viewer can copy.
+- `industry_or_business` — A company move: funding, a deal, a partnership, a market shift.
+- `policy_or_regulation` — A law, a rule, a government action, or an official stance.
+- `comparison_or_benchmark` — Two or more things are measured or ranked against each other.
+- `lifestyle_or_wellbeing` — A daily-life habit, a routine, or personal wellbeing.
+- `culture_or_reaction` — Public sentiment, controversy, irony, or reaction to an event.
+
+_Avoid_: topic (too vague — Theme is the CLOSED category, not an open label), niche (that's the Brand's
+own vertical, e.g. "Life hacks, household tips & tricks" — Theme is per-Idea, not per-Brand).
+
 **Review**:
 The Operator's curation pass over a Run's suggested Ideas — accepting some (and choosing the **Recipes**
 each is produced through, pre-filled from the Format), rejecting others with a Rejection Reason. Done
@@ -193,9 +233,10 @@ ADR-0016), its **Phase Contracts** (ADR-0017), and a producer **Skill** that aut
 (ADR-0018). The **Operator picks one or many** Recipes per
 Idea (a Reel, a carousel, a meme…); each yields its own Asset → Post. A Recipe may drive **no Space at all** when its Asset is written words plus collected media (a
 teleprompter script with its **Shot List**; ADR-0021). A Recipe is **brand-agnostic** and shared — the
-per-Brand halves are the **Format** and idea generation. Today two Recipes are wired — **Character
-Explainer with Cast** (cast → pick the **Character** → render) and **News Carousel**; **News Short
-Script** (Space-less) is decided, build pending.
+per-Brand halves are the **Format** and idea generation. Today three Recipes are wired — **Character
+Explainer with Cast** (cast → pick the **Character** → render), **News Carousel**, and **News Short
+Script** (Space-less, ADR-0021) — per `src/recipe/registry.ts`'s registry, the single source of truth
+for which Recipes are wired (never this document's own count).
 _Avoid_: format (that is the editorial line), template, pipeline (a Space is a pipeline; a Recipe wraps
 one), media output (that is the Recipe's *result*, not the plan).
 
@@ -300,9 +341,12 @@ Social Brand grouping.
 _Avoid_: Brand (that's the OrganicGrowth tenant), Channel (that's the account/Page a Brand publishes to).
 
 **Post**:
-The published content on the **Channel** — the Operator publishes an **Asset** to create it; the unit
-OrganicGrowth measures. Each **Asset** becomes at most one Post (zero if never published), so an Idea
-yields **one Post per Recipe** the Operator ran. Attribution to a Post is keyed on `(Idea, Recipe)`.
+The published content on a **Channel** — the Operator publishes an **Asset** to create it; the unit
+OrganicGrowth measures. Its own record, keyed `(Asset, Channel)` (ADR-0028, issue #201 — reversing
+ADR-0011's earlier choice to keep it as scalar fields on the Asset). An Asset yields **zero Posts** if
+never published, and **at most one Post per Channel** it is actually published to — so an Idea yields
+one Post per (Recipe, Channel) the Operator actually posted to. Attribution is always explicit
+(always-rule 5): the Asset's own `(Idea, Recipe)` link, plus the Post's own `(Asset, Channel)` link.
 _Avoid_: draft, idea, content.
 
 **Performance**:
