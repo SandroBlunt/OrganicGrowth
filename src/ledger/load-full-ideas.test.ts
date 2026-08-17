@@ -95,7 +95,6 @@ describe("loadFullIdeas — the richer per-Idea projection the importer needs", 
           run: "2026-W22",
           title: "El truco de los primeros 10 minutos",
           status: "accepted",
-          trend: "T01",
           fit_score: 0.66,
         },
       ],
@@ -109,6 +108,17 @@ describe("loadFullIdeas — the richer per-Idea projection the importer needs", 
       assert.equal(idea.createdAt, undefined);
       assert.equal(idea.recipes, undefined);
       assert.equal(idea.declinedRecipes, undefined);
+    });
+  });
+
+  it("falls back to MundoTip's `trend` short-code field when trend_id is absent", async () => {
+    const seed = {
+      ideas: [{ id: "idea-2026-W22-01", run: "2026-W22", status: "accepted", trend: "T01" }],
+    };
+    await withLedger(seed, async (path) => {
+      const ideas = await loadFullIdeas(path);
+      assert.equal(ideas[0]!.trendId, "T01");
+      assert.equal(ideas[0]!.trendLabel, undefined);
     });
   });
 

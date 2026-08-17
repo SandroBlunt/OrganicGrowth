@@ -221,7 +221,9 @@ export async function loadFullIdeas(path: string, brand?: string): Promise<FullL
       const run = nonEmptyTrimmedString(r.run);
       const title = nonEmptyTrimmedString(r.title);
       const format = nonEmptyTrimmedString(r.format);
-      const trendId = nonEmptyTrimmedString(r.trend_id);
+      // MundoTip's pre-Format shape names the SAME concept `trend` (a short code, e.g. "T01") instead
+      // of `trend_id` — `trend_id` wins when both are somehow present (the post-Format convention).
+      const trendId = nonEmptyTrimmedString(r.trend_id) ?? nonEmptyTrimmedString(r.trend);
       const trendLabel = nonEmptyTrimmedString(r.trend_label);
       const fitScore = finiteNumberOrUndefined(r.fit_score);
       const rejectionReason = nonEmptyTrimmedString(r.rejection_reason);
