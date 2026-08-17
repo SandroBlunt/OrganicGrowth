@@ -1525,3 +1525,179 @@ picking "one already-`accepted` Straw Motion Idea with a News Carousel Asset who
 already authored and saved" via the one-shot importer OR a freshly-accepted Idea "produced through
 today's attended path up through authoring" — i.e. the live-run steps ALREADY account for the
 two-stores gap this round's fix makes explicit in the docs; no change needed there.
+
+---
+
+## QA Verdict — Round 4: PASS
+
+**Verifier:** qa. Same worktree, branch `issue-208-worker-drains-queue`, HEAD `1ab1af1`. Read, ran, and
+reported only — no product code, test, spec, or doc file was edited by this agent.
+
+### No `src/` production file touched this round — confirmed
+
+`git diff 017746c..HEAD --stat -- src/` touches exactly one file: `src/commands/run-pipeline.docs-test.ts`
+(9 lines, one regex swapped). Zero production `*.ts` files. Round 1's code findings (claim primitive
+untouched, zero new store-write allow-list entries, parking releases the claim, FIFO/starvation/re-claim
+safety, fresh-thread-id inheritance, migrations frozen, no publish path, no live call reachable from `npm
+test`) stand unchanged and were not re-derived — re-confirmed still true simply by the empty production-code
+diff.
+
+### Suite result — GREEN, re-run from a cold shell, exactly at the floor
+
+- `npx openspec validate issue-208-worker-drains-queue --strict` → `Change 'issue-208-worker-drains-queue' is valid`.
+- `npx openspec validate --all --strict` → **62 passed, 0 failed**.
+- `npm test` → **3341 tests / 884 suites / 0 fail**.
+- `npm run test:docs` → **297 tests / 80 suites / 0 fail**.
+- `git status --short` → clean.
+
+All four match exactly what was reported — no drift, no assumption.
+
+### Defect 1 (Round 3, HIGH — the false "same backlog" claim): FIXED, verified true and sufficient
+
+Traced the new wording against the actual code myself, the same way as Round 3, not on the developer's
+word:
+
+- **`pick.ts`'s `resumeGate`** (still imports only `enqueueNextLeg`/`markPickConsumed`/`loadQueue`/
+  `saveQueue`/`DEFAULT_QUEUE_PATH` from the file-based `production-queue/queue.ts`/`scheduler.ts`/
+  `store.ts` — unchanged this round, re-confirmed by direct grep) matches the new pick.md/pick-cast.md
+  text exactly: *"this command resumes the job in the file-based Production Queue (`data/queue.json`)
+  ONLY... a pick recorded here is **not** visible to that worker."* **True.**
+- **`run-pipeline.ts`'s accept flow** (still imports only `enqueueOnAccept`
+  (`production-queue/enqueue-on-accept.ts`) — unchanged, re-confirmed) matches the new run-pipeline.md/
+  CLAUDE.md text: *"A job accepted through Gate 1 above lands in `data/queue.json` only — the unattended
+  worker cannot see it until it is separately carried into SQL."* **True.**
+- The SQL job table's only two populating paths (the one-shot importer, `resolveGate`'s own follow-up)
+  are named correctly and match Round 1's own findings.
+
+**Sufficient, not merely accurate.** The specific failure mode I flagged — an Operator reading these docs
+and expecting the worker to pick up a normal accept-flow job — is now directly pre-empted:
+`pick.md`/`pick-cast.md` state plainly *"a pick recorded here is **not** visible to that worker"*;
+`run-pipeline.md`/`CLAUDE.md` state the job *"stays invisible to the unattended worker unless separately
+carried into SQL."* A reader who starts the worker after a normal `/review-ideas` session now has enough
+information to correctly predict it will find nothing queued (`drainQueue` returning `{ processed: [] }`)
+rather than being surprised by silent inaction. This clears the higher "protects the reader" bar the
+coordinator named, not just the "technically true" one.
+
+**`README.md` and `.claude/agents/producer.md` are genuinely byte-unchanged** — `git diff 017746c..HEAD --
+README.md .claude/agents/producer.md` returns empty. Both were already accurate (verified in Round 3;
+`producer.md` was in fact the pattern this round's other four fixes were told to copy), so leaving them
+untouched is correct, not an oversight.
+
+**No understatement.** The worker is described in all four rewritten docs as a real, functioning process —
+"self-auditing each phase," "pauses at a gate without holding the Space," a "SEPARATE, unattended worker
+... also exists" — never as broken, disabled, or aspirational. The correction is scoped precisely to "these
+two stores are unsynchronized today," not to "the worker doesn't work." **PASS.**
+
+**One incidental improvement, worth noting:** `pick.md`/`pick-cast.md`'s Guardrails sections (bottom of
+each file, untouched this round) still read *"the Producer then resumes the render in the Operator's
+session, one generation at a time"* — in Round 3 this was a latent internal inconsistency (the callout box
+falsely implied either path could resume the job, contradicting the Guardrails' single-path claim). Now
+that the callout box correctly scopes itself to "the file-based Production Queue... ONLY," the Guardrails'
+single-path statement is accurate BECAUSE of the fix, and the file is now internally consistent top to
+bottom — not something that needed separate touching, but confirmed harmonious by direct read.
+
+### Defect 3 (Round 3, MEDIUM/LOW — the guard that could not fire): FIXED, verified empirically
+
+Reproduced the coordinator's exact ask in a throwaway scratchpad script (no tracked file touched), testing
+the SHIPPED regex directly:
+
+```js
+const NEW_RE = /deliberately \*{0,2}no\b[\s\S]{0,10}headless worker host/i;
+```
+
+- **Against the real old text** (`git show 0c0c2c3:.claude/commands/run-pipeline.md`, the exact byte
+  sequence *"There is deliberately **no\n> headless worker host and no unattended-permission wiring**"*):
+  **matches — the guard fires.** The `[\s\S]{0,10}` gap tolerance correctly bridges the line-wrap AND the
+  `> ` blockquote continuation marker in between (10 characters covers `\n> h` and change), which a plain
+  `\s+` whitespace-collapse could not have done, since `>` is not whitespace — confirms the coordinator's
+  own diagnosis was right and the fix addresses it specifically, not by accident.
+- **Against the current (Round 4) doc text:** does not match — no false positive on the file's own new,
+  legitimate prose.
+- **Permissiveness check** — four adversarial probes designed to share vocabulary without being the
+  guarded-against claim ("there is deliberately no plan to build a headless worker host," "a headless
+  worker host reads only from SQL," "the worker (a headless worker host) drains the SQL job table with no
+  human present," etc.) — **none matched.** The pattern requires "deliberately" immediately (± markdown
+  bold markers) preceding a word-boundaried "no," which none of the probes have in that exact
+  configuration. Not overly broad.
+
+**PASS**, confirmed by running the actual pattern against the actual bytes, not by re-reading the regex
+and reasoning about it.
+
+### CONTEXT.md — reasoning accepted, with a noted nuance
+
+`docs/adr/0005-engineering-agents-openspec-build-pipeline.md` genuinely states, as an accepted decision:
+*"[engineering-pipeline agents] are **not** added to `CONTEXT.md`, the Agents table, or the weekly-loop
+description... **`CONTEXT.md` stays untouched.**"* This is a real, pre-existing standing rule, not an
+invented justification — confirmed by direct read, not taken on the developer's word. CONTEXT.md itself
+is, by direct inspection, a pure content-domain glossary (Brand/Channel/Idea/Recipe/Asset/Post/Performance
+— its own `## Language` section) that never mentions SQL, the command surface, `qa`, `developer`, or
+`openspec` anywhere.
+
+**The nuance:** the analogy is not a perfect fit. ADR-0005's rule is about agents that BUILD the system
+(`developer`, `qa` — never touch the content pipeline itself); the worker is not that — it is a second
+RUNTIME MECHANISM for producing content, doing the same conceptual job CONTEXT.md's own existing
+"Production Queue" entry already describes in mechanism-level detail for the attended path (it already
+cites ADR-0008, "one generation at a time," "the single attended Operator"). A stricter reading could say
+the worker belongs in that same entry for symmetry with what is already there, not excluded by ADR-0005's
+literal scope (which is about *agents*, not about production *mechanisms*).
+
+**I accept the reasoning as a defensible editorial call, consistent with my own Round-3 categorization of
+this as informational/low-severity, not a defect.** CONTEXT.md's existing text is not false — it
+accurately describes the file-based queue, which remains the one the content-domain "accept an Idea →
+production" story runs through today. Leaving it silent about a second, currently-disconnected runtime
+path is a completeness choice, not a misstatement, and does not mislead a reader the way the Round-3
+CLAUDE.md/run-pipeline.md issue did. Not blocking.
+
+### Independent sweep — confirming no new instance of the same failure class
+
+Full-repo grep for both the ORIGINAL stale claim and the Round-3 "same backlog / interchangeable" claim:
+
+```
+git ls-files | xargs grep -ln "same backlog\|Operator chooses which path\|your own choice, not something\|can be produced either way"
+```
+
+→ only this change's own `handoff.md` (quoting my own Round-3 repro text — expected, historical). No live
+doc asserts it.
+
+```
+git ls-files | xargs grep -ln "no unattended background worker\|unattended-permission wiring\|no headless worker host\|not in an unattended\|deliberately no unattended\|no unattended/background worker"
+```
+
+→ identical result set to Round 3's sweep (ADR-0008's own original Decision text + Round-2 forward-pointer,
+ADR-0030 quoting it, the three `*.docs-test.ts` files' regex/comments, two archived historical changes,
+this change's own `handoff.md`/`proposal.md`/`specs/docs-conformance/spec.md`) — no new file, no live
+contradiction found.
+
+### Always-rules + Magnific-fake check (re-confirmed, unchanged)
+
+No `src/` production file changed, so these remain as verified in Rounds 1–3: generate-never-publish PASS,
+public-metrics-only/relative-not-absolute/explicit-attribution PASS (N/A), ledger-as-source-of-truth PASS,
+Magnific-fake check PASS.
+
+### Operator's live-run steps (AC9) — unchanged
+
+Still exactly as documented in the Build Report's "Operator-gated live run" section. Nothing in any of the
+four rounds touched `src/space-driver/live/` or `run-worker.ts`'s production logic.
+
+### Overall — Round 4
+
+**PASS/FAIL: PASS.** Both defects raised in Round 3 are genuinely fixed, each independently re-verified
+against the code and the actual bytes rather than accepted on report:
+
+1. The "same backlog" claim is gone from all four affected docs, replaced with wording verified TRUE
+   against `pick.ts`/`pick-cast.ts`/`run-pipeline.ts`'s own imports (unchanged, re-checked) and verified
+   SUFFICIENT to prevent the specific confusion flagged — an Operator now has what they need to predict
+   the worker will find nothing queued after a normal accept. `README.md`/`producer.md` confirmed
+   byte-identical. No understatement of the worker's real capability.
+2. The `doesNotMatch` guard's gap-tolerance was empirically proven to fire on the real old byte sequence,
+   not fire on the current text, and not over-match adversarial near-miss prose.
+
+CONTEXT.md's silence is a defensible, ADR-0005-grounded editorial choice, not a new defect — accepted,
+consistent with how I categorized it in Round 3.
+
+No new defect of the same kind — a doc claim not matching what the code does — was found this round. The
+independent sweep turned up nothing beyond what the developer already fixed. Numbers are exactly at the
+floor and re-run from scratch: `openspec --all --strict` 62/0, `npm test` 3341/884/0-fail, `npm run
+test:docs` 297/80/0-fail.
+
+**Nothing should block the merge.** Recommend PASS and proceed to PR/merge.
