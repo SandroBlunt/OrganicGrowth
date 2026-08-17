@@ -1,8 +1,5 @@
-# media-host Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change issue-144-media-host-port. Update Purpose after archive.
-## Requirements
 ### Requirement: The Media Host port models convert, upload, and delete — nothing more
 
 `MediaHostPort` (`src/media-host/port.ts`) SHALL expose exactly three operations:
@@ -23,49 +20,6 @@ with either at the composition root. The port itself SHALL NOT judge whether a g
 - **WHEN** it is assigned to a variable typed `MediaHostPort`
 - **THEN** the assignment type-checks and every one of `convertToJpg`/`upload`/`delete` can be called,
   `upload` requiring `{ expiresInSeconds }`
-
-### Requirement: Every hosted key — and therefore every returned URL — ends in a lowercase .jpg
-
-Both `FakeMediaHost.upload` and the live `uploadViaAwsCli` SHALL reject (throwing, without performing
-any I/O or running any command) a `key` that does not end in `.jpg`, via the ONE shared
-`assertJpgKey` function (`src/media-host/key.ts`) — so the two implementations can never drift on this
-rule. A successful `upload`'s returned `url` SHALL therefore always end `.jpg` too.
-
-#### Scenario: The fake rejects a non-.jpg upload key and does not record it
-
-- **GIVEN** a `FakeMediaHost`
-- **WHEN** `upload` is called with a key ending `.png`
-- **THEN** the call rejects, naming `.jpg` in the error
-- **AND** the rejected call does NOT appear in `uploadCalls`
-
-#### Scenario: The live adapter rejects a non-.jpg upload key without invoking the AWS CLI
-
-- **GIVEN** `uploadViaAwsCli` with a stubbed command runner
-- **WHEN** called with a key ending `.png`
-- **THEN** the call rejects, naming `.jpg` in the error
-- **AND** the stubbed runner was never invoked
-
-### Requirement: convertToJpg never rewrites the source PNG in place
-
-The live `convertPngToJpgViaSips` SHALL throw — WITHOUT running `sips` — whenever `destPath` resolves to
-the same file as `sourcePath` (comparing resolved absolute paths, so a differently-spelled same path is
-still caught). On success, the source file at `sourcePath` SHALL be left byte-for-byte unchanged; only a
-brand-new file is written at `destPath`.
-
-#### Scenario: An in-place conversion attempt is refused without touching sips
-
-- **GIVEN** `convertPngToJpgViaSips` with a stubbed command runner
-- **WHEN** called with `destPath` equal to `sourcePath`
-- **THEN** the call rejects, mentioning that the original must stay untouched
-- **AND** the stubbed runner was never invoked
-
-#### Scenario: A real sips conversion leaves the source PNG byte-for-byte unchanged
-
-- **GIVEN** a real, tiny, valid PNG fixture on disk in a temp directory
-- **WHEN** `convertPngToJpgViaSips` converts it to a new JPG path via the REAL `sips` binary (skipped,
-  not failed, on a non-macOS runner)
-- **THEN** the new file's bytes start with the JPEG magic bytes `FF D8 FF`
-- **AND** the source PNG's bytes on disk afterward are identical to what was written before conversion
 
 ### Requirement: The in-memory fake records every call for downstream assertion
 
@@ -208,6 +162,8 @@ against the real bucket) SHALL be proven exactly once, manually, outside `npm te
 - **AND** it deletes the object, and observes the signed url is no longer fetchable afterward
 - **AND** the bucket is left exactly as it was before the run (no test object remains)
 
+## ADDED Requirements
+
 ### Requirement: Every hosted key folds in a fresh, unguessable token
 
 `randomMediaKeyToken` (`src/media-host/token.ts`) SHALL return a fresh, cryptographically random,
@@ -259,4 +215,3 @@ I/O or running any command — so the two implementations can never drift on thi
 - **GIVEN** `assertValidExpiresInSeconds`
 - **WHEN** called with `0`, a negative number, a non-integer, or `MAX_PRESIGN_SECONDS + 1`
 - **THEN** it throws, naming `604800` in the ceiling-exceeded case
-

@@ -9,6 +9,8 @@ import { loadIdeaAssets } from "../asset/store.ts";
 import { FakeMediaHost } from "../media-host/fixtures/fake-media-host.ts";
 import { FakeZohoSchedulePort } from "../schedule-batch/fixtures/fake-zoho-schedule-port.ts";
 import { deriveScheduleSlots } from "../schedule-batch/schedule.ts";
+import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
+import { MAX_PRESIGN_SECONDS } from "../media-host/aws-presign-limit.ts";
 
 const BRAND = "straw-motion";
 const FORMAT = "unhypped-news";
@@ -226,6 +228,21 @@ describe("scheduleViaZohoMcpCommand — happy path (issue #163)", () => {
       assert.ok(asset.zoho_schedule_reference !== undefined);
       assert.equal(Array.isArray(asset.zoho_schedule_reference), true);
       assert.equal((asset.zoho_schedule_reference as readonly string[]).length, 4); // fb/ig/tiktok/linkedin
+
+      // --- issue #198 AC2: every hosted key folds in an unguessable token, unique per slide ---
+      assert.match(
+        mediaHost.uploadCalls[0]!.key,
+        /^straw-motion\/2026-W32\/idea-01\/[A-Za-z0-9_-]{10,}\/0-hook\.jpg$/,
+      );
+      const tokenSegment = (key: string): string => key.split("/")[3]!;
+      assert.notEqual(
+        tokenSegment(mediaHost.uploadCalls[0]!.key),
+        tokenSegment(mediaHost.uploadCalls[1]!.key),
+      );
+
+      // --- issue #198 AC4: the signed link's expiry is derived from THIS Asset's own scheduled_at ---
+      const expectedExpiry = computeMediaExpiry(asset.scheduled_at!, NOW).expiresInSeconds;
+      assert.ok(mediaHost.uploadCalls.every((c) => c.expiresInSeconds === expectedExpiry));
     });
   });
 
@@ -324,6 +341,60 @@ describe("scheduleViaZohoMcpCommand — happy path (issue #163)", () => {
 
       assert.match(output, /lead-window|1 hour/i);
       assert.equal(port.calls.length, 0);
+    });
+  });
+
+  describe("the far-future case (issue #198 QA Round 1 Defect #1 — a signed link must never be silently doomed)", () => {
+    it("refuses a schedule time just OUTSIDE AWS's ~7-day signed-link ceiling, zero port/Media Host calls", async () => {
+      await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+        await seedOneEligibleIdea(fx);
+        const port = new FakeZohoSchedulePort();
+        const mediaHost = new FakeMediaHost();
+        const { utcMs } = deriveScheduleSlots(START_DATE, 1)[0]!;
+        const justOutsideNow = () => new Date(utcMs - MAX_PRESIGN_SECONDS * 1000 - 1).toISOString();
+
+        const output = await scheduleViaZohoMcpCommand(BRAND, FORMAT, RUN, START_DATE, {
+          ledgerPath: fx.ledgerPath,
+          brandProfilePath: fx.brandProfilePath,
+          now: justOutsideNow,
+          mediaHost,
+          port,
+          approved: true,
+        });
+
+        assert.match(output, /presign-window|7-day signed-link/i);
+        assert.match(output, new RegExp(IDEA));
+        assert.equal(port.calls.length, 0);
+        assert.equal(mediaHost.convertCalls.length, 0);
+        assert.equal(mediaHost.uploadCalls.length, 0);
+        const assets = await loadIdeaAssets(IDEA, fx.ledgerPath);
+        assert.equal(assets![0]!.scheduled_at, undefined);
+      });
+    });
+
+    it("proceeds normally for a schedule time just INSIDE (exactly at) AWS's ~7-day signed-link ceiling", async () => {
+      await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+        await seedOneEligibleIdea(fx);
+        const port = new FakeZohoSchedulePort();
+        const mediaHost = new FakeMediaHost();
+        const { utcMs } = deriveScheduleSlots(START_DATE, 1)[0]!;
+        const justInsideNow = () => new Date(utcMs - MAX_PRESIGN_SECONDS * 1000).toISOString();
+
+        const output = await scheduleViaZohoMcpCommand(BRAND, FORMAT, RUN, START_DATE, {
+          ledgerPath: fx.ledgerPath,
+          brandProfilePath: fx.brandProfilePath,
+          now: justInsideNow,
+          mediaHost,
+          port,
+          approved: true,
+        });
+
+        assert.match(output, /Scheduled:/);
+        assert.doesNotMatch(output, /presign-window/);
+        assert.ok(mediaHost.uploadCalls.length > 0);
+        const assets = await loadIdeaAssets(IDEA, fx.ledgerPath);
+        assert.ok(assets![0]!.scheduled_at !== undefined);
+      });
     });
   });
 

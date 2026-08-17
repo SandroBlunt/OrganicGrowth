@@ -8,6 +8,8 @@ import { exportScheduleCommand, main as exportScheduleMain, parsePostsPerDayArg 
 import { loadIdeaAssets } from "../asset/store.ts";
 import { FakeMediaHost } from "../media-host/fixtures/fake-media-host.ts";
 import { deriveScheduleSlots } from "../schedule-batch/schedule.ts";
+import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
+import { MAX_PRESIGN_SECONDS } from "../media-host/aws-presign-limit.ts";
 
 const BRAND = "straw-motion";
 const FORMAT = "unhypped-news";
@@ -197,6 +199,24 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
       assert.equal(mediaHost.convertCalls[0]!.sourcePath, idea01Paths[0]);
       assert.ok(mediaHost.uploadCalls[0]!.key.startsWith("straw-motion/2026-W32/idea-01/"));
       assert.ok(mediaHost.uploadCalls[0]!.key.endsWith(".jpg"));
+
+      // --- issue #198 AC2: every hosted key folds in an unguessable token — never the old, fully
+      //     deterministic pre-#198 shape, and never the same token twice across sibling slides ---
+      assert.notEqual(mediaHost.uploadCalls[0]!.key, "straw-motion/2026-W32/idea-01/0-hook.jpg");
+      assert.match(
+        mediaHost.uploadCalls[0]!.key,
+        /^straw-motion\/2026-W32\/idea-01\/[A-Za-z0-9_-]{10,}\/0-hook\.jpg$/,
+      );
+      const tokenSegment = (key: string): string => key.split("/")[3]!;
+      assert.notEqual(
+        tokenSegment(mediaHost.uploadCalls[0]!.key),
+        tokenSegment(mediaHost.uploadCalls[1]!.key),
+      );
+
+      // --- issue #198 AC4: the signed link's expiry is derived from THIS Asset's own scheduled_at,
+      //     and covered by a test — every slide of the same Asset shares the SAME derived expiry ---
+      const expectedExpiry = computeMediaExpiry(assets![0]!.scheduled_at!, NOW).expiresInSeconds;
+      assert.ok(mediaHost.uploadCalls.every((c) => c.expiresInSeconds === expectedExpiry));
 
       // --- The original PNGs are byte-for-byte untouched ---
       const afterBytes = await Promise.all(idea01Paths.map((p) => readFile(p)));
@@ -473,6 +493,88 @@ describe("/export-schedule — run-scoped Zoho bulk export (issue #145)", () => 
       assert.equal(mediaHost.uploadCalls.length, 0);
       const assets = await loadIdeaAssets("idea-2026-W32-01", fx.ledgerPath);
       assert.equal(assets![0]!.scheduled_at, undefined);
+    });
+  });
+
+  describe("the far-future case (issue #198 QA Round 1 Defect #1 — a signed link must never be silently doomed)", () => {
+    // The SAME fixed slot instant the near-future test above computes (START_DATE's own first
+    // rotation slot: 09:06 America/New_York on 2026-08-04) — "now" is then positioned relative to it,
+    // exactly at (and one millisecond past) AWS's own 7-day presign ceiling.
+    const firstSlotUtcMs = Date.UTC(2026, 7, 4, 13, 6, 0);
+
+    it("refuses the WHOLE export loudly, writing nothing, when a schedule time sits just OUTSIDE AWS's ~7-day signed-link ceiling", async () => {
+      await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+        const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01");
+        await writeLedger(fx.ledgerPath, [
+          {
+            id: "idea-2026-W32-01",
+            title: "T",
+            format: FORMAT,
+            run: RUN,
+            status: "accepted",
+            assets: [{ recipe: "news-carousel", status: "produced", asset_paths: idea01Paths, copy: fullCopy("idea-01") }],
+          },
+        ]);
+
+        const mediaHost = new FakeMediaHost();
+        // Difference (slot - now) is exactly MAX_PRESIGN_SECONDS + 1ms — one millisecond past the
+        // ceiling, the smallest possible violation.
+        const justOutsideNow = () =>
+          new Date(firstSlotUtcMs - MAX_PRESIGN_SECONDS * 1000 - 1).toISOString();
+
+        const output = await exportScheduleCommand(BRAND, FORMAT, RUN, START_DATE, {
+          ledgerPath: fx.ledgerPath,
+          brandProfilePath: fx.brandProfilePath,
+          ideasRoot: fx.ideasRoot,
+          now: justOutsideNow,
+          mediaHost,
+        });
+
+        assert.match(output, /EXPORT REFUSED/);
+        assert.match(output, /7-day signed-link/);
+        assert.match(output, /idea-2026-W32-01/);
+        const entries = await readdir(fx.runFolder).catch(() => []);
+        assert.deepEqual(entries, ["idea-01.news-carousel.output"]); // only the pre-existing bundle dir
+        assert.equal(mediaHost.convertCalls.length, 0);
+        assert.equal(mediaHost.uploadCalls.length, 0);
+        const assets = await loadIdeaAssets("idea-2026-W32-01", fx.ledgerPath);
+        assert.equal(assets![0]!.scheduled_at, undefined);
+      });
+    });
+
+    it("proceeds normally when a schedule time sits just INSIDE (exactly at) AWS's ~7-day signed-link ceiling", async () => {
+      await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+        const idea01Paths = await writeOutputBundleSlides(fx.runFolder, "idea-01");
+        await writeLedger(fx.ledgerPath, [
+          {
+            id: "idea-2026-W32-01",
+            title: "T",
+            format: FORMAT,
+            run: RUN,
+            status: "accepted",
+            assets: [{ recipe: "news-carousel", status: "produced", asset_paths: idea01Paths, copy: fullCopy("idea-01") }],
+          },
+        ]);
+
+        const mediaHost = new FakeMediaHost();
+        // Difference (slot - now) is exactly MAX_PRESIGN_SECONDS — the last instant a link can still
+        // just barely reach the scheduled time (boundary is inclusive).
+        const justInsideNow = () => new Date(firstSlotUtcMs - MAX_PRESIGN_SECONDS * 1000).toISOString();
+
+        const output = await exportScheduleCommand(BRAND, FORMAT, RUN, START_DATE, {
+          ledgerPath: fx.ledgerPath,
+          brandProfilePath: fx.brandProfilePath,
+          ideasRoot: fx.ideasRoot,
+          now: justInsideNow,
+          mediaHost,
+        });
+
+        assert.doesNotMatch(output, /EXPORT REFUSED/);
+        assert.match(output, /Wrote/);
+        assert.equal(mediaHost.uploadCalls.length, 7);
+        const assets = await loadIdeaAssets("idea-2026-W32-01", fx.ledgerPath);
+        assert.ok(assets![0]!.scheduled_at !== undefined);
+      });
     });
   });
 

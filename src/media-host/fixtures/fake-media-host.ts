@@ -11,8 +11,9 @@
  * acceptance criterion 1: "the in-memory fake records calls so downstream tests can assert on them").
  */
 
-import type { MediaHostPort, UploadResult } from "../port.ts";
+import type { MediaHostPort, UploadOptions, UploadResult } from "../port.ts";
 import { assertJpgKey } from "../key.ts";
+import { assertValidExpiresInSeconds } from "../aws-presign-limit.ts";
 
 /** One recorded `convertToJpg` call. */
 export interface ConvertCall {
@@ -24,6 +25,8 @@ export interface ConvertCall {
 export interface UploadCall {
   readonly localPath: string;
   readonly key: string;
+  /** The expiry (seconds) this call was given (issue #198). */
+  readonly expiresInSeconds: number;
 }
 
 export interface FakeMediaHostOptions {
@@ -63,9 +66,10 @@ export class FakeMediaHost implements MediaHostPort {
     }
   }
 
-  async upload(localPath: string, key: string): Promise<UploadResult> {
+  async upload(localPath: string, key: string, options: UploadOptions): Promise<UploadResult> {
     assertJpgKey(key);
-    this.uploadCalls.push({ localPath, key });
+    assertValidExpiresInSeconds(options.expiresInSeconds);
+    this.uploadCalls.push({ localPath, key, expiresInSeconds: options.expiresInSeconds });
     if (this.options.failUploads) {
       throw new Error(`FakeMediaHost: upload failed (modelled failure) for "${key}"`);
     }

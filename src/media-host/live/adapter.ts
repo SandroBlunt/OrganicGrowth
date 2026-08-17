@@ -6,7 +6,7 @@
  * a stubbed `CommandRunner` (see `live/sips.test.ts`, `live/s3.test.ts`).
  */
 
-import type { MediaHostPort, UploadResult } from "../port.ts";
+import type { MediaHostPort, UploadOptions, UploadResult } from "../port.ts";
 import type { CommandRunner } from "./command-runner.ts";
 import { convertPngToJpgViaSips } from "./sips.ts";
 import { uploadViaAwsCli, deleteViaAwsCli, type S3Config } from "./s3.ts";
@@ -54,9 +54,9 @@ export class LiveMediaHost implements MediaHostPort {
     });
   }
 
-  async upload(localPath: string, key: string): Promise<UploadResult> {
+  async upload(localPath: string, key: string, options: UploadOptions): Promise<UploadResult> {
     const env = await this.resolveEnv();
-    return uploadViaAwsCli(localPath, key, this.config, {
+    return uploadViaAwsCli(localPath, key, this.config, options.expiresInSeconds, {
       runner: this.runner,
       awsCommand: this.awsCommand,
       env,

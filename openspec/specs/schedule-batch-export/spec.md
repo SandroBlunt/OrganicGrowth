@@ -323,9 +323,14 @@ SHALL refuse with a clear message and write NO file. A batch that fails `validat
 preflight — for ANY of its documented failure modes, alone or in combination across several Assets in
 the same run — SHALL refuse the WHOLE export, naming every problem found, and SHALL leave NO partial
 state behind: no CSV or manifest file written, no call recorded on the injected Media Host (media hosting
-happens strictly AFTER the preflight pass succeeds), and no Asset's `scheduled_at` stamped. Every
-original slide file (PNG) SHALL remain byte-for-byte unchanged. A freshly-written manifest entry SHALL
-NEVER itself carry `cleaned_at` — that field is written ONLY by cleanup, never by this export.
+happens strictly AFTER the preflight pass succeeds), and no Asset's `scheduled_at` stamped. A batch whose
+derived schedule includes ANY slot inside the 1-hour lead window, OR — since issue #198 (QA Round 1
+Defect #1) — ANY slot whose signed media link cannot survive to reach its own post time (beyond AWS's own
+~7-day presign ceiling, `src/schedule-batch/media-expiry.ts`'s `validateWithinPresignWindow`), SHALL
+likewise refuse the WHOLE export the SAME way (before any I/O, naming every violating Asset), never ship
+a schedule containing either kind of doomed slot. Every original slide file (PNG) SHALL remain
+byte-for-byte unchanged. A freshly-written manifest entry SHALL NEVER itself carry `cleaned_at` — that
+field is written ONLY by cleanup, never by this export.
 
 **The run folder's shape is cadence-aware (ADR-0023, issue #185).** WHEN `options.ideasRoot` is NOT
 given, `runFolder` SHALL be computed via `runIdeasDirFor(brand, format, run, cadence, options.
@@ -368,6 +373,23 @@ as before this Requirement.
 - **WHEN** `exportScheduleCommand` is called
 - **THEN** the returned message REFUSES the WHOLE export
 - **AND** no CSV, manifest, or `scheduled_at` write occurs
+
+#### Scenario: A schedule time beyond AWS's presign ceiling refuses the WHOLE export, hosting nothing (issue #198)
+
+- **GIVEN** an eligible Asset whose derived schedule slot's signed media link cannot reach that slot's
+  own scheduled time (beyond AWS's ~7-day presign ceiling from `now`)
+- **WHEN** `exportScheduleCommand` is called
+- **THEN** the returned message REFUSES the WHOLE export, naming that Asset's Idea id
+- **AND** no CSV, manifest, or `scheduled_at` write occurs, and the injected Media Host records zero
+  `convertToJpg`/`upload` calls
+
+#### Scenario: A schedule time exactly AT AWS's presign ceiling is NOT refused (boundary is inclusive)
+
+- **GIVEN** an eligible Asset whose derived schedule slot's signed media link reaches EXACTLY its own
+  scheduled time (exactly AWS's ~7-day presign ceiling from `now`, no further)
+- **WHEN** `exportScheduleCommand` is called
+- **THEN** the export proceeds normally — a schedule that is merely capped by AWS's ceiling but still
+  reaches its own post time is not a violation
 
 #### Scenario: A real (non-override) daily-cadence Format's export nests under its ISO week + weekday-DD-month leaf (issue #185 AC1)
 

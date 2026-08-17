@@ -1,16 +1,23 @@
 /**
- * The `upload`/`delete` half of the live Media Host adapter (issue #144): shells out to the AWS CLI —
- * no new npm dependency, exactly as the issue specifies. Consulted Amazon's official agent skills for
- * AWS (github.com/aws/agent-toolkit-for-aws) before writing this: the live bucket
- * (`strawmotion-schedule-media`, us-east-1) already has Block Public Access left alone and instead
- * carries its OWN bucket policy granting public `GetObject` (per the issue) — so uploads here never
- * pass an object ACL; the object inherits public read from that bucket policy. Object keys are always
- * validated `.jpg` (`assertJpgKey`) before any command runs.
+ * The `upload`/`delete` half of the live Media Host adapter (issue #144; locked down in issue #198):
+ * shells out to the AWS CLI — no new npm dependency, exactly as the issue specifies. Consulted Amazon's
+ * official agent skills for AWS (github.com/aws/agent-toolkit-for-aws) before writing this.
+ *
+ * Since issue #198 the live bucket carries NO public bucket policy at all (Block Public Access stays ON,
+ * and no principal `"*"` grant exists) — `aws s3 cp` uploads a private object exactly as any other `aws
+ * s3 cp` would (still never passing an object ACL; the object simply inherits the bucket's own default,
+ * private access), and `upload` then asks the AWS CLI to mint a SIGNED, TEMPORARY `aws s3 presign` URL
+ * for that object, valid only for the caller-given `expiresInSeconds` — the SAME credentials that ran the
+ * `cp` are what the presigned URL is signed with, so they must carry `s3:GetObject` on the bucket (see
+ * `docs/schedule-batch-s3-setup.md`'s Operator setup steps). Object keys are always validated `.jpg`
+ * (`assertJpgKey`) and `expiresInSeconds` always validated against AWS's own SigV4 ceiling
+ * (`assertValidExpiresInSeconds`) BEFORE any command runs.
  */
 
-import { execFileRunner, type CommandRunner } from "./command-runner.ts";
+import { execFileRunner, type CommandRunner, type CommandResult } from "./command-runner.ts";
 import { redactSecrets } from "./redact.ts";
 import { assertJpgKey } from "../key.ts";
+import { assertValidExpiresInSeconds } from "../aws-presign-limit.ts";
 import type { UploadResult } from "../port.ts";
 
 export interface S3Config {
@@ -33,23 +40,32 @@ function s3Uri(config: S3Config, key: string): string {
   return `s3://${config.bucket}/${key}`;
 }
 
-/** The bucket's public, direct virtual-hosted-style URL for `key`. Throws unless `key` ends `.jpg`. */
-export function publicJpgUrl(config: S3Config, key: string): string {
+/**
+ * The bucket's DIRECT, UNSIGNED virtual-hosted-style URL for `key` — since issue #198 this is NEVER
+ * what `uploadViaAwsCli` returns (the bucket is private; only a signed URL from `presignViaAwsCli` is
+ * fetchable). Kept because it is still useful for PROVING the bucket is actually locked down — e.g.
+ * `live/smoke.ts` fetches this exact URL and expects it to be refused. Throws unless `key` ends `.jpg`.
+ */
+export function directJpgUrl(config: S3Config, key: string): string {
   assertJpgKey(key);
   return `https://${config.bucket}.s3.${config.region}.amazonaws.com/${key}`;
 }
 
 /**
- * Upload `localPath` to `s3://bucket/key` via `aws s3 cp`, returning the object's public direct
- * `.jpg` URL. Throws (without running any command) unless `key` ends `.jpg`.
+ * Upload `localPath` to `s3://bucket/key` via `aws s3 cp` (never passing an object ACL — the object
+ * inherits the bucket's own, private-by-default access), then ask the AWS CLI to mint a signed,
+ * temporary `aws s3 presign` URL for it, valid for `expiresInSeconds`. Throws (without running any
+ * command) unless `key` ends `.jpg` or `expiresInSeconds` is outside AWS's own SigV4 ceiling.
  */
 export async function uploadViaAwsCli(
   localPath: string,
   key: string,
   config: S3Config,
+  expiresInSeconds: number,
   options: S3AdapterOptions = {},
 ): Promise<UploadResult> {
   assertJpgKey(key);
+  assertValidExpiresInSeconds(expiresInSeconds);
   await runAwsCommand(options, [
     "s3",
     "cp",
@@ -60,7 +76,38 @@ export async function uploadViaAwsCli(
     "--content-type",
     "image/jpeg",
   ]);
-  return { url: publicJpgUrl(config, key) };
+  const url = await presignViaAwsCli(key, config, expiresInSeconds, options);
+  return { url };
+}
+
+/**
+ * Ask the AWS CLI for a signed, temporary GET URL for `s3://bucket/key`, valid for `expiresInSeconds`
+ * (`aws s3 presign ... --expires-in <seconds>`). This is the ONLY way `key` is ever readable once the
+ * bucket's public-read policy is gone (issue #198). Throws (without running any command) unless `key`
+ * ends `.jpg` or `expiresInSeconds` is outside AWS's own SigV4 ceiling.
+ */
+export async function presignViaAwsCli(
+  key: string,
+  config: S3Config,
+  expiresInSeconds: number,
+  options: S3AdapterOptions = {},
+): Promise<string> {
+  assertJpgKey(key);
+  assertValidExpiresInSeconds(expiresInSeconds);
+  const result = await runAwsCommand(options, [
+    "s3",
+    "presign",
+    s3Uri(config, key),
+    "--region",
+    config.region,
+    "--expires-in",
+    String(expiresInSeconds),
+  ]);
+  const url = result.stdout.trim();
+  if (url.length === 0) {
+    throw new Error(`aws s3 presign returned no URL for key "${key}" — cannot host without a signed link.`);
+  }
+  return url;
 }
 
 /** Delete `s3://bucket/key` via `aws s3 rm`. */
@@ -72,11 +119,11 @@ export async function deleteViaAwsCli(
   await runAwsCommand(options, ["s3", "rm", s3Uri(config, key), "--region", config.region]);
 }
 
-async function runAwsCommand(options: S3AdapterOptions, args: readonly string[]): Promise<void> {
+async function runAwsCommand(options: S3AdapterOptions, args: readonly string[]): Promise<CommandResult> {
   const runner = options.runner ?? execFileRunner;
   const command = options.awsCommand ?? DEFAULT_AWS_COMMAND;
   try {
-    await runner(command, args, { env: options.env });
+    return await runner(command, args, { env: options.env });
   } catch (error) {
     throw redactCommandError(error, options.env);
   }

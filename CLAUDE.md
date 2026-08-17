@@ -267,9 +267,11 @@ carries no lifecycle meaning of its own; `status` stays `produced` until `/log-p
 - **Meta Content export** (in `data/brands/<slug>/your-data/`) is an *optional* enrichment for Saves /
   Net-follows / watch-through. It is git-ignored — keep it there, never at the pre-migration root
   `data/your-data/`. See [`docs/adr/0001`](./docs/adr/0001-apify-public-metrics-for-performance.md).
-- **S3** hosts a Schedule Batch export's JPGs as public direct links for Zoho Social to fetch (the Media
-  Host port, issue #144). The bucket, its public-`GetObject`-only policy, and its 30-day expiry
-  lifecycle rule are one-time infrastructure setup, not code — already live for straw-motion; see
+- **S3** hosts a Schedule Batch export's JPGs behind SIGNED, EXPIRING links for Zoho Social to fetch —
+  the bucket is private (no public-read policy), every key carries an unguessable token, and a link's
+  expiry is derived from its Asset's own `scheduled_at` (the Media Host port, issue #144; locked down
+  issue #198). This is one-time infrastructure setup, not code (the bucket, its private access, and its
+  30-day expiry lifecycle rule) — already live for straw-motion; see
   [`docs/schedule-batch-s3-setup.md`](./docs/schedule-batch-s3-setup.md).
 
 ## Rules & Standards

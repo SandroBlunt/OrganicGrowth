@@ -8,10 +8,15 @@ import type { ZohoConfigLookup, ZohoSocialBrand } from "../production-spec/brand
 import { deriveScheduleSlots } from "./schedule.ts";
 import { formatZohoScheduleTime } from "./timezone.ts";
 import { sortEligible } from "./order.ts";
+import { MAX_PRESIGN_SECONDS } from "../media-host/aws-presign-limit.ts";
 
 const RUN = "2026-W32";
 const START_DATE = "2026-08-11";
-const NOW_MS = Date.parse("2026-08-01T00:00:00.000Z"); // safely > 1h before any derived slot below
+// Safely > 1h before any derived slot below, AND within AWS's ~7-day signed-link presign ceiling of
+// every derived slot below (issue #198 QA Round 1 Defect #1's own upper-bound guard) — the widest
+// fixture in this file schedules 3 Assets at 1/day from START_DATE, so its last slot lands ~4.5 days
+// after this "now", comfortably inside the 7-day window.
+const NOW_MS = Date.parse("2026-08-09T00:00:00.000Z");
 
 function asset(recipe = "news-carousel"): LedgerAssetRecord {
   return { recipe, status: "produced" };
@@ -237,6 +242,40 @@ describe("buildMcpSchedulePlan — MCP-first routing decision layer (issue #160)
     if (result.ok) return;
     assert.equal(result.reason, "lead-window");
     assert.match(result.message, new RegExp(`idea-${RUN}-01`));
+  });
+
+  describe("the far-future case (issue #198 QA Round 1 Defect #1 — a signed link must never be silently doomed)", () => {
+    it("refuses a slot just OUTSIDE AWS's ~7-day signed-link ceiling, naming the violating Idea, never throwing", () => {
+      const { utcMs } = deriveScheduleSlots(START_DATE, 1)[0]!;
+      const justOutsideNowMs = utcMs - MAX_PRESIGN_SECONDS * 1000 - 1;
+      const result = buildMcpSchedulePlan({
+        eligible: [eligible(`idea-${RUN}-01`)],
+        run: RUN,
+        zohoConfig: CONFIGURED,
+        startDate: START_DATE,
+        nowMs: justOutsideNowMs,
+      });
+      assert.equal(result.ok, false);
+      if (result.ok) return;
+      assert.equal(result.reason, "presign-window");
+      assert.match(result.message, new RegExp(`idea-${RUN}-01`));
+      assert.match(result.message, /7-day signed-link/);
+    });
+
+    it("proceeds normally for a slot just INSIDE (exactly at) AWS's ~7-day signed-link ceiling", () => {
+      const { utcMs } = deriveScheduleSlots(START_DATE, 1)[0]!;
+      const justInsideNowMs = utcMs - MAX_PRESIGN_SECONDS * 1000;
+      const result = buildMcpSchedulePlan({
+        eligible: [eligible(`idea-${RUN}-01`)],
+        run: RUN,
+        zohoConfig: CONFIGURED,
+        startDate: START_DATE,
+        nowMs: justInsideNowMs,
+      });
+      assert.equal(result.ok, true);
+      if (!result.ok) return;
+      assert.equal(result.assets.length, 1);
+    });
   });
 
   it("never reads the system clock — nowMs is always the caller's explicit argument", () => {

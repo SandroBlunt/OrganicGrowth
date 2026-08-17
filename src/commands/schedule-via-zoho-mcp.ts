@@ -14,7 +14,9 @@
  * issue #171, passed straight through to the SAME shared `deriveScheduleSlots` the CSV path uses), run
  * the SAME preflight validation the CSV path runs (`validateAssetsForExport`, defense in depth — never
  * trusted blindly), host each planned Asset's slides via the injected `MediaHostPort` (issue #144 —
- * unchanged infrastructure, the SAME Media Host the CSV export already uses), then drive `runMcpSchedule`
+ * unchanged infrastructure, the SAME Media Host the CSV export already uses, now under an unguessable
+ * key with a signed, expiring link derived from that Asset's own scheduled time — issue #198), then
+ * drive `runMcpSchedule`
  * (`src/schedule-batch/mcp-schedule.ts`) — which itself enforces AC1 (no Zoho write-tool before
  * approval) and AC2 (upload, then validate, then schedule). Every successfully-scheduled Asset's
  * `scheduled_at` + `zoho_schedule_reference` (issue #161) is stamped via `AssetStore.writeAsset`
@@ -31,8 +33,9 @@
  * documented instructions) is the one who decides to offer `/export-schedule` instead.
  *
  * Every business-rule refusal (not approved, MCP unavailable, an empty run, a Brand not configured, a
- * preflight problem, a schedule time inside the 1-hour lead window) is a RETURNED, clearly-worded
- * string — never a throw — mirroring `src/commands/export-schedule.ts`'s own posture exactly.
+ * preflight problem, a schedule time inside the 1-hour lead window, a schedule time so far out that
+ * its signed media link would expire before the post fires) is a RETURNED, clearly-worded string —
+ * never a throw — mirroring `src/commands/export-schedule.ts`'s own posture exactly.
  */
 
 import { mkdtemp, rm } from "node:fs/promises";
@@ -49,6 +52,7 @@ import { selectEligibleAssets, describeSkippedAssets } from "../schedule-batch/e
 import { buildMcpSchedulePlan } from "../schedule-batch/mcp-plan.ts";
 import { validateAssetsForExport } from "../schedule-batch/plan.ts";
 import { slideBaseName, scheduleMediaKey } from "../schedule-batch/media-key.ts";
+import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
 import {
   runMcpSchedule,
   mcpUnavailableFallbackMessage,
@@ -56,6 +60,7 @@ import {
 } from "../schedule-batch/mcp-schedule.ts";
 import type { ZohoSchedulePort } from "../schedule-batch/mcp-schedule-port.ts";
 import type { MediaHostPort } from "../media-host/port.ts";
+import { randomMediaKeyToken } from "../media-host/token.ts";
 
 // ---------------------------------------------------------------------------
 // Default Media Host (deferred live wiring — mirrors export-schedule.ts's own DEFAULT_MEDIA_HOST)
@@ -189,13 +194,30 @@ export async function scheduleViaZohoMcpCommand(
       const source = byIdeaId.get(planned.ideaId);
       if (source === undefined) continue; // defensive — plan.assets is always drawn from `eligible`
       const ideaShortName = briefShortName(planned.ideaId, run);
+      // The link's expiry is derived from THIS Asset's own scheduled time (issue #198) — never a fixed
+      // default. In practice Zoho's own `uploadMediaFromUrl` fetches this SAME link moments later, in
+      // this same call (`runMcpSchedule`, step 6 below) — but the expiry still tracks `scheduledAtUtc`
+      // exactly like the CSV/S3 fallback path, so both paths derive expiry the same way.
+      const { expiresInSeconds, cappedByAwsLimit, expiresAt } = computeMediaExpiry(planned.scheduledAtUtc, now);
+      // Unreachable in practice — `buildMcpSchedulePlan`'s own presign-window preflight (`mcp-plan.ts`,
+      // issue #198 QA Round 1 Defect #1) already refused the WHOLE plan if any Asset's link would land
+      // before its own scheduled time, so `plan.assets` never carries one that would trip this. Kept as
+      // an explicit, named internal-error guard (never a silent drift) rather than trusting that check
+      // blindly, mirroring `buildSchedulePlan`'s own "no Copy variant" contract-violation throw.
+      if (cappedByAwsLimit && Date.parse(expiresAt) < Date.parse(planned.scheduledAtUtc)) {
+        throw new Error(
+          `schedule-via-zoho-mcp: internal error — "${planned.ideaId}" produced a media link (expiring ` +
+            `${expiresAt}) that cannot reach its own scheduled time (${planned.scheduledAtUtc}) despite ` +
+            "already passing buildMcpSchedulePlan's presign-window preflight — this should be unreachable.",
+        );
+      }
       const urls: string[] = [];
       for (const slidePath of source.asset.asset_paths ?? []) {
         const base = slideBaseName(slidePath);
-        const key = scheduleMediaKey(brand, run, ideaShortName, base);
+        const key = scheduleMediaKey(brand, run, ideaShortName, base, randomMediaKeyToken());
         const destPath = join(stagingDir, `${ideaShortName}-${base}.jpg`);
         await mediaHost.convertToJpg(slidePath, destPath);
-        const { url } = await mediaHost.upload(destPath, key);
+        const { url } = await mediaHost.upload(destPath, key, { expiresInSeconds });
         urls.push(url);
       }
       assetsInput.push({

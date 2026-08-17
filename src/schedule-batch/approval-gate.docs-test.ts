@@ -180,25 +180,62 @@ describe("export-schedule.md documents being producer-offered behind the same ap
   });
 });
 
-describe("the one-time S3 setup is documented, not code (issue #148 AC4)", () => {
+describe("the one-time S3 setup is documented, not code (issue #148 AC4; re-shaped private-bucket issue #198)", () => {
   it("the setup doc exists and states it is infrastructure setup, not code", async () => {
     const doc = await readFile(S3_SETUP_DOC, "utf8");
     assert.match(doc, /not code/);
     assert.match(doc, /one-time/i);
   });
 
-  it("documents the bucket, the public GetObject-only policy, and the 30-day expiry lifecycle rule", async () => {
+  it("documents the bucket and the 30-day expiry lifecycle rule", async () => {
     const doc = await readFile(S3_SETUP_DOC, "utf8");
     assert.match(doc, /strawmotion-schedule-media/);
-    assert.match(doc, /GetObject/);
     assert.match(doc, /30 days/);
     assert.match(doc, /lifecycle rule/i);
   });
 
-  it("states the bucket policy is scoped to public GetObject only — never write/delete/list for the public principal", async () => {
+  it("states the bucket is PRIVATE — no public bucket policy — and Block Public Access stays ON (issue #198)", async () => {
+    const doc = await readFile(S3_SETUP_DOC, "utf8");
+    assert.match(doc, /is PRIVATE, not public-read/);
+    assert.match(doc, /Block Public Access.{0,40}ON/s);
+    assert.match(doc, /NONE\./); // "Bucket policy: NONE."
+    assert.doesNotMatch(doc, /"Principal":\s*"\*"/); // no public-principal grant anywhere
+  });
+
+  it("documents the real signed-link mechanism by name: presignViaAwsCli, computeMediaExpiry, randomMediaKeyToken", async () => {
+    const doc = await readFile(S3_SETUP_DOC, "utf8");
+    assert.match(doc, /presignViaAwsCli/);
+    assert.match(doc, /computeMediaExpiry/);
+    assert.match(doc, /randomMediaKeyToken/);
+    assert.match(doc, /src\/schedule-batch\/media-expiry\.ts/);
+    assert.match(doc, /src\/media-host\/token\.ts/);
+  });
+
+  it("documents the exact IAM permissions the running credentials need — GetObject, PutObject, DeleteObject, never ListBucket or a wildcard", async () => {
     const doc = await readFile(S3_SETUP_DOC, "utf8");
     assert.match(doc, /"s3:GetObject"/);
-    assert.doesNotMatch(doc, /"s3:\*"|"s3:PutObject"|"s3:DeleteObject"|"s3:ListBucket"/);
+    assert.match(doc, /"s3:PutObject"/);
+    assert.match(doc, /"s3:DeleteObject"/);
+    assert.doesNotMatch(doc, /"s3:\*"|"s3:ListBucket"/);
+  });
+
+  it("documents the AWS 7-day SigV4 presign ceiling (MAX_PRESIGN_SECONDS) and that a link beyond it is refused loudly, never shipped (issue #198 QA Round 1 Defect #1)", async () => {
+    const doc = await readFile(S3_SETUP_DOC, "utf8");
+    assert.match(doc, /MAX_PRESIGN_SECONDS/);
+    assert.match(doc, /604,800|604800/);
+    assert.match(doc, /7 days/);
+    assert.match(doc, /cappedByAwsLimit/);
+    assert.match(doc, /validateWithinPresignWindow/);
+    assert.match(doc, /EXPORT REFUSED/);
+    assert.match(doc, /presign-window/);
+    assert.match(doc, /refused loudly, never shipped/);
+  });
+
+  it("documents the concrete migration steps for an already-public bucket (delete-bucket-policy, get-public-access-block)", async () => {
+    const doc = await readFile(S3_SETUP_DOC, "utf8");
+    assert.match(doc, /aws s3api delete-bucket-policy/);
+    assert.match(doc, /aws s3api get-public-access-block/);
+    assert.match(doc, /NoSuchBucketPolicy/);
   });
 
   it("states it is already live for straw-motion", async () => {
