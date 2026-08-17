@@ -25,15 +25,19 @@ effectively settled, so the pull sets that Asset to `scored` — final for the f
 Asset is not re-selected by default (pass its Idea's `<idea-id>` explicitly to force a re-pull of every
 one of that Idea's Assets).
 
-**Code-backed (issue #84).** Unlike earlier, this command now has a tested, deterministic
-implementation behind it — `src/commands/track-performance.ts` (the orchestration shell) plus
-`src/performance/selection.ts` / `score.ts` / `maturity.ts` / `metrics.ts` (pure deep modules). Its full
-test suite (`src/commands/track-performance.test.ts` and the `src/performance/*.test.ts` files) drives
-every scrape through a FAKE `PerformanceScrapePort` — never live Apify, no credits, hermetic build. The
-live Apify HTTP call is deferred (the default port always reports "no data"; mirrors
-`run-pipeline-ports.ts`'s `DEFAULT_APIFY_PORT` placeholder) — until it is wired, the performance-tracker
-agent's own Bash-tool-driven Apify calls (`.claude/agents/performance-tracker.md`) remain the sanctioned
-way to pull real metrics, and MUST match this module's selection/scoring/status/write behavior exactly.
+**Code-backed (issue #84), with a REAL live Apify client (issue #200).** This command has a tested,
+deterministic implementation behind it — `src/commands/track-performance.ts` (the orchestration shell)
+plus `src/performance/selection.ts` / `score.ts` / `maturity.ts` / `metrics.ts` (pure deep modules) and
+`src/apify/live/client.ts` (the live Apify adapter, implementing `PerformanceScrapePort`). Its full test
+suite (`src/commands/track-performance.test.ts`, the `src/performance/*.test.ts` files, and
+`src/apify/live/*.test.ts`) drives every scrape through a FAKE `PerformanceScrapePort` — this is never live Apify, and spends no credits (hermetic build); `src/apify/live/client.test.ts` proves the live
+client's OWN request construction against an injected fake `fetchImpl`, also never a real network call.
+At runtime, `npm run track-performance <brand>` uses the live client by default: it resolves
+`APIFY_API_TOKEN` from `.env`/the shell (`src/apify/live/token.ts`) and sends it ONLY in an
+`Authorization: Bearer <token>` header — NEVER a URL query string, so it can never reach shell history
+or a proxy/access log that records request URLs (`src/apify/live/request.ts`). This retires the
+performance-tracker agent's own hand-driven `curl` calls (which put the token in the URL) as the
+sanctioned way to pull real metrics — running this command for real is now the sanctioned way.
 
 ## Steps
 
@@ -87,4 +91,6 @@ way to pull real metrics, and MUST match this module's selection/scoring/status/
 - **Relative, not absolute** — always score vs the Brand's own SINGLE Channel baseline; never a
   per-Recipe baseline.
 - **Never fabricate.** Report failed scrapes and missing fields honestly.
+- **The Apify token is sent in a header, never a URL query string** (issue #200) — see
+  `src/apify/live/request.ts`.
 - Only score Assets with a logged `post_url`.

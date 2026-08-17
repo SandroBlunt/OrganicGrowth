@@ -42,11 +42,17 @@ describe("track-performance.md — describes the code-backed per-Asset grain (is
     assert.match(doc, /untouched/i);
   });
 
-  it("is honest that the hermetic test suite fakes Apify and the live scrape is deferred", async () => {
+  it("is honest that the hermetic test suite fakes Apify even though a REAL live client exists (issue #200)", async () => {
     const doc = await readFile(TRACK_PERFORMANCE_CMD, "utf8");
     assert.match(doc, /FAKE `PerformanceScrapePort`/);
     assert.match(doc, /never live Apify/i);
-    assert.match(doc, /deferred/i);
+    assert.match(doc, /src\/apify\/live\/client\.ts/);
+  });
+
+  it("documents the Apify token travels in a header, never a URL query string (issue #200)", async () => {
+    const doc = await readFile(TRACK_PERFORMANCE_CMD, "utf8");
+    assert.match(doc, /Authorization/);
+    assert.match(doc, /never (?:a )?URL query string/i);
   });
 
   it("never fabricates: documents that an unresolvable Asset is skipped and reported, not guessed", async () => {

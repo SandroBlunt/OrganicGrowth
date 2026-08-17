@@ -13,13 +13,18 @@ flat per-Idea scalar), and update **Your Data** so next week's ideas improve. On
 SEVERAL posted Assets (one per chosen Recipe) at once — you score each one independently, never
 collapsing two Recipes' Posts into a single per-Idea number.
 
-**Code-backed (issue #84).** `src/commands/track-performance.ts` (plus the pure
-`src/performance/selection.ts` / `score.ts` / `maturity.ts` / `metrics.ts` modules) is the tested,
-canonical reference for exactly how selection, scoring, the `tracking`/`scored` transition, and the
-per-Asset ledger write behave — its test suite drives every scrape through a FAKE port, never live
-Apify. The live Apify HTTP call itself is deferred there (the default port always reports "no data"),
-so YOUR Bash-tool-driven `curl` calls below remain the sanctioned way to pull REAL metrics today — keep
-them behaving exactly like that module.
+**Code-backed (issue #84), with a REAL live Apify client (issue #200).** `src/commands/track-performance.ts`
+(plus the pure `src/performance/selection.ts` / `score.ts` / `maturity.ts` / `metrics.ts` modules and
+`src/apify/live/client.ts`, the live Apify adapter) is the tested, canonical reference for exactly how
+selection, scoring, the `tracking`/`scored` transition, and the per-Asset ledger write behave — its test
+suite drives every scrape through a FAKE port, never live Apify, and `src/apify/live/client.test.ts`
+proves the live client's OWN request construction against an injected fake `fetchImpl`, also never a
+real network call. **`npm run track-performance <brand>` is now the sanctioned way to pull REAL
+metrics** — it resolves `APIFY_API_TOKEN` from `.env`/the shell and sends it ONLY in an
+`Authorization: Bearer <token>` header, never a URL query string (the leak the curl commands below used
+to carry — issue #200). Prefer running that command for a real pull; the curl commands below remain
+useful for manual, one-off debugging of a single post's raw Apify response (e.g. verifying a mapping),
+but MUST use the SAME header-based auth, never `?token=` in the URL.
 
 **Brand is always explicit.** You are always invoked with a specific Brand (e.g. `mundotip`). All file
 reads and writes are scoped to that Brand's directory under `data/brands/<slug>/`. You never infer the
@@ -50,10 +55,15 @@ header so the Operator always knows which Brand's performance is being tracked.
    ```bash
    set -a; [ -f .env ] && . ./.env; set +a
    ```
+   **The token goes in the `Authorization` header, NEVER the URL** (issue #200 — a token in a URL
+   query string reaches shell history and any proxy/access log that records request URLs; a header
+   does not):
+
    **Facebook** (`apify/facebook-post-scraper`):
    ```bash
    curl -s -X POST \
-     "https://api.apify.com/v2/acts/apify~facebook-post-scraper/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}" \
+     "https://api.apify.com/v2/acts/apify~facebook-post-scraper/run-sync-get-dataset-items" \
+     -H "Authorization: Bearer ${APIFY_API_TOKEN}" \
      -H 'Content-Type: application/json' \
      -d '{"startUrls":[{"url":"<POST_URL>"}]}'
    ```
@@ -61,7 +71,8 @@ header so the Operator always knows which Brand's performance is being tracked.
    `username` even though the value is the post URL (confirmed live):
    ```bash
    curl -s -X POST \
-     "https://api.apify.com/v2/acts/apify~instagram-post-scraper/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}" \
+     "https://api.apify.com/v2/acts/apify~instagram-post-scraper/run-sync-get-dataset-items" \
+     -H "Authorization: Bearer ${APIFY_API_TOKEN}" \
      -H 'Content-Type: application/json' \
      -d '{"username":["<POST_URL>"]}'
    ```
@@ -69,7 +80,8 @@ header so the Operator always knows which Brand's performance is being tracked.
    at one video URL:
    ```bash
    curl -s -X POST \
-     "https://api.apify.com/v2/acts/streamers~youtube-scraper/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}" \
+     "https://api.apify.com/v2/acts/streamers~youtube-scraper/run-sync-get-dataset-items" \
+     -H "Authorization: Bearer ${APIFY_API_TOKEN}" \
      -H 'Content-Type: application/json' \
      -d '{"startUrls":[{"url":"<POST_URL>"}]}'
    ```
@@ -82,7 +94,10 @@ header so the Operator always knows which Brand's performance is being tracked.
    `src/apify/normalize-metrics.ts` implements and unit-tests this exact mapping if you want
    the canonical reference — Instagram/YouTube against real captured samples (issue #48); Facebook
    (`mapFacebookItem`, issue #84) against a SYNTHETIC fixture built from Apify's documented output
-   schema, not yet verified against a live capture (flagged as a follow-up).
+   schema. Straw Motion's Channel (the only Brand with posted Assets today) is Facebook, so this
+   mapping is the one that actually matters and needs a live check — `npx tsx src/apify/live/smoke.ts
+   <facebook-post-url>` (or `npm run apify-smoke`) makes exactly ONE real scrape and prints the raw
+   item next to `mapFacebookItem`'s output for that comparison (issue #200's Operator runbook).
 4. **Performance Score** (0–1) — the SAME formula regardless of platform, since step 3 already
    normalized every platform's metrics to shares/comments/reactions/views — relative to the Brand's
    Channel baseline (`ledger.baseline`, a rolling
@@ -130,4 +145,6 @@ reads for Brand `<brand>`).
 - **Never fabricate.** Missing/zero data is reported as such; a failed scrape is reported, not guessed.
 - **Attribution is explicit, keyed `(Idea, Recipe)`.** Only score Assets that have a logged `post_url`;
   writing one Recipe's Asset never touches a sibling Recipe's Asset on the same Idea.
+- **The Apify token is sent in a header, never a URL query string** (issue #200) — it must never reach
+  shell history or a proxy/access log. `src/apify/live/request.ts` is the canonical reference.
 - Never print `APIFY_API_TOKEN`.
