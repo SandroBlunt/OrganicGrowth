@@ -1,7 +1,8 @@
 /**
  * Golden-file tests, one per legacy shape this ticket names explicitly (issue #204 AC4) — MundoTip's
  * pre-Format Idea shape, Straw Motion's three Idea shapes, all three ID schemes, and all four folder
- * layouts.
+ * layouts. Extended by issue #240 AC5 with the real shape of Straw Motion's 7 `post_url`-carrying
+ * Assets.
  *
  * Each test below points at ONE REAL record identified by its real id (never a synthetic copy) and
  * asserts the specific shape-defining fact about it, so a reviewer can audit "yes, this shape is really
@@ -20,6 +21,7 @@ import assert from "node:assert/strict";
 import { loadFullIdeas } from "../ledger/ledger.ts";
 import { loadBrief } from "./load-brief.ts";
 import { resolveIdeaStatus } from "./idea-status.ts";
+import { resolvePostPlatform } from "./resolve-post-platform.ts";
 
 const MUNDOTIP_LEDGER = "data/brands/mundotip/ledger.json";
 const STRAW_MOTION_LEDGER = "data/brands/straw-motion/ledger.json";
@@ -115,5 +117,32 @@ describe("golden shape: all four real folder layouts, each proven by reading a r
     assert.match(idea.briefPath!, /^data\/brands\/straw-motion\/ideas\/unhypped-daily\/2026-W33\/friday-14-august\/idea-01\.md$/);
     const brief = await loadBrief({ id: idea.id, run: idea.run!, briefPath: idea.briefPath! }, "straw-motion");
     assert.equal(brief.ok, true);
+  });
+});
+
+describe("golden shape: Straw Motion's real 7 post_url-carrying Assets (issue #240)", () => {
+  it("all 7 are news-carousel, all from Run 2026-W32, all resolve to facebook, and NONE share an Idea", async () => {
+    const ideas = await loadFullIdeas(STRAW_MOTION_LEDGER, "straw-motion");
+    const withPostUrl: { readonly ideaId: string; readonly recipe: string; readonly postUrl: string }[] = [];
+    for (const idea of ideas) {
+      for (const asset of idea.assets) {
+        if (asset.post_url !== undefined) {
+          withPostUrl.push({ ideaId: idea.id, recipe: asset.recipe, postUrl: asset.post_url });
+        }
+      }
+    }
+
+    assert.equal(withPostUrl.length, 7, "the real corpus carries exactly 7 post_url-bearing Assets today");
+
+    for (const entry of withPostUrl) {
+      assert.equal(entry.recipe, "news-carousel");
+      assert.match(entry.ideaId, /^idea-2026-W32-/);
+      assert.equal(resolvePostPlatform(entry.postUrl), "facebook");
+    }
+
+    // The real shape the golden fixture must cover, per this ticket's own brief: none of the 7 share an
+    // Idea — each post_url belongs to a DIFFERENT Idea, one Asset each.
+    const ideaIds = withPostUrl.map((e) => e.ideaId);
+    assert.equal(new Set(ideaIds).size, ideaIds.length, "no two of the 7 real post_url Assets share an Idea");
   });
 });

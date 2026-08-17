@@ -22,19 +22,21 @@ import {
   createBrand,
   createFormat,
   createRun,
+  createChannel,
   createTrend,
   createIdea,
   recordReviewDecision,
   saveAsset,
   attachAssetMedia,
   getAssetByRecipe,
+  logPost,
   enqueueJob,
   claimJob,
   releaseJob,
   type ReleaseStatus,
   type DbAssetPatch,
 } from "../command-surface/index.ts";
-import type { ImportPlan, BrandPlanItem, FormatPlanItem, RunPlanItem, JobStatusPlan } from "./plan.ts";
+import type { ImportPlan, BrandPlanItem, FormatPlanItem, RunPlanItem, ChannelPlanItem, JobStatusPlan } from "./plan.ts";
 import type { HookType } from "../vocabulary/hook-type.ts";
 import type { Theme } from "../vocabulary/theme.ts";
 
@@ -53,12 +55,14 @@ const IMPORTER_JOB_OWNER = "importer";
 
 export interface ExecuteCounts {
   readonly brands: number;
+  readonly channels: number;
   readonly formats: number;
   readonly runs: number;
   readonly trends: number;
   readonly ideas: number;
   readonly assets: number;
   readonly assetMedia: number;
+  readonly posts: number;
   readonly jobs: number;
 }
 
@@ -66,12 +70,35 @@ function assetKey(brand: string, legacyIdeaId: string, recipe: string): string {
   return `${brand}::${legacyIdeaId}::${recipe}`;
 }
 
+/** Creates every Channel this Brand's Profile named (issue #240), BEFORE any Format/Run/Idea/Asset —
+ *  so a later Asset's Post always has a real Channel row to key against. Returns a lookup from
+ *  platform -> the created `channel.id`, the SAME map the Asset loop resolves a Post's `channelId`
+ *  from. */
+function executeChannels(db: DatabaseSync, brandId: string, channelPlans: readonly ChannelPlanItem[], now: () => string): Map<string, string> {
+  const channelIdByPlatform = new Map<string, string>();
+  for (const channelPlan of channelPlans) {
+    const channelId = createChannel(db, { brandId, platform: channelPlan.platform, url: channelPlan.url, isPrimary: channelPlan.isPrimary }, now);
+    channelIdByPlatform.set(channelPlan.platform, channelId);
+  }
+  return channelIdByPlatform;
+}
+
 async function executeBrand(
   db: DatabaseSync,
   brandPlan: BrandPlanItem,
   now: () => string,
   assetIdByKey: Map<string, string>,
-): Promise<{ readonly brandId: string; readonly formats: number; readonly runs: number; readonly trends: number; readonly ideas: number; readonly assets: number; readonly assetMedia: number }> {
+): Promise<{
+  readonly brandId: string;
+  readonly channels: number;
+  readonly formats: number;
+  readonly runs: number;
+  readonly trends: number;
+  readonly ideas: number;
+  readonly assets: number;
+  readonly assetMedia: number;
+  readonly posts: number;
+}> {
   const brandId = createBrand(
     db,
     {
@@ -87,28 +114,32 @@ async function executeBrand(
     now,
   );
 
+  const channelIdByPlatform = executeChannels(db, brandId, brandPlan.channels, now);
+
   let formats = 0;
   let runs = 0;
   let trends = 0;
   let ideas = 0;
   let assets = 0;
   let assetMedia = 0;
+  let posts = 0;
 
   for (const formatPlan of brandPlan.formats) {
     const formatId = executeFormat(db, brandId, formatPlan, now);
     formats++;
 
     for (const runPlan of formatPlan.runs) {
-      const runResult = await executeRun(db, brandId, formatId, brandPlan.slug, runPlan, now, assetIdByKey);
+      const runResult = await executeRun(db, brandId, formatId, brandPlan.slug, runPlan, now, assetIdByKey, channelIdByPlatform);
       runs++;
       trends += runResult.trends;
       ideas += runResult.ideas;
       assets += runResult.assets;
       assetMedia += runResult.assetMedia;
+      posts += runResult.posts;
     }
   }
 
-  return { brandId, formats, runs, trends, ideas, assets, assetMedia };
+  return { brandId, channels: brandPlan.channels.length, formats, runs, trends, ideas, assets, assetMedia, posts };
 }
 
 function executeFormat(db: DatabaseSync, brandId: string, formatPlan: FormatPlanItem, now: () => string): string {
@@ -136,7 +167,8 @@ async function executeRun(
   runPlan: RunPlanItem,
   now: () => string,
   assetIdByKey: Map<string, string>,
-): Promise<{ readonly trends: number; readonly ideas: number; readonly assets: number; readonly assetMedia: number }> {
+  channelIdByPlatform: ReadonlyMap<string, string>,
+): Promise<{ readonly trends: number; readonly ideas: number; readonly assets: number; readonly assetMedia: number; readonly posts: number }> {
   const runId = createRun(db, { brandId, formatId, runKey: runPlan.runKey, cadence: runPlan.cadence, startedAt: runPlan.startedAt }, now);
 
   const trendIdByLegacyId = new Map<string, string>();
@@ -151,6 +183,7 @@ async function executeRun(
 
   let assets = 0;
   let assetMedia = 0;
+  let posts = 0;
   for (const ideaPlan of runPlan.ideas) {
     const ideaCreatedAt = ideaPlan.createdAt;
     const ideaNow = ideaCreatedAt !== undefined ? () => ideaCreatedAt : now;
@@ -208,10 +241,21 @@ async function executeRun(
         );
         assetMedia += assetPlan.media.length;
       }
+
+      if (assetPlan.postUrl !== undefined) {
+        const channelId = channelIdByPlatform.get(assetPlan.postPlatform!);
+        if (channelId === undefined) {
+          throw new Error(
+            `Internal error: Idea "${ideaId}" Asset "${assetPlan.recipe}" resolved to platform "${assetPlan.postPlatform}" but Brand "${brandSlug}" has no created Channel for it — planImport should have refused this plan.`,
+          );
+        }
+        logPost(db, { assetId: saved.id, channelId, postUrl: assetPlan.postUrl, postedAt: assetPlan.postedAt! }, now);
+        posts++;
+      }
     }
   }
 
-  return { trends: trendIdByLegacyId.size, ideas: runPlan.ideas.length, assets, assetMedia };
+  return { trends: trendIdByLegacyId.size, ideas: runPlan.ideas.length, assets, assetMedia, posts };
 }
 
 const RELEASE_STATUSES: ReadonlySet<JobStatusPlan> = new Set<JobStatusPlan>(["awaiting_pick", "done", "failed"]);
@@ -255,22 +299,26 @@ export async function executeImport(db: DatabaseSync, plan: ImportPlan, now: () 
   const assetIdByKey = new Map<string, string>();
   const brandIdBySlug = new Map<string, string>();
 
+  let channels = 0;
   let formats = 0;
   let runs = 0;
   let trends = 0;
   let ideas = 0;
   let assets = 0;
   let assetMedia = 0;
+  let posts = 0;
 
   for (const brandPlan of plan.brands) {
     const result = await executeBrand(db, brandPlan, now, assetIdByKey);
     brandIdBySlug.set(brandPlan.slug, result.brandId);
+    channels += result.channels;
     formats += result.formats;
     runs += result.runs;
     trends += result.trends;
     ideas += result.ideas;
     assets += result.assets;
     assetMedia += result.assetMedia;
+    posts += result.posts;
   }
 
   let jobs = 0;
@@ -286,5 +334,5 @@ export async function executeImport(db: DatabaseSync, plan: ImportPlan, now: () 
     jobs++;
   }
 
-  return { brands: plan.brands.length, formats, runs, trends, ideas, assets, assetMedia, jobs };
+  return { brands: plan.brands.length, channels, formats, runs, trends, ideas, assets, assetMedia, posts, jobs };
 }

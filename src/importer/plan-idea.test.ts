@@ -13,10 +13,15 @@ import assert from "node:assert/strict";
 
 import { planIdea, type PlanIdeaDeps } from "./plan-idea.ts";
 import type { FullLedgerIdea } from "../ledger/ledger.ts";
+import type { KnownPlatform } from "../copy/platform-shape.ts";
 
 const REPO_ROOT = "/Users/CaxtonTaylor/Developer/OrganicGrowth";
 
-function fakeDeps(existingKeys: readonly string[] = [], specs: Readonly<Record<string, Record<string, unknown>>> = {}): PlanIdeaDeps {
+function fakeDeps(
+  existingKeys: readonly string[] = [],
+  specs: Readonly<Record<string, Record<string, unknown>>> = {},
+  brandChannelPlatforms: readonly KnownPlatform[] = [],
+): PlanIdeaDeps {
   return {
     legacyAbsolutePrefix: REPO_ROOT,
     checkoutRoot: REPO_ROOT,
@@ -25,6 +30,7 @@ function fakeDeps(existingKeys: readonly string[] = [], specs: Readonly<Record<s
       digest: async () => ({ sha256: "deadbeef", sizeBytes: 42 }),
     },
     loadSpec: async (specPath) => specs[specPath] ?? null,
+    brandChannelPlatforms: new Set(brandChannelPlatforms),
   };
 }
 
@@ -194,5 +200,97 @@ describe("planIdea — a title-less record degrades its title to the Idea id (mi
     const idea: FullLedgerIdea = { id: "idea-05", run: "2026-W29", status: "suggested", assets: [] };
     const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps());
     assert.equal(result.idea!.title, "idea-05");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// post_url resolution (issue #240)
+// ---------------------------------------------------------------------------
+
+describe("planIdea — an Asset's post_url resolves to a Channel the Brand actually has configured", () => {
+  it("a real facebook.com permalink resolves against a Brand configured for facebook", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-2026-W32-01",
+      run: "2026-W32",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [
+        {
+          recipe: "news-carousel",
+          status: "posted",
+          post_url: "https://www.facebook.com/permalink.php?story_fbid=pfbid0VMYBWh&id=61591885769033",
+          posted_at: "2026-08-04T18:03:10.000Z",
+        },
+      ],
+    };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps([], {}, ["facebook"]));
+    assert.equal(result.problems.length, 0);
+    const asset = result.idea!.assets[0]!;
+    assert.equal(asset.postUrl, "https://www.facebook.com/permalink.php?story_fbid=pfbid0VMYBWh&id=61591885769033");
+    assert.equal(asset.postedAt, "2026-08-04T18:03:10.000Z");
+    assert.equal(asset.postPlatform, "facebook");
+  });
+
+  it("an Asset with no post_url carries none of the three Post fields", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-01",
+      run: "2026-W29",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [{ recipe: "news-carousel", status: "produced" }],
+    };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps([], {}, ["facebook"]));
+    assert.equal(result.problems.length, 0);
+    const asset = result.idea!.assets[0]!;
+    assert.equal(asset.postUrl, undefined);
+    assert.equal(asset.postedAt, undefined);
+    assert.equal(asset.postPlatform, undefined);
+  });
+
+  it("refuses when post_url resolves to a platform the Brand has no configured Channel for", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-01",
+      run: "2026-W29",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [
+        { recipe: "news-carousel", status: "posted", post_url: "https://www.instagram.com/p/abc123/", posted_at: "2026-08-04T18:03:10.000Z" },
+      ],
+    };
+    // This Brand's Channel list only carries facebook — instagram is a real, known platform, just not
+    // one this Brand is configured for.
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps([], {}, ["facebook"]));
+    assert.equal(result.idea, undefined);
+    assert.equal(result.problems.length, 1);
+    assert.match(result.problems[0]!, /idea-01/);
+    assert.match(result.problems[0]!, /instagram/);
+  });
+
+  it("refuses when post_url does not resolve to any known platform at all", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-01",
+      run: "2026-W29",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [{ recipe: "news-carousel", status: "posted", post_url: "https://example.com/post/1", posted_at: "2026-08-04T18:03:10.000Z" }],
+    };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps([], {}, ["facebook"]));
+    assert.equal(result.idea, undefined);
+    assert.equal(result.problems.length, 1);
+    assert.match(result.problems[0]!, /example\.com/);
+  });
+
+  it("refuses when post_url is present but posted_at is missing — never a fabricated timestamp", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-01",
+      run: "2026-W29",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [{ recipe: "news-carousel", status: "posted", post_url: "https://www.facebook.com/permalink/1" }],
+    };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps([], {}, ["facebook"]));
+    assert.equal(result.idea, undefined);
+    assert.equal(result.problems.length, 1);
+    assert.match(result.problems[0]!, /posted_at/);
   });
 });

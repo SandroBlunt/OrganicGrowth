@@ -161,6 +161,125 @@ describe("planImport — happy path: full round trip plus both report-only categ
 });
 
 // ---------------------------------------------------------------------------
+// Channel + Post resolution (issue #240)
+// ---------------------------------------------------------------------------
+
+describe("planImport — a Brand's Channel list is planned, and an Asset's post_url resolves against it", () => {
+  it("plans the Brand's Channel list and resolves a facebook post_url against it", async () => {
+    const files: MiniRepoFile[] = [
+      {
+        path: "data/brands/acme/brand-profile.yaml",
+        content: "niche: test\nchannel:\n  - platform: facebook\n    url: https://www.facebook.com/acme\n    primary: true\n  - platform: instagram\n    url: \"\"\n",
+      },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      {
+        path: "data/brands/acme/ledger.json",
+        content: json({
+          ideas: [
+            {
+              id: "idea-01",
+              run: "2026-W01",
+              format: "news",
+              status: "accepted",
+              recipes: ["news-carousel"],
+              assets: [
+                {
+                  recipe: "news-carousel",
+                  status: "posted",
+                  post_url: "https://www.facebook.com/permalink/1",
+                  posted_at: "2026-01-02T00:00:00Z",
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      { path: "data/brands/acme/ideas/news/2026-W01/idea-01.md", content: "# hi\n" },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      const brand = result.plan.brands[0]!;
+      assert.deepEqual(
+        [...brand.channels].sort((a, b) => a.platform.localeCompare(b.platform)),
+        [
+          { platform: "facebook", url: "https://www.facebook.com/acme", isPrimary: true },
+          { platform: "instagram", url: "", isPrimary: false },
+        ],
+      );
+      const asset = brand.formats[0]!.runs[0]!.ideas[0]!.assets[0]!;
+      assert.equal(asset.postUrl, "https://www.facebook.com/permalink/1");
+      assert.equal(asset.postedAt, "2026-01-02T00:00:00Z");
+      assert.equal(asset.postPlatform, "facebook");
+    });
+  });
+
+  it("a Brand with no configured channel list still plans successfully (channels: [])", async () => {
+    const files: MiniRepoFile[] = [
+      { path: "data/brands/acme/brand-profile.yaml", content: MINIMAL_BRAND_PROFILE },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      { path: "data/brands/acme/ledger.json", content: json({ ideas: [] }) },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true);
+      if (!result.ok) return;
+      assert.deepEqual(result.plan.brands[0]!.channels, []);
+    });
+  });
+
+  it("refuses a Channel entry whose platform is outside KNOWN_PLATFORMS", async () => {
+    const files: MiniRepoFile[] = [
+      { path: "data/brands/acme/brand-profile.yaml", content: "niche: test\nchannel:\n  - platform: myspace\n    url: \"\"\n" },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      { path: "data/brands/acme/ledger.json", content: json({ ideas: [] }) },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, false);
+      if (result.ok) return;
+      assert.ok(result.problems.some((p) => p.includes("myspace")));
+    });
+  });
+
+  it("refuses a post_url resolving to a platform this Brand has no configured Channel for", async () => {
+    const files: MiniRepoFile[] = [
+      { path: "data/brands/acme/brand-profile.yaml", content: "niche: test\nchannel:\n  - platform: facebook\n    url: \"\"\n    primary: true\n" },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      {
+        path: "data/brands/acme/ledger.json",
+        content: json({
+          ideas: [
+            {
+              id: "idea-01",
+              run: "2026-W01",
+              format: "news",
+              status: "accepted",
+              recipes: ["news-carousel"],
+              assets: [
+                { recipe: "news-carousel", status: "posted", post_url: "https://www.instagram.com/p/abc123/", posted_at: "2026-01-02T00:00:00Z" },
+              ],
+            },
+          ],
+        }),
+      },
+      { path: "data/brands/acme/ideas/news/2026-W01/idea-01.md", content: "# hi\n" },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, false);
+      if (result.ok) return;
+      assert.ok(result.problems.some((p) => p.includes("instagram") && p.includes("no configured Channel")));
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Refusal paths
 // ---------------------------------------------------------------------------
 
@@ -357,11 +476,17 @@ describe("planImport — structural smoke test against the REAL mundotip and str
     const { plan } = result;
     let totalIdeas = 0;
     let totalAssets = 0;
+    let totalPosts = 0;
     for (const brand of plan.brands) {
       for (const format of brand.formats) {
         for (const run of format.runs) {
           totalIdeas += run.ideas.length;
-          for (const idea of run.ideas) totalAssets += idea.assets.length;
+          for (const idea of run.ideas) {
+            totalAssets += idea.assets.length;
+            for (const asset of idea.assets) {
+              if (asset.postUrl !== undefined) totalPosts++;
+            }
+          }
         }
       }
     }
@@ -369,6 +494,20 @@ describe("planImport — structural smoke test against the REAL mundotip and str
     assert.equal(totalAssets, 54, "54 Assets across both Brands");
     assert.equal(plan.jobs.length, 66, "66 queue jobs");
     assert.equal(plan.duplicateJobKeys.length, 12, "the 12 duplicate job identity keys, reported not resolved");
+    assert.equal(totalPosts, 7, "the real 7 Straw Motion W32 news-carousel Posts (issue #240)");
+
+    // Every real Post resolves to Facebook — the Brand's own configured Channel, never hardcoded.
+    const strawMotion = plan.brands.find((b) => b.slug === "straw-motion")!;
+    assert.ok(strawMotion.channels.some((c) => c.platform === "facebook"), "Straw Motion's Channel list must include facebook");
+    for (const format of strawMotion.formats) {
+      for (const run of format.runs) {
+        for (const idea of run.ideas) {
+          for (const asset of idea.assets) {
+            if (asset.postUrl !== undefined) assert.equal(asset.postPlatform, "facebook");
+          }
+        }
+      }
+    }
 
     // No absolute path anywhere in a storage key.
     for (const brand of plan.brands) {
