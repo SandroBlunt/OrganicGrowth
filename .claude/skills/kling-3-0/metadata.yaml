@@ -1,5 +1,7 @@
 name: gen-prompting-kling-3-0
 version: 0.2.1
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-04-27
 updated: 2026-07-06
@@ -9,6 +11,7 @@ target_model:
   vendor: kuaishou
   model_id: kling-3.0
   modalities: [text-to-video, image-to-video, multi-reference-element-binding, first-and-last-frame, multi-shot, native-audio]
+  fallbacks: []
 modes:
   - id: T2V
     name: text-to-video
@@ -33,6 +36,11 @@ modes:
     multi_character_coreference: true
     languages: [chinese, english, japanese, korean, spanish]
     dialects: true
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -88,6 +96,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Kling 3.0 prompt across all modes including Multi-Shot and audio attribution.
@@ -100,6 +112,10 @@ references:
     purpose: Distilled summary of the Kling 3.0 vendor docs and Pro Prompting Manual.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://klingaio.com/blogs/kling-3-release
   additional_sources:
@@ -110,3 +126,5 @@ source_tracking:
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside

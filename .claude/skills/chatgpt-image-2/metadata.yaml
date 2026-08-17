@@ -1,5 +1,7 @@
 name: gen-prompting-chatgpt-image-2
 version: 0.1.1
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-04-27
 updated: 2026-07-06
@@ -9,6 +11,7 @@ target_model:
   vendor: openai
   model_id: gpt-image-2
   modalities: [text-to-image, image-to-image, multi-reference-edit]
+  fallbacks: []
 modes:
   - id: T2I
     name: text-to-image
@@ -17,6 +20,11 @@ modes:
   - id: MR
     name: multi-reference-edit
     practical_max_references: 4
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -45,6 +53,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a gpt-image-2 prompt from the five clauses.
@@ -57,9 +69,15 @@ references:
     purpose: Distilled summary of the official OpenAI prompt guide with sources.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://developers.openai.com/api/docs/models/gpt-image-2
   fetched_at: 2026-04-27
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside

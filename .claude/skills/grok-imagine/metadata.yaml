@@ -1,5 +1,7 @@
 name: gen-prompting-grok-imagine
 version: 0.1.0
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-07-17
 updated: 2026-07-17T12:00:00Z
@@ -11,6 +13,7 @@ target_model:
   suite: grok-imagine-1-5
   modalities: [text-to-image, image-edit]
   front_ends: [grok.com, x, grok-imagine-app]
+  fallbacks: []
 modes:
   - id: T2I
     name: text-to-image
@@ -59,6 +62,11 @@ signature_strengths:
   - moderation-aware-prompting
   - change-plus-keep-editing
   - lighting-led-direction
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -99,6 +107,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Grok Imagine image prompt (T2I and edit), enforcing subject-first order, required lighting + named style for T2I, the change + keep + one-reference rule for edit, the 30-80 word budget (hard ceiling 100), the moderation-safety scanner with safer rephrasings and an --override-safety escape hatch, the negation guard, and aspect-ratio validation.
@@ -111,6 +123,10 @@ references:
     purpose: Distilled summary of the Grok Imagine image prompting guidance with source URLs, fetch date, and known uncertainties.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://pixeldojo.ai/guides/xai-video-prompting-guide
   additional_sources:
@@ -129,3 +145,5 @@ source_tracking:
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside

@@ -85,4 +85,10 @@ export const NODE_FS_ALLOW_LIST: readonly string[] = [
   "src/importer/load-trends.ts",
   "src/importer/plan-asset-media.ts",
   "src/importer/plan.ts",
+
+  // --- Catalogue-entry installer (issue #212): copies a .claude/skills/<entry>/ folder (and, per that
+  //     entry's own shared_references.install declaration, the shared .claude/references/ folder) into
+  //     a destination directory for install verification — a real filesystem-copy utility, the same
+  //     class as src/media-backup/copy.ts above, not a domain store or an existing port.
+  "src/claude-skills/install-catalogue-entry.ts",
 ] as const;

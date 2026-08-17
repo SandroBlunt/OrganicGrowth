@@ -33,6 +33,18 @@
  * paths; the two files were then fixed to `../../references/` (matching the other nine `metadata.yaml`
  * files), and the guard was re-run and observed GREEN. See this change's `handoff.md`
  * "Build Report — Round 2" for the exact commands and transcripts of both runs.
+ *
+ * **Issue #212: extended (not duplicated) with a second check — manifest completeness.** A second
+ * `describe` block below walks every `.claude/skills/<entry>/` directory that has a `metadata.yaml` (the
+ * existing structural signal that already distinguishes the 11 model-prompting Skills from the 5
+ * workflow Skills — no hard-coded name list to go stale), reads that entry's `SKILL.md` and
+ * `metadata.yaml`, hands them to the PURE `findIncompleteManifests` (`manifest-completeness-scan.ts`),
+ * and asserts zero incomplete-manifest defects. The expected `licence`/`owner` values are derived from
+ * the repository's own real `LICENSE` file (via the pure `parseLicenceFile`), so the cross-check can
+ * never quietly drift from what the repository actually says. Per the issue's own instruction — "the
+ * dangling-reference half already shipped in #252 — extend that guard, do not build a second one" — this
+ * lives in the SAME file, not a new one. See `docs/catalogue-manifest-format.md` for the full field list
+ * and `handoff.md` for the field-by-field, one-at-a-time red/green non-vacuousness transcripts.
  */
 
 import { describe, it } from "node:test";
@@ -43,10 +55,48 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { extractAllReferenceCitations, findDanglingReferenceCitations, type SourceFile } from "./reference-citation-scan.ts";
+import {
+  findIncompleteManifests,
+  parseLicenceFile,
+  type CatalogueEntrySource,
+  type ManifestCheckOptions,
+} from "./manifest-completeness-scan.ts";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
 const SKILLS_ROOT = join(REPO_ROOT, ".claude", "skills");
+
+/** The `purpose` (SKILL.md description) length floor — see `docs/catalogue-manifest-format.md`'s
+ *  "Threshold justification" section: the real corpus's shortest description is 359 characters
+ *  (`chatgpt-image-2`), so 100 is under a third of that real minimum, comfortably clear of every real
+ *  entry, while still catching a genuine placeholder ("Generates prompts." is 19 characters). */
+const MINIMUM_PURPOSE_LENGTH = 100;
+
+/** The corpus-size floor for the manifest-completeness walk — today's exact count of model-prompting
+ *  Skills (each has a `metadata.yaml`; the 5 workflow Skills do not). A floor, not an equality, so a
+ *  legitimate future 12th entry does not break this guard, while a walk that silently finds fewer than
+ *  today's real count (a directory-discovery bug, a botched merge) still fails loudly. */
+const MINIMUM_CATALOGUE_ENTRY_COUNT = 11;
+
+/** Every immediate subdirectory of `.claude/skills/` that has its own `metadata.yaml` — the entries this
+ *  ticket calls "catalogue entries" (the 11 model-prompting Skills), distinct from the 5 workflow Skills
+ *  that carry no `metadata.yaml` and are out of scope by the issue's own text. */
+async function collectCatalogueEntrySources(): Promise<readonly CatalogueEntrySource[]> {
+  const entries = await readdir(SKILLS_ROOT, { withFileTypes: true });
+  const sources: CatalogueEntrySource[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const metadataPath = join(SKILLS_ROOT, entry.name, "metadata.yaml");
+    if (!existsSync(metadataPath)) continue;
+    const skillMdPath = join(SKILLS_ROOT, entry.name, "SKILL.md");
+    const [metadataYamlContent, skillMdContent] = await Promise.all([
+      readFile(metadataPath, "utf8"),
+      readFile(skillMdPath, "utf8"),
+    ]);
+    sources.push({ skillName: entry.name, skillMdContent, metadataYamlContent });
+  }
+  return sources.sort((a, b) => a.skillName.localeCompare(b.skillName));
+}
 
 /** Recursively collects every `.md`/`.yaml` file under `dir`, as repo-relative, forward-slash paths. */
 async function collectCitingFiles(dir: string): Promise<string[]> {
@@ -115,5 +165,39 @@ describe("dangling reference-citation guard (issue #252)", () => {
     ]) {
       assert.ok(citedNames.has(name), `expected at least one citation of ${name}`);
     }
+  });
+});
+
+describe("catalogue entry manifest completeness (issue #212)", () => {
+  it("every catalogue entry (a .claude/skills/ subdirectory with its own metadata.yaml) carries a complete manifest", async () => {
+    const licenceContent = await readFile(join(REPO_ROOT, "LICENSE"), "utf8");
+    const licence = parseLicenceFile(licenceContent);
+    assert.ok(licence !== undefined, "expected the repository's own LICENSE file to parse (spdxId + holder)");
+
+    const sources = await collectCatalogueEntrySources();
+
+    // Sanity: the corpus this guard walks is non-trivial (11 model-prompting Skills today) — a guard
+    // that silently found zero (or far fewer) entries would be trivially, uselessly green.
+    assert.ok(
+      sources.length >= MINIMUM_CATALOGUE_ENTRY_COUNT,
+      `expected at least ${MINIMUM_CATALOGUE_ENTRY_COUNT} catalogue entries (a .claude/skills/ ` +
+        `subdirectory with its own metadata.yaml), found ${sources.length} — the corpus this guard ` +
+        `walks looks wrong, not merely all-complete`,
+    );
+
+    const options: ManifestCheckOptions = {
+      expectedOwner: licence!.holder,
+      expectedLicence: licence!.spdxId,
+      minimumPurposeLength: MINIMUM_PURPOSE_LENGTH,
+    };
+    const defects = findIncompleteManifests(sources, options);
+
+    assert.deepEqual(
+      defects,
+      [],
+      `Incomplete catalogue-entry manifest field(s) found: ${JSON.stringify(defects, null, 2)}. ` +
+        `Every .claude/skills/<entry>/ with a metadata.yaml must carry a complete manifest per ` +
+        `docs/catalogue-manifest-format.md (issue #212).`,
+    );
   });
 });

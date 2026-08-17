@@ -1,5 +1,7 @@
 name: gen-prompting-veo-3-1
 version: 0.1.2
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-04-27
 updated: 2026-07-06
@@ -9,6 +11,7 @@ target_model:
   vendor: google
   model_id: veo-3.1
   modalities: [text-to-video, image-to-video, ingredients-to-video, first-and-last-frame, audio, add-remove-object]
+  fallbacks: []
 modes:
   - id: T2V
     name: text-to-video
@@ -41,6 +44,11 @@ techniques:
     pattern: "Ambient noise: <background>"
   - id: fl-handoff-from-nano-banana-2
     name: fl-handoff-from-nano-banana-2
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -87,6 +95,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Veo 3.1 prompt across all modes.
@@ -99,6 +111,10 @@ references:
     purpose: Distilled summary of the Veo 3.1 vendor docs and Google Cloud blog.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-veo-3-1
   additional_sources:
@@ -111,3 +127,5 @@ source_tracking:
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside

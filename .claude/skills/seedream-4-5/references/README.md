@@ -20,5 +20,12 @@ Specifically:
 - `../../../references/prompt-discipline.md`
 - `../../../references/production-design.md`
 
-For a fully standalone copy of this skill, use the `portable/image/
-seedream-4-5/` variant.
+To install this skill outside this repository, copy this skill's
+whole folder (`.claude/skills/seedream-4-5/`) together with the shared
+`.claude/references/` folder into the destination, in the same
+relative layout (a `.claude/` root holding both `skills/seedream-4-5/`
+and `references/`) — otherwise the citations above dangle. This
+skill's own `metadata.yaml` records the dependency
+(`shared_references`) and the install decision
+(`install: copy-alongside`); vendoring a private copy into every skill
+was considered and rejected — see `docs/catalogue-manifest-format.md`.
