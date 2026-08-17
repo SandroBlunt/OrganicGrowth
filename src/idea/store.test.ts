@@ -347,6 +347,120 @@ describe("createIdea — the openly-readable-source rule is enforced at the stor
       assert.equal("trendId" in idea, false);
     });
   });
+
+  it("never pre-validates trendId itself — an unknown/dangling trendId falls through to the schema's own FOREIGN KEY, never IdeaValidationError (deliberate, mirrors runId/brandId/formatId)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      assert.throws(
+        () =>
+          createIdea(db, {
+            runId: fixture.runId,
+            brandId: fixture.brandId,
+            formatId: fixture.formatId,
+            trendId: "does-not-exist",
+            title: "Test Idea",
+            brief: "A brief.",
+            hookType: VALID_HOOK_TYPE,
+            theme: VALID_THEME,
+          }),
+        /FOREIGN KEY/,
+      );
+    });
+  });
+
+  it("rejects a paywalled trendId when sourceUrls holds only a single blank string", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const trendId = createTrend(db, { runId: fixture.runId, label: "FT scoop", isPaywalled: true });
+      assert.throws(
+        () =>
+          createIdea(db, {
+            runId: fixture.runId,
+            brandId: fixture.brandId,
+            formatId: fixture.formatId,
+            trendId,
+            title: "Test Idea",
+            brief: "A brief.",
+            hookType: VALID_HOOK_TYPE,
+            theme: VALID_THEME,
+            sourceUrls: [""],
+          }),
+        IdeaValidationError,
+      );
+      assert.deepEqual(listIdeasForRun(db, fixture.runId), []);
+    });
+  });
+
+  it("rejects a paywalled trendId when sourceUrls holds only a whitespace-only entry", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const trendId = createTrend(db, { runId: fixture.runId, label: "FT scoop", isPaywalled: true });
+      assert.throws(
+        () =>
+          createIdea(db, {
+            runId: fixture.runId,
+            brandId: fixture.brandId,
+            formatId: fixture.formatId,
+            trendId,
+            title: "Test Idea",
+            brief: "A brief.",
+            hookType: VALID_HOOK_TYPE,
+            theme: VALID_THEME,
+            sourceUrls: ["   "],
+          }),
+        IdeaValidationError,
+      );
+      assert.deepEqual(listIdeasForRun(db, fixture.runId), []);
+    });
+  });
+
+  it("rejects a paywalled trendId when EVERY sourceUrls entry is blank or whitespace-only (mixed blanks)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const trendId = createTrend(db, { runId: fixture.runId, label: "NYT scoop", isPaywalled: true });
+      assert.throws(
+        () =>
+          createIdea(db, {
+            runId: fixture.runId,
+            brandId: fixture.brandId,
+            formatId: fixture.formatId,
+            trendId,
+            title: "Test Idea",
+            brief: "A brief.",
+            hookType: VALID_HOOK_TYPE,
+            theme: VALID_THEME,
+            sourceUrls: ["", "   ", ""],
+          }),
+        IdeaValidationError,
+      );
+      assert.deepEqual(listIdeasForRun(db, fixture.runId), []);
+    });
+  });
+
+  it("accepts a paywalled trendId when sourceUrls mixes one blank entry with one real entry", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const trendId = createTrend(db, { runId: fixture.runId, label: "WIRED scoop", isPaywalled: true });
+      const id = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        trendId,
+        title: "Test Idea",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        sourceUrls: ["   ", "https://an-open-outlet.example/covers-the-same-story"],
+      });
+      const idea = getIdea(db, id) as IdeaRecord;
+      assert.deepEqual(idea.sourceUrls, ["   ", "https://an-open-outlet.example/covers-the-same-story"]);
+    });
+  });
 });
 
 describe("getIdea / listIdeasForRun — null-for-unknown, [] for none, never throw", () => {

@@ -26,6 +26,13 @@
  * exception to "before any SQL": what stays true, matching hookType/theme, is that no WRITE (`INSERT`)
  * ever runs before every validation (including this one) has passed.
  *
+ * The rule is "there is a source a human could actually open", not merely "the array is non-empty"
+ * (QA round-1 finding, issue #228): a blank (`""`) or whitespace-only (`"   "`) `sourceUrls` entry is
+ * treated as ABSENT, never as satisfying the rule, so `sourceUrls: [""]` is rejected exactly like
+ * `sourceUrls: []`. This does NOT extend to requiring the entry be URL-shaped — see
+ * `assertOpenlyReadableSource`'s own doc comment for why (real Brief data reviewed, finding recorded
+ * there and in this issue's `handoff.md`).
+ *
  * `acceptIdea`/`rejectIdea` are the two Review outcomes (CONTEXT.md "Review": "the gate between a
  * `suggested` and an `accepted` Idea"); `selectIdeaRecipes` is Review's Recipe-selection half, recording
  * every Recipe OFFERED — chosen or declined-with-reason — as its own `idea_recipe` row, atomically
@@ -76,14 +83,38 @@ function assertValidTheme(value: string): asserts value is Theme {
 }
 
 /**
+ * `true` when `sourceUrls` holds at least one entry that is not blank/whitespace-only after trimming —
+ * "there is a source a human could actually open", not merely "the array is non-empty" (issue #228, QA
+ * round-1 finding: `sourceUrls: [""]`/`["   "]` was accepted as if it were a real source). Deliberately
+ * does NOT also require the entry look URL-shaped (e.g. `new URL(...)` parsing or an `https?://` prefix
+ * check): a survey of the real Briefs under every Brand's `ideas` directory (recursively, every Brief
+ * markdown file — the only real-world evidence available, since no Idea row anywhere yet carries a
+ * populated `sourceUrls`; #204's importer is the only thing that will ever populate it from real data,
+ * and it has not run) found the "## Source(s)" section is mostly clean `https://` links but ALSO
+ * legitimately carries non-URL editorial/verification notes as their own bullets (e.g. "(No distinct
+ * official X corporate blog post was found for this specific feature.)", "Verification note
+ * (2026-08-11): sanders.senate.gov returns 403 to automated fetchers...")
+ * — commentary ABOUT sourcing, not itself a citation. #204's importer, not this store, is the thing that
+ * will decide how to parse that prose into clean `sourceUrls` entries; inventing a URL-shape check here,
+ * ahead of that importer and not asked for by any acceptance criterion, risks rejecting legitimate
+ * imported data in a way nobody has designed for yet (see this issue's `handoff.md` Round-2 Build for
+ * the full finding). No other `{ db }` store in this codebase validates URL format/content either.
+ */
+function hasAtLeastOneReadableSource(sourceUrls: readonly string[] | undefined): boolean {
+  if (sourceUrls === undefined) return false;
+  return sourceUrls.some((url) => url.trim().length > 0);
+}
+
+/**
  * The openly-readable-source rule (issue #228, `.claude/agents/idea-strategist.md` lines 69-74): a
  * paywalled Trend is a momentum signal, not a citation — an Idea that points at one via `trendId` needs
- * at least one openly readable `sourceUrls` entry of its own before it can be briefed. Deliberately does
- * NOT reject merely because `trendId` is paywalled: an Idea carrying its own `sourceUrls` is accepted
- * regardless. An unset `trendId`, or a `trendId` the caller passed but this database has no committed
- * Trend row for, is never blocked by this rule — an unknown `trendId` is left for the schema's own
- * FOREIGN KEY to reject on `INSERT`, mirroring `createIdea`'s existing not-pre-validated convention for
- * `runId`/`brandId`/`formatId`.
+ * at least one openly readable `sourceUrls` entry of its own (blank/whitespace-only entries do not
+ * count — `hasAtLeastOneReadableSource` above) before it can be briefed. Deliberately does NOT reject
+ * merely because `trendId` is paywalled: an Idea carrying its own non-blank `sourceUrls` entry is
+ * accepted regardless. An unset `trendId`, or a `trendId` the caller passed but this database has no
+ * committed Trend row for, is never blocked by this rule — an unknown `trendId` is left for the
+ * schema's own FOREIGN KEY to reject on `INSERT`, mirroring `createIdea`'s existing not-pre-validated
+ * convention for `runId`/`brandId`/`formatId`.
  */
 function assertOpenlyReadableSource(
   db: DatabaseSync,
@@ -93,12 +124,12 @@ function assertOpenlyReadableSource(
   if (trendId === undefined) return;
   const trend = getTrend(db, trendId);
   if (trend === null) return;
-  if (trend.isPaywalled && (sourceUrls === undefined || sourceUrls.length === 0)) {
+  if (trend.isPaywalled && !hasAtLeastOneReadableSource(sourceUrls)) {
     throw new IdeaValidationError(
       `trendId ${JSON.stringify(trendId)} points at a paywalled Trend, and this Idea carries no ` +
-        `sourceUrls of its own. A paywalled Trend is a momentum signal, not a citation — the Idea needs ` +
-        `at least one openly readable sourceUrl before it can be briefed (see ` +
-        `.claude/agents/idea-strategist.md's openly-readable-source rule, issue #228).`,
+        `non-blank sourceUrls of its own. A paywalled Trend is a momentum signal, not a citation — the ` +
+        `Idea needs at least one openly readable sourceUrl (not blank/whitespace-only) before it can be ` +
+        `briefed (see .claude/agents/idea-strategist.md's openly-readable-source rule, issue #228).`,
     );
   }
 }
