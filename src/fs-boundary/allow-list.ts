@@ -85,4 +85,12 @@ export const NODE_FS_ALLOW_LIST: readonly string[] = [
   "src/importer/load-trends.ts",
   "src/importer/plan-asset-media.ts",
   "src/importer/plan.ts",
+
+  // --- The local read-only Library's own media byte-serving route (issue #210): a produced Asset's
+  //     media lives on local disk, keyed by a root-relative storage_key resolved against the Brand's
+  //     own media_root (ADR-0029) — this is that read-time resolution + a plain readFile. Read-only by
+  //     construction: this module has no write function at all, and the Library's own dedicated tests
+  //     (src/library/read-only.test.ts) prove the whole viewer never writes through its database
+  //     handle either.
+  "src/library/media.ts",
 ] as const;

@@ -22,6 +22,7 @@ import {
   releaseJob,
   requeueJob,
   findNextQueuedJob,
+  listAllJobs,
   type JobRecord,
 } from "./job-store.ts";
 
@@ -289,6 +290,30 @@ describe("findNextQueuedJob — the FIFO-oldest-queued read the worker's drain l
       const id = createJob(db, { assetId, brandId });
       claimJob(db, id, "worker-1", 30000);
       assert.equal(findNextQueuedJob(db), null);
+    });
+  });
+});
+
+describe("listAllJobs — every Job in the database, across every Brand/Asset (issue #210)", () => {
+  it("returns [] for an empty database", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      assert.deepEqual(listAllJobs(db), []);
+    });
+  });
+
+  it("returns every Job, oldest-enqueued first, regardless of status", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, assetId } = await seedAsset(db);
+      const later = createJob(db, { assetId, brandId }, () => "2026-08-17T09:05:00.000Z");
+      const earlier = createJob(db, { assetId, brandId }, () => "2026-08-17T09:00:00.000Z");
+      claimJob(db, later, "worker-1", 30000);
+      releaseJob(db, later, "failed");
+
+      const all = listAllJobs(db);
+      assert.deepEqual(all.map((j) => j.id), [earlier, later]);
+      assert.equal(all.find((j) => j.id === later)!.status, "failed");
     });
   });
 });

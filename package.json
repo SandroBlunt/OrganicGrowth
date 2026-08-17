@@ -23,6 +23,7 @@
     "backup-media": "tsx src/commands/backup-media.ts",
     "import-data": "tsx src/importer/cli.ts",
     "backfill-hook-theme": "tsx src/commands/backfill-hook-theme.ts",
+    "library": "tsx src/commands/run-library-viewer.ts",
     "media-host-smoke": "tsx src/media-host/live/smoke.ts",
     "space-driver-smoke": "tsx src/space-driver/live/smoke.ts",
     "apify-smoke": "tsx src/apify/live/smoke.ts"

@@ -131,6 +131,14 @@ export function listPostsForAsset(db: DatabaseSync, assetId: string): readonly P
   return rows.map(toPostRecord);
 }
 
+/** Every `post` row in the database, across every Asset/Channel, oldest first — `[]` for an empty
+ *  database (issue #210, the local read-only Library: proving "7 posts" against the real import needs
+ *  the whole table, not per-Asset lookups). */
+export function listAllPosts(db: DatabaseSync): readonly PostRecord[] {
+  const rows = db.prepare(`SELECT * FROM post ORDER BY created_at ASC`).all() as unknown as PostRow[];
+  return rows.map(toPostRecord);
+}
+
 /** Updates ONE Post's `tracking_state` in place (e.g. as `/track-performance`'s SQL-backed sibling
  *  moves it through its own tracking lifecycle). Throws a clear, named error for an unknown `postId`,
  *  changing nothing. */

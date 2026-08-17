@@ -18,10 +18,20 @@
  * Report's Known Limits.
  */
 declare module "node:sqlite" {
+  /** The subset of the real constructor's options bag this codebase actually passes — verified against
+   *  the real runtime (`readOnly`, issue #210: opening the local read-only Library's connection with
+   *  `readOnly: true` makes a stray write THROW at the SQLite layer itself, verified by hand against
+   *  Node 22.23.0 — never merely a convention this codebase promises to honor). */
+  export interface DatabaseSyncOptions {
+    readonly readOnly?: boolean;
+  }
+
   /** A synchronous, in-process SQLite database handle. */
   export class DatabaseSync {
-    /** Opens (creating if absent) the database file at `path`, or an in-memory database for `:memory:`. */
-    constructor(path: string);
+    /** Opens (creating if absent, unless `options.readOnly`) the database file at `path`, or an
+     *  in-memory database for `:memory:`. With `options.readOnly: true`, the file must already exist
+     *  (a missing file throws) and every write against the returned handle throws. */
+    constructor(path: string, options?: DatabaseSyncOptions);
     /** Runs one or more `;`-separated SQL statements with no bound parameters and no result rows. */
     exec(sql: string): void;
     /** Compiles `sql` into a reusable, bindable prepared statement. */

@@ -251,6 +251,14 @@ export function findNextQueuedJob(db: DatabaseSync): JobRecord | null {
   return row ? toJobRecord(row) : null;
 }
 
+/** Every `job` row in the database, across every Brand/Asset, oldest-enqueued first — `[]` for an empty
+ *  database (issue #210, the local read-only Library: the Run/queue screen shows every job's state
+ *  without reading `data/queue.json`, so it needs the whole table). */
+export function listAllJobs(db: DatabaseSync): readonly JobRecord[] {
+  const rows = db.prepare(`SELECT * FROM job ORDER BY enqueued_at ASC`).all() as unknown as JobRow[];
+  return rows.map(toJobRecord);
+}
+
 /**
  * Atomically revives a `failed` job back to `queued` (C4's SQL-backed sibling — a transient failure
  * must not permanently strand production), clearing any stale claim. Returns the updated `JobRecord` on
