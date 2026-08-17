@@ -45,7 +45,11 @@ globs: *
    outside its own reviewed allow-list. Since issue #233, a second guard (`src/store-write-boundary/`)
    fails the build when a new, un-audited production module imports a SQL-backed store's write function
    directly, outside `src/command-surface/` and its own reviewed allow-list — the same ratchet shape, a
-   different target, closing the gap #205's own QA verdict demonstrated live.
+   different target, closing the gap #205's own QA verdict demonstrated live. Since issue #235, that same
+   guard also names a store's file-backed write function when one exists under its own distinct name
+   (e.g. `src/production-spec/store.ts`'s `saveSpec`, alongside its SQL-backed `saveProductionSpec`), and
+   resolves a namespace import (`import * as store from ...`) as importing every one of that store's write
+   functions — closing two further gaps a store-write bypass could otherwise hide in.
 8. **Never fabricate.** If Apify returns nothing or errors, say so and stop — don't invent trends,
    ideas, or metrics.
 9. **Respect the brand profile.** Banned words and brand-safety rules in `brand-profile.yaml` are hard

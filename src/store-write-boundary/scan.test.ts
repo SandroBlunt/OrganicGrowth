@@ -59,6 +59,11 @@ describe("STORE_WRITE_FUNCTIONS", () => {
     assert.equal(ideaWrites!.includes("getIdea"), false);
     assert.equal(ideaWrites!.includes("listIdeasForRun"), false);
   });
+
+  it("names BOTH the SQL-backed and the file-backed write for production-spec/store.ts (issue #235)", () => {
+    const specWrites = STORE_WRITE_FUNCTIONS["src/production-spec/store.ts"];
+    assert.deepEqual([...specWrites!].sort(), ["saveProductionSpec", "saveSpec"].sort());
+  });
 });
 
 describe("findStoreWriteImports", () => {
@@ -90,6 +95,67 @@ describe("findStoreWriteImports", () => {
     ]);
   });
 
+  it("matches a real import site of a store's FILE-BACKED write function, resolved to its store module (issue #235)", () => {
+    // The exact shape src/production-spec/compose.ts's real import line takes — proving the guard's new
+    // file-backed coverage detects it the same way it already detects a SQL-backed write. This module is
+    // NOT compose.ts (a different, hypothetical caller), so unlike compose.ts's own real import (which is
+    // allow-listed with a stated reason — see allow-list.ts), this is a genuine, un-audited violation.
+    const files: readonly SourceFile[] = [
+      {
+        path: "src/production-spec/some-other-caller.ts",
+        content: 'import { saveSpec, specPathFor } from "./store.ts";\n',
+      },
+    ];
+    assert.deepEqual(findStoreWriteImports(files), [
+      {
+        path: "src/production-spec/some-other-caller.ts",
+        store: "src/production-spec/store.ts",
+        functions: ["saveSpec"],
+      },
+    ]);
+  });
+
+  it("matches a namespace import site, reporting EVERY one of that store's write functions — proving the guard has something real to fail on for a namespace-import bypass (issue #235)", () => {
+    // The exact shape issue #235's own body names as evading the named-import matcher: a namespace
+    // import of a tracked store module, followed by a call through the alias. A namespace import binds
+    // every export, so every one of idea/store.ts's write functions is reported, not just createIdea.
+    const files: readonly SourceFile[] = [
+      {
+        path: "src/qa-demo/namespace-bypass-write.ts",
+        content: 'import * as store from "../idea/store.ts";\nexport function doBypass() { return store.createIdea; }\n',
+      },
+    ];
+    assert.deepEqual(findStoreWriteImports(files), [
+      {
+        path: "src/qa-demo/namespace-bypass-write.ts",
+        store: "src/idea/store.ts",
+        functions: ["createIdea", "acceptIdea", "rejectIdea", "selectIdeaRecipes"],
+      },
+    ]);
+  });
+
+  it("matches a namespace import even with no `type` keyword and a single-quoted specifier", () => {
+    const files: readonly SourceFile[] = [
+      {
+        path: "src/some/module.ts",
+        content: "import * as trendStore from '../trend/store.ts';\n",
+      },
+    ];
+    assert.deepEqual(findStoreWriteImports(files), [
+      { path: "src/some/module.ts", store: "src/trend/store.ts", functions: ["createTrend"] },
+    ]);
+  });
+
+  it("does NOT match a namespace import of a module that resolves to no tracked store", () => {
+    const files: readonly SourceFile[] = [
+      {
+        path: "src/commands/run-pipeline.ts",
+        content: 'import * as readline from "node:readline";\n',
+      },
+    ];
+    assert.deepEqual(findStoreWriteImports(files), []);
+  });
+
   it("does NOT match a bare doc-comment mention of a write function's name, with no real import", () => {
     const files: readonly SourceFile[] = [
       {
@@ -107,6 +173,18 @@ describe("findStoreWriteImports", () => {
         // and listBrands is a READ anyway, but this proves the specifier (not the bare name) decides.
         path: "src/commands/run-pipeline.ts",
         content: 'import { listBrands } from "../brand/resolver.ts";\n',
+      },
+    ];
+    assert.deepEqual(findStoreWriteImports(files), []);
+  });
+
+  it("does NOT match a bare doc-comment mention of a namespace-import shape, with no real import statement", () => {
+    const files: readonly SourceFile[] = [
+      {
+        path: "src/some/module.ts",
+        content:
+          "/** A namespace import of the idea store, followed by store dot createIdea, would bypass the " +
+          "named-import matcher. */\nexport const x = 1;",
       },
     ];
     assert.deepEqual(findStoreWriteImports(files), []);
@@ -134,6 +212,26 @@ describe("findStoreWriteImports", () => {
       {
         path: "src/idea/store.test.ts",
         content: 'import { createIdea } from "./store.ts";\n',
+      },
+    ];
+    assert.deepEqual(findStoreWriteImports(files), []);
+  });
+
+  it("excludes a file under src/command-surface/, even for a namespace import of a store write function (issue #235)", () => {
+    const files: readonly SourceFile[] = [
+      {
+        path: "src/command-surface/ideas.ts",
+        content: 'import * as ideaStore from "../idea/store.ts";\n',
+      },
+    ];
+    assert.deepEqual(findStoreWriteImports(files), []);
+  });
+
+  it("excludes a *.test.ts file, even for a namespace import of a store write function (issue #235)", () => {
+    const files: readonly SourceFile[] = [
+      {
+        path: "src/idea/store.test.ts",
+        content: 'import * as self from "./store.ts";\n',
       },
     ];
     assert.deepEqual(findStoreWriteImports(files), []);
