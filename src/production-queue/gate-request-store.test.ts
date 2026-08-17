@@ -11,7 +11,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import { runMigrations } from "../db/migrate.ts";
 import { withTempDb } from "../db/test-support.ts";
-import { seedAsset } from "./fixtures/seed-job.ts";
+import { seedAsset } from "../db/fixtures/seed-chain.ts";
 import { createJob } from "./job-store.ts";
 import {
   createGateRequest,

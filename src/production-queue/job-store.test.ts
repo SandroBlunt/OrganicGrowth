@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 
 import { runMigrations } from "../db/migrate.ts";
 import { withTempDb } from "../db/test-support.ts";
-import { seedAsset, FIXTURE_RECIPE as RECIPE } from "./fixtures/seed-job.ts";
+import { seedAsset, FIXTURE_RECIPE as RECIPE } from "../db/fixtures/seed-chain.ts";
 import { createJob, getJob, listJobsForComposite, claimJob, releaseJob, requeueJob, type JobRecord } from "./job-store.ts";
 
 describe("createJob / getJob", () => {

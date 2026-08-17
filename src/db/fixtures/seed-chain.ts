@@ -1,8 +1,13 @@
 /**
  * Shared test fixture — NOT a `*.test.ts` file (excluded from `npm test`'s glob), imported by
- * `job-store.test.ts`, `gate-request-store.test.ts`, and `claim-concurrency.test.ts` so the
- * brand -> format -> run -> idea -> asset seed chain a `job` row needs is written once, not
- * hand-copied three times. Mirrors `src/asset/db-store.test.ts`'s own `seedIdea` convention.
+ * `src/production-queue/job-store.test.ts`, `src/production-queue/gate-request-store.test.ts`,
+ * `src/production-queue/claim-concurrency.test.ts`, `src/post/store.test.ts`, and
+ * `src/performance/store.test.ts` so the brand -> format -> run -> idea -> asset (-> channel) seed
+ * chain these SQL-backed stores need is written once, not hand-copied five times. Mirrors
+ * `src/asset/db-store.test.ts`'s own `seedIdea` convention. Lives under `src/db/fixtures/` (not any one
+ * of its callers' own directories) because it is genuinely cross-cutting — issue #203's own JobStore,
+ * GateRequestStore, PostStore, and the Performance time-series stores all sit on top of the SAME
+ * brand/format/run/idea/asset chain.
  */
 
 import { randomUUID } from "node:crypto";
@@ -10,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import { createBrand } from "../../brand/store.ts";
+import { createChannel } from "../../channel/store.ts";
 import { createFormat } from "../../format/store.ts";
 import { HOOK_TYPES } from "../../vocabulary/hook-type.ts";
 import { THEMES } from "../../vocabulary/theme.ts";
@@ -46,4 +52,14 @@ export async function seedAsset(
   await writeAsset(ideaId, FIXTURE_RECIPE, { status: "queued" }, { db });
   const assets = (await loadIdeaAssets(ideaId, { db })) as readonly DbAssetRecord[];
   return { brandId, ideaId, assetId: assets[0]!.id };
+}
+
+/** `seedAsset` plus one Facebook Channel on the SAME Brand — what `post`/`metric_snapshot`/
+ *  `channel_baseline`/`performance_score` fixtures need on top of an Asset. */
+export async function seedAssetAndChannel(
+  db: DatabaseSync,
+): Promise<{ readonly brandId: string; readonly ideaId: string; readonly assetId: string; readonly channelId: string }> {
+  const seeded = await seedAsset(db);
+  const channelId = createChannel(db, { brandId: seeded.brandId, platform: "facebook", isPrimary: true });
+  return { ...seeded, channelId };
 }
