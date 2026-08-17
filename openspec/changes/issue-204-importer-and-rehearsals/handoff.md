@@ -596,3 +596,171 @@ carries this to the Operator should paste the blockquote above verbatim rather t
 See Round 1's own "Known limits" section — nothing in this round changes any of those decisions. AC11
 (the real import) remains Operator-gated and was NOT run in this round either; no database file, no
 copy of `data/`, and no evidence of a real run exist anywhere in this branch or the worktree.
+
+---
+
+## QA Verdict — Round 2: PASS
+
+Re-verified inside the same worktree, branch `issue-204-importer-and-rehearsals`, HEAD `d983654`
+(previous QA HEAD `b45c868` + one commit, "Issue #204 round 2: fix both QA defects"). No product code,
+test, spec, or ledger was edited. One read-only sanity check of the live checkout's `git status` (no
+file contents read, no writes) confirmed the same pre-existing uncommitted work-in-progress noted in
+Round 1 is still the only thing there — nothing new has drifted since.
+
+### Suite result — actually run, actually green
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type-check (app) | `npx tsc -p tsconfig.json --noEmit` | clean, no output |
+| Type-check (build) | `npx tsc -p tsconfig.build.json --noEmit` | clean, no output |
+| Full suite | `npm test` | **3249 / 848 suites / 0 fail** |
+| Docs suite | `npm run test:docs` | **295 / 80 suites / 0 fail** (unchanged from Round 1) |
+| OpenSpec, all | `npx openspec validate --all --strict` | **60 passed, 0 failed** (unchanged from Round 1) |
+| OpenSpec, this change | `npx openspec validate issue-204-importer-and-rehearsals --strict` | `Change 'issue-204-importer-and-rehearsals' is valid`; header is still `## ADDED Requirements` only — no MODIFIED-section archive trap |
+
+**The +9 tests / +1 suite delta is fully accounted for by this round's own new tests**, confirmed by
+reading every diff, not just totals: `production-queue/store.test.ts` +2, `importer/load-queue-
+strict.test.ts` +2, `ledger/load-full-ideas.test.ts` +4 (one new `describe` block — the +1 suite),
+`importer/plan.test.ts` +1 = 9. Nothing else in the diff (`git diff --stat b45c868..d983654`, 10 files)
+touches an existing test's assertions.
+
+### Defect 1 — HIGH — registered, confirmed fixed (not just conveniently unbroken)
+
+`src/store-write-boundary/scan.ts`'s `STORE_WRITE_FUNCTIONS` now carries `"src/run/store.ts":
+["createRun"]`. Three independent checks, not just re-reading the diff:
+
+1. **The guard test itself is green with the new entry present**: `node --import tsx --test
+   src/store-write-boundary/*.test.ts` → 21/5/0 fail.
+2. **`createRun`'s only real caller claim, verified true rather than convenient**: `grep -rn "createRun"
+   src --include="*.ts" | grep -v test` shows exactly one non-command-surface, non-test file touching
+   it — `src/importer/execute.ts` — and it imports `createRun` from `../command-surface/index.ts` (the
+   re-export), never from `src/run/store.ts` directly. The only direct importer of `src/run/store.ts`'s
+   `createRun` is `src/command-surface/tenancy.ts` itself, which `findStoreWriteImports`'s
+   `isCommandSurfacePath` check exempts from scanning at the FILE level, before write-function names are
+   even considered — so this registration's practical effect was never about `tenancy.ts` (already
+   exempt either way); it is entirely about closing the door on a FUTURE non-command-surface caller.
+3. **Proved the guard genuinely SEES the store now**, not just that the test happens to pass: ran the
+   real, exported `findStoreWriteImports` (read-only, a pure function, no repo file touched or written)
+   against a synthetic in-memory file — `{ path: "src/some-future-module/oops.ts", content: 'import
+   { createRun } from "../run/store.ts";' }` — and it correctly returned one violation naming
+   `src/run/store.ts`/`createRun`. Before this round's fix this would have returned `[]` silently
+   (confirmed by the identical reasoning applied to Round 1's `STORE_WRITE_FUNCTIONS`, which had no
+   entry for that module at all).
+
+**Defect 1: FIXED.** The registration needed no `allow-list.ts` entry because it is genuinely true, not
+merely convenient, that the only existing direct importer is already inside `src/command-surface/`.
+
+### Defect 2 — MEDIUM — both sub-parts fixed; judged the cross-check-at-the-caller design as asked
+
+**`parseQueueState`'s sibling silent-degrade branch is real.** Round 1 only named the `!isObject(raw)`
+branch; reading `src/production-queue/store.ts` now confirms a second, analogous branch existed
+alongside it — `const jobsRaw = Array.isArray(raw.jobs) ? raw.jobs : [];` silently treated a present-
+but-non-array `jobs` key as an empty array, with no warning. Both branches now call `console.warn` with
+a distinct, greppable message (`"dropping non-object top-level value..."` /
+`"top-level \"jobs\" is not an array..."`). **The warnings surface exactly where a caller would see
+them**: `src/importer/load-queue-strict.ts`'s existing `console.warn`-capturing technique needed zero
+changes (confirmed by reading it — unchanged in this diff) and the two new tests in
+`load-queue-strict.test.ts` prove both new warnings are captured through that exact path, ending in
+`result.warnings.length === 1` each time — i.e. `planImport` would now refuse on either shape instead of
+silently loading an empty queue. Confirmed via the full suite (19 pre-existing `store.test.ts` tests
+unmodified and still green, +2 new ones) that this is purely additive.
+
+**The ledger design call — narrowing the fix to `planBrand`, not touching `loadFullIdeas`/`loadIdeas` —
+is a defensible, correctly-scoped call.** Answering the three specific questions:
+
+1. **Does the cross-check catch every shape of silent skip the loader can perform, or only the no-id
+   case?** More than just the no-id case, but not literally everything. `countRawIdeaRecords` returns
+   the RAW `ideas` array's length, taken BEFORE any of `loadFullIdeas`'s own two `.filter()` calls
+   (`isObject`, then `typeof r.id === "string"`) run — so a mismatch between it and `fullIdeas.length`
+   fires whenever EITHER filter drops a record, not only the no-id one (a non-object entry in the
+   array would also be caught). I confirmed this by reading both functions side by side, not just the
+   docstring's claim. There IS one residual gap, and the developer's own new test proves it rather than
+   hiding it: `"returns 0 for a ledger with no ideas array at all, never throws"` — because
+   `countRawIdeaRecords` shares the IDENTICAL top-level guard (`!isObject(raw) || !Array.isArray(raw.ideas)`)
+   that `loadFullIdeas` itself uses, a ledger whose `ideas` key is missing entirely, or isn't an array at
+   all, makes BOTH functions silently agree at `0`/`[]` — the cross-check cannot see that one specific,
+   more catastrophic shape. This is a real, narrow, low-severity residual note, not a live risk: I
+   independently confirmed both real ledgers have a well-formed `ideas` array (already verified in Round
+   1), and a ledger.json malformed at that level would very likely already break `loadIdeas`/`loadReport`/
+   `/report` elsewhere before ever reaching the importer. Not blocking; worth a line in a future ticket
+   that revisits `countRawIdeaRecords`.
+2. **Is `countRawIdeaRecords` genuinely reading through the same primitive, not a second raw reader?**
+   Yes — confirmed by reading the code: it calls `readLedgerJson(path, brand)`, the exact same private
+   function `loadFullIdeas` calls, defined once in `src/ledger/ledger.ts`. No new `JSON.parse`/`readFile`
+   call was added anywhere. This satisfies AC1.
+3. **Does the refusal name the record, or only report a number mismatch?** **Only a number mismatch,
+   correctly and honestly described as such.** The pushed problem reads `Brand "acme": ledger.json's raw
+   ideas array has 2 record(s) but loadFullIdeas only returned 1 — at least one record was silently
+   dropped (most likely one with no string id) and must be fixed in the source ledger...` — it names the
+   Brand, the two counts, and a probable cause, but it cannot name the specific dropped record because,
+   by construction, the record that got dropped is the one with no `id` left to name it by (no index is
+   plumbed through either). This is a real, structural limitation, not an oversight — a full fix would
+   require `countRawIdeaRecords` (or a sibling) to return enough of the raw array to diff against
+   `fullIdeas`'s ids, which is more invasive than this round's stated scope. The new spec.md Scenario is
+   honest about this too — it says "naming the Brand and the mismatch," not "naming the record," even
+   though it sits under a Requirement titled "...causes a refusal naming the record." I'd call this a
+   partial fit to that Requirement's title for this one Scenario specifically, but not a misrepresentation
+   — the Scenario's own body doesn't overclaim.
+
+**Ruling: both sub-parts of Defect 2 are FIXED.** The `parseQueueState` fix is complete and airtight for
+its stated scope. The ledger fix is a reasonable, well-documented, correctly-narrow engineering trade-off
+that closes the live-triggering gap I found in Round 1 without destabilizing `loadFullIdeas`'s other real
+callers — with one honestly-surfaced, non-live-triggered residual edge case (whole-`ideas`-array
+malformation) and one honestly-scoped limitation (names the Brand + count, not the specific record, since
+the record has no name left). Neither residual is a new defect I'm raising for this round — both are
+correctly documented in the code/tests as-is and don't threaten the real run given today's verified-clean
+real data.
+
+### The operational finding — confirmed in the runbook, unambiguous
+
+Present, verbatim, as an explicit blockquote in this file's own "Round-2 Build → The operational finding"
+section above (quoted instruction: re-copy `data/`, re-run the rehearsal immediately before the real
+import, against a copy taken while no other session is writing to the ledger/queue files, and compare the
+fresh reconciliation against the one already posted). It is explicitly called out as the thing to paste
+verbatim to the Operator, not a footnote. I re-checked the live checkout's `git status` just now (read-
+only, no file contents read) and the SAME pre-existing uncommitted edit from Round 1 is still the only
+thing present — nothing has drifted further since Round 1, so the operational finding's premise still
+holds exactly as stated.
+
+### Everything else from Round 1 — re-confirmed, not re-derived from scratch (per instruction)
+
+- **AC11 still not run**: `git status --short` in the worktree is clean; `find . -iname "*.db"` (excluding
+  `node_modules`) finds nothing; no evidence of a real run anywhere in the branch.
+- **No live `data/` mutated**: only read-only commands were used against the live checkout this round
+  (`git status`, no file reads/writes).
+- **`src/db/schema.ts`/`src/db/migrate.ts` still untouched**: `git diff main...HEAD -- src/db/schema.ts
+  src/db/migrate.ts` is empty — `MIGRATION_1`/`MIGRATION_2` still byte-for-byte frozen.
+- AC1–AC10, AC12 and all always-rules/Magnific-fake checks from Round 1 stand unchanged — this round's
+  diff (10 files) touches only the two defect-fix areas plus the handoff and spec.md; nothing else in
+  the importer, command surface, or run store changed.
+
+### New defects found this round
+
+None. Both Round-1 defects are fixed; the two residual notes above (whole-array-malformed ledger shape;
+"names the count, not the record" for that one specific refusal) are documented as accepted, low-severity
+trade-offs, not new defects — they don't threaten AC9/AC10/AC12's real numbers and the code/spec are
+honest about their own limits.
+
+### Final judgement — the Operator can safely approve the real run
+
+**PASS. Nothing here blocks merge or bringing the Operator the reconciliation.**
+
+Both defects from Round 1 are genuinely fixed, not just made to look fixed: Defect 1 was proven fixed by
+directly exercising the guard's own detection logic against a synthetic future-violation, not just by
+re-reading a green test; Defect 2 was fixed with an honest, correctly-scoped design (additive warnings at
+the loader; a narrow, independently-derived cross-check at the one caller that needs it) that I verified
+actually closes the gap it claims to close, including checking for and finding the one place its coverage
+genuinely stops. All five ground-truth numbers (61/54/66/8/12, plus AC7's 191) stand from Round 1's
+independent re-derivation — nothing in this round touched the data path, only the refusal/reporting
+paths around it, and the full suite (3249/848/0 fail), docs suite, and both OpenSpec validations are all
+actually green.
+
+**What the Operator should check in the reconciliation before saying yes** (unchanged from Round 1, now
+formally in the runbook — repeating here since this is the final round):
+
+1. Re-copy `data/` and re-run the rehearsal ONE more time, immediately before the real import, against a
+   copy taken while no other session is writing to `data/brands/*/ledger.json` or `data/queue.json`.
+2. Compare that fresh reconciliation against the one already posted on issue #204 — confirm it still
+   reads 61 Ideas / 54 Assets / 66 jobs / 8 dead media paths / 12 duplicate job keys, or explicitly
+   reconcile any drift before proceeding.
+3. Nothing else — the code-side gate (this QA verdict) is now clear.
