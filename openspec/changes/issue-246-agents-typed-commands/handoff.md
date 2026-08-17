@@ -800,3 +800,173 @@ rewritten to the path-scoped form plus a new Scenario proving the two-way live v
   stand unchanged** — this round did not re-verify those live (they invoke external binaries, not a
   shell builtin like `set`, so they were outside this round's own re-check scope per task 9.4's finding).
 - All earlier-round known limits not superseded by the above still stand.
+
+---
+
+## QA Verdict — Round 3: PASS
+
+### Suite result
+
+- `openspec validate issue-246-agents-typed-commands --strict` → valid. Green.
+- `openspec validate --all --strict` → `Totals: 63 passed, 0 failed (63 items)`. Matches exactly (unchanged
+  from Round 2 — this round only refined the existing `agent-command-surface` capability).
+- `npm test` → `# tests 3401 / # suites 893 / # pass 3401 / # fail 0`. Matches exactly (Round 2's
+  3395/893 floor + this round's 6 new assertions).
+- `npm run test:docs` → `# tests 327 / # suites 84 / # pass 327 / # fail 0`. Matches exactly.
+- The 12 tests/docs-tests pinning these six files, run directly together → `# tests 206 / # suites 43 /
+  # pass 206 / # fail 0`. Matches exactly: 200 (Round 2) + 6 (this round's own new assertions,
+  independently confirmed by running `tool-boundary.docs-test.ts` alone — it grew from 22 `it()` blocks
+  to 28) = 206. Nothing pre-existing regressed.
+
+All reported numbers are real and reproduce exactly.
+
+### Defects 5 and 6 — status
+
+| # | Status | Verification |
+|---|---|---|
+| 5 (High, `Bash(set -a *)` non-functional) | **Fixed, independently re-verified live** | `trend-scout.md` and `performance-tracker.md` both now grant exactly `Bash(set -a; [ -f .env ] && . ./.env; set +a)` (no wildcard) — confirmed by direct file read. I re-swept every OTHER granted `Bash(<pattern>)` pattern across all five Bash-retaining agents by hand and, for the ones with any plausible shell-special-casing risk, live-tested them myself, independently of the developer's own testing (see "The pattern sweep" below). Found no other classifier-blocked pattern. |
+| 6 (Low-Medium, residual Write/Edit claim + tighter grant) | **Fixed, independently re-verified live, both directions** | `qa.md`'s `tools:` now grants `Edit(openspec/changes/**/handoff.md)`, not a bare `Edit`. I live-tested this myself in a fresh isolated session: (a) an Edit against a real, glob-matching `handoff.md` — allowed, file changed; (b) an Edit against an unrelated file at the scratch-repo root — denied, file unchanged; (c) an Edit against a DIFFERENTLY-NAMED file inside the correct `openspec/changes/<slug>/` subtree (not called `handoff.md`) — also denied, file unchanged. All three outcomes are correct: qa can write where its contract requires and nowhere else, confirmed on both the "is it too narrow" and "is it too broad" axes, not just the allow case. |
+
+### The pattern sweep — independent result, not taken on the developer's word
+
+I re-derived this myself rather than accepting the Round-3 Build Report's "`set` was the only one, in
+exactly the two places" claim at face value. I enumerated every distinct `Bash(<pattern>)` entry across
+all five Bash-retaining agents (git subcommands, `gh issue view`, `npm test`/`npm run <x>`, `npx tsx`,
+`node --import tsx --test`, `openspec validate`, `curl`) and live-tested a representative, diverse sample
+in a fresh isolated scratch session (never touching the Operator's own global config), covering every
+distinct SHAPE present in the six files:
+
+- `Bash(npx tsx *)` and `Bash(node --import tsx --test *)` (developer's two "run arbitrary code" patterns,
+  the ones with the highest a priori risk of special treatment, per Anthropic's own general "package
+  runners/interpreters are close to arbitrary code execution" caution) → both ran clean, `permission_denials: []`.
+- `Bash(git add *)` and `Bash(git commit *)` (write-capable git — a plausible candidate for extra scrutiny
+  given `git commit` mutates repository state) → both ran clean, `permission_denials: []`.
+- `Bash(gh issue view *)` and `Bash(openspec validate *)` → both ran clean, `permission_denials: []`.
+- `Bash(curl *)` was already confirmed clean during Round 2's own verification.
+
+None of these — spanning every distinct external-binary shape in the six files — triggered any
+classifier-level block, structurally consistent with the developer's own explanation (a hard block was
+specific to `set`, a shell builtin that mutates environment state; `git`/`gh`/`npm`/`npx`/`node`/`curl`/
+`openspec` are all separate executables, not shell builtins, so the same mechanism does not apply to
+them). **Ruling: the sweep is correct. `set` was genuinely the only shell-builtin-anchored pattern in the
+six files, and it appeared in exactly the two places already fixed. Not whack-a-mole — the fix
+generalizes.**
+
+### qa's path-scoped Edit — ruling: correctly scoped, neither too broad nor too narrow
+
+Verified live, both directions (see table above). Additionally confirmed by reading the file: the glob
+`openspec/changes/**/handoff.md` requires the literal `openspec/changes/` prefix (so a `handoff.md`
+placed anywhere else in the repo, e.g. at the root or under `src/`, would not match — a real, structural
+narrowing, not just "any file named handoff.md anywhere"), and requires the literal filename `handoff.md`
+(so a differently-named file even inside the correct `openspec/changes/<slug>/` directory is excluded —
+confirmed by my own negative test (c) above, which the developer's own Round-3 verification did not
+explicitly report testing). This means qa's one legal write is now bounded on both axes required by its
+own contract ("never edits product code" / "only write, ever, is appending the QA Verdict to the Slice
+Handoff"): a bare directory-prefix grant would have been too broad (could edit any file under
+`openspec/changes/`, including a sibling proposal.md or spec.md — product-adjacent, not product code, but
+still outside qa's stated contract); a single-issue-literal grant would have been too narrow (would break
+on every future issue's differently-slugged `handoff.md`, since qa.md is a durable, reusable file across
+issues, not rewritten per invocation) — the double-star form is the correct middle point, and it is the
+one actually shipped. **Ruling: correct, sound, no defect.**
+
+### The honest limitation — ruling: accurately stated
+
+The new doc comment atop `tool-boundary.docs-test.ts` states plainly: *"What this suite deliberately does
+NOT and CANNOT prove: that the exact-match grant actually authorises the command at runtime... That
+requires a live Claude Code permission call... outside what a hermetic, no-live-call suite can exercise."*
+This is exactly accurate — it matches my own independent finding precisely: a `*.docs-test.ts` can only
+ever assert on the TEXT of a `tools:`/`description:` line, never on how Claude Code's own permission
+engine will actually treat that text at runtime. The comment does not overclaim coverage it lacks, and it
+correctly distinguishes what IS mechanically provable (no regression to the known-broken
+`Bash(set...*)`-shaped wildcard; qa's Edit grant is exactly the one correct path-scoped string) from what
+ISN'T (live classifier approval).
+
+I mutation-tested the new static guards myself, against the real files (not synthetic fixtures), via four
+in-memory mutations (never touching the actual files on disk):
+
+1. `trend-scout.md` regressed back to the exact old broken shape, `Bash(set -a *)` → the "no wildcard
+   anchored on `set`" guard fired correctly.
+2. The same regression with extra internal whitespace, `Bash(set  -a  *)` (testing the regex isn't
+   brittle to spacing) → fired correctly.
+3. `qa.md`'s `Edit(openspec/changes/**/handoff.md)` widened back to a bare `Edit` → the path-scope guard
+   fired correctly.
+4. `qa.md`'s grant widened to a broader-but-still-plausible-looking glob, `Edit(openspec/**)` → the
+   exact-glob guard fired correctly (it checks for the SPECIFIC string, not just "is scoped somehow").
+
+All four fired as expected. **Ruling: the stated limitation is accurate, and the static guard genuinely
+works, not vacuously.**
+
+### Editorial rules — re-verified a third time, not assumed carried over
+
+Diffed `eee0beb` → `a88d163` (this round's own commits) directly, per file:
+
+- `developer.md`, `idea-strategist.md`, `producer.md` — **zero lines changed** (`git diff eee0beb a88d163
+  -- .claude/agents/developer.md .claude/agents/idea-strategist.md .claude/agents/producer.md` is empty).
+  Every prior finding about these three files stands untouched.
+- `trend-scout.md`, `performance-tracker.md`, `qa.md` — each touched only in its frontmatter `tools:` line
+  and its Bash-rationale/Edit-rationale Guardrails prose; confirmed by listing every `@@` diff-hunk line
+  range per file. None overlaps `trend-scout.md`'s primary-source/paywalled block (the only one of the
+  three files that holds a protected editorial rule at all — `performance-tracker.md` and `qa.md` hold
+  none of the four protected categories).
+- No rule was reworded, compressed, or "improved" in this round's diff either. A third consecutive pass
+  over the same files — precisely the scenario worth checking rather than assuming, since repetition is
+  exactly where a rule quietly drifts — did not disturb any protected rule.
+
+### Always-rules + Magnific-fake checks (re-confirmed this round)
+
+- No product code under `src/` touched other than the further-edited, purely-additive
+  `tool-boundary.docs-test.ts`. `git diff eee0beb a88d163 --stat -- .claude/skills/ .claude/commands/` is
+  empty — still hermetic, still no live-Space/MCP reach in the shipped diff. (My own live permission
+  testing this round, like Round 2's, happened entirely in throwaway scratch directories outside this
+  repo, using only the `--allowedTools` CLI flag — never the Operator's global config, never this repo's
+  own Magnific/Zoho MCP tools.) Ledger-as-source-of-truth, explicit-attribution, relative-not-absolute,
+  public-metrics-only, generate-never-publish: unaffected by this round's changes.
+
+### New defects found this round
+
+None. Every claim in the Round-3 Build Report was independently re-derived (not taken on trust) and held
+up: the exact-match fix works live; the pattern sweep is complete; the path-scoped Edit grant is correct
+on both axes; the static guard's honesty and its actual firing are both verified.
+
+### Has this converged?
+
+Yes. The pattern across three rounds narrowed strictly each time: Round 1 was a genuine architectural
+gap (no scoping mechanism used at all — an "achievable and dodged" design miss). Round 2 fixed the
+design correctly but shipped one narrow, empirically-discoverable runtime-behavior gap (one wildcard
+pattern, on one shell builtin, in two files) — a verification-depth miss, not a repeat of Round 1's
+mistake. Round 3 fixed that gap with genuine, repeated, independently-reproduced live verification, used
+the same rigor to sweep for (and rule out) other instances before being asked twice, and went further
+than the two named defects required (correcting a related but distinct claim, applying a tighter grant
+no AC demanded). Each round's remaining defect was strictly smaller in scope and blast radius than the
+last, and this round's own fixes were independently confirmed by a DIFFERENT set of live tests than the
+developer ran (I tested `git add`/`git commit`/`gh issue view`/`openspec validate` live myself, plus a
+third negative case on qa's Edit scope the Round-3 report did not explicitly report testing) and reached
+the same conclusion by an independent path. I found no structural issue still unfound — this is
+convergence, not a deeper pattern still hiding.
+
+### Ruling
+
+**PASS.** All defects across all three rounds (the original six acceptance criteria, plus defects 1–6
+raised across Rounds 1 and 2) are now genuinely fixed and independently, empirically verified — not
+inferred from documentation, not taken on the build's word. Numbers reproduce exactly at every checkpoint.
+Editorial rules are confirmed untouched across three separate passes over the same files. The one
+remaining, honestly-disclosed limitation (a hermetic suite cannot prove live-classifier approval) is
+accurately described and is a genuine platform boundary, not a gap in this build's own diligence — the
+mitigation (live re-verification before writing a fix down) was applied correctly and repeatedly.
+
+**Recommend merge.** Nothing here should block it.
+
+### For #247 (the Recipe Skill prose sweep) — carried forward and updated
+
+- Everything noted in Round 1's "Note for #247" still applies (typed-accessor citation discipline,
+  verbatim-rule-preservation discipline, the anti-rhetoric rules' real location in
+  `.claude/skills/write-social-copy/SKILL.md`).
+- **New lesson from Rounds 2–3, specifically for any tool-permission work #247 does:** if #247's Skill
+  files ever carry a `Bash`/`Edit`/`Write` grant of their own, do not assume a pattern that reads as
+  correct actually authorises the command — Claude Code hard-blocks wildcard grants anchored on
+  environment/shell-state-mutating builtins (`set` confirmed here; treat `export`, `cd`, `alias`, `eval`,
+  `source`/`.`, `unset`, `trap` as plausible candidates for the same treatment until individually
+  live-tested) regardless of the wildcard's suffix — grant the exact, literal, full command instead where
+  a builtin is unavoidable. Verify live, in an isolated scratch session, before writing the grant down;
+  never infer permission behavior from a document's general subject matter, even a real and relevant one
+  (this is the single lesson that cost this slice two extra rounds).
