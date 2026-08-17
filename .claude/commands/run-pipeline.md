@@ -123,8 +123,8 @@ how you invoke it selects the Brand:
 - **Readiness gate is HERE only.** The granular commands (`/run-trends`, `/review-ideas`,
   `/pick-cast`, `/log-post`, `/queue`, `/report`, `/track-performance`) are unguarded power-tools.
 - **Generate, never publish.** The conductor pauses for Publish — it never posts to Facebook itself.
-- **Resumable.** Loop state is in `data/brands/<slug>/ledger.json` + `data/queue.json`. Re-invoking
-  `/run-pipeline <brand>` at any time picks up from the correct gate.
+- **Resumable.** Loop state is in the Brand's own ledger (`src/ledger/ledger.ts`) + `data/queue.json`.
+  Re-invoking `/run-pipeline <brand>` at any time picks up from the correct gate.
 - **No duplicated logic.** The conductor delegates to existing modules: `resolveBrand`, `resolvePhase`,
   `classify`, `checkConfig`, `enqueueOnAccept`, and the granular commands.
 - **The `/rename` hint (step 3) is a Brand-level cosmetic suggestion, not the Run id.** It prints the

@@ -28,13 +28,15 @@ produces is unchanged; only WHERE the procedure lives has moved.
 
 ## Inputs — load both; STOP if the brief cannot be read
 
-1. **Brand hard rules** — `data/brands/<slug>/brand-profile.yaml`, read via
+1. **Brand hard rules** — the Brand's own `brand-profile.yaml`, read via
    `src/production-spec/brand-profile.ts`'s `loadBannedWords`: the Brand's banned words, a hard
    filter on every field you author. (Copy — caption/hashtags/CTA — is composed later, out of the
    Space, by the Recipe's own shared copy step; not by this Skill; ADR-0012.)
 2. **The Idea brief** — the accepted Idea's title, angle, character concepts (if the Brief supplies
-   any), narrative beats, and any real companies/products it names (`data/brands/<slug>/ideas/<format>/
-   <run>/idea-NN.md`). If the brief cannot be read, **STOP** and report; never invent one.
+   any), narrative beats, and any real companies/products it names, resolved via
+   `src/format/brief-path.ts`'s `resolveBriefPathCandidates` (the ledger's own recorded `brief_path`
+   wins; only a record with none falls back to a reconstructed Format-namespaced or legacy path). If
+   the brief cannot be read, **STOP** and report; never invent one.
 
 ## Steps
 
@@ -112,9 +114,8 @@ Shape the result to `src/production-spec/contract.ts`'s `ProductionSpec`
 (`{ character_concepts, clips, thumbnails, companies? }` — no `post_copy` field; media instructions
 only, ADR-0012; `companies` OMITTED when step 4 found none) and write it via
 `src/production-spec/store.ts`'s `saveSpec` to the path
-`specPathFor(ideaId, run, ideasRoot, "character-explainer-with-cast")` —
-`data/brands/<slug>/ideas/<format>/<run>/idea-NN.character-explainer-with-cast.spec.json`, sitting
-beside the Brief.
+`specPathFor(ideaId, run, ideasRoot, "character-explainer-with-cast")` (the Format-namespaced Ideas
+directory, sitting beside the Brief).
 
 Completion: the Spec passes `auditAuthorPhase` and is saved at that path.
 

@@ -21,7 +21,8 @@ globs: *
    Recipe. Never infer which post came from which idea/recipe (see `docs/adr/0011`).
 6. **Rejection reasons are logged verbatim.** v1 records them and does **not** auto-apply them to
    future suggestions.
-7. **State lives in files, behind a store boundary.** Per Brand under `data/brands/<slug>/`:
+7. **State lives in files, behind a store boundary.** Per Brand (resolved via `resolveBrand(slug)`,
+   `src/brand/resolver.ts`, never a hand-built path):
    `brand-profile.yaml`, `seeds.yaml`, `formats/<format>.yaml`, `ideas/<format>/<run>/` (legacy
    pre-Format runs sit at `ideas/<run>/`; a `cadence: daily` Format's Run instead nests under
    `ideas/<format>/<ISO-week>/<weekday>-<DD>-<month>/`, ADR-0023, `runIdeasDirFor` — a recorded

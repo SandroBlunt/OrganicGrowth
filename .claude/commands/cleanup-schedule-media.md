@@ -34,8 +34,9 @@ credits, hermetic build.
    Brand: "Schedule Batch cleanup for Brand: `<brand>`."
 2. **Run** `npm run cleanup-schedule-media <brand>` (or call `cleanupScheduleMediaCommand()` in
    `src/commands/cleanup-schedule-media.ts`). It:
-   - **Scans** every `zoho-manifest.json` under `data/brands/<slug>/ideas/`, recursively, across every
-     Run and every Format — the manifest is the cleanup contract (PRD #140).
+   - **Scans** every `zoho-manifest.json` under the Brand's own `ideas/` tree (`resolveBrand(brand)`,
+     `src/brand/resolver.ts`), recursively, across every Run and every Format — the manifest is the
+     cleanup contract (PRD #140).
    - **Decides**, per Asset entry, whether it is due: not already recorded as cleaned (no `cleaned_at`
      yet) AND its `scheduled_at` is more than 1 day in the past.
    - **Deletes** each due entry's hosted S3 keys through the injected Media Host.

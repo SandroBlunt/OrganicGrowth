@@ -28,7 +28,7 @@ when nothing specific is identifiable, never guess one.
 
 ## Inputs — load all three; STOP if the baseline document or the brief is missing
 
-1. **Brand hard rules** — `data/brands/<slug>/brand-profile.yaml`, read via
+1. **Brand hard rules** — the Brand's own `brand-profile.yaml`, read via
    `src/production-spec/brand-profile.ts`'s `loadBannedWords`/`loadCopyRules`: banned words, required
    CTA/hashtags. (Copy — the YouTube title + description — is composed later, out of this Recipe's
    render step entirely, by this Recipe's own copy step; ADR-0012. There is no watermark step here —
@@ -39,9 +39,10 @@ when nothing specific is identifiable, never guess one.
    **Read it every run and follow its style — never reconstruct it from memory.** If
    `loadBaselinePrompt` returns `found: false` (any reason — `"not-declared"`, `"malformed"`, or
    `"dangling"`), **STOP** and report the reason; never author a script without it.
-3. **The Idea brief** — the accepted Idea's angle, hook concept, talking points, and sources
-   (`data/brands/<slug>/ideas/<format>/<run>/idea-NN.md`). If the brief cannot be read, **STOP** and
-   report; never invent one.
+3. **The Idea brief** — the accepted Idea's angle, hook concept, talking points, and sources, resolved
+   via `src/format/brief-path.ts`'s `resolveBriefPathCandidates` (the ledger's own recorded
+   `brief_path` wins; only a record with none falls back to a reconstructed Format-namespaced or
+   legacy path). If the brief cannot be read, **STOP** and report; never invent one.
 
 ## Steps
 
@@ -106,8 +107,8 @@ Completion: `auditNewsShortScriptAuthorPhase(...).ok` is `true`.
 Shape the result to `src/production-spec/news-short-script-contract.ts`'s `NewsShortScriptSpec`
 (`{ beats: [{ role, text, source_url, media_url?, show_cue, curiosity_queries }] }`, ordered hook ->
 story* -> cta) and write it via `src/production-spec/store.ts`'s `saveSpec` to the path
-`specPathFor(ideaId, run, ideasRoot, "news-short-script")` —
-`data/brands/<slug>/ideas/<format>/<run>/idea-NN.news-short-script.spec.json`, sitting beside the Brief.
+`specPathFor(ideaId, run, ideasRoot, "news-short-script")` (the Format-namespaced Ideas directory,
+sitting beside the Brief).
 
 Completion: the Spec passes the checklist from step 2 and is saved at that path.
 

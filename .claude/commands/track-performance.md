@@ -13,8 +13,8 @@ chosen Recipe, for this Brand's Ideas with status `posted` or `tracking` — ADR
 anytime — Performance is a moving number until a post matures.
 
 **Per-Asset, per-Recipe (issue #56).** Production state — and now Post/Performance state — lives on
-each Idea's per-Recipe **Asset** (`data/brands/<slug>/ledger.json`, `Idea.assets[]`), not on a flat
-per-Idea scalar. One Idea can carry SEVERAL posted Assets (one per chosen Recipe) at once, each with
+each Idea's per-Recipe **Asset** (the Brand's own ledger, `src/ledger/ledger.ts`, `Idea.assets[]`), not
+on a flat per-Idea scalar. One Idea can carry SEVERAL posted Assets (one per chosen Recipe) at once, each with
 its own `post_url`/`performance_score`/`status` — tracking always updates the ONE Asset a metrics pull
 is for, keyed `(Idea, Recipe)`, never inferred and never collapsed onto the other Recipe's Asset.
 
@@ -45,7 +45,7 @@ sanctioned way to pull real metrics — running this command for real is now the
    active Brand: "Tracking performance for Brand: `<brand>`."
 2. **Run** `npm run track-performance <brand> [idea-id]` (or call `trackPerformanceCommand()` in
    `src/commands/track-performance.ts`). It:
-   - **Selects** Brand `<brand>`'s ledger Ideas (from `data/brands/<slug>/ledger.json`) and, for each,
+   - **Selects** Brand `<brand>`'s ledger Ideas (via `src/ledger/ledger.ts`) and, for each,
      every Asset with a `post_url` and status `posted` or `tracking` — one selection PER (Idea, Recipe),
      never per Idea (`src/performance/selection.ts`). Passing `<idea-id>` FORCES a re-pull of every one
      of that Idea's Assets, including an already-`scored` one.
@@ -61,8 +61,11 @@ sanctioned way to pull real metrics — running this command for real is now the
    - Updates that ONE Asset (`metrics`, `performance_score`, `status` per the maturity rule above —
      `tracking` while the Post is < 7 days old, `scored` once it is 7+ days old, decided from THAT
      Asset's OWN `posted_at` — `src/performance/maturity.ts` — `tracked_at`, `history`) via
-     `AssetStore.writeAsset` in `data/brands/<slug>/ledger.json`. A sibling Asset for a DIFFERENT Recipe
-     of the same Idea is left untouched by this write.
+     `AssetStore.writeAsset` (`src/asset/store.ts`), on the Brand's own ledger. Shaped the way
+     command-surface's `recordPerformanceSnapshot`/`recordPerformanceScore`
+     (`src/command-surface/performance.ts`) record Performance, the sanctioned target once Performance
+     moves onto the SQL-backed pipeline; today's operative write is the ledger's own Asset record
+     (rule 7). A sibling Asset for a DIFFERENT Recipe of the same Idea is left untouched by this write.
    - Also refreshes that SAME Asset's `post.json` (in its `idea-NN.<recipe>.output/` bundle — issue
      #112) from the ledger via `src/asset/output-bundle.ts`'s `refreshPostJson` — a GENERATED view,
      never a second store; a skipped Asset's `post.json` (if any) is left untouched.
@@ -73,8 +76,9 @@ sanctioned way to pull real metrics — running this command for real is now the
    recent scored posts' `metrics`, across every Recipe's Assets — falling back to whatever has been
    measured at all before anything has matured) and stamp `updated_at`. There is exactly one Channel
    baseline per Brand — never one per Recipe.
-4. **Optional enrichment:** if a Meta Content export is present in `data/brands/<slug>/your-data/`,
-   fold in Saves / Net-follows / watch-through by matching on Permalink.
+4. **Optional enrichment:** if a Meta Content export is present in the Brand's own `your-data/`
+   directory (`resolveBrand(brand)`, `src/brand/resolver.ts`), fold in Saves / Net-follows /
+   watch-through by matching on Permalink.
 5. **Report:** a table (Brand: `<brand>`) of Idea · Recipe · Post · Performance Score · headline
    metrics · vs baseline; call out winners and misses; note how the baseline shifted (this is what
    sharpens next week's ideas for Brand `<brand>`). Also note the Idea's Fit Score as a SEPARATE,
@@ -83,9 +87,9 @@ sanctioned way to pull real metrics — running this command for real is now the
 
 ## Guardrails
 - **Brand is explicit** — `<brand>` is required; never fall back to a default Brand.
-- All ledger reads/writes are scoped to `data/brands/<slug>/ledger.json`, and land on the ONE Asset the
-  metrics pull is actually for — sibling Assets of the same Idea (a different chosen Recipe) are
-  untouched.
+- All ledger reads/writes go through the Brand's own ledger (`src/ledger/ledger.ts`), and land on the
+  ONE Asset the metrics pull is actually for — sibling Assets of the same Idea (a different chosen
+  Recipe) are untouched.
 - **Public metrics only** via Apify (see `docs/adr/0001`). No Saves/follows/watch-through unless a
   Meta export is supplied.
 - **Relative, not absolute** — always score vs the Brand's own SINGLE Channel baseline; never a

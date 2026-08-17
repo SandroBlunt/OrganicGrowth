@@ -62,8 +62,8 @@ credits, hermetic build.
    `/cleanup-schedule-media <brand>`.
 3. **Run** `npm run export-schedule <brand> <format> <run> <start-date> [posts-per-day]` (or call
    `exportScheduleCommand()` in `src/commands/export-schedule.ts`). It:
-   - **Loads** every Idea in `<format>`'s `<run>` from `data/brands/<slug>/ledger.json`
-     (`src/schedule-batch/select.ts`).
+   - **Loads** every Idea in `<format>`'s `<run>` from the Brand's own ledger
+     (`src/schedule-batch/select.ts`, reading via `src/ledger/ledger.ts`).
    - **Selects eligible Assets**: only `recipe: "news-carousel"`, `status: "produced"`, with no
      `scheduled_at` yet. A non-`news-carousel` Asset (e.g. the wired *Character Explainer with Cast*
      Reel) is SKIPPED with a note — Zoho's bulk path is images-only. An already-`scheduled_at` Asset is
@@ -98,7 +98,9 @@ credits, hermetic build.
    - Each row carries that platform's OWN composed Copy variant (issue #129). The bracketed LinkedIn
      "unresolved mentions" reviewer note is NEVER embedded in an exported caption — it is surfaced in
      the manifest and the summary instead (issue #130).
-   - **Stamps** `scheduled_at` (ISO-8601) onto each exported Asset via `AssetStore.writeAsset` — the
+   - **Stamps** `scheduled_at` (ISO-8601) onto each exported Asset via `AssetStore.writeAsset`
+     (`src/asset/store.ts`) — the same shape of update command-surface's `saveAsset`
+     (`src/command-surface/assets.ts`) makes for the SQL-backed pipeline (rule 7) — the
      Asset's status stays "produced" (ADR-0011's lifecycle is unchanged; `/log-post` is still what
      moves it to `posted`).
 4. **Report:** any cleanup that ran (Assets/manifests touched), which files were written and where, a

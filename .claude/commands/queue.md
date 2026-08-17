@@ -38,4 +38,7 @@ but this command doc always names a Brand.
   (the single attended Operator is the bottleneck, working one Space generation at a time, ADR-0008).
   Per-Brand filtering and labeling of queue jobs has shipped: `/queue <brand>` shows only that Brand's
   jobs.
-- Each Brand's ledger (`data/brands/<slug>/ledger.json`) stays the source of truth for that Brand.
+- Each Brand's own ledger (`src/ledger/ledger.ts`) stays the source of truth for that Brand. Jobs shown
+  here are the file-based Production Queue's own — the SAME conceptual data command-surface's
+  `enqueueJob`/`claimJob`/`releaseJob` (`src/command-surface/jobs.ts`) manage for the SQL-backed `job`
+  table, a genuinely separate store today (rule 7).

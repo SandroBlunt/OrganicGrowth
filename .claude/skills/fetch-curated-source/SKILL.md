@@ -27,8 +27,8 @@ spirit: the scan looks complete but isn't. So every curated-source fetch climbs 
    ```
 
    `-L` matters — some feeds (e.g. beehiiv) sit behind a 301.
-3. **Apify RSS actor** (~$0.0005 per run). Read the actor slug from the Brand's
-   `data/brands/<slug>/seeds.yaml` under `apify.rss.feed_actor`; call it via the Apify API with
+3. **Apify RSS actor** (~$0.0005 per run). Read the actor slug from the Brand's own `seeds.yaml`
+   (`resolveBrand(brand).seeds`, `src/brand/resolver.ts`) under `apify.rss.feed_actor`; call it via the Apify API with
    `APIFY_API_TOKEN` loaded per the data-handling rules (`set -a; [ -f .env ] && . ./.env; set +a`
    — never print the token). **Batch every source that reached rung 3 into ONE actor run** — the
    actor accepts a list of feed URLs and returns parsed items (title, link, ISO date, summary).

@@ -18,8 +18,11 @@ status) so the Operator can correct the call — it never guesses "the only one"
 one", even when the Idea happens to have exactly one Asset today.
 
 **Gate 3 — Publish. Brand: `<brand>`.** The Operator is logging a Post for Brand `<brand>`. The
-`post_url` is written onto the NAMED Recipe's Asset in `data/brands/<slug>/ledger.json` via
-`AssetStore.writeAsset` — never onto a different Asset, never onto the Idea's own top-level fields.
+`post_url` is written onto the NAMED Recipe's Asset, on the Brand's own ledger, via
+`AssetStore.writeAsset` (`src/asset/store.ts`) — never onto a different Asset, never onto the Idea's
+own top-level fields. Shaped the way command-surface's `logPost` (`src/command-surface/posts.ts`)
+records a Post, the sanctioned target once Posts move onto the SQL-backed pipeline; today's operative
+write is the ledger's own Asset record (rule 7).
 
 ## Steps
 
@@ -27,8 +30,8 @@ one", even when the Idea happens to have exactly one Asset today.
    State the active Brand: "Logging Post for Brand: `<brand>`."
 2. **Run** `npm run log-post <brand> <idea-id> <recipe> <facebook-url> [posted-at]` (or call
    `logPostCommand()` in `src/commands/log-post.ts`). It:
-   - Loads the Idea's recorded Assets (`data/brands/<slug>/ledger.json`, already per-Recipe —
-     ADR-0011) and finds the Asset whose `recipe` matches `<recipe>` EXACTLY.
+   - Loads the Idea's recorded Assets (the Brand's own ledger, `src/ledger/ledger.ts`, already
+     per-Recipe — ADR-0011) and finds the Asset whose `recipe` matches `<recipe>` EXACTLY.
    - **Refuses** — and lists every one of the Idea's Assets (`recipe (status)`) — when no Asset
      matches `<recipe>`. Never infers.
    - **Refuses** when the matched Asset is not yet `produced` (still `queued`/`in_production`) — there
@@ -48,8 +51,8 @@ one", even when the Idea happens to have exactly one Asset today.
 - **Recipe is explicit** — `<recipe>` is required; attribution is keyed `(Idea, Recipe)` and this is
   the ONLY way a Post is linked to an Asset — never inferred, never defaulted to "the only Asset" even
   when there is exactly one.
-- All ledger reads/writes are scoped to `data/brands/<slug>/ledger.json`, and onto the ONE named
-  Recipe's Asset — every sibling Asset of the same Idea is left untouched.
+- All ledger reads/writes go through the Brand's own ledger (`src/ledger/ledger.ts`), and land onto
+  the ONE named Recipe's Asset — every sibling Asset of the same Idea is left untouched.
 - One Post per (Idea, Recipe). Re-logging the same (Idea, Recipe) updates the URL/timestamp without
   regressing the Asset's status.
 - Only `facebook.com` URLs. Don't accept a guess — the Operator states the URL.
