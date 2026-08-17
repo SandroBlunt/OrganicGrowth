@@ -25,10 +25,12 @@ ideas is sharper. It **generates the Asset but never publishes it** — a human 
   brand-agnostic global Production Queue at `data/queue.json` (ADR-0006). The ledger is the source of
   truth; update it on every status change. A **local SQLite database** foundation also exists under
   `data/`, opened in-process by Node's built-in `node:sqlite` (`src/db/`) — schema, migration runner,
-  and the closed-vocabulary reference tables (ADR-0029, issue #201). It is **not yet** the backing of
-  any store: every store above still reads/writes the plain files described above until issue #202
-  swaps each store's `{ ledgerPath }` option for `{ db }`. No hosted service, no HTTP API, no container,
-  no cloud database, ever (ADR-0029).
+  and the closed-vocabulary reference tables (ADR-0029, issue #201). It now backs typed `{ db }` stores
+  for Asset, Production Spec, Brand, Channel, Format, Brand Asset (issue #222), and Idea/Trend (issue
+  #223) — but **no existing production command has been switched over to any of them yet**: every store
+  above still reads/writes the plain files described above until the one-shot importer (issue #204)
+  populates the database from the real corpus and a caller is rewired onto it. No hosted service, no
+  HTTP API, no container, no cloud database, ever (ADR-0029).
 - **External muscle:** Apify (public-metric scraping) and a Magnific Space via MCP (production).
   Engineering builds and tests against a **fake/stand-in for the Magnific Space** — never the live
   Space (no credits, no board mutation; hermetic CI).
