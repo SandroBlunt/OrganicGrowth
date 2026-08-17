@@ -29,8 +29,11 @@ ideas is sharper. It **generates the Asset but never publishes it** — a human 
   for Asset, Production Spec, Brand, Channel, Format, Brand Asset (issue #222), Idea/Trend (issue #223),
   and Job/Gate Request/Post/Performance time-series (issue #203) — but **no existing production command
   has been switched over to any of them yet**: every store above still reads/writes the plain files
-  described above until the one-shot importer (issue #204) populates the database from the real corpus
-  and a caller is rewired onto it. Since issue #205, a **typed in-process command surface**
+  described above. The one-shot importer (issue #204, `src/importer/`) that populates the database from
+  the real corpus is now built, test-first, and has completed one full rehearsal against a copy of
+  `data/` (reconciliation posted on issue #204) — but the real corpus import stays Operator-gated and has
+  not run; a production caller is not yet rewired onto SQL either way. Since issue #205, a **typed
+  in-process command surface**
   (`src/command-surface/`) sits above these stores as the only thing permitted to write — a plain
   TypeScript function per pipeline operation, for the worker/viewer/agents (issues #208/#210/#211) to
   call instead of touching a store or a file directly; likewise not yet wired to any production caller.

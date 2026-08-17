@@ -32,7 +32,18 @@
  * runs (rule 7, `.claude/rules/always/organicgrowth-rules.md`).
  */
 
-export { listTrends, type ListTrendsOptions } from "./trends.ts";
+export { listTrends, createTrend, type ListTrendsOptions, type TrendInput } from "./trends.ts";
+export {
+  createBrand,
+  createFormat,
+  createRun,
+  type BrandInput,
+  type BrandRecord,
+  type FormatDbInput,
+  type FormatDbRecord,
+  type RunInput,
+  type RunRecord,
+} from "./tenancy.ts";
 export {
   createIdea,
   recordReviewDecision,
@@ -41,7 +52,14 @@ export {
   type ReviewDecision,
 } from "./ideas.ts";
 export { enqueueJob, claimJob, releaseJob, type JobInput, type JobRecord, type ReleaseStatus } from "./jobs.ts";
-export { saveAsset, attachAssetMedia, type DbAssetPatch, type AssetMediaItem } from "./assets.ts";
+export {
+  saveAsset,
+  attachAssetMedia,
+  getAssetByRecipe,
+  type DbAssetPatch,
+  type AssetMediaItem,
+  type DbAssetRecord,
+} from "./assets.ts";
 export { logPost, type PostInput } from "./posts.ts";
 export {
   readPerformance,

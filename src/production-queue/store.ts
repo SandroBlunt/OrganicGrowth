@@ -83,9 +83,22 @@ function parseJob(raw: unknown): QueueJob | null {
   return base;
 }
 
-/** Coerce arbitrary parsed JSON into a well-formed QueueState (drops malformed jobs defensively). */
+/**
+ * Coerce arbitrary parsed JSON into a well-formed QueueState (drops malformed jobs defensively). Every
+ * drop WARNS (C38, matching `parseJob`'s own per-job convention) — issue #204 QA round 1's Defect 2:
+ * without a warning on these two top-level branches, `src/importer/load-queue-strict.ts`'s
+ * warn-capturing technique (otherwise airtight against every individual `parseJob` drop) had no way to
+ * see a malformed top-level shape at all, silently returning the empty queue instead of a reportable
+ * problem.
+ */
 export function parseQueueState(raw: unknown): QueueState {
-  if (!isObject(raw)) return emptyQueue();
+  if (!isObject(raw)) {
+    console.warn(`[queue] parseQueueState: dropping non-object top-level value ${JSON.stringify(raw)} — loading as the empty queue`);
+    return emptyQueue();
+  }
+  if (!Array.isArray(raw.jobs)) {
+    console.warn(`[queue] parseQueueState: top-level "jobs" is not an array (got ${JSON.stringify(raw.jobs)}) — loading as the empty queue`);
+  }
   const jobsRaw = Array.isArray(raw.jobs) ? raw.jobs : [];
   const jobs = jobsRaw.map(parseJob).filter((j): j is QueueJob => j !== null);
   return { jobs };

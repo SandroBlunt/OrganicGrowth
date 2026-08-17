@@ -1,16 +1,36 @@
 /**
- * `listTrends` — the typed command surface's Trend-listing operation (issue #205 AC1, epic #195's
- * "listing Trends" — the thin orchestration shell over `src/trend/store.ts`).
+ * `listTrends` / `createTrend` — the typed command surface's Trend operations (issue #205 AC1, epic
+ * #195's "listing Trends" — the thin orchestration shell over `src/trend/store.ts`).
  *
  * The command surface is the ONLY thing above the store layer permitted to write (AC2); a read-only
- * operation like this one carries no atomicity concerns of its own, but lives here anyway so a future
- * caller (the worker, the viewer, an agent — issue #208/#210/#211) reaches every pipeline operation,
- * read or write, through ONE surface rather than importing `src/trend/store.ts` directly.
+ * operation like `listTrends` carries no atomicity concerns of its own, but lives here anyway so a
+ * future caller (the worker, the viewer, an agent — issue #208/#210/#211) reaches every pipeline
+ * operation, read or write, through ONE surface rather than importing `src/trend/store.ts` directly.
+ *
+ * `createTrend` is added by issue #204: the one-shot importer is the first caller that needs to create
+ * Trend rows (nothing above the store layer created one before this ticket — #205's own eight named
+ * operations did not include Trend creation), and "route every write through the command surface"
+ * means it cannot reach `src/trend/store.ts` directly.
  */
 
 import type { DatabaseSync } from "node:sqlite";
 
-import { listTrendsForRun, listBriefableTrends, type TrendRecord } from "../trend/store.ts";
+import {
+  listTrendsForRun,
+  listBriefableTrends,
+  createTrend as createTrendRow,
+  type TrendRecord,
+  type TrendInput,
+} from "../trend/store.ts";
+
+export type { TrendInput };
+
+/** Creates one Trend for a Run. Returns its generated id. Throws (SQLite FOREIGN KEY error) for an
+ *  unknown `runId`, (CHECK error) for a `platform` outside `KNOWN_PLATFORMS`. See
+ *  `src/trend/store.ts`'s `createTrend` for the full contract. */
+export function createTrend(db: DatabaseSync, input: TrendInput, now?: () => string): string {
+  return now === undefined ? createTrendRow(db, input) : createTrendRow(db, input, now);
+}
 
 export interface ListTrendsOptions {
   /** When `true`, returns only Trends that are NOT paywalled-only (`TrendStore.listBriefableTrends`) —

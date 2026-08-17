@@ -130,6 +130,145 @@ export function findIdea(ideas: readonly LedgerIdea[], ideaId: string): LedgerId
   return ideas.find((i) => i.id === ideaId) ?? null;
 }
 
+// --- loadFullIdeas (issue #204: the one-shot importer's richer per-Idea projection) -----------------
+
+/** One Recipe the Operator declined at Review, as read back from a ledger record — mirrors
+ *  `LedgerDeclinedRecipe` (this same module's write-side type) exactly; kept separate so this read-side
+ *  type has no dependency on the write-path's own options shape. */
+export interface FullLedgerDeclinedRecipe {
+  readonly recipe: string;
+  readonly reason: string;
+}
+
+/**
+ * The FULL set of fields the one-shot importer (issue #204) needs to build an `idea`/`idea_recipe` row
+ * — a strict superset of `LedgerIdea`, added here (the SAME module, reusing the SAME
+ * `normalizeIdeaStatus` normalizer `loadIdeas`/`loadReport` already call) rather than a second, raw-JSON
+ * reader elsewhere (this ticket's own constraint: "read through the existing loaders and normalisers,
+ * never raw JSON"). Every field beyond `id`/`status`/`assets` is OPTIONAL and OMITTED (never a
+ * fabricated empty string/zero) when the raw record does not carry it — MundoTip's pre-Format Ideas
+ * carry no `format`/`brief_path`/`created_at`/`recipes`/`declined_recipes` at all, and this type reflects
+ * that real shape rather than papering over it.
+ *
+ * `status` is NOT narrowed to `LedgerIdea`'s "always suggested/accepted/rejected" guarantee: when
+ * `normalizeIdeaStatus` finds the record's `assets` ALREADY populated, it passes the raw top-level
+ * `status` straight through unchanged — which can still be a retired ADR-0011 production value on a
+ * real record (`idea-2026-08-11-12`'s own on-disk shape). Resolving that to a legal SQL `idea.status` is
+ * `src/importer/idea-status.ts`'s job, deliberately kept OUT of this loader (which stays a faithful,
+ * normalized READ, not a second place business rules live).
+ */
+export interface FullLedgerIdea {
+  readonly id: string;
+  /** The Run this Idea belongs to (e.g. `"2026-W29"`, `"2026-08-11"`). Absent only on a garbled record
+   *  this loader still refuses to crash on (data-handling rule 4) — every real Idea carries one. */
+  readonly run?: string;
+  readonly title?: string;
+  readonly status: string;
+  readonly assets: readonly LedgerAssetRecord[];
+  readonly recipes?: readonly string[];
+  readonly declinedRecipes?: readonly FullLedgerDeclinedRecipe[];
+  readonly format?: string;
+  readonly trendId?: string;
+  readonly trendLabel?: string;
+  readonly fitScore?: number;
+  readonly rejectionReason?: string;
+  /** The ledger's own VERBATIM record of where this Idea's Brief lives (`resolveBriefPathCandidates`'s
+   *  most-trusted candidate) — absent on a record written before this field existed. */
+  readonly briefPath?: string;
+  readonly createdAt?: string;
+}
+
+function nonEmptyTrimmedString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function finiteNumberOrUndefined(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Parse a raw `declined_recipes` array, dropping malformed entries. Non-array/absent/empty input
+ *  yields `undefined` (never a stray `[]` — mirrors `parseRecipesList`'s own omit-when-empty
+ *  convention for THIS loader's richer projection specifically; `loadIdeas`'s plain `LedgerIdea` never
+ *  carried this field at all). */
+function parseDeclinedRecipesList(raw: unknown): FullLedgerDeclinedRecipe[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: FullLedgerDeclinedRecipe[] = [];
+  for (const entry of raw) {
+    if (!isObject(entry)) continue;
+    const recipe = nonEmptyTrimmedString(entry.recipe);
+    const reason = nonEmptyTrimmedString(entry.reason);
+    if (recipe !== undefined && reason !== undefined) out.push({ recipe, reason });
+  }
+  return out;
+}
+
+/**
+ * Read the ledger's Idea records at the FULL projection the one-shot importer needs (issue #204).
+ * Every record is run through the SAME `normalizeIdeaStatus` normalizer `loadIdeas` uses — this is an
+ * ADDITIVE extension of that SAME read path, not a new one. A record missing a string `id` is skipped,
+ * exactly like `loadIdeas`.
+ */
+export async function loadFullIdeas(path: string, brand?: string): Promise<FullLedgerIdea[]> {
+  const raw: unknown = await readLedgerJson(path, brand);
+  if (!isObject(raw) || !Array.isArray(raw.ideas)) return [];
+  return raw.ideas
+    .filter(isObject)
+    .filter((r) => typeof r.id === "string")
+    .map((r) => {
+      const { status, assets } = normalizeIdeaStatus(r);
+      const recipes = parseRecipesList(r.recipes);
+      const declinedRecipes = parseDeclinedRecipesList(r.declined_recipes);
+      const run = nonEmptyTrimmedString(r.run);
+      const title = nonEmptyTrimmedString(r.title);
+      const format = nonEmptyTrimmedString(r.format);
+      // MundoTip's pre-Format shape names the SAME concept `trend` (a short code, e.g. "T01") instead
+      // of `trend_id` — `trend_id` wins when both are somehow present (the post-Format convention).
+      const trendId = nonEmptyTrimmedString(r.trend_id) ?? nonEmptyTrimmedString(r.trend);
+      const trendLabel = nonEmptyTrimmedString(r.trend_label);
+      const fitScore = finiteNumberOrUndefined(r.fit_score);
+      const rejectionReason = nonEmptyTrimmedString(r.rejection_reason);
+      const briefPath = nonEmptyTrimmedString(r.brief_path);
+      const createdAt = nonEmptyTrimmedString(r.created_at);
+      return {
+        id: r.id as string,
+        ...(run !== undefined ? { run } : {}),
+        ...(title !== undefined ? { title } : {}),
+        status,
+        assets,
+        ...(recipes.length > 0 ? { recipes } : {}),
+        ...(declinedRecipes !== undefined ? { declinedRecipes } : {}),
+        ...(format !== undefined ? { format } : {}),
+        ...(trendId !== undefined ? { trendId } : {}),
+        ...(trendLabel !== undefined ? { trendLabel } : {}),
+        ...(fitScore !== undefined ? { fitScore } : {}),
+        ...(rejectionReason !== undefined ? { rejectionReason } : {}),
+        ...(briefPath !== undefined ? { briefPath } : {}),
+        ...(createdAt !== undefined ? { createdAt } : {}),
+      };
+    });
+}
+
+/**
+ * Counts the ledger's RAW `ideas` array length — never parses a single record's content, just its
+ * length. Reuses `readLedgerJson`, the SAME I/O primitive `loadFullIdeas` itself calls, so this stays
+ * squarely inside "the existing loader module" rather than becoming a second, competing raw-JSON
+ * reader (issue #204's own AC1 constraint).
+ *
+ * Exists so a caller of `loadFullIdeas` (the one-shot importer's `planImport`) can detect a record
+ * `loadFullIdeas` silently skipped (e.g. one with no string `id` — issue #204 QA round 1's Defect 2)
+ * by comparing this raw count against `loadFullIdeas`'s own returned length, and refuse rather than
+ * silently continuing with fewer Ideas than the source file actually holds. Returns `0` for a missing/
+ * malformed top-level shape, mirroring `loadFullIdeas`'s own degrade-to-`[]` convention for the same
+ * shapes — a caller comparing the two counts still catches a genuine drop (a non-zero raw count next to
+ * a smaller parsed count); it does not, on its own, distinguish "no Ideas array at all" from "zero
+ * Ideas", which is an existing, unrelated shape this function does not change the handling of.
+ */
+export async function countRawIdeaRecords(path: string, brand?: string): Promise<number> {
+  const raw: unknown = await readLedgerJson(path, brand);
+  if (!isObject(raw) || !Array.isArray(raw.ideas)) return 0;
+  return raw.ideas.length;
+}
+
 // --- Report projection (issue #9: /report surfaces the whole pipeline at a glance) -----------------
 
 /**
