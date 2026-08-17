@@ -623,3 +623,239 @@ npx openspec validate --all --strict
 ```
 
 Single new test: `node --import tsx --test src/commands/run-library-viewer.test.ts`
+
+---
+
+## QA Verdict — Round 2: PASS
+
+Verified in worktree `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-210-local-library`, branch
+`issue-210-local-library` at `a0c8d2c`. Per the scope note in this round's task, the hard parts already
+proven live in Round 1 (read-only guarantee, media path-traversal safety, the 405 method sweep, the
+real-corpus counts) were **not re-litigated** — only spot-checked that `d3be168..a0c8d2c` did not disturb
+them (confirmed: `git diff d3be168..a0c8d2c --stat` touches exactly 7 files — the handoff, one spec-delta
+file, and the six code/test files the Build Report names; `src/library/server.ts`, `read-only.test.ts`,
+`media.ts`, `queue-classify.ts`, `filter-sort.ts` and their tests are byte-identical across the round).
+This round's verification effort was spent entirely on the three defects, per the task's own instruction.
+
+### Suite result
+
+| Check | Command | Result |
+|---|---|---|
+| Full suite | `npm test` | **3618 / 945 suites, 0 fail** — matches claim exactly; re-ran `src/commands/run-library-viewer.test.ts` and `src/library/read-model.test.ts` individually too |
+| Docs suite | `npm run test:docs` | **349 / 92 suites, 0 fail** — unchanged from Round 1, as claimed |
+| Build | `npm run build` | Clean, no errors |
+| OpenSpec (change) | `npx openspec validate issue-210-local-library --strict` | `Change 'issue-210-local-library' is valid` |
+| OpenSpec (all) | `npx openspec validate --all --strict` | `Totals: 67 passed, 0 failed (67 items)` |
+
+**The +2 delta is genuinely new**, not a relabeling: `git diff d3be168..a0c8d2c -- src/commands/run-library-viewer.test.ts` adds exactly one new `it()` (`main()` — the REAL CLI entry point...), and `git diff d3be168..a0c8d2c -- src/library/render/library.test.ts` adds exactly one new `it()` (the AC8 disclosure test) — both landed inside pre-existing `describe` blocks, matching the claimed "0 new suites."
+
+`git status --short` clean after every run; no leftover listening processes from this session's own testing
+(confirmed via `lsof -iTCP -sTCP:LISTEN`; the one process found belongs to an unrelated Playwright server
+from another project, not this repo).
+
+### Defect 1 (HIGH) — network binding — VERIFIED FIXED, live
+
+Re-ran the exact live attack from Round 1, on a fresh port:
+
+```
+$ npm run library -- --port 4399 &
+$ lsof -nP -iTCP:4399 -sTCP:LISTEN
+node ... TCP 127.0.0.1:4399 (LISTEN)          # loopback only — was `TCP *:4399` in Round 1
+$ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:4399/     → 200
+$ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:4399/     → 200
+$ curl -s -o /dev/null -w "%{http_code}\n" http://192.168.18.18:4399/ → 000, curl exit 7 (connection refused)
+```
+
+The machine's own LAN IP now genuinely refuses the connection — not just a different status code, an
+actual connection failure. **Defect 1 is fixed, live-reproduced by QA independently of the test.**
+
+**The `main()` refactor was scrutinized for the exact new risk the task named** — that the test might
+drive `main()` down a path the real CLI entry point never exercises. Read `src/commands/run-library-viewer.ts`
+end to end:
+
+- The file's bottom entry-point block (`if (entryPoint !== undefined && ...) { main().catch(...) }`) still
+  calls `main()` with **zero arguments** — identical to before the refactor. `main`'s new `argv` parameter
+  defaults to `process.argv.slice(2)`, the exact same expression `main()`'s body used to read directly. No
+  behavioral change for the real CLI path.
+- Critically, **the host binding itself is not parameterized at all** — `LOOPBACK_HOST` is a module-level
+  `const "127.0.0.1"`, applied unconditionally inside `main()`'s own `server.listen(port, LOOPBACK_HOST, res)`
+  call. The test's `main(["--db", dbPath, "--port", "0"])` call passes different `argv` than the real
+  entry point (different db path, OS-assigned port instead of 4173) — but neither of those differences can
+  touch the host argument, because the host is never read from `argv` at all. The one thing this defect is
+  about (does the host get passed to `.listen()`) is exercised identically regardless of what argv the
+  caller supplies. There is no reintroduced blind spot here: the divergence between test-argv and
+  real-argv is real but provably irrelevant to the property under test.
+- Confirmed no other test anywhere in the suite also calls `main()` (`grep -rn "\bmain(" src/` inside test
+  files → only this one call site) — no risk of a `SIGINT`/`SIGTERM` listener leak across repeated calls
+  either.
+
+### `--port 0` fix — VERIFIED, live
+
+```
+$ npm run library -- --port 0
+OrganicGrowth Library (read-only) — serving "data/organicgrowth.db" at http://localhost:53862 — Ctrl-C to stop.
+```
+
+OS-assigned (`53862`), not the old silent fallback to `4173`. Confirmed via code read
+(`prepareLibraryViewer`'s guard changed from `parsedPort > 0` to `parsedPort >= 0`) that `--port` is the
+**only** numeric CLI argument this file parses (`--db` is a string) — there is no sibling falsy-fallback
+bug left to find in this file.
+
+### Defect 2 (LOW) — Post-URL / Spec content coverage — VERIFIED FIXED, on QA's own mutation
+
+Read `src/library/read-model.test.ts`'s new assertions: ground truth pulled from straw-motion's real
+`ledger.json` via `loadFullIdeas` (the same loader the importer itself uses), asserted `deepEqual`
+against the Post-URL sets returned by both `buildLibraryIndex` and `getAssetDetail`, for all 7 real Assets
+(never one sampled row).
+
+**Proved this has teeth on QA's own mutation, deliberately on a DIFFERENT code path than the developer's
+own transcript exercised** (the developer's transcript mutated `getAssetDetail`'s own postUrl assembly at
+line ~187; QA instead mutated `postSummaries`, the function `buildLibraryIndex` calls, at line ~88 —
+confirming both independent join sites are covered, not just the one the developer happened to demonstrate):
+
+```
+# Mutated src/library/read-model.ts line 88: postUrl: post.postUrl → postUrl: "QA-MUTATION-TEST-CORRUPTED-URL"
+$ node --import tsx --test src/library/read-model.test.ts
+not ok 6 - against the REAL imported corpus...
+  error: "buildLibraryIndex must carry all 7 real Post URLs, not just 7 Post rows\n\n1 !== 7"
+# Restored. md5 before: 8a381899961b82d7ec2046bf83258200 — md5 after: 8a381899961b82d7ec2046bf83258200 (match)
+# git diff -- src/library/read-model.ts: empty. git status --short: clean.
+$ node --import tsx --test src/library/read-model.test.ts   → 13/13 pass, 0 fail
+```
+
+**Defect 2 is fixed, and the fix has real teeth — confirmed independently, not merely re-reading the
+developer's own transcript.**
+
+### `hasSpec` content assertion — VERIFIED FIXED for the case it targets; one real, non-blocking gap found
+
+Two of QA's own mutations against `getAssetDetail`'s `spec: asset.spec ?? null` line:
+
+1. **Totally emptied spec** (`asset.spec !== undefined ? {} : null`) — **caught**, named precisely:
+   `"hasSpec=true for 97fca1ec-...(news-carousel) but getAssetDetail's spec carries no real content: {}"`.
+   Restored; md5 matched before/after; `git status --short` clean.
+2. **A real field emptied behind a non-empty decoy key** (`{ slides: [], junk: "x" }`) — **NOT caught**;
+   the real-corpus test passed anyway, because the generic "any own key has non-empty content" check is
+   satisfied by `junk` alone. Restored; md5 matched; `git status --short` clean.
+
+**Is this gap hypothetical or real?** Checked the three wired Recipes' actual on-disk Specs directly:
+`news-carousel` → `{ slides }` (one key), `news-short-script` → `{ beats }` (one key), but
+`character-explainer-with-cast` → `{ character_concepts, clips, thumbnails }` — **three** keys. For that
+Recipe specifically, a regression that silently emptied `clips` (arguably the most consequential field —
+the actual rendered video clips) while `character_concepts` or `thumbnails` stayed populated would pass
+this assertion undetected. **This is a real, live gap for one of the three Recipes, not a purely
+theoretical one** — though it is a strictly narrower miss than the totally-empty-spec case the assertion
+was actually written to catch (per issue #212's own "boolean vs. `true`" lesson the Build Report cites),
+and the developer's own text discloses the generic, cross-shape design tradeoff plainly rather than hiding
+it. **Judgment: not blocking.** The assertion has genuine teeth against the specific regression shape
+Defect 2 was filed for (a spec present-but-empty), it is a real improvement over Round 1's state (no
+content check existed at all), and per-key precision across three differently-shaped Recipes is a
+reasonable scope boundary for a two-defect-fix round — but it is not airtight, and is filed below as a
+non-blocking note for a future round.
+
+### "What does the real-corpus test still count without checking?" — asked again, one new instance found
+
+The developer's own audit (Ideas/Assets/Jobs left as row counts with reasons; Fit Score deferred with a
+reason; media/copy already correctly 0 and previously disclosed) is reasonable and each reason holds up
+under inspection — none of it is hand-waved.
+
+Independently hunting for the same SHAPE of blind spot (a silent fallback masking a broken join, exactly
+like the pre-fix Post-URL case), QA found one more, not previously named: `channelPlatform: channel?.platform
+?? "facebook"` appears **three times** in `read-model.ts` (lines 87, 165, 186) — if a Post's `channel_id`
+ever failed to resolve to a real `Channel` row, this would silently report `"facebook"` rather than
+surfacing the failure, exactly the same failure shape the fixed Post-URL bug had. Queried the real database
+directly (bypassing the read model) and confirmed all 7 real posts resolve to a genuine Channel row with
+platform `facebook` today — **not a live bug**, straw-motion's Posts genuinely are all Facebook today —
+but no test (fixture-level or real-corpus) currently asserts `channelPlatform` round-trips a real,
+resolved Channel rather than the fallback default. **Non-blocking**, filed for the same reason Defect 2
+originally was: not a live bug, a coverage gap in the identical shape, worth closing before it can recur
+silently once a non-Facebook Channel exists in the real corpus (straw-motion's own LinkedIn/X Channels are
+already onboarded per CONTEXT.md's multi-channel model, just not yet posted-to).
+
+### Defect 3 (LOW) — AC8 disclosure — VERIFIED
+
+- **Renders in both paths, live-confirmed via test + diff, not just claimed:** `render/library.test.ts`'s
+  new test asserts the "Asset-scoped" string appears in both a populated-rows render and an empty-rows
+  (`hookType=irony`, 0 matches) render; read `render/library.ts`'s diff directly — the `scopeNote` constant
+  is emitted unconditionally before the `rows.length === 0` branch, so it is genuinely present on every
+  path, not just the two the test happens to sample.
+- **Wording is accurate, not merely present:** "Asset-scoped: an Idea that was rejected, or accepted but
+  never produced an Asset, will not appear here or under any filter below" is a correct, complete
+  description of the actual `buildLibraryIndex`/`applyLibraryFilter` behavior QA already verified in Round 1
+  (the real `irony`-classified, never-produced Idea genuinely is invisible under every filter).
+- **Does the disclosure satisfy AC8, or document a shortfall?** Honestly: **it documents a shortfall**, and
+  says so plainly — it does not make the Library actually show "every Idea that used a given hook type" as
+  AC8's literal text asks; it tells the Operator the screen does something narrower. Round 1 accepted the
+  narrower behavior itself as epic-consistent (User Story 47's own framing) and did not block on it; this
+  round's job was only to confirm the disclosure is honest and present, which it is. Not re-opening the
+  underlying scope decision, per this round's own "kept Asset-scoped, disclosed" framing and the task's
+  instruction not to re-litigate.
+- **The amended OpenSpec Requirement states the limit plainly, not merely restates the original ask:** read
+  the diff directly — the Requirement's body now says "This screen, and every filter on it, is deliberately
+  ASSET-scoped: an Idea that was rejected, or accepted but never produced an Asset... never appears here or
+  under any filter — `render/library.ts` SHALL state this limit plainly, on every render..." — this is a
+  real, substantive addition, not a restatement. **One very minor, non-blocking nit:** the Requirement's own
+  *heading* still reads "...answering 'every Idea that used a given Hook Type' by clicking," unchanged —
+  slightly at odds with the honest limit stated one paragraph below it. Cosmetic only; the body is what
+  governs, and it is accurate.
+
+### Append-only rule — VERIFIED
+
+`git diff d3be168..a0c8d2c --stat -- openspec/changes/issue-210-local-library/handoff.md` → **`408
+insertions(+), 0 deletions`** — the Round 1 Build Report and QA's own Round 1 Verdict are untouched, byte
+for byte; everything this round added is a pure append after the Round 1 Verdict's closing `---`.
+
+### Per-criterion results (issue #210 acceptance criteria)
+
+Unchanged from Round 1 for criteria 1–7, 9, 10 (all **PASS**, not re-litigated per this round's scope).
+Criterion 8 (Q2 — every Idea that used a given hook type) stays **PASS, with the same caveat as Round 1**,
+now additionally **disclosed on-screen and in the spec** rather than only in the Build Report — see "Defect
+3" above.
+
+### Always-rules + Magnific-fake + hermeticity checks
+
+Not re-litigated (unchanged code); Round 1's PASS stands, confirmed still applicable since none of the
+touched files (`run-library-viewer.ts`, its test, `read-model.test.ts`, `render/library.ts`, its test, the
+spec delta) introduce any write path, metrics source, absolute-count ranking, inferred attribution, or
+Magnific/live-Space reference. `grep -rln "magnific\|SpaceMcpPort\|spaces_\|creations_" src/library
+src/commands/run-library-viewer.ts` re-run this round: no hits.
+
+### Defect list
+
+No blocking defects. Two **non-blocking, low-severity notes** carried forward for a future round (not this
+one — per the task's own "do not fail it for a nit" instruction):
+
+1. **[LOW, non-blocking] `hasSpec` content check is generic-but-loose: a real field emptied behind a
+   sibling non-empty key would slip through, specifically for `character-explainer-with-cast`'s 3-key Spec
+   shape.**
+   - Repro: in `getAssetDetail` (`src/library/read-model.ts`), temporarily change `spec: asset.spec ?? null`
+     to `spec: asset.spec !== undefined ? { slides: [], junk: "x" } : null`; re-run
+     `src/library/read-model.test.ts` — all 6 suites still pass.
+   - Suggested fix (future round): assert non-empty content on the Recipe-specific "hero" key (e.g.
+     `clips` for `character-explainer-with-cast`, `slides` for `news-carousel`, `beats` for
+     `news-short-script`) rather than "any own key," using the same `getRecipe`/`recipe.slug` lookup
+     `read-model.ts` already has in scope.
+
+2. **[LOW, non-blocking] `channelPlatform`'s silent `?? "facebook"` fallback (3 call sites in
+   `read-model.ts`) is untested against the real corpus — same shape as the just-fixed Post-URL gap, not a
+   live bug today.**
+   - Repro: none needed to demonstrate a live bug (there isn't one — verified directly against the real
+     DB, all 7 real Channel lookups resolve correctly); the gap is the absence of an assertion, not a wrong
+     value today.
+   - Suggested fix (future round): in the same real-corpus test, assert each of the 7 real Posts'
+     `channelPlatform` matches its `channel` table row's `platform` directly, not just that it's present.
+
+3. **[Cosmetic, non-blocking]** The amended Hook-Type-filter Requirement's own heading text is unchanged
+   ("...answering 'every Idea that used a given Hook Type' by clicking") while its body now states the
+   Asset-scoped limit — the body governs and is accurate; the heading is a residual wording mismatch only.
+
+### Overall
+
+**PASS.** All three Round 1 defects are genuinely fixed and independently re-verified live by QA — the
+loopback bind (confirmed with `lsof` + a real LAN-IP connection-refused test), the `--port 0` fix
+(confirmed with a real OS-assigned port), and the Post-URL/Spec content assertions (confirmed with QA's
+own mutations on a different code path than the developer's own transcript, restored byte-identically via
+md5, `git status` clean throughout). The full suite, docs suite, build, and both OpenSpec validations are
+green, genuinely, on a fresh run (`3618/945/0`, `349/92/0`, clean build, `67/67` specs). The append-only
+rule held across the round boundary (`408 insertions(+), 0 deletions` on `handoff.md`). Two low-severity,
+non-blocking coverage notes are filed for a future round — neither is a live bug, neither blocks this
+slice from proceeding to PR.
