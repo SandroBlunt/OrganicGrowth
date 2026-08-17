@@ -185,3 +185,265 @@ node --import tsx --test src/idea/store.test.ts src/trend/store.test.ts src/db/a
 - **No classification happens here.** Every `hookType`/`theme` value `createIdea` is given — including
   `unclassified` — is validated only against "is this one of the closed set", never guessed or upgraded.
   The backfill of the 51 readable Briefs is #206's job, untouched by this ticket.
+
+## QA Verdict — Round 1: PASS
+
+Verified in worktree `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-223-ideastore`, branch
+`issue-223-ideastore`, HEAD `6dd2af3`, on top of `main` `a6ba473`. Nothing under
+`/Users/CaxtonTaylor/Developer/OrganicGrowth` was touched.
+
+### Suite result
+
+Ran every command exactly as documented in the Build Report, from scratch:
+
+- `npx tsc -p tsconfig.json --noEmit` — clean, 0 errors.
+- `npm test` — **2987 tests / 762 suites / 0 fail** (baseline on `main` `a6ba473`: 2956 / 753 / 0 fail).
+  Matches the Build Report's claimed numbers exactly, actually executed, actually green.
+- `npm run test:docs` — **284 tests / 76 suites / 0 fail** (a subset of the `npm test` total above, run
+  standalone to confirm it independently).
+- `npx openspec validate issue-223-ideastore --strict` — `Change 'issue-223-ideastore' is valid`.
+- `npx openspec validate --all --strict` — **52 passed, 0 failed** (baseline: 49 — the 2 new spec
+  capabilities `idea-store`/`trend-store` plus this 1 change).
+
+### Per-criterion results (issue #223's acceptance criteria, verbatim)
+
+1. **"`IdeaStore` exists and is the only route for Idea creation, Review, acceptance and Recipe
+   selection."** PASS. `grep -rn "INTO idea\b\|INTO idea_recipe" src --include="*.ts"` shows the only
+   production-code hits are `src/idea/store.ts`'s own `createIdea`/`upsertIdeaRecipeRow`; every other hit
+   is a pre-existing (#222-era) `*.test.ts` fixture-seeding raw INSERT for a DIFFERENT store's own test
+   (`src/asset/db-store.test.ts`, `src/production-spec/db-store.test.ts`, `src/copy/store.test.ts`,
+   `src/db/schema.test.ts`, `src/db/media-ref.test.ts`) — not a second production route. `src/ledger/
+   ledger.ts` is byte-for-byte untouched (`git diff a6ba473..6dd2af3 -- src/ledger/` — empty). `src/
+   asset/store.ts` only ever reads `ideaId` as a foreign-key reference, never writes to `idea`. Proven by
+   `src/idea/store.test.ts`'s four describe blocks (creation / reads / Review / Recipe selection).
+2. **"hook_type/theme required + validated against closed vocabularies at the store boundary."** PASS —
+   see the dedicated deep-dive below.
+3. **"relevance/momentum/brand_fit alongside fit_score."** PASS. `"stores every optional field when
+   given, including a real trendId"` (`src/idea/store.test.ts:106`) round-trips
+   `fitScore: 0.82, relevance: 0.7, momentum: 0.9, brandFit: 0.6` verbatim through `createIdea` →
+   `getIdea`.
+4. **"An Idea records its own source_urls. A Trend records its source URLs, platform and an
+   is_paywalled flag, so the openly-readable-source rule is enforced by data rather than by prose."**
+   PASS as built — see the dedicated judgment-call section below, including a specific recommended
+   follow-up.
+5. **"idea_recipe records offered/chosen/decline reasons."** PASS. `"writes one row per offered item,
+   chosen and declined together"` (`src/idea/store.test.ts:325`).
+6. **"Writes run in transactions, so a partial write cannot land."** PASS. `withTransaction` is reused
+   completely unchanged from #222 (`git diff a6ba473..6dd2af3 -- src/db/transaction.ts` — empty; the
+   file appears nowhere in this branch's diff at all). `selectIdeaRecipes` wraps its batch in it. The
+   mid-batch-rollback test (`"rolls back the WHOLE batch when an unwired recipe_slug appears partway
+   through"`, `src/idea/store.test.ts:376`) asserts `listIdeaRecipes(db, ideaId)` returns `[]` AFTER the
+   FOREIGN KEY throw — i.e. it proves nothing landed, not merely that the call threw. The declined-with-
+   no-reason pre-check (`src/idea/store.ts:376-382`) runs its validation loop BEFORE `withTransaction`/
+   `BEGIN` is even called — traced directly in source, not just inferred from the test — so zero SQL runs
+   on that path at all.
+7. **"No caller above the store boundary changes shape."** PASS. `git diff a6ba473..6dd2af3 --stat`
+   shows only two brand-new production files (`src/idea/store.ts`, `src/trend/store.ts` + their tests)
+   plus docs; every existing production module and every #222-era store file has a zero-line diff.
+
+### hook_type / theme deep dive (the "other thing to check hard")
+
+- **Required at creation, compile-time AND runtime.** `IdeaInput.hookType`/`theme`
+  (`src/idea/store.ts:81-84`) are non-optional `HookType`/`Theme` fields — a caller cannot omit them at
+  compile time. Independently, `assertValidHookType`/`assertValidTheme` (`src/idea/store.ts:49-63`) run
+  as the literal FIRST two statements inside `createIdea` (`src/idea/store.ts:172-173`), before
+  `randomUUID()` and before any `db.prepare()` call — confirmed by reading the source directly, not just
+  inferring it from a passing test. A bad value throws a named `IdeaValidationError` listing every legal
+  member; `listIdeasForRun` afterward returns `[]`, proving no row landed.
+- **`unclassified` is a fully accepted, non-special-cased member.** Proven both by
+  `"accepts 'unclassified' for both hookType and theme, like any other closed-vocabulary member"`
+  (`src/idea/store.test.ts:210`) and by `src/vocabulary/hook-type.ts`/`theme.ts` (pre-existing from
+  #219, untouched by this ticket — confirmed not in the branch's diff) exporting it as the genuine
+  eleventh/tenth member of `HOOK_TYPES`/`THEMES`, not an out-of-band sentinel.
+- **Distinguishable in a query.** `hook_type`/`theme` are plain `NOT NULL TEXT` columns (`src/db/
+  schema.ts:268-269`, byte-identical to `main`) with no aliasing or coalescing — `unclassified` is stored
+  as an ordinary string, so `WHERE hook_type != 'unclassified'` genuinely separates it from a real
+  classified value. This is the exact property `src/vocabulary/context-md.docs-test.ts`'s pre-existing
+  (#219) test already pins in CONTEXT.md's prose ("must state 'unclassified' is distinguishable, in a
+  query, from a real classified value") — I confirmed that test is still green under this branch's full
+  suite run, and this ticket's own store round-trips the value verbatim on top of it.
+- **The 10-of-61 Briefs with neither a hook heading nor a `format` field** cannot be imported by
+  `createIdea` as written, because `formatId` is a separate required, FK'd column this ticket does not
+  touch — that gap is explicitly named in the Build Report's Known Limits and correctly left to #204 to
+  resolve (deciding a `formatId` for those 10), not silently glossed over.
+- **Validation-before-SQL is real, not just claimed.** Traced in source for both `createIdea` (validation
+  before `randomUUID()`/any `db.prepare`) and `rejectIdea` (`typeof rejectionReason` check is the literal
+  first statement, before even the `requireIdea` SELECT — `src/idea/store.ts:269-274`).
+
+### AC4 / paywall-enforcement judgment call
+
+**I would PASS this as built**, not split the difference. Reasoning:
+
+- Issue #223's own explanatory prose (its "The paywall rule this encodes" section, not just the AC
+  bullet) says: *"The data model should make an unbriefable Trend **visible** rather than relying on an
+  agent remembering the rule."* That is verbatim what `listBriefableTrends` does. This is the issue
+  author's own chosen word — not the developer's spin — and it deliberately avoids "blocked" /
+  "refused" / "rejected". Epic #195's own User Story 20 uses the identical "enforced by data rather than
+  by prose" sentence with no further constraint language attached either (checked via `gh issue view
+  195`).
+- A hard block on `createIdea` refusing any paywalled `trendId` would enforce the **wrong** invariant.
+  The real, already-Operator-approved rule (`.claude/agents/idea-strategist.md:69-74`, live prose, cites
+  the actual idea-03 rejection at Review, 2026-08-11) is about the **Idea's own `source_urls`** carrying
+  at least one openly-readable link — an Idea is explicitly allowed to cite a paywalled Trend as a
+  momentum signal while carrying its own open sources. Blocking on `trend_id`'s paywall flag would both
+  reject some legitimate Ideas (over-strict) and fail to verify the thing that actually matters, i.e.
+  whether the Idea's own sources are open (beside the point) — exactly the risk flagged in my brief.
+  I confirmed this by reading `idea-strategist.md` directly, not taking the developer's citation on
+  faith.
+- The theoretically "correct" hard constraint — validating that an Idea's own `source_urls` contains at
+  least one genuinely-open URL — isn't buildable with the current schema at all: there is no per-URL
+  paywall flag on `idea.source_urls_json`, only a whole-Trend `is_paywalled` flag. Any block at
+  `createIdea` would necessarily be checking a wrong or incomplete proxy, and the schema is frozen (no
+  new migration authorized by any AC here).
+- The developer surfaced this decision loudly and specifically — in `proposal.md`'s "What Changes" and
+  "Known gaps, decided, not dropped" sections, and again in the handoff's Known Limits, with an explicit
+  ask for an Operator ruling — rather than quietly building the weaker reading and calling it done. That
+  is the right conduct even where the reading itself is debatable.
+
+I do agree with the framing in my brief that "queryable but nothing calls it" leaves the practical
+enforcement gap exactly where it was — an agent must remember to call `listBriefableTrends`, the same
+way it must remember the prose rule today. **If a stronger guarantee is wanted, the follow-up should be
+scoped exactly to this, and not to a blanket Trend-level block:**
+
+> `createIdea` should reject a `trendId` that resolves to an `is_paywalled` Trend **unless** the Idea's
+> own `sourceUrls` is non-empty — buildable today with zero new migration, enforces the real rule (an
+> Idea must carry its own open source when its only recorded Trend is paywalled-only) rather than the
+> wrong one (refusing any paywalled Trend link outright), and does not conflict with #204's importer
+> (whose initial import, per this ticket's own Known Limits, attaches no `trendId` at all — no Trend data
+> has been imported yet).
+
+I would explicitly NOT recommend a blanket "refuse any `createIdea` whose `trendId` is paywalled" guard —
+that enforces the wrong thing, per the reasoning above.
+
+### Per-scenario results (spec deltas)
+
+**`idea-store` spec — 18 Scenarios, all PASS**, each with a directly-named, passing test in
+`src/idea/store.test.ts`:
+- createIdea defaults / stores optional fields / rejects unknown FKs — 3/3 PASS.
+- hook_type/theme required+validated / unclassified accepted — 3/3 PASS.
+- getIdea/listIdeasForRun null-for-unknown/[]-for-none/creation-order — 3/3 PASS.
+- acceptIdea/rejectIdea the two Review outcomes — 4/4 PASS, with one **coverage gap, not a functional
+  failure**: the spec's "throws for an already-decided Idea (accepted OR rejected)" Scenario is only
+  tested for the same-outcome case (accept-after-accept, reject-after-reject); there is no test for the
+  cross case (accept-after-reject, reject-after-accept). I traced `requireSuggested`
+  (`src/idea/store.ts:238-242`, shared by both functions) and confirmed it checks the generic
+  `status !== "suggested"` — the cross case is provably covered by the implementation even though
+  untested. Logged as defect #2 below, LOW severity.
+- selectIdeaRecipes/listIdeaRecipes atomicity — 5/5 PASS, including the two atomicity proofs verified
+  above.
+
+**`trend-store` spec — 9 Scenarios, all PASS**, each with a directly-named test in
+`src/trend/store.test.ts` — with one **coverage gap versus the developer's own `tasks.md`**: task item
+2.1 explicitly claims a test for "an out-of-`KNOWN_PLATFORMS` `platform` is rejected (CHECK)" was
+written, but no such test exists in the file (confirmed by grep). I manually verified the underlying
+behavior is correct anyway, via a temporary, uncommitted probe script (deleted immediately after,
+`git status --short` clean both before and after):
+```
+createTrend(db, { runId, label: "bad platform", platform: "not_a_real_platform" })
+→ throws: CHECK constraint failed: platform IS NULL OR platform IN ('facebook', 'instagram', 'linkedin', 'x', 'tiktok', 'youtube')
+```
+So the schema-level CHECK genuinely rejects an invalid platform — this is a `tasks.md`-accuracy /
+test-coverage gap, not a functional break. Logged as defect #1 below, LOW severity.
+
+### Always-rules + Magnific-fake checks
+
+- **Generate-never-publish** — PASS (out of scope for this slice; no publication code touched).
+- **Public-metrics-only** — PASS (out of scope; no metrics code touched).
+- **Relative-not-absolute** — PASS (out of scope; no scoring/comparison code touched).
+- **Explicit-attribution** — PASS (out of scope; Post/attribution code untouched — confirmed
+  `src/asset/store.ts` only reads `ideaId` as an FK, never infers one).
+- **Ledger-as-source-of-truth** — PASS. `git diff a6ba473..6dd2af3 -- src/ledger/` is empty — zero
+  changes to `src/ledger/ledger.ts` or its test suite. Rule 7's corrected doc text still explicitly
+  states `ledger.json` stays canonical until #204 wires a real caller onto SQL.
+- **Magnific fake / no live calls** — PASS. `grep -rn "spaces_\|creations_\|magnific" src/idea/ src/
+  trend/` — zero hits (exit 1, no matches). Every test uses `withTempDb`: 22 call sites in `src/idea/
+  store.test.ts`, 12 in `src/trend/store.test.ts` (grepped and counted), each opening a real,
+  mkdtemp'd, throwaway SQLite file — zero `:memory:` anywhere in either test file (grepped, zero
+  matches for the actual API usage; the only two hits are doc-comment mentions of "never `:memory:`").
+
+### TrendStore scope check
+
+**Not scope creep — justified.** Issue #223's own AC4 text (not just parent #202's) explicitly names
+Trend's `source_urls`/`platform`/`is_paywalled` fields. I independently checked every other tracked epic
+issue title (#197–#212 via `gh issue view <n> --json title`) — none names a "Trend store". #204 (the
+importer) is *blocked by* #202 (this ticket's own parent), meaning #204 depends on `IdeaStore`/
+`TrendStore` already existing, not the reverse — no collision, no ordering conflict. #203 (queue/post/
+performance-as-time-series) doesn't touch Trend at all (read its full AC list — confirmed). The
+TrendStore's own scope is also self-limiting in a good way: minimal, read-oriented, no general CRUD
+beyond what `IdeaStore`'s FK and AC4 actually need (no `updateTrend`, no cross-Run `listTrends` — matches
+the developer's own stated self-review reasoning).
+
+### Doc changes
+
+- Rule 7 + `src/db/adr.docs-test.ts` — additive, accurate, and the docs-test's assertions were
+  *strengthened* (one new assertion added for the corrected forward-pointer), not loosened — confirmed
+  green in the full suite run.
+- `openspec/project.md` — corrected a genuinely stale claim ("not yet the backing of any store") to the
+  true post-#222/#223 state; staleness independently verified via `git log -- openspec/project.md`
+  showing no #222-era commit ever touched this file.
+- `CONTEXT.md` — two one-sentence additive clarifications (Trend, Fit Score both cite `docs/adr/0029`
+  and issue #223) — confirmed by reading the diff directly: neither touches the closed-vocabulary bullet
+  lists `context-md.docs-test.ts` pins (Hook Type's/Theme's own glossary entries are untouched by this
+  diff).
+- No doc-conformance check was weakened anywhere in this slice; no new vocabulary term was coined.
+
+### Archive-header check (not executed, per standing rules)
+
+Both spec deltas (`openspec/changes/issue-223-ideastore/specs/idea-store/spec.md` and `.../trend-store/
+spec.md`) are `## ADDED Requirements` only — there is no `## MODIFIED Requirements` section in either
+file, and neither `openspec/specs/idea-store/` nor `openspec/specs/trend-store/` exists yet on `main`
+(confirmed: `ls openspec/specs/` shows only `format-scoped-trend-research` and `idea-strategist-briefs`).
+This is a pure-addition case, not the historically-fragile MODIFIED-header shape that has broken
+`openspec archive` before. I expect `openspec archive issue-223-ideastore` to succeed cleanly, but did
+NOT run it, per the standing hermetic/read-only rule.
+
+### Defect list
+
+1. **LOW** — `src/trend/store.test.ts` is missing the "out-of-`KNOWN_PLATFORMS` platform rejected
+   (CHECK)" test that `openspec/changes/issue-223-ideastore/tasks.md` item 2.1 explicitly claims (checked
+   off `[x]`) was written. **Repro:** `grep -n "KNOWN_PLATFORMS\|CHECK" src/trend/store.test.ts` — no
+   hits; the only `platform` references in the file are the happy-path "stores every optional field"
+   test. The underlying behavior is NOT broken — I manually confirmed `createTrend(db, { runId, label:
+   "x", platform: "not_a_real_platform" })` throws `CHECK constraint failed: platform IS NULL OR
+   platform IN (...)` via a temporary probe script (not committed). This is a tasks.md-accuracy / test-
+   coverage gap only.
+2. **LOW** — `src/idea/store.test.ts` does not test the cross-case for `acceptIdea`/`rejectIdea`'s shared
+   "already decided" guard (i.e. calling `acceptIdea` on an already-`rejected` Idea, or `rejectIdea` on
+   an already-`accepted` Idea) — only the same-outcome cases (accept-after-accept, reject-after-reject)
+   are tested. **Repro:** read `src/idea/store.test.ts`'s `"acceptIdea / rejectIdea — the two Review
+   outcomes..."` describe block — no cross-case test present. `requireSuggested`
+   (`src/idea/store.ts:238-242`) is shared, generic (`status !== "suggested"`) logic, so the cross case
+   is provably covered by the implementation even though untested.
+3. **INFORMATIONAL, not a code defect** — AC4's "enforced by data rather than by prose" is implemented as
+   a queryable view (`listBriefableTrends`), not a write-time block on `createIdea`. See the dedicated
+   judgment-call section above for the full reasoning (I rule this a PASS as built) and the exact,
+   narrowly-scoped follow-up I'd recommend if the Operator wants a stronger guarantee.
+
+None of the three items above blocks this Round from being a PASS — items 1 and 2 are test-coverage gaps
+with the underlying behavior independently verified correct, and item 3 is a disclosed, argued,
+Operator-referable design decision, not a silently-dropped requirement.
+
+### What #204's importer must know before it writes real Ideas
+
+- `hookType`/`theme` are `NOT NULL` and store-boundary-validated; `unclassified` is a fully legal value
+  for both — the importer's honest default for Briefs with no classifiable hook/theme. But the 10
+  MundoTip-shape Briefs that also lack a `format` field cannot be imported via `createIdea` as written,
+  because `formatId` is a separate required, FK'd column — the importer needs its own `formatId`
+  resolution for those 10 before calling this store (correctly out of #223's scope).
+- `createIdea` always creates at `status: 'suggested'` — there is no single-call way to insert an Idea
+  already `accepted`/`rejected`. To reproduce a historical Idea's real status, call `createIdea` then
+  immediately `acceptIdea`/`rejectIdea` as a second step. Every write function's `now: () => string`
+  parameter is injectable — use it to backfill the real historical timestamp rather than accepting
+  "now" for every imported record.
+- `rejectIdea` requires a non-blank `rejectionReason` with no bypass in this store's API — if a
+  historical rejected Idea has no captured reason string, the importer needs its own placeholder policy
+  (there is no way to write a `rejected` row through `IdeaStore` without one).
+- `fit_score`/`relevance`/`momentum`/`brand_fit` have zero range/shape validation (plain nullable `REAL`,
+  no `CHECK`) — the importer can write any historical number verbatim, including out-of-[0,1] legacy
+  values, without the store objecting; if that matters, the importer must self-validate before calling.
+- `selectIdeaRecipes`'s `recipe_slug` is FK-checked against the live `recipe_vocabulary` (seeded from
+  `src/recipe/registry.ts`) — a historical Recipe reference that no longer matches a currently-registered
+  slug throws a FOREIGN KEY error and rolls back the WHOLE batch (not just that one item). The importer
+  must map or reject stale/renamed Recipe slugs before calling `selectIdeaRecipes`.
+- No hard block exists today on linking an Idea to a paywalled-only Trend — see the AC4 judgment-call
+  section above if the importer or a future caller needs that enforced.
