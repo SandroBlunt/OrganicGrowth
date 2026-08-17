@@ -65,4 +65,13 @@ globs: *
     generation at a time** (bounded by the single attended Operator, not per-Space capacity), pausing at
     each gate. There is **no unattended background worker**. The agent never asks the Operator to run a
     mechanical step, and never renders past a gate before the Operator acts (see `docs/adr/0009`,
-    `docs/adr/0010`, `docs/adr/0008`).
+    `docs/adr/0010`, `docs/adr/0008`). **Addendum (issue #208, epic #195):** a code-driven **worker**
+    (`src/commands/run-worker.ts`'s `drainQueue`, composing `src/command-surface/worker.ts`'s
+    `runOneJob`) now also exists — a local process the Operator starts, holding its own Magnific
+    credentials, that drains the Production Queue **unattended**, self-auditing each phase and pausing
+    at gates without holding the Space. This is a NEW, separate path alongside the attended `producer`
+    content agent described above (unchanged, still real) — not a replacement for it. The stated reason
+    attended mode existed here — a permission classifier re-blocking allow-listed Magnific calls even
+    when the tool is allow-listed — does not apply to a worker holding its own credentials (epic #195's
+    own recorded review). A superseding ADR for this specific decision is a known doc-gap this ticket
+    flags rather than closes — see its `handoff.md`.

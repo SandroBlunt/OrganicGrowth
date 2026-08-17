@@ -161,6 +161,39 @@ describe("runOneJob — a News Carousel job runs queued -> running -> done, no h
   });
 });
 
+describe("runOneJob — the copy phase stops an invalid drafted Copy before the Asset is saved produced (AC3)", () => {
+  it("an empty caption from the drafter fails validateCopy — no Asset/media/copy is ever saved", async () => {
+    await withTempDb(async (db, dbPath) => {
+      runMigrations(db);
+      const { brandId, ideaId } = await seedAssetAndChannel(db);
+      isolateMediaRoot(db, brandId, dbPath);
+      await writeAsset(ideaId, NEWS_CAROUSEL_RECIPE, { status: "queued", spec: strawMotionIdeaOneCarouselSpec() as unknown as Record<string, unknown> }, { db });
+      const assets = (await loadIdeaAssets(ideaId, { db })) as readonly DbAssetRecord[];
+      const carouselAssetId = assets.find((a) => a.recipe === NEWS_CAROUSEL_RECIPE)!.id;
+      const jobId = enqueueJob(db, { assetId: carouselAssetId, brandId });
+      createBrandAsset(db, {
+        brandId,
+        key: "brand-logo",
+        storageKey: "brands/straw-motion/assets/brand-logo.png",
+        mime: "image/png",
+        bytes: 10,
+        checksum: "abc",
+      });
+
+      const fetchImpl = fakeFetch({ [CAROUSEL_ASSET_URL]: { body: "rendered-bytes", contentType: "image/png" } });
+      const brokenDrafter = () => ({ caption: "", hashtags: [] });
+      const outcome = await runOneJob(db, new FakeCarouselSpace(), jobId, { ...OPTIONS, fetchImpl, drafter: brokenDrafter });
+
+      assert.equal(outcome.status, "failed");
+      // The render DID happen (this is a render-then-copy failure, not an author/bind-media STOP) —
+      // but the Asset is never left "produced" and carries no media/copy from this failed attempt.
+      const saved = getAssetById(db, carouselAssetId)!;
+      assert.notEqual(saved.status, "produced");
+      assert.deepEqual(listAssetMedia(db, carouselAssetId), []);
+    });
+  });
+});
+
 describe("runOneJob — a gated Recipe parks at awaiting_pick (AC4)", () => {
   it("a Character Explainer job pauses at its cast gate, offering candidates undecided", async () => {
     await withTempDb(async (db) => {
