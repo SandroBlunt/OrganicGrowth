@@ -153,14 +153,48 @@ idea-NN.md` instead of requiring the now-removed `data/brands/<slug>/` prefix; t
 claim, same specificity, adapted to the citation this change legitimately makes. No assertion was
 deleted; the total assertion count is unchanged (327).
 
-`npm test` was 3401/893/0-fail on `main` at `4d023e9` and is 3401/893/0-fail after this change — same
-totals, all green, no regression.
+`npm test` was 3401/893/0-fail on `main` at `4d023e9` and is 3401/893/0-fail after Round 1, **3421/900/
+0-fail after Round 2** (see "Round 2" below — the rise is the new pinning suite's own 20 assertions/7
+suites, never an accidental or unrelated change).
+
+## Round 2 — QA's two advisory defects, addressed by Operator request
+
+QA's Round-1 Verdict was **PASS**, with two defects rated advisory/non-blocking. The Operator asked for
+one more round anyway, for reasons recorded in the QA Verdict and this change's `handoff.md`.
+
+**Defect 1 (medium) — no docs-test pinned the ~15 new command-surface citations.** Fixed:
+`src/claude-commands/command-surface-citations.docs-test.ts` (new, 20 assertions / 7 suites) pins every
+new citation this change adds to `run-trends.md`, `review-ideas.md`, `pick.md`, `pick-cast.md`,
+`log-post.md`, `track-performance.md`, `export-schedule.md`, and `queue.md` — a positive assertion that
+the command name and its module appear, and a "revert guard" (`assert.doesNotMatch`) against the EXACT
+raw `data/brands/<slug>/...` text the citation replaced. Every revert guard was checked BEFORE being
+committed against the real pre-#247 text of its file (`git show 4d023e9:.claude/commands/<file>.md`) —
+confirmed to match the OLD text (so a revert is genuinely caught, not a guard that could never fire —
+the exact class of defect QA's own review named in a sibling slice) and to NOT match the current text.
+Live-verified once more, directly: `run-trends.md` was hand-reverted to its exact pre-#247 text and the
+new suite failed on exactly the 3 assertions guarding that file, then the file was restored and the
+suite re-ran green — this is QA's own Round-1 repro, executed and proven caught.
+
+**Defect 2 (low) — `log-post.md`'s Asset lookup cited `src/ledger/ledger.ts` where a real
+command-surface read (`getAssetByRecipe`) exists.** Fixed, not merely reasoned around:
+`log-post.md`'s Asset-lookup step now ALSO names `getAssetByRecipe` (`src/command-surface/assets.ts`)
+as the sanctioned future read, alongside the existing `src/ledger/ledger.ts` citation for today's
+operative read — the exact same additive pattern already used for every write-shaped citation in this
+change. `getAssetByRecipe`'s own doc comment ("Looks up one Idea's Asset for a given Recipe") matches
+this call site's own description ("finds the Asset whose `recipe` matches `<recipe>` EXACTLY")
+structurally, so naming it is the more complete, more consistent application of Option A, not a
+departure from the read/write distinction the rest of the sweep applied.
 
 ## Impact
 
-- **Modified:** the 5 in-scope `.claude/skills/*/SKILL.md` files, all 12 `.claude/commands/*.md` files
-  except `build-issue.md`, `.claude/rules/always/{organicgrowth-rules,data-handling}.md`, `CLAUDE.md`,
-  and `src/format/format-docs.test.ts` (one re-pinned assertion, same count).
+- **Modified (Round 1):** the 5 in-scope `.claude/skills/*/SKILL.md` files, all 12
+  `.claude/commands/*.md` files except `build-issue.md`,
+  `.claude/rules/always/{organicgrowth-rules,data-handling}.md`, `CLAUDE.md`, and
+  `src/format/format-docs.test.ts` (one re-pinned assertion, same count).
+- **Modified (Round 2):** `.claude/commands/log-post.md` (defect 2 — adds the `getAssetByRecipe`
+  citation).
+- **Added (Round 2):** `src/claude-commands/command-surface-citations.docs-test.ts` (defect 1 — 20
+  assertions / 7 suites pinning every new command-surface citation, with revert guards).
 - **Untouched:** the six `.claude/agents/*.md` files (checked, no correction needed — see above), the 11
   model-prompting Skill files, every other doc, and every production module under `src/` (this is a
   documentation-prose change; no runtime behavior changes).

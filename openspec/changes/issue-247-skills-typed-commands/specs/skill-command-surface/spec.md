@@ -135,3 +135,25 @@ Every citation in `.claude/agents/{developer, idea-strategist, performance-track
   `src/production-spec/store.ts`, `src/mention-handle/store.ts`, `src/brand-asset/store.ts`) is confirmed
   to name a file-backed store with no SQL command-surface equivalent wired to the same data
 - **AND** `git diff main --stat -- .claude/agents/` is empty for this change
+
+### Requirement: Every new command-surface citation this change introduces is pinned by a dedicated docs-test, and every revert guard is verified non-vacuous
+
+Every command-surface citation this change adds to `.claude/commands/{run-trends, review-ideas, pick, pick-cast, log-post, track-performance, export-schedule, queue}.md` SHALL be pinned by a docs-test asserting BOTH that the command name and its module appear, AND that the exact raw `data/brands/<slug>/...` (or equivalent bare-path) text it replaced does not reappear. Each revert-guard assertion SHALL be verified, before being committed, to actually match the pre-change text of the file it guards — a negative assertion that could never have matched its own target (e.g. because the guarded text spans a markdown wrap boundary the regex does not tolerate) is not a guard.
+
+#### Scenario: a hand-revert of run-trends.md's createTrend/createIdea citation is caught
+
+- **GIVEN** `run-trends.md` reverted, by hand, to its exact pre-#247 text (the `data/brands/<slug>/ideas/<format>/<run>/trends.json` and `data/brands/<slug>/ledger.json` paths, with no `createTrend`/`createIdea` mention)
+- **WHEN** `src/claude-commands/command-surface-citations.docs-test.ts` is run against the reverted file
+- **THEN** its `run-trends.md` describe block fails — proving the guard is not vacuous, exactly the repro QA's Round-1 Verdict named
+
+#### Scenario: log-post.md names getAssetByRecipe for its Asset-lookup read, for symmetry with its Posts write
+
+- **GIVEN** `log-post.md`'s Steps section describes finding the Idea's Asset whose `recipe` matches `<recipe>` exactly — the same lookup shape as command-surface's `getAssetByRecipe` (an Assets-category read)
+- **WHEN** it is read
+- **THEN** it names `getAssetByRecipe` (`src/command-surface/assets.ts`) as the sanctioned future read, alongside its existing `src/ledger/ledger.ts` citation for today's operative read, matching the same additive pattern used for every write-shaped citation in this change
+
+#### Scenario: npm test and npm run test:docs rise by exactly the new suite's own assertion count
+
+- **GIVEN** `npm test` at 3401/893 and `npm run test:docs` at 327/84, both 0 failing, before this Requirement's own docs-test is added
+- **WHEN** `src/claude-commands/command-surface-citations.docs-test.ts` (20 assertions, 7 suites) is added
+- **THEN** `npm test` reports 3421/900, 0 failing, and `npm run test:docs` reports 347/91, 0 failing — the floor rises by exactly the new suite's own count, never by an unrelated or accidental amount

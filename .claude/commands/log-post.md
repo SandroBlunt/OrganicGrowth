@@ -31,7 +31,10 @@ write is the ledger's own Asset record (rule 7).
 2. **Run** `npm run log-post <brand> <idea-id> <recipe> <facebook-url> [posted-at]` (or call
    `logPostCommand()` in `src/commands/log-post.ts`). It:
    - Loads the Idea's recorded Assets (the Brand's own ledger, `src/ledger/ledger.ts`, already
-     per-Recipe — ADR-0011) and finds the Asset whose `recipe` matches `<recipe>` EXACTLY.
+     per-Recipe — ADR-0011) and finds the Asset whose `recipe` matches `<recipe>` EXACTLY — the same
+     lookup shape as command-surface's `getAssetByRecipe` (`src/command-surface/assets.ts`), the
+     sanctioned target for this read once the Brand's data is on the SQL-backed pipeline; today's
+     operative read is the ledger itself (rule 7).
    - **Refuses** — and lists every one of the Idea's Assets (`recipe (status)`) — when no Asset
      matches `<recipe>`. Never infers.
    - **Refuses** when the matched Asset is not yet `produced` (still `queued`/`in_production`) — there

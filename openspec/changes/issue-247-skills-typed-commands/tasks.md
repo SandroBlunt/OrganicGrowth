@@ -101,3 +101,37 @@
   plumbing citation or (in `format-docs.test.ts`) a re-pinned assertion of the same substantive claim —
   no craft-rule sentence altered.
 - [x] 7.3 Write the Build Report into `handoff.md`.
+
+## 8. Round 2 — address QA's two advisory defects (Operator-requested)
+
+- [x] 8.1 Read the full QA Round-1 Verdict in `handoff.md`.
+- [x] 8.2 Defect 2 (log-post.md's Asset-lookup read): confirmed `getAssetByRecipe`
+  (`src/command-surface/assets.ts`) structurally matches the described lookup; added it as an
+  additional citation alongside the existing `src/ledger/ledger.ts` one, mirroring the write-shaped
+  citations' own additive pattern — fixed, not merely reasoned around.
+- [x] 8.3 Defect 1 (no docs-test pins the new citations): enumerated every command-surface citation
+  Round 1 added (`createTrend`/`createIdea` in `run-trends.md`; `recordReviewDecision` x2 in
+  `review-ideas.md`; `resolveGate` in `pick.md`/`pick-cast.md`; `logPost` + (new, 8.2) `getAssetByRecipe`
+  in `log-post.md`; `recordPerformanceSnapshot`/`recordPerformanceScore` in `track-performance.md`;
+  `saveAsset` in `export-schedule.md`; `enqueueJob`/`claimJob`/`releaseJob` in `queue.md`).
+- [x] 8.4 For each, extracted the EXACT pre-#247 raw-path text it replaced via
+  `git show 4d023e9:.claude/commands/<file>.md`, and wrote a throwaway Node script
+  (collapsed-whitespace regex test) proving each candidate revert-guard regex (a) MATCHES the real old
+  text and (b) does NOT match the current text — before writing a single line of the actual test file,
+  precisely to avoid #246's own "guard that could never fire" defect.
+- [x] 8.5 Wrote `src/claude-commands/command-surface-citations.docs-test.ts` (20 assertions / 7 suites),
+  following `src/claude-agents/tool-boundary.docs-test.ts`'s shape: one `describe` per file, a positive
+  assertion per command name + module, a revert-guard `doesNotMatch` per replaced raw path. Anchored
+  every assertion on command names and path shapes, never on free prose.
+- [x] 8.6 Live-verified the guards fire for real: hand-reverted `run-trends.md` to its exact pre-#247
+  text (QA's own named repro), re-ran the new suite — 3 failures, exactly the 3 assertions guarding that
+  file — then restored the file (`git status --short` confirmed byte-identical) and re-ran green.
+- [x] 8.7 Updated the OpenSpec change: added a new Requirement + 3 Scenarios to `skill-command-surface/
+  spec.md` covering the new docs-test, the live-revert proof, and the `getAssetByRecipe` fix; added a
+  "Round 2" section to `proposal.md`; ran `openspec validate --strict` until green.
+- [x] 8.8 Re-ran `npm run test:docs` (347/91, 0 fail — up from 327/84 by exactly the new suite's own
+  20/7) and `npm test` (3421/900, 0 fail — up from 3401/893 by the same 20/7) and
+  `openspec validate --all --strict` (still 64 passed, 0 failed — this round edits the same change's
+  own spec delta, it does not add a new one).
+- [x] 8.9 Appended a `Round-2 Build` block to `handoff.md`, without overwriting Round 1 or the QA
+  Verdict.
