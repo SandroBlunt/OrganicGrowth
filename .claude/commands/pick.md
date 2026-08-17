@@ -39,13 +39,14 @@ absent from that Recipe's own list, defensively resolves the next leg to `null` 
 3. The output restates the active Brand: "Brand: `<brand>`" so the Operator can confirm the pick is for
    the correct Brand.
 
-> **How the render runs:** once the pick is in, the resumed job renders through one of two paths — same
-> as any other queued job (ADR-0008 attended; ADR-0030 unattended). Attended: the Producer resumes it
-> **in the Operator's session** and renders it one generation at a time, with the Operator approving each
-> Space call. Unattended: a separate worker (`src/commands/run-worker.ts`) claims and drives it with no
-> human present, self-auditing each phase. This command only records the pick on the queue job; recording
-> it does not move that Asset forward on its own (the Idea itself is untouched by the pick) — whichever
-> path resumes the job does that. A gate-paused job does not hold the Space.
+> **How the render runs:** this command resumes the job in the file-based Production Queue
+> (`data/queue.json`) ONLY. The Producer resumes it **in the Operator's session** and renders it one
+> generation at a time, with the Operator approving each Space call (ADR-0008). This command only
+> records the pick on the queue job; recording it does not move that Asset forward on its own (the Idea
+> itself is untouched by the pick) — the attended Producer does that when it resumes the job. A
+> gate-paused job does not hold the Space. A SEPARATE, unattended **worker**
+> (`src/commands/run-worker.ts`, ADR-0030) also exists, but it drains a DIFFERENT, SQL-backed `job`
+> table — this command never writes there, so a pick recorded here is **not** visible to that worker.
 
 ## Relationship to `/pick-cast`
 

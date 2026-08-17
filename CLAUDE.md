@@ -51,20 +51,25 @@ it can run itself, and never renders past a gate before the Operator acts.** Gat
 (ADR-0009/0010): each Recipe declares its own ordered pick-gate list (zero, one, or several); the wired
 *Character Explainer with Cast* Recipe's is the single **Cast** pick, shown as Gate 2 below.
 
-> **Production runtime — two paths, both real.** **Attended**
+> **Production runtime — two paths, both real, over TWO SEPARATE stores.** **Attended**
 > ([`docs/adr/0008`](./docs/adr/0008-producer-drives-the-space-attended.md), which supersedes
 > [`docs/adr/0004`](./docs/adr/0004-producer-serialized-background-queue.md)): production runs **in the
 > Operator's session** — the `producer` is an interactive agent, given the Magnific MCP tools, that drives
-> the **live** Space while the Operator is present and approves the Space calls as they happen.
-> **Unattended** ([`docs/adr/0030`](./docs/adr/0030-worker-drains-the-queue-unattended.md), partially
-> superseding ADR-0008): a separate **worker** (`src/commands/run-worker.ts`'s `drainQueue`) is a local
-> process the Operator starts, holding its own Magnific credentials — not a Claude Code agent session, so
-> the permission classifier that originally justified attended-only mode never applies to it — that drains
-> the **Production Queue** with **no human present**, for the wired Recipes declaring zero or one gate,
-> self-auditing each phase (author / bind-media / copy) before advancing and pausing at a gate without
-> holding the Space. Nobody watches the render happen in real time on the unattended path — ADR-0030's own
-> Consequences section names that cost and its backstops plainly. Either way the **Production Queue** is
-> the same backlog of accepted-Idea jobs (ADR-0006); the Operator chooses which path drains a given job.
+> the **live** Space while the Operator is present and approves the Space calls as they happen, working
+> the file-based **Production Queue** (`data/queue.json`, ADR-0006) that Review's accept flow and
+> `/pick`/`/pick-cast` write to. **Unattended**
+> ([`docs/adr/0030`](./docs/adr/0030-worker-drains-the-queue-unattended.md), partially superseding
+> ADR-0008): a separate **worker** (`src/commands/run-worker.ts`'s `drainQueue`) is a local process the
+> Operator starts, holding its own Magnific credentials — not a Claude Code agent session, so the
+> permission classifier that originally justified attended-only mode never applies to it — that drains a
+> DIFFERENT, SQL-backed `job` table instead, with **no human present**, for the wired Recipes declaring
+> zero or one gate, self-auditing each phase (author / bind-media / copy) before advancing and pausing at
+> a gate without holding the Space. Nobody watches the render happen in real time on the unattended
+> path — ADR-0030's own Consequences section names that cost and its backstops plainly. **These two
+> stores are unsynchronized today, not one interchangeable backlog:** a job accepted through Review lands
+> in `data/queue.json` only and stays invisible to the unattended worker unless separately carried into
+> SQL (the one-shot importer, or a `resolveGate` follow-up on an Asset that already has SQL job
+> history) — `/pick`/`/pick-cast` do not put it there.
 
 1. `/run-trends <brand> <format>` → for that Brand's named **Format** (ADR-0013 — its own voice, trend
    sources/mode, and `ideas_per_run`, read from `data/brands/<slug>/formats/<format>.yaml`):

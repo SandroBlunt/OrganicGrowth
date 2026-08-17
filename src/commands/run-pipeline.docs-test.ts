@@ -104,10 +104,15 @@ describe("run-pipeline.md is honest that production runs through two real paths 
       "run-pipeline.md must not claim production is not yet wired — it is attended and wired today",
     );
     // It must never re-introduce the OLD, now-false, unqualified "no headless worker host" claim —
-    // ADR-0030 means a headless worker host genuinely exists now.
+    // ADR-0030 means a headless worker host genuinely exists now. Gap-tolerant ([\s\S]{0,10}, not a bare
+    // space) on purpose: the OLD text this guards against wraps mid-phrase AND crosses a markdown
+    // blockquote continuation marker ("deliberately **no\n> headless worker host..."), so a bare
+    // `/no headless worker host/i` (or even a plain whitespace-collapse) does not match it — verified by
+    // testing this exact pattern against that exact old text (qa Round-3 repro). Mirrors the ORIGINAL
+    // (pre-Round-2) positive-match pattern's own gap-tolerance for the identical reason.
     assert.doesNotMatch(
       doc,
-      /no headless worker host/i,
+      /deliberately \*{0,2}no\b[\s\S]{0,10}headless worker host/i,
       "run-pipeline.md must not claim there is no headless worker host — the unattended worker now exists (ADR-0030)",
     );
   });
