@@ -14,7 +14,6 @@ describe("formatQueue — brand + recipe + gate cursor in output (AC6, issue #56
         { idea_id: "idea-A", brand: BRAND_A, recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
         { idea_id: "idea-B", brand: BRAND_B, recipe: RECIPE, gate: null, status: "running", enqueued_at: "2026-06-05T11:00:00.000Z" },
       ],
-      lock: { active_job: { brand: BRAND_B, idea_id: "idea-B", recipe: RECIPE } },
     };
     const out = formatQueue(state);
 
@@ -43,7 +42,6 @@ describe("formatQueue — brand filter (AC6)", () => {
         { idea_id: "idea-B1", brand: BRAND_B, recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:01:00.000Z" },
         { idea_id: "idea-A2", brand: BRAND_A, recipe: RECIPE, gate: null, status: "done", enqueued_at: "2026-06-05T10:02:00.000Z" },
       ],
-      lock: { active_job: null },
     };
   }
 
@@ -83,7 +81,6 @@ describe("formatQueue — a second Recipe of the same Idea shows as a distinct l
         { idea_id: "idea-A", brand: BRAND_A, recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
         { idea_id: "idea-A", brand: BRAND_A, recipe: "carousel", gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:01:00.000Z" },
       ],
-      lock: { active_job: null },
     };
     const out = formatQueue(state);
     const lines = out.split("\n").filter((l) => l.includes("idea-A"));

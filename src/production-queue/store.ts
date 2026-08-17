@@ -3,12 +3,16 @@
  *
  * Kept thin and separate from the pure logic in `queue.ts`. Defensive on read: a missing file loads
  * as the empty queue (a fresh repo has no queued work yet), so callers never crash on first run. Every
- * dropped record is WARNED about (never silently discarded), so a hand-typo'd job or a stale lock leaves
- * a trace instead of vanishing from `/queue`.
+ * dropped record is WARNED about (never silently discarded), so a hand-typo'd job leaves a trace
+ * instead of vanishing from `/queue`.
+ *
+ * No `lock` field is read or written here (issue #203 — see `queue.ts`'s own doc comment, "No stored
+ * lock field"). A stray `lock` key on a hand-edited or pre-#203 `data/queue.json` is simply ignored on
+ * load and never re-written on save — it is not ported into `QueueState`.
  */
 
 import { readJsonFile, writeFileAtomic } from "../fs/safe-io.ts";
-import { emptyQueue, type JobRef, type QueueJob, type QueueState } from "./queue.ts";
+import { emptyQueue, type QueueJob, type QueueState } from "./queue.ts";
 
 const VALID_STATUSES = new Set(["queued", "running", "awaiting_pick", "done", "failed"]);
 
@@ -79,38 +83,12 @@ function parseJob(raw: unknown): QueueJob | null {
   return base;
 }
 
-/** Coerce a raw lock holder into a composite `JobRef`, or null if it is absent/malformed. */
-function parseJobRef(raw: unknown): JobRef | null {
-  if (!isObject(raw)) return null;
-  const { brand, idea_id, recipe } = raw;
-  if (typeof brand !== "string" || brand.length === 0) return null;
-  if (typeof idea_id !== "string" || idea_id.length === 0) return null;
-  if (typeof recipe !== "string" || recipe.length === 0) return null;
-  return { brand, idea_id, recipe };
-}
-
 /** Coerce arbitrary parsed JSON into a well-formed QueueState (drops malformed jobs defensively). */
 export function parseQueueState(raw: unknown): QueueState {
   if (!isObject(raw)) return emptyQueue();
   const jobsRaw = Array.isArray(raw.jobs) ? raw.jobs : [];
   const jobs = jobsRaw.map(parseJob).filter((j): j is QueueJob => j !== null);
-  const lockRaw = isObject(raw.lock) ? raw.lock : {};
-  let active_job = parseJobRef(lockRaw.active_job);
-  // C39: a lock pointing at a dropped/nonexistent job is a phantom lock that reads the Space busy
-  // forever. Null it (with a warning) when no loaded job matches its composite (brand, idea_id, recipe).
-  if (active_job !== null) {
-    const ref = active_job;
-    const matched = jobs.some(
-      (j) => j.brand === ref.brand && j.idea_id === ref.idea_id && j.recipe === ref.recipe,
-    );
-    if (!matched) {
-      console.warn(
-        `[queue] parseQueueState: clearing phantom lock.active_job — no loaded job matches brand="${ref.brand}" idea_id="${ref.idea_id}" recipe="${ref.recipe}"`,
-      );
-      active_job = null;
-    }
-  }
-  return { jobs, lock: { active_job } };
+  return { jobs };
 }
 
 /**

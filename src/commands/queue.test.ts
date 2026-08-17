@@ -32,7 +32,6 @@ const MULTI: QueueState = {
     { idea_id: "idea-A1", brand: "alpha", recipe: RECIPE, gate: "cast", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" },
     { idea_id: "idea-B1", brand: "beta", recipe: RECIPE, gate: null, status: "running", enqueued_at: "2026-06-05T10:01:00.000Z", pick: "cast-2" },
   ],
-  lock: { active_job: { brand: "beta", idea_id: "idea-B1", recipe: RECIPE } },
 };
 
 describe("queueCommand — load then format the queue file", () => {

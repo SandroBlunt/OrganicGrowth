@@ -4,23 +4,29 @@
  * This is NOT ADR-0004's abandoned unattended-worker code (`worker.ts`, deleted in issue #56) — it is
  * the LIVE decision logic the generic gate-resume flow drives (`/pick` and `/pick-cast`,
  * `src/commands/pick.ts`, issue #57): given a `QueueState`, decide which job runs next under the
- * Magnific Space's single-concurrency constraint, and move jobs through their lifecycle while keeping
- * the single-active-run lock in step. Like `queue.ts` this module is *pure and deterministic*: it never
- * touches the filesystem, the network, the Magnific Space, or the clock. FIFO ordering is by each
- * job's injected `enqueued_at`, never by `Date.now()`. I/O lives in `store.ts`; orchestration lives in
- * the `commands/` shell.
+ * Magnific Space's single-concurrency constraint, and move jobs through their lifecycle. Like `queue.ts`
+ * this module is *pure and deterministic*: it never touches the filesystem, the network, the Magnific
+ * Space, or the clock. FIFO ordering is by each job's injected `enqueued_at`, never by `Date.now()`.
+ * I/O lives in `store.ts`; orchestration lives in the `commands/` shell.
  *
  * Every transition targets a job by its COMPOSITE `(brand, idea_id, recipe)` — never a subset of it —
  * because Idea ids are not Brand-unique in the one shared queue (C6), and one Idea can hold several
- * Recipes' jobs at once (issue #56). The lock holds that same composite ref.
+ * Recipes' jobs at once (issue #56).
  *
  * --- The rules encoded here (ADR-0008) ---
  *
  *   • FIFO by acceptance order — the earliest-`enqueued_at` `queued` job runs first.
- *   • Single Space concurrency — at most one job is ever `running`; the lock is held around a run.
- *   • Gates do not hold the Space — an `awaiting_pick` job releases the lock and is skipped by
- *     `nextReady`, so the next queued generation proceeds while the Operator makes a pick.
- *   • Failure is isolated per job — a `failed` job releases the lock and never blocks its successors.
+ *   • Single Space concurrency — at most one job is ever `running`.
+ *   • Gates do not hold the Space — an `awaiting_pick` job is skipped by `nextReady`, so the next
+ *     queued generation proceeds while the Operator makes a pick.
+ *   • Failure is isolated per job — a `failed` job never blocks its successors.
+ *
+ * --- No stored lock (issue #203) ---
+ *
+ * An earlier revision kept a separate `state.lock.active_job` pointer in step alongside each
+ * transition, mirroring the `running` job it was meant to describe. That pointer has been DELETED, not
+ * ported (see `queue.ts`'s own doc comment) — `spaceBusy` below reads `jobs` directly, so there is no
+ * second copy of "is the Space busy" that could drift out of sync with the jobs it describes.
  *
  * The lifecycle is `queued → running → (awaiting_pick | done | failed)`, plus the gate-cleared edge
  * `awaiting_pick → done` via `markPickConsumed` (C24, generalized — the Operator's pick clears the
@@ -29,13 +35,13 @@
  * mutates the input.
  */
 
-import type { JobRef, JobStatus, QueueJob, QueueState } from "./queue.ts";
+import type { JobStatus, QueueJob, QueueState } from "./queue.ts";
 
 /** Stable, machine-checkable reason a `mark*` transition was refused. */
 export type TransitionCode =
   /** No job in the queue for the given `(brand, idea_id, recipe)`. */
   | "unknown_job"
-  /** A run was requested while the Space is busy (lock held / a job already `running`). */
+  /** A run was requested while the Space is busy (another job already `running`). */
   | "space_busy"
   /** The job's current status does not permit the requested transition. */
   | "invalid_transition";
@@ -50,18 +56,18 @@ export interface TransitionResult {
   readonly state: QueueState;
 }
 
-/** Whether the Space is busy: a held lock, or any job currently `running`. */
+/** Whether the Space is busy: any job currently `running`. */
 function spaceBusy(state: QueueState): boolean {
-  return state.lock.active_job !== null || state.jobs.some((j) => j.status === "running");
+  return state.jobs.some((j) => j.status === "running");
 }
 
 /**
  * The single next job to run, or `null` when nothing is ready.
  *
- * Pure. Returns `null` while the Space is busy (single-Space lock — at most one `running` job). When the
- * Space is free, returns the `queued` job with the earliest `enqueued_at` (FIFO by acceptance time, not
- * array position). `awaiting_pick`, `done`, and `failed` jobs are skipped, so a job paused at its gate
- * does not hold the Space and a failed job never blocks its successors.
+ * Pure. Returns `null` while the Space is busy (single-Space concurrency — at most one `running` job).
+ * When the Space is free, returns the `queued` job with the earliest `enqueued_at` (FIFO by acceptance
+ * time, not array position). `awaiting_pick`, `done`, and `failed` jobs are skipped, so a job paused at
+ * its gate does not hold the Space and a failed job never blocks its successors.
  *
  * @param state  current queue state
  */
@@ -106,26 +112,20 @@ function indexOfJobInStatus(
 }
 
 /**
- * Return a NEW state with the job at `index` set to `status` and the lock set to `lockHolder`.
+ * Return a NEW state with the job at `index` set to `status`.
  * Pure: copies the jobs array and the target job; never mutates the input.
  */
-function transition(
-  state: QueueState,
-  index: number,
-  status: JobStatus,
-  lockHolder: JobRef | null,
-): QueueState {
+function transition(state: QueueState, index: number, status: JobStatus): QueueState {
   const jobs = state.jobs.map((job, i) => (i === index ? { ...job, status } : job));
-  return { jobs, lock: { active_job: lockHolder } };
+  return { jobs };
 }
 
 /**
- * Move a `queued` job to `running` and take the single-Space lock (which records the job's composite
- * `(brand, idea_id, recipe)` ref).
+ * Move a `queued` job to `running`.
  *
- * Refuses with `space_busy` if the lock is held or another job is already `running` (≤1 running),
- * `unknown_job` if no job exists for `(brand, ideaId, recipe)`, and `invalid_transition` if the job is
- * not `queued`. Pure: returns a NEW state on success; the input is unchanged either way.
+ * Refuses with `space_busy` if another job is already `running` (≤1 running), `unknown_job` if no job
+ * exists for `(brand, ideaId, recipe)`, and `invalid_transition` if the job is not `queued`. Pure:
+ * returns a NEW state on success; the input is unchanged either way.
  */
 export function markRunning(
   state: QueueState,
@@ -141,12 +141,12 @@ export function markRunning(
   if (i === -1) {
     return { ok: false, code: "invalid_transition", state };
   }
-  return { ok: true, state: transition(state, i, "running", { brand, idea_id: ideaId, recipe }) };
+  return { ok: true, state: transition(state, i, "running") };
 }
 
 /**
- * Move a `running` job to `awaiting_pick` (it reached its gate) and RELEASE the lock — the gate does
- * not hold the Space (ADR-0008). Refuses `unknown_job` / `invalid_transition`. Pure.
+ * Move a `running` job to `awaiting_pick` (it reached its gate) — the gate does not hold the Space
+ * (ADR-0008). Refuses `unknown_job` / `invalid_transition`. Pure.
  */
 export function markAwaitingPick(
   state: QueueState,
@@ -158,8 +158,8 @@ export function markAwaitingPick(
 }
 
 /**
- * Move a `running` job to `done` (its Space generation finished) and RELEASE the lock. Refuses
- * `unknown_job` / `invalid_transition`. Pure.
+ * Move a `running` job to `done` (its Space generation finished). Refuses `unknown_job` /
+ * `invalid_transition`. Pure.
  */
 export function markDone(
   state: QueueState,
@@ -171,9 +171,9 @@ export function markDone(
 }
 
 /**
- * Move a `running` job to `failed` and RELEASE the lock — failure is isolated, so the queue continues
- * with the next job (ADR-0008). The job stays in the queue for the Operator to see, and can later be
- * revived with `requeueFailed`. Refuses `unknown_job` / `invalid_transition`. Pure.
+ * Move a `running` job to `failed` — failure is isolated, so the queue continues with the next job
+ * (ADR-0008). The job stays in the queue for the Operator to see, and can later be revived with
+ * `requeueFailed`. Refuses `unknown_job` / `invalid_transition`. Pure.
  */
 export function markFailed(
   state: QueueState,
@@ -187,9 +187,7 @@ export function markFailed(
 /**
  * Move a job from `awaiting_pick` to `done` — the Operator has recorded a pick, so the gate has CLEARED
  * (C24, generalized). Invoked by a gate-pick command (e.g. `/pick-cast`) at pick time so `/queue` no
- * longer shows a gate that is already resolved. The lock is left untouched (an `awaiting_pick` job
- * holds no lock, and clearing the gate never starts a run — `nextReady` / `markRunning` do that under
- * the single-Space constraint).
+ * longer shows a gate that is already resolved.
  *
  * Refuses `unknown_job` if no job exists for `(brand, ideaId, recipe)`, and `invalid_transition` if a
  * job exists but none of them is `awaiting_pick` (e.g. a re-pick after the gate already cleared). Pure:
@@ -206,15 +204,13 @@ export function markPickConsumed(
   if (i === -1) {
     return { ok: false, code: "invalid_transition", state };
   }
-  // Preserve the current lock — clearing a gate never touches the single-Space lock.
-  return { ok: true, state: transition(state, i, "done", state.lock.active_job) };
+  return { ok: true, state: transition(state, i, "done") };
 }
 
 /**
  * Revive a `failed` job back to `queued` so its (Idea, Recipe) can be produced again (C4 — a transient
  * Space failure must not permanently strand production). Targets the `failed` job for
- * `(brand, ideaId, recipe)`; the lock is left untouched (a failed job holds no lock, and reviving it
- * does not start a run — `nextReady` / `markRunning` do that under the single-Space constraint).
+ * `(brand, ideaId, recipe)`.
  *
  * Refuses `unknown_job` if no job exists for `(brand, ideaId, recipe)`, and `invalid_transition` if a
  * job exists but none of them is `failed`. Pure: returns a NEW state on success; the input is unchanged
@@ -231,11 +227,10 @@ export function requeueFailed(
   if (i === -1) {
     return { ok: false, code: "invalid_transition", state };
   }
-  // Preserve the current lock — reviving a failed job never touches the single-Space lock.
-  return { ok: true, state: transition(state, i, "queued", state.lock.active_job) };
+  return { ok: true, state: transition(state, i, "queued") };
 }
 
-/** Shared body for the lock-releasing transitions (awaiting_pick / done / failed), all from `running`. */
+/** Shared body for the transitions that leave `running` (awaiting_pick / done / failed). */
 function release(
   state: QueueState,
   brand: string,
@@ -244,10 +239,10 @@ function release(
   to: JobStatus,
 ): TransitionResult {
   if (indexOfJob(state, brand, ideaId, recipe) === -1) return { ok: false, code: "unknown_job", state };
-  // Target the (Idea, Recipe)'s `running` job specifically (it is the one holding the single-Space lock).
+  // Target the (Idea, Recipe)'s `running` job specifically (it is the one occupying the single Space).
   const i = indexOfJobInStatus(state, brand, ideaId, recipe, "running");
   if (i === -1) {
     return { ok: false, code: "invalid_transition", state };
   }
-  return { ok: true, state: transition(state, i, to, null) };
+  return { ok: true, state: transition(state, i, to) };
 }
