@@ -67,22 +67,60 @@ describe("extractReferenceCitations", () => {
     assert.ok(citations.every((c) => c.citingFile === file.path));
   });
 
-  it("does not match a bare directory citation with no filename (out of this check's scope)", () => {
+  it("matches a bare-directory citation with no filename (issue #252 Round 2: re-decided in scope, see reference-citation-scan.ts's own module doc)", () => {
     const file: SourceFile = {
       path: ".claude/skills/veo-3-1/metadata.yaml",
       content: "shared_references:\n  path: ../../references/\n",
     };
+    const citations = extractReferenceCitations(file);
+    assert.equal(citations.length, 1);
+    assert.equal(citations[0]!.rawPath, "../../references/");
+    assert.equal(citations[0]!.resolvedPath, ".claude/references");
+  });
+
+  it("matches a bare-directory citation with an intervening path segment before 'references/' (the issue #252 Round 1 Defect 1 shape: a stale `../../../_shared/references/` pointer)", () => {
+    const file: SourceFile = {
+      path: ".claude/skills/grok-imagine/metadata.yaml",
+      content: "shared_references:\n  path: ../../../_shared/references/\n",
+    };
+    const citations = extractReferenceCitations(file);
+    assert.equal(citations.length, 1);
+    assert.equal(citations[0]!.rawPath, "../../../_shared/references/");
+    // Resolves outside .claude/ entirely, to a repo-root _shared/references — this is the point:
+    // the citation must be SEEN and RESOLVED so findDanglingReferenceCitations can judge it, not
+    // silently skipped for having an unexpected segment in the middle of the path.
+    assert.equal(citations[0]!.resolvedPath, "_shared/references");
+  });
+
+  it("matches a NAMED citation with an intervening path segment before 'references/', same as the bare-directory case", () => {
+    const file: SourceFile = {
+      path: ".claude/skills/veo-3-1/SKILL.md",
+      content: "See `../../../vendor/references/cinematography.md` for the shared craft notes.",
+    };
+    const citations = extractReferenceCitations(file);
+    assert.equal(citations.length, 1);
+    assert.equal(citations[0]!.resolvedPath, "vendor/references/cinematography.md");
+  });
+
+  it("does not match a relative path with no 'references/' segment at all", () => {
+    const file: SourceFile = {
+      path: ".claude/skills/veo-3-1/SKILL.md",
+      content: "See `scripts/build-prompt.py` and `../../translation-notes.md` (no references/ segment).",
+    };
     assert.deepEqual(extractReferenceCitations(file), []);
   });
 
-  it("does not match an unrelated relative path", () => {
+  it("matches only the bare-directory prefix when the filename after it does not match the " +
+     "lowercase-hyphenated .md shape (e.g. an uppercase README.md) — the real shape every " +
+     "references/README.md file itself uses to point back at the shared folder", () => {
     const file: SourceFile = {
       path: ".claude/skills/veo-3-1/SKILL.md",
-      content: "See `scripts/build-prompt.py` and `../../../references/README.md` (no .md name match).",
+      content: "See `../../../references/README.md` (filename not captured, directory pointer is).",
     };
-    // "README.md" is uppercase, and the pattern is deliberately lowercase-hyphen only (issue #252's
-    // own reproduction pattern) — this citation shape never occurs in the real catalogue.
-    assert.deepEqual(extractReferenceCitations(file), []);
+    const citations = extractReferenceCitations(file);
+    assert.equal(citations.length, 1);
+    assert.equal(citations[0]!.rawPath, "../../../references/");
+    assert.equal(citations[0]!.resolvedPath, "references");
   });
 
   it("returns [] for a file with no citation at all", () => {
@@ -107,6 +145,7 @@ describe("extractAllReferenceCitations", () => {
 
 describe("findDanglingReferenceCitations", () => {
   const EXISTING = new Set([
+    ".claude/references", // the shared folder itself, for bare-directory citations
     ".claude/references/prompt-discipline.md",
     ".claude/references/cinematography.md",
     ".claude/references/lighting.md",
@@ -155,6 +194,40 @@ describe("findDanglingReferenceCitations", () => {
       findDanglingReferenceCitations(extractAllReferenceCitations([good]), pathExists),
       [],
       "removing the broken citation must restore green, proving the guard is not stuck red",
+    );
+  });
+
+  it("returns [] when a bare-directory citation resolves to the existing shared folder", () => {
+    const citations = extractAllReferenceCitations([
+      { path: ".claude/skills/veo-3-1/metadata.yaml", content: "path: ../../references/" },
+    ]);
+    assert.deepEqual(findDanglingReferenceCitations(citations, pathExists), []);
+  });
+
+  it("pins the issue #252 Round 1 Defect 1 shape: a bare-directory citation with an intervening " +
+     "'_shared/' segment (`../../../_shared/references/`) is caught as dangling, not silently " +
+     "skipped for having an extra segment in the middle of the path", () => {
+    const citations = extractAllReferenceCitations([
+      {
+        path: ".claude/skills/grok-imagine/metadata.yaml",
+        content: "shared_references:\n  mode: relative-link\n  path: ../../../_shared/references/\n",
+      },
+    ]);
+    const dangling = findDanglingReferenceCitations(citations, pathExists);
+    assert.equal(dangling.length, 1, "the stale _shared/references/ pointer must be flagged dangling");
+    assert.equal(dangling[0]!.resolvedPath, "_shared/references");
+
+    // The fix (matching the other nine metadata.yaml files) resolves it clean.
+    const fixed = extractAllReferenceCitations([
+      {
+        path: ".claude/skills/grok-imagine/metadata.yaml",
+        content: "shared_references:\n  mode: relative-link\n  path: ../../references/\n",
+      },
+    ]);
+    assert.deepEqual(
+      findDanglingReferenceCitations(fixed, pathExists),
+      [],
+      "pointing at ../../references/ (matching the other nine metadata.yaml files) must resolve clean",
     );
   });
 

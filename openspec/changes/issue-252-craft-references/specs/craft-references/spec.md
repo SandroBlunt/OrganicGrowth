@@ -54,9 +54,9 @@ Where a Recipe-level Skill under `.claude/skills/` (e.g. `produce-news-carousel`
   documents stay at the general, cross-model craft layer, and the Recipe-specific rule stays exactly
   where it already lives
 
-### Requirement: Every `(../)+references/<name>.md` citation across `.claude/skills/` resolves to a real file
+### Requirement: Every shared-reference citation across `.claude/skills/` resolves to a real file or folder, however it is shaped
 
-Every citation of the shape `(../)+references/<name>.md` inside a `.claude/skills/**/*.md` or `.claude/skills/**/*.yaml` file SHALL resolve, when its relative path is joined against the citing file's own directory and normalized, to a file that exists on disk. A citation from a `SKILL.md` or `metadata.yaml` file (one directory shallower than a `references/` subfolder) and a citation from a `references/*.md` sibling file (one directory deeper) both cite the SAME shared folder (`.claude/references/`) despite using a shallower `../../references/` text in the shallower case and the identical-looking `../../../references/` text in the deeper case — the citation DEPTH, not just the target folder's existence, SHALL be correct for both.
+Every citation of the shape `(../)+(<segment>/)*references/(<name>.md)?` inside a `.claude/skills/**/*.md` or `.claude/skills/**/*.yaml` file — a NAMED citation pointing at one specific document, or a bare-DIRECTORY citation with no filename that points at the shared folder itself, and EITHER shape whether or not it carries one or more extra path segments between its `../` climb and its final `references/` (e.g. a stale `_shared/` segment) — SHALL resolve, when its relative path is joined against the citing file's own directory and normalized, to a file or folder that exists on disk; an intervening path segment SHALL NOT exempt a citation from this check. A citation from a `SKILL.md` or `metadata.yaml` file (one directory shallower than a `references/` subfolder) and a citation from a `references/*.md` sibling file (one directory deeper) both cite the SAME shared folder (`.claude/references/`) despite using a shallower `../../references/` text in the shallower case and the identical-looking `../../../references/` text in the deeper case — the citation DEPTH, not just the target folder's existence, SHALL be correct for both.
 
 #### Scenario: issue #252's own reproduction script finds zero broken citations
 
@@ -81,9 +81,16 @@ Every citation of the shape `(../)+references/<name>.md` inside a `.claude/skill
 - **THEN** none of them appears in the diff — only `SKILL.md` and `metadata.yaml` files were edited by
   this change
 
-### Requirement: An automated check fails when a `.claude/skills/` file cites a reference path that does not resolve
+#### Scenario: a bare-directory citation with an intervening path segment (the `_shared/` shape) is caught dangling before it is fixed, and resolves clean after
 
-A test SHALL exist that walks every `.claude/skills/**/*.md` and `.claude/skills/**/*.yaml` file, extracts every `(../)+references/<name>.md` citation, and fails when any citation's resolved path does not exist on disk. The check's citation-parsing and path-resolution logic SHALL be implemented as a pure function, separate from the disk-touching walk, so the parsing/resolution logic itself is provable without any filesystem access. The check SHALL be demonstrated, not merely asserted, to fail on a genuinely broken citation and to pass once that citation is removed.
+- **GIVEN** `.claude/skills/grok-imagine/metadata.yaml` and `.claude/skills/grok-imagine-1-5/metadata.yaml`, each citing `../../../_shared/references/` (a bare-directory pointer with an intervening `_shared/` segment, at a repo-root `_shared/references/` that has never existed in this repository)
+- **WHEN** the citation-existence check is run against these two files
+- **THEN** it resolves each citation's path with the intervening `_shared/` segment intact (not skipped for having an unexpected segment in the middle), finds no `_shared/references/` folder on disk, and reports both citations dangling, naming both files
+- **AND** once each file's `path`/`purpose` citation is corrected to `../../references/` (matching the other nine `metadata.yaml` files), re-running the check against the real tree reports zero dangling citations
+
+### Requirement: An automated check fails when a `.claude/skills/` file cites a reference path that does not resolve, whether it names a file or points at the bare shared folder
+
+A test SHALL exist that walks every `.claude/skills/**/*.md` and `.claude/skills/**/*.yaml` file, extracts every shared-reference citation of the shape `(../)+(<segment>/)*references/(<name>.md)?` — covering a NAMED citation, a bare-DIRECTORY citation with no filename, and either shape with one or more intervening path segments between the `../` climb and the final `references/` — and fails when any citation's resolved path does not exist on disk as either a file or a folder. The check's citation-parsing and path-resolution logic SHALL be implemented as a pure function, separate from the disk-touching walk, so the parsing/resolution logic itself is provable without any filesystem access. The check SHALL be demonstrated, not merely asserted, to fail on a genuinely broken citation of each of these shapes and to pass once that citation is fixed.
 
 #### Scenario: the guard passes against the real, fixed .claude/skills/ tree
 
@@ -92,7 +99,7 @@ A test SHALL exist that walks every `.claude/skills/**/*.md` and `.claude/skills
 - **THEN** it reports zero dangling citations, and asserts a non-trivial citation count was actually
   found (never a silently-vacuous zero-citations pass)
 
-#### Scenario: the guard is proven non-vacuous — a hand-introduced broken citation is caught, and removing it restores green
+#### Scenario: the guard is proven non-vacuous — a hand-introduced broken NAMED citation is caught, and removing it restores green
 
 - **GIVEN** a citation to a nonexistent file (`../../references/does-not-exist-nonce.md`)
   hand-appended to `.claude/skills/veo-3-1/SKILL.md`
@@ -100,6 +107,13 @@ A test SHALL exist that walks every `.claude/skills/**/*.md` and `.claude/skills
 - **THEN** it fails, naming exactly that one dangling citation
 - **AND** once the hand-appended line is removed and the file is restored to its shipped state, running
   the guard again passes
+
+#### Scenario: the guard catches a bare-directory citation with an intervening path segment, the exact shape it originally missed
+
+- **GIVEN** the real, pre-fix `.claude/skills/grok-imagine/metadata.yaml` and `.claude/skills/grok-imagine-1-5/metadata.yaml`, each still citing `../../../_shared/references/`
+- **WHEN** `src/claude-skills/reference-citation-guard.docs-test.ts` is run against the tree in that state
+- **THEN** it fails, naming both files and both their dangling `../../../_shared/references/` citations
+- **AND** once both files are corrected to cite `../../references/`, re-running the guard passes
 
 #### Scenario: the pure scanner module is unit-tested with zero disk access
 
@@ -110,3 +124,5 @@ A test SHALL exist that walks every `.claude/skills/**/*.md` and `.claude/skills
 - **THEN** every test passes using only in-memory fixtures — no `node:fs` read in that file
 - **AND** among its cases is a fixture reproducing the exact pre-fix bug shape (a `SKILL.md`-depth file
   citing with one `../` too many), asserted to be caught as dangling
+- **AND** among its cases is a fixture reproducing the intervening-path-segment bug shape
+  (`../../../_shared/references/`), asserted to be caught as dangling and to resolve clean once fixed

@@ -6,10 +6,22 @@
  *
  * A model-prompting Skill cites one of the five shared craft-reference documents
  * (`prompt-discipline.md`, `cinematography.md`, `lighting.md`, `photography.md`,
- * `production-design.md`) via a relative path of the shape `(../)+references/<name>.md` — from its own
- * `SKILL.md`/`metadata.yaml` (one directory shallower) or from a `references/*.md` sibling one
- * directory deeper. This module extracts every such citation and resolves it against the citing
- * file's own location, EXACTLY the reproduction shape issue #252 was filed with:
+ * `production-design.md`), or the shared `.claude/references/` folder itself, via a relative path of
+ * the shape `(../)+(<segment>/)*references/(<name>.md)?` — from its own `SKILL.md`/`metadata.yaml`
+ * (one directory shallower) or from a `references/*.md` sibling one directory deeper. Two sub-shapes,
+ * both covered:
+ *
+ *   - a NAMED citation, e.g. `../../references/photography.md` — resolves to one specific document;
+ *   - a bare-DIRECTORY citation, no filename, e.g. `../../references/` or a `metadata.yaml`
+ *     `shared_references.path:` field — resolves to the shared folder itself.
+ *
+ * Either sub-shape may carry extra path segments between the `../` climb and the final `references/`
+ * (e.g. a stale `../../../_shared/references/` pointer at a repo root `_shared/` that was never
+ * created — issue #252 Round 1's Defect 1) — those are matched and resolved too, not skipped, because
+ * a citation with an extra segment in the middle is exactly as dangling as one with the wrong depth.
+ *
+ * This module extracts every such citation and resolves it against the citing file's own location.
+ * The named sub-shape is EXACTLY the reproduction shape issue #252 was filed with:
  *
  *     pat = re.compile(r'((?:\.\./)+references/([a-z-]+\.md))')
  *     t = os.path.normpath(os.path.join(os.path.dirname(f), m.group(1)))
@@ -17,7 +29,8 @@
  * `findDanglingReferenceCitations` takes a `pathExists` PREDICATE rather than touching disk itself —
  * mirroring `src/fs-boundary/scan.ts`'s split between pure parsing (`scan.ts`) and the disk-walking
  * guard (`*-guard.docs-test.ts`). The real guard passes `existsSync`; this module's own test passes an
- * in-memory closure, so the parsing/resolution logic is provable with zero disk I/O.
+ * in-memory closure, so the parsing/resolution logic is provable with zero disk I/O. `existsSync` is
+ * true for both a file and a directory, so the same predicate validates both sub-shapes unchanged.
  */
 
 /** One source file, already read — repo-relative, forward-slash `path` plus its raw `content`. */
@@ -26,16 +39,17 @@ export interface SourceFile {
   readonly content: string;
 }
 
-/** One `(../)+references/<name>.md` citation found inside a citing file, resolved against that
- *  file's own location. `resolvedPath` is a repo-relative, forward-slash path — normalized exactly
- *  like `os.path.normpath(os.path.join(dirname, rawPath))` in issue #252's own reproduction script. */
+/** One `(../)+(<segment>/)*references/(<name>.md)?` citation found inside a citing file, resolved
+ *  against that file's own location — either a named-file citation or a bare-directory one (no
+ *  filename). `resolvedPath` is a repo-relative, forward-slash path — normalized exactly like
+ *  `os.path.normpath(os.path.join(dirname, rawPath))` in issue #252's own reproduction script. */
 export interface ReferenceCitation {
   readonly citingFile: string;
   readonly rawPath: string;
   readonly resolvedPath: string;
 }
 
-const CITATION_PATTERN = /((?:\.\.\/)+references\/([a-z-]+\.md))/g;
+const CITATION_PATTERN = /((?:\.\.\/)+(?:[a-zA-Z0-9_.-]+\/)*references\/(?:[a-z-]+\.md)?)/g;
 
 /** The repo-relative directory a repo-relative file path sits in ("" for a root-level file), using
  *  forward slashes throughout — the same convention `src/fs-boundary`'s guard already uses. */
@@ -67,8 +81,9 @@ export function resolveCitationPath(citingDir: string, rawPath: string): string 
   return normalizeSegments(`${citingDir}/${rawPath}`);
 }
 
-/** Every `(../)+references/<name>.md` citation in one file's content, resolved against that file's
- *  own repo-relative path. Pure string matching, no disk access. */
+/** Every `(../)+(<segment>/)*references/(<name>.md)?` citation in one file's content — named or
+ *  bare-directory, with or without an intervening path segment — resolved against that file's own
+ *  repo-relative path. Pure string matching, no disk access. */
 export function extractReferenceCitations(file: SourceFile): readonly ReferenceCitation[] {
   const citingDir = dirnameOf(file.path);
   const found: ReferenceCitation[] = [];

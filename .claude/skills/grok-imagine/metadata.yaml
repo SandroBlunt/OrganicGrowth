@@ -110,7 +110,7 @@ references:
   - path: references/official-guidelines.md
     purpose: Distilled summary of the Grok Imagine image prompting guidance with source URLs, fetch date, and known uncertainties.
   - path: references/README.md
-    purpose: Pointer to shared references at ../../../_shared/references/.
+    purpose: Pointer to shared references at ../../references/.
 source_tracking:
   official_guidelines_url: https://pixeldojo.ai/guides/xai-video-prompting-guide
   additional_sources:
@@ -128,4 +128,4 @@ source_tracking:
     the official-guidelines audit notes.
 shared_references:
   mode: relative-link
-  path: ../../../_shared/references/
+  path: ../../references/
