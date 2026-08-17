@@ -164,6 +164,12 @@ export async function planIdea(input: PlanIdeaInput, deps: PlanIdeaDeps): Promis
   const recipeSelections = status === "accepted" ? planRecipeSelections(idea.recipes, idea.declinedRecipes) : [];
 
   const problems: string[] = [];
+  // rejectIdea (src/idea/store.ts) requires a non-blank rejectionReason and throws otherwise — verified
+  // true of every real rejected Idea in both ledgers today, but caught HERE (a planning-time refusal)
+  // rather than surfacing as a raw execution-time exception mid-import.
+  if (status === "rejected" && idea.rejectionReason === undefined) {
+    problems.push(`Idea "${idea.id}" is rejected but carries no rejection_reason`);
+  }
   const assets: PlannedAsset[] = [];
   for (const asset of idea.assets) {
     const { asset: planned, problems: assetProblems } = await planOneAsset(asset, idea.id, deps);

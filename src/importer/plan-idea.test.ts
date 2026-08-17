@@ -105,6 +105,14 @@ describe("planIdea — a rejected Idea carries its rejection reason", () => {
     const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps());
     assert.equal(result.idea!.rejectionReason, "Too close to last week's Idea");
   });
+
+  it("refuses a rejected Idea with no rejection_reason (rejectIdea would otherwise throw mid-execution)", async () => {
+    const idea: FullLedgerIdea = { id: "idea-99", run: "2026-W32", status: "rejected", assets: [] };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps());
+    assert.equal(result.idea, undefined);
+    assert.equal(result.problems.length, 1);
+    assert.match(result.problems[0]!, /idea-99/);
+  });
 });
 
 describe("planIdea — Straw Motion's third shape: Assets populated but a stale legacy top-level status", () => {
