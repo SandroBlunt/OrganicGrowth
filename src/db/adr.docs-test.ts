@@ -58,6 +58,20 @@ describe("ADR-0029 records the local-SQLite decision (AC2)", () => {
   });
 });
 
+describe("ADR-0029's human-authored-documents carve-out names Mention Handle explicitly (issue #226)", () => {
+  it("lists the Mention Handle Registry among the documents that stay files, by name and path", async () => {
+    const doc = await read("docs/adr/0029-local-sqlite-behind-the-store-boundary.md");
+    assert.match(doc, /Mention Handle Registry/);
+    assert.match(doc, /data\/mention-handles\.yaml/);
+  });
+
+  it("names issue #210's Library as the concrete trigger that would reopen the decision", async () => {
+    const doc = await read("docs/adr/0029-local-sqlite-behind-the-store-boundary.md");
+    assert.match(doc, /not permanent/i);
+    assert.match(doc, /#210/);
+  });
+});
+
 describe("ADR-0011 carries a forward-pointer to ADR-0028, not a silent contradiction", () => {
   it("its own file states it is partially superseded by ADR-0028", async () => {
     const doc = await read("docs/adr/0011-ledger-grain-per-recipe-assets-attribution.md");

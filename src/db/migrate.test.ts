@@ -59,6 +59,20 @@ describe("runMigrations — creates and upgrades the schema, and records the ver
     });
   });
 
+  it("does NOT create mention_handle — Mention Handle deliberately stays a file, not schema (ADR-0029, issue #226)", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const rows = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all();
+      const names = new Set(rows.map((r) => r.name));
+      assert.equal(
+        names.has("mention_handle"),
+        false,
+        "\"mention_handle\" must NOT exist — the Mention Handle Registry stays a hand-maintained file " +
+          "(data/mention-handles.yaml) per ADR-0029's carve-out, unless issue #210's Library reopens it",
+      );
+    });
+  });
+
   it("every entity table carries id, created_at, updated_at, and schema_version columns", async () => {
     await withTempDb((db) => {
       runMigrations(db);
