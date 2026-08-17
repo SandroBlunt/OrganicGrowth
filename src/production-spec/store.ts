@@ -12,6 +12,9 @@
 
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
+
+import type { DatabaseSync } from "node:sqlite";
+
 import type { ProductionSpec } from "./contract.ts";
 import { writeFileAtomic } from "../fs/safe-io.ts";
 import { assertValidRunId, runPathSegments } from "../format/run-id.ts";
@@ -73,4 +76,50 @@ export async function saveSpec(
 ): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFileAtomic(path, JSON.stringify(spec, null, 2) + "\n");
+}
+
+// ---------------------------------------------------------------------------
+// SQL-backed persistence (issue #222, ADR-0029) — ADDITIVE
+// ---------------------------------------------------------------------------
+//
+// `saveSpec`/`specPathFor` above stay untouched — the file-based Spec sitting beside a Brief is not
+// removed by this ticket. SQL-backed, the Production Spec has no table of its own (`src/db/schema.ts`,
+// frozen from issue #201): it lives inline as `asset.spec_json`, the SAME column
+// `src/asset/store.ts`'s SQL-backed `writeAsset`/`DbAssetPatch.spec` also writes. These two functions
+// are a narrower, assetId-keyed sibling for a caller that already has an Asset row id in hand (e.g. the
+// author phase, once media exists) and wants to save/load JUST the Spec, without touching status or any
+// other Asset field.
+
+/**
+ * Writes `spec` onto `asset.spec_json` for the Asset at `assetId`. Throws a clear, actionable error
+ * naming the id when no such Asset exists — a genuinely missing Asset id is a caller bug, not an
+ * ordinary "nothing to do yet" state (unlike `loadProductionSpec` below, which degrades a missing Asset
+ * to "no spec", matching "no spec saved yet").
+ */
+export function saveProductionSpec(
+  db: DatabaseSync,
+  assetId: string,
+  spec: ProductionSpec | Record<string, unknown>,
+  now: () => string = () => new Date().toISOString(),
+): void {
+  const result = db
+    .prepare(`UPDATE asset SET spec_json = ?, updated_at = ? WHERE id = ?`)
+    .run(JSON.stringify(spec), now(), assetId);
+  if (result.changes === 0) {
+    throw new Error(`Asset "${assetId}" not found — cannot save a Production Spec to an Asset that does not exist.`);
+  }
+}
+
+/**
+ * Reads the Production Spec off `asset.spec_json` for the Asset at `assetId`. Returns `null` both when
+ * the Asset does not exist AND when it exists but carries no Spec yet — from a caller's point of view
+ * both mean "no Spec available" (mirrors `getBrandAsset`'s own found/not-found convention elsewhere in
+ * this codebase). Never throws.
+ */
+export function loadProductionSpec(db: DatabaseSync, assetId: string): ProductionSpec | Record<string, unknown> | null {
+  const row = db.prepare(`SELECT spec_json FROM asset WHERE id = ?`).get(assetId) as unknown as
+    | { readonly spec_json: string | null }
+    | undefined;
+  if (row === undefined || row.spec_json === null) return null;
+  return JSON.parse(row.spec_json) as ProductionSpec | Record<string, unknown>;
 }
