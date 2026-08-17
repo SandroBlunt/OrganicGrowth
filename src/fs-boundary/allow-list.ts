@@ -16,12 +16,6 @@
  */
 
 export const NODE_FS_ALLOW_LIST: readonly string[] = [
-  // --- TEMPORARY ratchet checkpoint (removed by the very next commit in this ticket): a genuine
-  //     store-boundary bypass, about to be swept onto `ledger/ledger.ts`'s own `loadBaseline`. Listed
-  //     here first so the guard goes green against TODAY's real, re-derived count (33) before the sweep
-  //     lands, proving the ratchet actually catches a real violation rather than starting pre-solved.
-  "src/commands/run-pipeline.ts",
-
   // --- Produced media / output-bundle writers: media stays on local disk (ADR-0029) -----------------
   "src/asset/carousel-real-media.ts",
   "src/asset/download.ts",

@@ -48,7 +48,6 @@
  *     the Brand Profile (see `buildBrandProfile`, `buildSeeds` in src/brand/scaffolder.ts).
  */
 
-import { readFile } from "node:fs/promises";
 import * as readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
@@ -57,7 +56,7 @@ import { resolveBrand, brandExists, listBrands } from "../brand/resolver.ts";
 import { deriveSlug, validateSlug, buildBrandProfile, buildSeeds, buildEmptyLedger } from "../brand/scaffolder.ts";
 import { scaffoldBrand } from "../brand/scaffold-brand.ts";
 import { resolvePhase } from "../phase-resolver/resolve.ts";
-import { loadIdeas, findIdea } from "../ledger/ledger.ts";
+import { loadIdeas, findIdea, loadBaseline } from "../ledger/ledger.ts";
 import { ideaAtGate, ideaHasAssetStatus } from "../asset/asset.ts";
 import { DEFAULT_ASSET_RECIPE } from "../asset/migrate.ts";
 import { loadQueue } from "../production-queue/store.ts";
@@ -568,19 +567,12 @@ export async function* conductorTurns(
   // Determine whether the Channel has a performance baseline yet, for the readiness advisory.
   // The real baseline is the tracker's per-metric medians {shares, comments, reactions, views,
   // updated_at}; a baseline "exists" once `updated_at` is set. (There is no `baseline.value`.)
-  let baselineExists = false;
-  try {
-    const raw: unknown = JSON.parse(await readFile(brandPaths.ledger, "utf8"));
-    if (typeof raw === "object" && raw !== null && "baseline" in raw) {
-      const b = (raw as Record<string, unknown>).baseline;
-      if (b !== null && typeof b === "object" && "updated_at" in b) {
-        const updatedAt = (b as Record<string, unknown>).updated_at;
-        baselineExists = typeof updatedAt === "string" && updatedAt.length > 0;
-      }
-    }
-  } catch {
-    // Ledger not readable yet — no baseline
-  }
+  // Reads through `ledger.ts`'s own `loadBaseline` (issue #205 sweep) — never a raw
+  // `readFile`/`JSON.parse` of the ledger, which bypassed the store boundary and, unlike
+  // `loadBaseline`, silently swallowed a genuinely CORRUPT ledger as "no baseline" instead of
+  // propagating it (data-handling rule 4).
+  const baseline = await loadBaseline(brandPaths.ledger);
+  const baselineExists = typeof baseline.updated_at === "string" && baseline.updated_at.length > 0;
 
   const findings: Finding[] = await runReadiness({
     brandProfilePath: brandPaths.brandProfile,
