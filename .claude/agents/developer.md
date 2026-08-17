@@ -71,7 +71,10 @@ code as **orchestration shell + deep modules + state files**:
   the Execution Protocol parser, the Production Queue scheduler, the ledger updater, the Space driver),
 - **state in plain files** — per-Brand state under `data/brands/<slug>/` (`ledger.json`,
   `ideas/<run>/idea-NN.spec.json`) plus the one brand-agnostic global `data/queue.json` (ADR-0004,
-  ADR-0006) — the ledger is canonical; keep `queue.json` consistent with it.
+  ADR-0006) — the ledger is canonical; keep `queue.json` consistent with it. Never have a new caller
+  reach a store's write function directly: route it through `src/command-surface/` (issue #205), the
+  sanctioned typed surface above the store layer — that is what the store-write boundary guard (issue
+  #233/#235) enforces on every commit.
 
 **Testing uses a FAKE / stand-in for the Magnific Space — never the live Space.** The build/CI loop is
 **hermetic**: no live `spaces_*` or `creations_*` calls, **no credits spent, no board mutation**. You are
@@ -83,7 +86,8 @@ The code you write upholds the always-rules in behavior: **generate-never-publis
 renders an Asset, a human publishes — your code never posts to Facebook), **public-metrics-only**,
 **relative-not-absolute** (measure against the Channel baseline), **explicit-attribution** (a Post links
 to an Idea only via the logged URL — never inferred), and **ledger-as-source-of-truth** (every status
-change is written to the Brand's `data/brands/<slug>/ledger.json`). You never publish.
+change is written to the Brand's ledger — via a typed store, never a hand-edited file; `src/command-surface/`
+where the operation is one of its own, `src/ledger/ledger.ts`/`AssetStore` otherwise). You never publish.
 
 ### 3 — Self-review before handoff
 
@@ -131,3 +135,9 @@ notifies the Operator; you do not loop forever.
   relative-not-absolute, explicit-attribution, and ledger-as-source-of-truth.
 - **qa is the gate.** Hand off via the Slice Handoff; do not open the PR yourself — that is `/build-issue`'s
   job after a qa pass.
+- **Your own `Bash` grant is engineering tooling, not a content-pipeline interface.** You use it for
+  `git`, `gh`, `npm test`/`npm run build`, `npx tsx`, and `openspec` — never to touch a live Brand's real
+  `data/brands/<slug>/` state (only fixtures/fakes in your own tests), a live Magnific Space, or Zoho.
+  There is no narrower tool that lets you build and test code, so — unlike `idea-strategist`, which
+  needs no shell at all — this grant stays; see the OpenSpec change's `handoff.md` for the full
+  per-agent Bash rationale.
