@@ -621,3 +621,222 @@ now REFUSES instead of silently shipping (this round's own fix) — the underlyi
 is still real and unavoidable, only the repository's OWN behavior in response to it has changed, from
 silent to loud; the already-live straw-motion bucket still needs the Operator's own one-time migration
 (unaffected by this round).
+
+---
+
+## QA Verdict — Round 2: PASS
+
+Verified in `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-198-schedule-media-private-bucket`,
+branch `issue-198-schedule-media-private-bucket`, HEAD `f2223f6` (on top of Round 1's `f6ffb75`; branch
+NOT re-rebased onto the now-moved `main` at `4bd9ae1` — confirmed `git merge-base HEAD main` is still
+`6f8a08...`, matching the dispatch's note). Working tree clean throughout (`git status --porcelain
+--untracked-files=all` empty both before and after review) — every check below genuinely covers the real
+tracked content.
+
+### Suite result
+
+| Command | Result |
+|---|---|
+| `npm test` | **2787 tests / 698 suites / 0 fail** (+14 / +5 over Round 1's 2773/693 — exactly the reported delta, no drop) |
+| `npm run test:docs` | **263 tests / 66 suites / 0 fail** (unchanged count from Round 1, confirmed by diff: one assertion re-pinned, none added/removed) |
+| `npx tsc -p tsconfig.json --noEmit` | clean, no output |
+| `npx openspec validate issue-198-schedule-media-private-bucket --strict` | `Change 'issue-198-schedule-media-private-bucket' is valid` |
+| `npx openspec validate --all --strict` | **45 passed, 0 failed** (unchanged from Round 1 — this round only added/edited spec DELTAS inside the still-open change, never touched `openspec/specs/` itself) |
+| Isolated re-run of Round 2's 4 new/touched test files | **63 tests / 13 suites / 0 fail** |
+
+All numbers match the coordinator's reported figures exactly, and match the developer's own Round-2
+claims exactly (2787/698, 263/66, 45/45) — independently re-run by QA, nothing taken on say-so.
+
+### Two hard gates — re-confirmed after Round 2's changes
+
+**1. No live AWS call anywhere in `npm test` — still PASS.** `git diff f6ffb75..f2223f6 --name-only`
+touches zero files under `src/media-host/live/` or `command-runner.ts` — this round's diff is entirely
+`src/schedule-batch/media-expiry.ts`, both orchestration shells, `mcp-plan.ts`, their test files, and
+docs/spec files. Round 1's hard-gate-1 evidence (every `LiveMediaHost`/`uploadViaAwsCli` test call
+passes an explicit stubbed `runner`; the throwing `DEFAULT_MEDIA_HOST`; `execFileRunner` only exercised
+against `process.execPath`) is untouched and still holds.
+
+**2. No credential in any tracked file — still PASS.** Working tree was clean at HEAD `f2223f6` (nothing
+unstaged/untracked), so the self-scan genuinely covered this round's real content too. Independently
+re-ran `node --import tsx --test "src/secrets-scan/self-scan.test.ts"` (2/2 pass) and the full scanner
+suite (`src/secrets-scan/*.test.ts`, 32/32 pass). `git diff f6ffb75..f2223f6 | grep -inE
+"AKIA[0-9A-Z]{16}|X-Amz-Signature=|aws_secret_access_key\s*="` found only QA's own Round-1 verdict text
+quoting the grep pattern itself as a literal string (inside `handoff.md`'s prose) — not a real credential
+shape, and the self-scan's own green result confirms it. No new credential-shaped string anywhere in
+this round's diff.
+
+### The narrower refusal condition — scrutinised and CONFIRMED CORRECT
+
+The developer refused on `expiresAt < scheduledAt` instead of the dispatch's originally-specified
+`cappedByAwsLimit`. **This holds up; it is the more correct condition, not a weakening.**
+
+Worked the exact boundary math independently from `computeMediaExpiry`'s own source
+(`src/schedule-batch/media-expiry.ts`):
+- `cappedByAwsLimit` becomes `true` once `scheduledMs - uploadedMs > MAX_PRESIGN_SECONDS*1000 -
+  EXPIRY_BUFFER_AFTER_SCHEDULED_MS` (i.e. once the 1-hour safety buffer alone pushes the natural target
+  past the 7-day ceiling) — a BROADER trigger.
+- The link is actually BROKEN (`expiresAt < scheduledAt`) only once `scheduledMs - uploadedMs >
+  MAX_PRESIGN_SECONDS*1000` (7 days flat) — because in the capped range, `expiresInSeconds` is pinned at
+  exactly `MAX_PRESIGN_SECONDS`, so `expiresAtMs = uploadedMs + 7days`, and that is `>= scheduledMs`
+  for every `scheduledMs` up to and including `uploadedMs + 7days`.
+- So `cappedByAwsLimit` is true for a band of schedules (roughly the last hour of the 7-day window) that
+  are capped but still perfectly deliverable — refusing on `cappedByAwsLimit` alone, as originally
+  specified, would have been TOO STRICT, refusing schedules that would actually work. The developer's
+  correction is the mathematically correct read of the dispatch's own stated intent ("a link that cannot
+  survive to its own post time is not a schedulable post").
+- **No gap on the other side.** When NOT capped, `expiresInSeconds = rawSeconds` (ceil-rounded), so
+  `expiresAtMs >= naturalTargetMs = scheduledMs + 1hour > scheduledMs` always — an uncapped schedule can
+  never violate. When capped, violation is exactly `scheduledMs - uploadedMs > MAX_PRESIGN_SECONDS*1000`
+  — no narrower or wider than the true "dead before post time" condition. Confirmed this is the ENTIRE
+  space of cases (verified against the source, not just the tests).
+
+**Boundary proof, at 1-millisecond precision, checked at all three layers:**
+- Pure function (`media-expiry.test.ts`): `BOUNDARY_SCHEDULED_AT = uploadedAt + MAX_PRESIGN_SECONDS` is
+  `ok: true` (even though `cappedByAwsLimit: true`); `BOUNDARY_SCHEDULED_AT + 1ms` is `ok: false` with
+  `overageMs: 1`. Read and re-derived this arithmetic by hand — correct.
+- Plan layer (`mcp-plan.test.ts`): `justInsideNowMs = utcMs - MAX_PRESIGN_SECONDS*1000` → `ok: true`;
+  `justOutsideNowMs = utcMs - MAX_PRESIGN_SECONDS*1000 - 1` → `reason: "presign-window"`. Correct,
+  symmetric.
+- **Both command shells, independently, at the identical boundary:** `export-schedule.test.ts`'s "the
+  far-future case" `describe` block proves, at `firstSlotUtcMs - MAX_PRESIGN_SECONDS*1000 - 1`: `EXPORT
+  REFUSED`, zero `convertCalls`/`uploadCalls`, no run-folder entries beyond the pre-existing bundle, no
+  `scheduled_at` stamped; and at exactly `firstSlotUtcMs - MAX_PRESIGN_SECONDS*1000`: normal success (7
+  `uploadCalls`, `scheduled_at` stamped). `schedule-via-zoho-mcp.test.ts`'s matching block proves the
+  SAME at the SAME boundary, with zero `port.calls`/`uploadCalls` on refusal and normal completion
+  exactly at the boundary — this is the direct proof that the ORIGINAL defect (one shell fixed, the
+  other not) cannot recur: both are independently tested, not just one and an assumption about the other.
+- **The `!plan.ok` forwarding claim is real, not assumed.** Read `schedule-via-zoho-mcp.ts:169`: `if
+  (!plan.ok) return \`${header}\n${plan.message}\`;` — a single, reason-agnostic forward. The new
+  `"presign-window"` reason requires zero new message-building code in this file, confirmed by the
+  near-empty diff to this file (14 lines changed, all in the hosting loop's own defensive guard, none in
+  the refusal-forwarding path).
+
+**Conclusion: the narrower condition holds, and no gap was reintroduced.** This is exactly what Round 1's
+Defect #1 asked for — a link that dies before its post fires is now ALWAYS refused, and a link that is
+merely capped-but-still-deliverable now correctly still ships.
+
+### The "internal error" defensive guards — cannot swallow a real failure
+
+Read the guard in both shells: `if (cappedByAwsLimit && Date.parse(expiresAt) <
+Date.parse(scheduledAtIso)) { throw new Error(...) }`. This is an additive THROW, not a catch — it makes
+the function fail LOUDER if its own stated invariant is ever violated, never quieter. Confirmed no `try {
+} catch` wraps either guard — `grep -n "catch" src/commands/export-schedule.ts
+src/commands/schedule-via-zoho-mcp.ts` shows only two unrelated `.catch(() => {})` calls (best-effort
+temp-dir cleanup via `rm`, pre-existing since Round 1, structurally separate from the hosting loop's own
+`try`) and `export-schedule.ts`'s top-level CLI `main().catch(...)` (the standard entrypoint handler that
+prints the error and sets a non-zero exit code — it surfaces the failure, it does not hide it). A thrown
+guard error propagates as a genuine command failure, exactly like every other runtime error in this
+codebase (module docstring: "A genuine runtime failure... still propagates as a throw"). The guard's own
+condition is identical, term for term, to `validateWithinPresignWindow`'s own per-item violation check —
+no drift risk between the preflight and the hosting-loop's belt-and-suspenders re-check, since both
+derive from the SAME `computeMediaExpiry` call over the SAME inputs.
+
+### Docs and archived-capability spec deltas — genuine corrections, not history rewrites
+
+- `docs/schedule-batch-s3-setup.md`'s "Signed link expiry" section: read the full diff. The OLD text
+  ("If Zoho then tries to fetch the media after that point, the fetch fails") was TRUE of Round 1's
+  shipped code and is now FALSE of Round 2's — the new text states the CURRENT behavior (refused loudly,
+  before any I/O, naming the real functions: `validateWithinPresignWindow`, `EXPORT REFUSED`,
+  `presign-window`) as the primary claim, and keeps the old silent-failure description only as explicit
+  "before this fix" historical context for why refusal (not a warning) is the answer. This matches this
+  repository's own established docs-conformance convention (the live `docs-conformance` spec's own
+  Requirement: "Docs-conformance tests pin the CURRENT reality, never a superseded honesty disclaimer") —
+  not a special exception invented for this round.
+- `approval-gate.docs-test.ts`'s matching assertion: diff shows 4 assertions ADDED
+  (`validateWithinPresignWindow`, `EXPORT REFUSED`, `presign-window`, `refused loudly, never shipped`)
+  and only 1 REMOVED (`the fetch fails`, which described the now-false old behavior) — net STRICTER, not
+  weaker. Confirmed the doc's real text contains the new assertions' exact strings.
+- **The 3 "already-archived capability" spec deltas are legitimate, standard OpenSpec practice, not an
+  edit to history.** `git diff f6ffb75..f2223f6 --stat -- openspec/changes/archive` is EMPTY — the
+  archived change folders (`openspec/changes/archive/.../`, the historical record of issues #145/#160/
+  #163) were not touched at all. What Round 2 added is 3 NEW MODIFIED-Requirement delta files inside
+  THIS STILL-OPEN change's own `specs/` folder, targeting the CURRENT baseline capability specs
+  (`openspec/specs/schedule-batch-export/spec.md`, `schedule-batch-mcp-plan/spec.md`,
+  `schedule-batch-mcp-scheduling/spec.md`) — exactly the standard OpenSpec mechanism for updating an
+  existing capability whose baseline happens to have been established by a previously-archived change.
+  Every one of the 3 new files' `### Requirement:` titles matches the live baseline spec's own title
+  VERBATIM (re-checked, same archive-safety method as Round 1): `schedule-batch-mcp-plan` → "Every
+  business-rule refusal is a returned, clearly-worded result — never a throw"; `schedule-batch-export` →
+  "The command writes CSVs + a manifest, and stamps scheduled_at without changing status";
+  `schedule-batch-mcp-scheduling` → "scheduleViaZohoMcpCommand reuses the SAME eligibility/plan/preflight
+  the CSV path uses". Each delta genuinely corrects a now-stale statement (the `schedule-batch-mcp-plan`
+  Requirement enumerated exactly 3 refusal reasons by name — now false with a 4th) rather than rewriting
+  anything unrelated. Did not run `openspec archive` (per instructions); no shape problem found.
+
+### Per-criterion / per-scenario carry-forward from Round 1
+
+Unaffected by this round (confirmed via `git diff f6ffb75..f2223f6 --stat`, which touches none of the
+key/token, live-adapter, or fake-validation files): AC1, AC2, AC3, AC5, AC6, AC7 and their proving tests
+are all unchanged from Round 1's tables above and still PASS/correctly-out-of-scope on the same evidence,
+independently re-confirmed green in this round's full suite run. AC4 is now fully satisfied (previously
+flagged): the derivation is proven AND its capped-case consequence is now correctly guarded, loudly, at
+both call sites — see above. All 3 new Scenarios in `specs/schedule-batch-media-expiry/spec.md` and the
+2+2 new Scenarios in the two archived-capability deltas map cleanly to the boundary tests read above.
+
+### Always-rules + Magnific-fake checks
+
+Unchanged from Round 1, re-confirmed: this round touches no generation/publish, metrics, scoring, or
+attribution code; `scheduled_at`/`zoho_schedule_reference` ledger-stamp mechanics are untouched (the new
+code only adds a PREFLIGHT check before the existing stamp step, and a defensive guard inside the
+existing hosting loop); `grep -rn "spaces_\|creations_\|magnific"` across every file this round touched
+returns no matches — no Magnific/live-Space code path anywhere near this slice.
+
+### Defect list
+
+**Defect #2 — LOW, non-blocking — Round-2 Build Report over-claims "both shells' module docstrings
+updated"; `schedule-via-zoho-mcp.ts`'s top-of-file docstring was not actually touched.**
+
+What is wrong: the Round-2 Build Report states "Both shells' module docstrings updated to name the new
+refusal explicitly." `src/commands/export-schedule.ts`'s top docstring genuinely was updated (its
+"Every business-rule refusal (...)" list explicitly names "a schedule time whose signed media link
+cannot survive to reach its own post time... `validateWithinPresignWindow`"). `src/commands/
+schedule-via-zoho-mcp.ts`'s own top-of-file docstring was NOT touched by this round (`git diff
+f6ffb75..f2223f6 -- src/commands/schedule-via-zoho-mcp.ts` shows changes only inside the hosting loop's
+own inline comment, lines ~197-211; the module docstring's own "Every business-rule refusal (not
+approved, MCP unavailable, an empty run, a Brand not configured, a preflight problem, a schedule time
+inside the 1-hour lead window)" list at the top of the file still omits the new far-future refusal
+entirely). This does not affect correctness, hermeticity, or any acceptance criterion — the actual
+refusal behavior is correct and thoroughly tested (see above), and the authoritative documentation of the
+refusal reason lives correctly in `mcp-plan.ts`'s own docstring (which WAS updated: "a slot beyond the
+presign window"). It is purely a documentation-completeness gap and a minor inaccuracy in the Build
+Report's own claim.
+
+Repro steps:
+1. `git diff f6ffb75..f2223f6 -- src/commands/schedule-via-zoho-mcp.ts` and observe the diff touches only
+   lines inside the per-Asset hosting loop (the new internal-error guard and its comment), never the
+   file's top `/** ... */` docstring.
+2. Read `src/commands/schedule-via-zoho-mcp.ts` lines 1-35 and note the "Every business-rule refusal"
+   list still reads "(not approved, MCP unavailable, an empty run, a Brand not configured, a preflight
+   problem, a schedule time inside the 1-hour lead window)" — no mention of the far-future/presign-window
+   case.
+
+Suggested fix (optional, not blocking): add one clause to that list, e.g. "...or a schedule time whose
+signed media link cannot survive to reach its own post time (`buildMcpSchedulePlan`'s
+`presign-window`)" — mirroring `export-schedule.ts`'s own updated list. Can be folded into a future
+slice's docstring pass; does not need its own round.
+
+### Operator hand-actions outstanding (unchanged from Round 1)
+
+1. Migrate straw-motion's existing bucket to private (`aws s3api delete-bucket-policy` +
+   `get-public-access-block`/`get-bucket-policy` confirmation) — commands still copy-pasteable in
+   `docs/schedule-batch-s3-setup.md`, unaffected by this round's edits to that doc's "Signed link expiry"
+   section.
+2. Confirm/attach the 3-action IAM policy (`GetObject`/`PutObject`/`DeleteObject`, no `ListBucket`/
+   wildcard) if a dedicated IAM principal backs the bucket.
+3. Run `npm run media-host-smoke` for real; confirm it prints `SMOKE TEST PASSED`.
+4. Post that output on issue #198 (AC7's own evidence requirement).
+5. MundoTip's bucket (when it exists) follows the doc's "Setting up a NEW Brand's bucket" section.
+
+None of these are blocked by anything in this round, and none require code changes.
+
+### Overall
+
+**PASS.** Defect #1 (HIGH) is genuinely fixed — the refusal condition the developer chose
+(`expiresAt < scheduledAt`) is mathematically the CORRECT one (narrower than, and superior to, the
+originally-specified `cappedByAwsLimit`), proven at 1-millisecond boundary precision in the pure
+function, the plan layer, and BOTH orchestration shells independently — closing exactly the "one shell
+fixed, one not" risk this round was opened to check. Both hard gates re-confirmed. The docs/spec edits to
+already-archived-capability baselines are legitimate, standard corrections, not history-rewriting, and
+the docs-test was strengthened, not weakened. The one new finding (Defect #2) is LOW severity, purely a
+docstring-completeness nit with a one-line optional fix — it does not affect behavior, tests, or any
+acceptance criterion, and does not need to block this merge.
