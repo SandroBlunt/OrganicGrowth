@@ -86,6 +86,12 @@ export const NODE_FS_ALLOW_LIST: readonly string[] = [
   "src/importer/plan-asset-media.ts",
   "src/importer/plan.ts",
 
+  // --- Catalogue-entry installer (issue #212): copies a .claude/skills/<entry>/ folder (and, per that
+  //     entry's own shared_references.install declaration, the shared .claude/references/ folder) into
+  //     a destination directory for install verification — a real filesystem-copy utility, the same
+  //     class as src/media-backup/copy.ts above, not a domain store or an existing port.
+  "src/claude-skills/install-catalogue-entry.ts",
+
   // --- The local read-only Library's own media byte-serving route (issue #210): a produced Asset's
   //     media lives on local disk, keyed by a root-relative storage_key resolved against the Brand's
   //     own media_root (ADR-0029) — this is that read-time resolution + a plain readFile. Read-only by

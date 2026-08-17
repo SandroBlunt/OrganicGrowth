@@ -1,5 +1,7 @@
 name: gen-prompting-kling-3-0-omni
 version: 0.1.2
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-04-27
 updated: 2026-07-06
@@ -9,6 +11,7 @@ target_model:
   vendor: kuaishou
   model_id: kling-3.0-omni
   modalities: [text-to-video, image-to-video, video-to-video, multi-reference-mixed, first-and-last-frame, multi-shot, native-audio, voice-binding, video-character-reference]
+  fallbacks: []
 modes:
   - id: T2V
     name: text-to-video
@@ -44,6 +47,11 @@ techniques:
       - video-character-reference
       - multi-image-element-with-voice-clip
     voice_clip_duration_range_seconds: [5, 30]
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -102,6 +110,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Kling 3.0 Omni prompt across all five modes including the mix-budget heuristic.
@@ -114,6 +126,10 @@ references:
     purpose: Distilled summary of the Kling 3.0 Omni vendor doc.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://replicate.com/kwaivgi/kling-v3-omni-video
   additional_sources:
@@ -122,3 +138,5 @@ source_tracking:
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside
