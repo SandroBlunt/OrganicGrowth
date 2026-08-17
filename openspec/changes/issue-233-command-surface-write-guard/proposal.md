@@ -127,6 +127,15 @@ named here so it is not mistaken for a blind spot in what this ticket was asked 
 
 ## Known gaps, decided, not dropped
 
+- **File-backed store writes are out of scope, by the same boundary #205 itself drew.**
+  `production-spec/store.ts`'s `saveSpec` (the Production Spec JSON file write),
+  `brand-asset/store.ts`'s `listBrandAssets`/`getBrandAsset` file reads' write-side counterparts, and
+  every other still-file-backed write (`ledger.json`, `brand-profile.yaml`, Format YAML) are not in
+  `STORE_WRITE_FUNCTIONS` at all — `src/command-surface/` only ever wraps the SQL-backed (`{ db }`) half
+  of a store (rule 7's own words: a typed command surface sits "above the store layer" meaning the
+  `{ db }` SQL foundation #201/#222/#223/#203 built), never the file-backed world `ledger.json` still
+  canonically owns. This guard's scope matches command-surface's own scope exactly — it is not a narrower
+  guard than the thing it defends.
 - **No command wraps `Brand`/`Channel`/`Format`/`BrandAsset`/`CopyVariant`/`GateRequest`.** #205's own
   "Known limits" already named this; this guard does not change it. It DOES mean a first real caller of
   e.g. `createBrandAsset` has no command-surface function to call yet — that caller must either get a new
