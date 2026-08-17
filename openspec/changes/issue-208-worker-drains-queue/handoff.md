@@ -659,3 +659,424 @@ addendum.
 
 Unchanged from Round 1 — see the "Operator-gated live run" section above. Not attempted this round either
 (no `magnific` MCP tools; no `src/` changes to affect it regardless).
+
+---
+
+## QA Verdict — Round 2: FAIL
+
+**Verifier:** qa. Same worktree, branch `issue-208-worker-drains-queue`, HEAD `0c0c2c3`. Read, ran, and
+reported only — no product code, test, spec, or doc file was edited by this agent.
+
+### No `src/` file touched this round — confirmed
+
+`git diff f2377ae..HEAD --stat` touches exactly 6 files: `docs/adr/0008-...md`, `docs/adr/0030-...md`,
+`.claude/rules/always/organicgrowth-rules.md`, `specs/worker/spec.md`, `tasks.md`, `handoff.md`. **Zero**
+`src/` files. Round 1's code findings (claim primitive untouched, zero new store-write allow-list
+entries, parking releases the claim, FIFO/starvation/re-claim safety, fresh-thread-id inheritance,
+migrations frozen, no publish path, no live call reachable from `npm test`) stand unchanged and are not
+re-derived below — they were re-verified as still true simply by confirming no `src/` diff exists.
+
+### Suite result — GREEN, genuinely re-run, numbers match exactly
+
+- `npx openspec validate issue-208-worker-drains-queue --strict` → `Change 'issue-208-worker-drains-queue' is valid`.
+- `npx openspec validate --all --strict` → **62 passed, 0 failed** (unchanged from Round 1).
+- `npm test` → **3339 tests / 884 suites / 0 fail**, `tsc --noEmit` clean (identical to Round 1 — expected,
+  zero `src/` change).
+- `npm run test:docs` → **295 tests / 80 suites / 0 fail** (identical to Round 1).
+- `git status --short` / `git status --short data/` → clean.
+
+Not assumed — all four re-run from a cold shell this round, not carried over from Round 1's numbers.
+
+### Defect 1 (Round 1, HIGH) — ADR-0008 governance trail: FIXED, well done, but see the NEW Defect 3 below
+
+`docs/adr/0030-worker-drains-the-queue-unattended.md` is a genuinely good ADR, checked point by point:
+
+- **Shape mirrors ADR-0028 exactly, not a third style.** Title: `"The worker drains the Production Queue
+  unattended, partially reversing ADR-0008"` — same construction as ADR-0028's `"Post becomes its own
+  record, reversing ADR-0011's declined split"`. Status line: `"accepted — supersedes, in part, ADR-0008
+  (...). Operator decision recorded 2026-08-17, epic #195, issue #208."` — matches ADR-0028's `"accepted
+  — supersedes, in part, ADR-0011 (...). Operator decision recorded 2026-08-16, epic #195."` field-for-
+  field. `## Decision` / `## Why` / `## Consequences` sections, same as ADR-0028/ADR-0029. **PASS.**
+- **Forward-pointer on ADR-0008 mirrors the ADR-0011→ADR-0028 / ADR-0014→ADR-0029 convention exactly.**
+  `> **Partially superseded by [ADR-0030](./0030-worker-drains-the-queue-unattended.md)** (issue #208,
+  epic #195, Operator decision 2026-08-17): ...` placed directly under the existing Status line — same
+  placement, same "Partially superseded by" phrasing register as ADR-0011's own blockquote. Verified by
+  direct read of `docs/adr/0008-...md` lines 1–17. **PASS.**
+- **Makes the old argument honestly before rebutting it.** ADR-0030's opening paragraph restates BOTH of
+  ADR-0008's original reasons in good faith — the `auto`-mode permission classifier re-blocking allow-
+  listed Space calls, and the Cast gate meaning "a human was present partway through every job regardless"
+  — before explaining specifically why each no longer binds (a worker is not a Claude Code agent session,
+  so the classifier never applies to it; two of three wired Recipes declare zero gates, so the
+  "human-present-anyway" argument was never true for them). This is a fair restatement, not a strawman.
+  **PASS.**
+- **Serialization claim is accurate to what the code does.** "`drainQueue`'s own loop never starts a
+  second job's `runOneJob` call before the current one reaches `done`/`awaiting_pick`/`failed`... If more
+  than one worker process is ever run concurrently... the SQL atomic `claimJob`... is the arbitration
+  primitive — this ADR does not introduce a second one." This matches Round 1's own independent
+  verification: `claimJob` is byte-for-byte unmodified, and `run-worker.ts`'s loop is a plain sequential
+  `for` loop with no concurrency primitive of its own. **PASS.**
+- **What is genuinely lost is NOT named.** `grep -in "watch|observ|nobody|no one|visib|sees|witness|
+  unsupervised|unmonitored" docs/adr/0030-worker-drains-the-queue-unattended.md` → **zero matches.** The
+  attended model's real protective property — a human watches a Magnific Space render happen, live, and
+  can react in the moment (stop a wasteful/garbled generation, notice a broken canvas) — has no
+  Consequences bullet, and no mention anywhere else in the ADR either. The Consequences section lists five
+  things (forward-pointer recorded, rule 11 rewritten, AC9 stays Operator-gated, the file-based queue
+  untouched, generate-never-publish unaffected) but never states "no human observes a live render once
+  this worker drives it; the phase self-audits (author/bind-media/copy) and generate-never-publish are the
+  only backstops between an unattended render and a produced Asset — they catch a broken SHAPE or a banned
+  WORD, not a visually-wrong-but-structurally-valid render." This is flagged as **Defect 4 (medium)**
+  below — real, but on its own would not have failed this round.
+
+### Defect 2 (Round 1, LOW) — spec-delta copy-phase Scenario: FIXED
+
+`specs/worker/spec.md`'s "Each phase is self-audited against its Phase Contract before advancing"
+Requirement body now names all three phases explicitly (`author`, `bind-media`, `copy`), states the
+`gate`/`render`/`save` scope limit plainly, and a new Scenario, "An invalid composed Copy stops the job
+before the Asset is ever saved produced," was added. Traced against the real test: `worker.test.ts` →
+`"the copy phase stops an invalid drafted Copy before the Asset is saved produced (AC3)"` — GIVEN an
+empty-caption drafter (fails `auditCopyPhase`), THEN `outcome.status === "failed"`, `saved.status !==
+"produced"`, `listAssetMedia(...) === []`. The Scenario's GIVEN/THEN matches the test's actual setup and
+assertions exactly, not a paraphrase that drifted. **PASS.**
+
+### NEW Defect 3 (HIGH) — the repo-wide "no unattended background worker" claim was fixed in ONE file, not repo-wide
+
+The coordinator's explicit check this round — "no other rule or doc still asserts 'there is no unattended
+background worker'" — fails. Six files outside `organicgrowth-rules.md` still assert exactly that,
+unqualified by ADR-0030 and without mentioning the worker exists at all:
+
+| File : line | What it says |
+|---|---|
+| `README.md:68` | *"Production is **attended**: it runs in your session and you approve the Magnific calls as they happen — there is no unattended background worker ([`docs/adr/0008`](./docs/adr/0008-producer-drives-the-space-attended.md))."* |
+| `CLAUDE.md:54–57` | *"**Production runtime (attended).** Production runs **in the Operator's session**, not in an unattended background process... There is deliberately **no headless worker host and no unattended-permission wiring**..."* citing only ADR-0008, never ADR-0030 |
+| `.claude/commands/run-pipeline.md:84–90` | *"Production runtime — attended (ADR-0008)... There is deliberately **no headless worker host and no unattended-permission wiring**..."* |
+| `.claude/commands/pick.md:42–44` | *"...the Producer resumes the job **in the Operator's session**... there is no unattended background worker (ADR-0008)."* |
+| `.claude/commands/pick-cast.md:57–59` | *"...the Producer resumes the job **in the Operator's session**... there is no unattended background worker (ADR-0008)."* |
+| `.claude/agents/producer.md:60` | *"...deliberately no unattended/background worker for you to be..."* |
+
+**README.md, CLAUDE.md, and `run-pipeline.md` are the serious cases**: they describe "Production runtime"
+as a single, unqualified, system-wide fact — not scoped to one command or one agent — and that fact is
+now flatly false: a headless worker host (`src/commands/run-worker.ts`) exists and is merged onto this
+branch. CLAUDE.md in particular is the top-level file every future Claude Code session in this repo reads
+first; a reader (human or agent) who opens it finds "there is deliberately no headless worker host and no
+unattended-permission wiring," the exact opposite of what ADR-0030 just recorded as accepted. This is
+Priority One's own failure mode — "a future reader finds [the doc] saying X and [the code] doing the
+opposite, with no trail between them" — recurring in a wider set of files than the one Round 1 caught.
+
+`producer.md:60` and `pick.md`/`pick-cast.md`'s claims are narrower and arguably still literally true on
+a strict reading (they describe the `producer` **agent's** own behavior / the `/pick-cast` command's own
+attended-resume flow specifically, and the worker genuinely is a separate process the `producer` agent
+does not become and `/pick-cast` does not spawn) — the developer's Round-2 self-review notes make exactly
+this argument, and it holds up. But even these three are now **incomplete**: none mentions that a second,
+unattended path exists at all, or cites ADR-0030, so a reader gets a one-sided picture from any of them.
+
+**This is not a fresh oversight — it was seen and deliberately left.** `tasks.md`'s own Round-2 task 8.4
+records: *"Confirmed no docs-test breaks (`report.docs-test.ts`'s `pick-cast.md`/ADR-0008 checks are
+scoped to a different file, untouched...)"* — the developer read `report.docs-test.ts`, saw it pins the
+stale claim on `pick-cast.md`, and treated "the test still passes" as sufficient, rather than treating a
+passing test that enforces a now-inaccurate claim as itself a signal to raise.
+
+**And the tests actively enforce the stale claim as a requirement — this is worse than a stale comment.**
+`src/commands/run-pipeline.docs-test.ts` (`"run-pipeline.md documents the attended runtime and the
+deliberate absence of an unattended one"`) asserts `run-pipeline.md` MUST match
+`/deliberately \*{0,2}no\b[\s\S]{0,10}headless worker host/i` and MUST match `/unattended-permission
+wiring/i`. `src/commands/report.docs-test.ts` (`"pick-cast.md is honest that production is attended — no
+unattended background worker (ADR-0008)"`) asserts `pick-cast.md` MUST match `/no unattended background
+worker/i`. Both are inside the green 3339-test suite right now — the suite being green does not mean the
+docs are accurate; it means the docs match tests that were never updated to reflect ADR-0030.
+
+**Worse still: the LIVE (non-archived) spec registry itself pins the stale claim as a Requirement.**
+`openspec/specs/docs-conformance/spec.md` (this is `openspec/specs/`, the current merged-spec registry —
+not an `openspec/changes/` proposal, and not the archived 2026-07-16 issue-59 change under a similar
+path) has a live `### Requirement: Docs-conformance tests pin the CURRENT reality, never a superseded
+honesty disclaimer` whose own `#### Scenario: report.docs-test.ts asserts pick-cast.md's attended-runtime
+claim, not the retired disclaimer` states: *"the suite asserts the doc states the render runs in the
+Operator's session, that there is no unattended background worker, and that it cites ADR-0008"* — and a
+parallel Scenario for `run-pipeline.docs-test.ts`. This spec's own Requirement text says tests must "pin
+the CURRENT reality" — and its own Scenario, unmodified by this change, now pins something that is no
+longer the current reality. This is exactly the "self-consistent-but-wrong spec" failure mode: the spec
+is green against itself (the tests it describes do pass) but wrong against the reality ADR-0030 itself
+just recorded.
+
+**Severity: high.** Same reasoning as Round 1's Defect 1 — no runtime harm, no publish risk, no data
+loss — but this is squarely the check the coordinator asked for this round, it recurs across the most
+central onboarding docs in the repo (CLAUDE.md, README.md), and it is reinforced by currently-green tests
+and a currently-live spec Requirement that actively pin the wrong answer, meaning the next person to try
+fixing README.md/CLAUDE.md will find their fix breaking `npm run test:docs` unless they also touch
+`run-pipeline.docs-test.ts`/`report.docs-test.ts` and `openspec/specs/docs-conformance/spec.md` — a
+larger, coupled fix than "edit two sentences."
+
+**Repro:**
+```
+cd /Users/CaxtonTaylor/Developer/.og-worktrees/issue-208-worker-drains-queue
+grep -n "no unattended\|unattended background\|no headless worker\|not in an unattended" README.md CLAUDE.md \
+  .claude/agents/producer.md .claude/commands/pick.md .claude/commands/pick-cast.md .claude/commands/run-pipeline.md
+sed -n '45,62p' CLAUDE.md          # "deliberately no headless worker host and no unattended-permission wiring"
+sed -n '60,90p' README.md          # "there is no unattended background worker"
+sed -n '72,90p' openspec/specs/docs-conformance/spec.md   # live spec Scenario pinning the stale claim
+grep -n "headless worker host\|unattended-permission wiring" src/commands/run-pipeline.docs-test.ts
+grep -n "no unattended background worker" src/commands/report.docs-test.ts
+```
+
+**Fix expected before PASS:** update README.md, CLAUDE.md, and `run-pipeline.md`'s unqualified "no
+unattended background worker" claims to name BOTH paths (as `organicgrowth-rules.md` rule 11 now does)
+and cite ADR-0030; update `run-pipeline.docs-test.ts`/`report.docs-test.ts`'s assertions to match; update
+`openspec/specs/docs-conformance/spec.md`'s own Requirement/Scenario text via a proper spec delta (this
+change, or a follow-up this change's proposal explicitly opens, since `docs-conformance` is not among its
+"Modified Capabilities" today). `producer.md`/`pick.md`/`pick-cast.md` may be left as literally-true-but-
+narrow, or extended to mention ADR-0030 for completeness — the Operator's call, lower priority than the
+three system-wide docs.
+
+### NEW Defect 4 (MEDIUM) — ADR-0030 does not name what is lost
+
+See the write-up under "Defect 1... FIXED, well done, but see NEW Defect 3" above. ADR-0030 fairly
+restates and rebuts ADR-0008's original reasoning (honest on that front — full credit) but never states,
+anywhere in the document, that the attended path's real-time human oversight of a live Space render is
+gone on the unattended path: nobody watches a News Carousel render happen; the only backstops are the
+phase self-audits (which catch a broken Production-Spec shape, a missing Brand Asset, or a banned word —
+not a visually-wrong-but-structurally-valid render) and generate-never-publish (which catches nothing
+until a human later reviews a `produced` Asset before Publish). Given this is explicitly reversing a
+decision the Operator once made the other way (closing the unattended-runtime epic not-planned and
+restoring attended mode deliberately, per ADR-0008's own Context paragraph), a future reader relying on
+ADR-0030 to understand the tradeoff being accepted does not get the cost side of it from the ADR itself.
+
+**Severity: medium** — a completeness/honesty gap in an otherwise well-constructed ADR, not a functional
+defect; it does not on its own change the overall verdict, but should be fixed alongside Defect 3 rather
+than left for a third round.
+
+**Repro:**
+```
+grep -in "watch\|observ\|nobody\|no one\|visib\|sees\|witness\|unsupervised\|unmonitored" \
+  docs/adr/0030-worker-drains-the-queue-unattended.md   # zero matches
+```
+**Fix expected:** one additional `## Consequences` bullet naming the loss plainly (no human watches a
+live render on the unattended path; the phase self-audits and generate-never-publish are the backstops,
+and what they do and do not catch).
+
+### Always-rules + Magnific-fake check (re-confirmed, unchanged from Round 1)
+
+No `src/` file changed, so these are unchanged and were spot-re-confirmed rather than re-derived:
+`generate-never-publish` PASS (no publish call reachable), `public-metrics-only`/`relative-not-absolute`/
+`explicit-attribution` PASS (N/A, no metrics/attribution code in this slice), `ledger-as-source-of-truth`
+PASS (every write goes through the command surface to the SQL stores), Magnific-fake check PASS (only
+`FakeSpace`/`FakeCarouselSpace` reachable from `npm test`).
+
+### Per-criterion / per-scenario results
+
+Unchanged from Round 1 (AC1–AC8 all PASS with real, specific tests; AC9 correctly not attempted). All
+worker/command-surface/job-claim-store/asset-store Scenarios trace to passing tests, now including the
+copy-phase Scenario (Defect 2, fixed). No `src/` change this round means no re-derivation was needed or
+performed from scratch; each was spot-checked against the unchanged diff instead.
+
+### Operator's live-run steps (AC9) — unchanged from Round 1
+
+Still exactly as documented in the Build Report's "Operator-gated live run" section: merge → pick an
+accepted Straw Motion Idea with an authored News Carousel Spec (`asset.status: 'queued'`) → commit/
+register the `brand-logo` Brand Asset → instantiate `LiveSpaceAdapter` with a real `LiveMcpTransport` in
+an attended session holding the `magnific` MCP tools → call `drainQueue(db, liveAdapter, { poll: {} })`.
+Pass/fail signs and the three `reason`-string failure classes (`"drive failed: ..."`, `"bind-media phase
+failed"`, `"downloading the rendered Asset failed"`) are unchanged. Nothing in this round touched
+`src/space-driver/live/` or `src/commands/run-worker.ts`.
+
+### Defect list (Round 2)
+
+1. **[FIXED]** Round-1 Defect 1 (ADR-0008 governance) — `docs/adr/0030` + forward-pointer + rule-11
+   rewrite, verified against precedent point by point above.
+2. **[FIXED]** Round-1 Defect 2 (spec-delta copy-phase Scenario) — verified against the real test.
+3. **[NEW — HIGH]** README.md, CLAUDE.md, and `.claude/commands/run-pipeline.md` still assert, as an
+   unqualified system-wide fact, "there is no unattended background worker" / "no headless worker host
+   and no unattended-permission wiring," citing only ADR-0008 and never ADR-0030, contradicting the ADR
+   this same round just recorded as accepted — reinforced by two currently-passing docs-conformance tests
+   (`run-pipeline.docs-test.ts`, `report.docs-test.ts`) and by the live (non-archived)
+   `openspec/specs/docs-conformance/spec.md`'s own Requirement/Scenario text, none of which were updated.
+   `.claude/agents/producer.md`, `.claude/commands/pick.md`, `.claude/commands/pick-cast.md` carry a
+   narrower, arguably-still-true claim but are incomplete (never mention the worker or ADR-0030 exists).
+   **Blocks PASS.**
+4. **[NEW — MEDIUM]** `docs/adr/0030` never states what is lost on the unattended path (no human watches
+   a live render in real time) — a completeness gap in an otherwise honest, well-shaped ADR. Does not by
+   itself block PASS, but should be fixed in the same round as Defect 3.
+
+### Overall — Round 2
+
+**PASS/FAIL: FAIL.** Both Round-1 defects are genuinely, cleanly fixed — ADR-0030 is a real, honest
+supersession that mirrors this repo's own established precedent closely and fairly restates ADR-0008's
+original reasoning before rebutting it; the spec-delta gap is closed exactly as asked. The code is
+unchanged (verified by empty `git diff f2377ae..HEAD -- src/`) and everything Round 1 verified about the
+code — no publish path, no live call in `npm test`, claim primitive untouched, zero new store-write
+allow-list entries, parking genuinely releases the claim, FIFO/starvation/re-claim safety, fresh-thread-id
+inheritance, frozen migrations — still holds by construction. All four suite numbers were re-run from
+scratch this round and match exactly: `openspec --all --strict` 62/0, `npm test` 3339/884/0-fail, `npm
+run test:docs` 295/80/0-fail.
+
+The reason this is still not a PASS is **Defect 3**: the coordinator's own Round-2 ask — confirm no other
+rule or doc still asserts "there is no unattended background worker" — turned up exactly that, in the
+repo's two most central onboarding documents (CLAUDE.md, README.md) plus `run-pipeline.md`, unqualified
+and uncorrected, with two currently-green tests and the live docs-conformance spec actively pinning the
+stale claim as a requirement. Merging now would put a PR into `main` whose own top-level CLAUDE.md flatly
+contradicts the ADR the same PR just added. **This should block the merge.** Fix Defect 3 (and, ideally,
+Defect 4 alongside it) and resubmit for Round 3.
+
+---
+
+## Round-3 Build (developer)
+
+### What changed
+
+Fixed both Round-2 defects. No `src/` production code changed — confirmed by
+`git diff --stat -- 'src/**/*.ts' ':!src/**/*.docs-test.ts' ':!src/**/*.test.ts'` returning empty. Every
+change this round is either prose (an ADR, a rules file, six markdown docs) or a docs-conformance test
+re-pinned to the new prose, plus one OpenSpec spec delta.
+
+**Defect 3 (HIGH) — the repo's two front doors, and four other docs, still said the opposite.**
+
+Widened the fix from "one rules file" (Round 2) to every place the coordinator's explicit check named,
+plus the two files QA additionally flagged as narrower-but-incomplete:
+
+- **`CLAUDE.md`** (the top-level file every session reads first) and **`README.md`** — both rewritten to
+  name BOTH paths (attended, ADR-0008; unattended, ADR-0030), each linking its own ADR.
+- **`.claude/commands/run-pipeline.md`** — its "Production runtime" blockquote split into two clearly
+  labeled sub-sections (Attended / Unattended), same content as before for the attended half, new content
+  for the unattended half, citing ADR-0030.
+- **`.claude/commands/pick.md` and `.claude/commands/pick-cast.md`** — extended (not left narrow). QA's
+  own verdict explicitly permitted leaving these two (plus `producer.md`) as "literally-true-but-narrow,
+  lower priority... if you leave them, say why." Chose to extend anyway, for one concrete reason: the
+  coordinator's own instruction list named `report.docs-test.ts` as a test that MUST be updated to pin
+  the new wording, and that file's ONLY relevant hook is `pick-cast.md`'s "no unattended background
+  worker" assertion — updating the test without updating the doc it pins would mean asserting a claim the
+  doc no longer needs to make, an inconsistency of its own. Extending `pick.md` alongside `pick-cast.md`
+  (they are near-duplicate commands, `/pick` and its `/pick-cast` alias) then keeps the repo internally
+  consistent rather than leaving one alias extended and the other not.
+- **`.claude/agents/producer.md`** — extended for the same consistency reason, plus its own docs-test
+  (`producer-agent.docs-test.ts`) already lived in this repo and was cheap to strengthen alongside it.
+  producer.md's claim about ITS OWN behavior (this agent runs attended) stays exactly true; it now also
+  names that a separate worker exists, so a reader of this one file is not left with an incomplete
+  picture.
+
+**Every docs-conformance test that pinned the old, now-false claim was re-pinned to the new wording — not
+weakened.** Each of the three updated test files gained a `doesNotMatch` guard against the OLD unqualified
+claim reappearing (`no headless worker host`, `no unattended background worker`), so a future prose
+revert is still caught, exactly as the coordinator asked:
+
+- `src/commands/run-pipeline.docs-test.ts` — renamed test title, added ADR-0030/`unattended`/`no human
+  present`/`run-worker` assertions, added the `doesNotMatch(/no headless worker host/i)` regression guard.
+- `src/commands/report.docs-test.ts` — renamed the pick-cast.md test, same treatment
+  (ADR-0030/`unattended` assertions + `doesNotMatch(/no unattended background worker/i)` guard); added
+  TWO brand-new tests (`CLAUDE.md`, `README.md`) with the same shape, since neither file had ANY prior
+  docs-test coverage at all — leaving them unpinned would mean a future revert of this round's own fix
+  goes unnoticed. Widened the file's own top-of-file doc comment to name README.md as a file it now reads.
+- `src/production-spec/producer-agent.docs-test.ts` — added one new assertion (`ADR-0030` citation) to
+  the existing attended-runtime test, rather than a new test, since the existing test already owns
+  "producer.md's attended-runtime honesty" as its subject.
+- `.claude/commands/pick.md` was extended in prose but gained NO new docs-test: grepped every
+  `*.docs-test.ts` file for a reference to `pick.md` (bare, not `pick-cast.md`) and confirmed none exists
+  — there was no prior pin to either preserve or strengthen, and adding a first one felt like scope
+  creep beyond what Round 3 was asked to fix. Disclosed here rather than left silent.
+
+**Updated `openspec/specs/docs-conformance/spec.md` via a proper MODIFIED-Requirement spec delta**
+(`specs/docs-conformance/spec.md` under this change), matching the live requirement's title
+byte-for-byte (`### Requirement: Docs-conformance tests pin the CURRENT reality, never a superseded
+honesty disclaimer`) — the MODIFIED-header archive trap this repo has hit before. Reproduced the
+Requirement body verbatim (unchanged), updated the two Scenarios whose own docs-tests changed
+(`pick-cast.md`, `run-pipeline.md`), lightly widened the `producer-agent.docs-test.ts` Scenario to
+mention the new ADR-0030 citation, left the QA-1 regression-guard Scenario byte-identical (untouched,
+unrelated), and added two brand-new Scenarios (`CLAUDE.md`, `README.md`) mirroring the new tests.
+Added `docs-conformance` to `proposal.md`'s own "Modified Capabilities" list (it was missing there,
+exactly as QA's repro noted).
+
+**Deliberately NOT touched:** the OTHER Requirement in the same spec file, "The repository retains no
+dead ADR-0004 unattended-background-worker code." Its own Scenario (`worker.ts is absent and
+unreferenced`) checks a SPECIFIC retired path, `src/production-queue/worker.ts` — this ticket's worker
+code lives at `src/command-surface/worker.ts` and `src/commands/run-worker.ts`, neither of which matches
+that path, so the Scenario's own literal check still passes and asserts nothing false. The Requirement's
+PROSE ("that code SHALL NOT be present or referenced") is adjacent to this ticket's own reversal in
+spirit but not literally contradicted by anything this ticket ships — flagged as worth a future glance,
+not fixed here, to keep this round's diff scoped to what QA actually flagged as broken.
+
+**Defect 4 (MEDIUM) — ADR-0030 never named what is lost.**
+
+Added a new, first-listed `## Consequences` bullet to `docs/adr/0030` stating plainly that nobody watches
+a render happen in real time on the unattended path, naming the two backstops that exist instead (the
+phase self-audits — catch a broken Spec shape, a missing Brand Asset, or a banned word, never a
+structurally-valid-but-visually-wrong render — and generate-never-publish, which catches nothing until a
+human reviews the Asset before Publish, by which point Space credits are already spent), and stating this
+ADR accepts that gap deliberately for the two zero/single-gate wired Recipes, not as a free trade-off.
+Re-ran the exact grep QA's own repro used (`grep -in "watch|observ|nobody|no one|visib|sees|witness|
+unsupervised|unmonitored" docs/adr/0030-...md`) — now matches `watch` (x2), `Nobody`, and `no one`; the
+previous zero-match repro would now find hits.
+
+### Files touched (Round 3)
+
+Modified:
+- `docs/adr/0030-worker-drains-the-queue-unattended.md` (+Consequences bullet — Defect 4)
+- `CLAUDE.md`, `README.md`, `.claude/commands/run-pipeline.md`, `.claude/commands/pick.md`,
+  `.claude/commands/pick-cast.md`, `.claude/agents/producer.md` (all six — Defect 3)
+- `src/commands/run-pipeline.docs-test.ts`, `src/commands/report.docs-test.ts`,
+  `src/production-spec/producer-agent.docs-test.ts` (re-pinned, strengthened, not weakened — Defect 3)
+- `openspec/changes/issue-208-worker-drains-queue/proposal.md` (+`docs-conformance` to Modified
+  Capabilities, +file-list notes)
+- `openspec/changes/issue-208-worker-drains-queue/handoff.md` (this Round-3 Build block)
+
+New:
+- `openspec/changes/issue-208-worker-drains-queue/specs/docs-conformance/spec.md` (MODIFIED-Requirement
+  spec delta)
+
+No `src/` file outside `*.docs-test.ts` touched — confirmed by
+`git diff --stat -- 'src/**/*.ts' ':!src/**/*.docs-test.ts' ':!src/**/*.test.ts'` returning empty.
+
+### How to run (Round 3)
+
+Identical commands to Rounds 1–2:
+```
+cd /Users/CaxtonTaylor/Developer/.og-worktrees/issue-208-worker-drains-queue
+npx openspec validate issue-208-worker-drains-queue --strict
+npx openspec validate --all --strict
+npm test
+npm run test:docs
+```
+
+**Results:** `openspec validate issue-208-worker-drains-queue --strict` → `Change
+'issue-208-worker-drains-queue' is valid`. `openspec validate --all --strict` → **62 passed, 0 failed**
+(unchanged — the docs-conformance delta modifies an EXISTING capability's Requirement, it does not add a
+new one, so the item count is unaffected). `npm test` → **3341 tests / 884 suites / 0 fail** (+2 from
+Round 2's 3339 — the two brand-new CLAUDE.md/README.md docs-tests; `npm test`'s own glob includes
+`*.docs-test.ts`, so they count here too). `npm run test:docs` → **297 tests / 80 suites / 0 fail** (+2
+from Round 2's 295, same two new tests). As the coordinator anticipated: "expect the docs-test numbers to
+move as you re-pin — that is fine and expected." Both deltas are +2/+2, exactly the two brand-new tests
+added; every RE-PINNED test (run-pipeline.md, pick-cast.md, producer.md) is a same-count edit to an
+existing `it()`, not a new one.
+
+### Defect-by-defect resolution (Round 3)
+
+| Defect | qa's fix expectation | What was done |
+|---|---|---|
+| 3 (HIGH) — stale claim survives in CLAUDE.md/README.md/run-pipeline.md + 2 green tests + the live spec | "update README.md, CLAUDE.md, and run-pipeline.md... cite ADR-0030; update run-pipeline.docs-test.ts/report.docs-test.ts... update docs-conformance/spec.md via a proper spec delta... producer.md/pick.md/pick-cast.md may be left... or extended" | Updated all SIX docs (extended rather than left the three optional ones, reasoned above); re-pinned (never weakened) all three affected docs-test files, adding regression guards; added the docs-conformance spec delta, `docs-conformance` added to Modified Capabilities. |
+| 4 (MEDIUM) — ADR-0030 never names what is lost | "one additional Consequences bullet naming the loss plainly... and what the backstops are... including what they do not catch" | Added the bullet, first in the Consequences list; names the two backstops AND what each does not catch; states the trade-off is accepted deliberately, not free. |
+
+### Self-review notes (Round 3)
+
+- Ran every affected docs-test file individually BEFORE the full suite, to localize failures fast: caught
+  one real bug this way — the first README.md draft cited `docs/adr/0008`/`docs/adr/0030` only as
+  markdown LINK PATHS (lowercase, no "ADR-" prefix in the visible text), which the new test's
+  case-sensitive `/ADR-0008/` regex correctly failed to match. Fixed by adding the literal "ADR-0008"/
+  "ADR-0030" labels alongside the links, matching how every OTHER doc in this repo cites an ADR.
+- Deliberately did NOT invent a docs-test for `pick.md` (see "Deliberately NOT touched" above) — chose
+  proportionality over maximal coverage for a file this round was not required to protect.
+- Deliberately did NOT touch the sibling "no dead ADR-0004 code" Requirement in the same spec file (see
+  above) — its own Scenario is not contradicted by anything this ticket ships; touching it would have
+  been scope creep into a Requirement QA never flagged as broken.
+- Considered adding a THIRD grep-based regression test asserting the two new ADR files
+  (`docs/adr/0008`/`docs/adr/0030`) cross-reference each other, mirroring `src/db/adr.docs-test.ts`'s own
+  precedent for ADR-0028/ADR-0029. Decided against it for THIS round: it was not requested, and Round 2's
+  QA Verdict already verified the forward-pointer/blockquote pairing by direct read, point by point.
+  Flagged here as a reasonable follow-up, not silently skipped.
+
+### Known limits (Round 3 — additive to Rounds 1–2, nothing removed)
+
+All Round 1/2 Known Limits stand unchanged. Round 3 adds one: the "no dead ADR-0004 code" Requirement in
+`openspec/specs/docs-conformance/spec.md` is adjacent-in-spirit to this ticket's own ADR-0008 reversal but
+not literally broken by it (see "Deliberately NOT touched" above) — worth a maintainer's glance in a
+future round, not urgent.
+
+### Operator-gated live run (AC9)
+
+Unchanged from Rounds 1–2 — see the "Operator-gated live run" section above. Not attempted this round
+either (no `magnific` MCP tools; no `src/` production-code changes to affect it regardless).

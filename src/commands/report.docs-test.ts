@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Documentation-conformance suite. These assertions read markdown docs (CLAUDE.md and
+// Documentation-conformance suite. These assertions read markdown docs (CLAUDE.md, README.md, and
 // .claude/**/*.md) and pin their current prose. They are deliberately kept OUT of the unit
 // suite: the `npm test` glob is "src/**/*.test.ts", which does NOT match "*.docs-test.ts".
 // Run these with `npm run test:docs`. Editing a doc must never break `npm test`.
@@ -45,6 +45,39 @@ describe("command surface — final and matches the shipped Producer feature", (
       claude,
       /written by `\/produce`/,
       "CLAUDE.md must not say the Production Spec is written by /produce",
+    );
+  });
+
+  it("CLAUDE.md documents BOTH production paths — attended (ADR-0008) and unattended (ADR-0030)", async () => {
+    // issue #208 built a headless worker host (src/commands/run-worker.ts); ADR-0030 partially
+    // supersedes ADR-0008's "no headless worker host" decision. CLAUDE.md is the first file a human or
+    // an agent reads in this repo — pinning the OLD unqualified "no headless worker host" claim here
+    // would flatly contradict the ADR this same change adds. Pin the CURRENT, two-path reality instead.
+    const claude = await readFile(join(REPO_ROOT, "CLAUDE.md"), "utf8");
+    assert.match(claude, /ADR-0008/, "CLAUDE.md must cite ADR-0008 for the attended path");
+    assert.match(claude, /ADR-0030/, "CLAUDE.md must cite ADR-0030 for the unattended worker path");
+    assert.match(claude, /unattended/i, "CLAUDE.md must name the unattended path");
+    assert.match(
+      claude,
+      /no human present/i,
+      "CLAUDE.md must state the unattended worker runs with no human present",
+    );
+    assert.doesNotMatch(
+      claude,
+      /no headless worker host/i,
+      "CLAUDE.md must not claim there is no headless worker host — the unattended worker now exists (ADR-0030)",
+    );
+  });
+
+  it("README.md documents BOTH production paths — attended (ADR-0008) and unattended (ADR-0030)", async () => {
+    const readme = await readFile(join(REPO_ROOT, "README.md"), "utf8");
+    assert.match(readme, /ADR-0008/, "README.md must cite ADR-0008 for the attended path");
+    assert.match(readme, /ADR-0030/, "README.md must cite ADR-0030 for the unattended worker path");
+    assert.match(readme, /unattended/i, "README.md must name the unattended path");
+    assert.doesNotMatch(
+      readme,
+      /there is no unattended background worker/i,
+      "README.md must not claim there is no unattended background worker — ADR-0030 introduced one",
     );
   });
 
@@ -109,27 +142,34 @@ describe("command surface — final and matches the shipped Producer feature", (
       "producer.md must restate the Brand at Gate 2 (Cast pick)");
   });
 
-  it("pick-cast.md is honest that production is attended — no unattended background worker (ADR-0008)", async () => {
+  it("pick-cast.md names both production paths (ADR-0008 attended, ADR-0030 unattended)", async () => {
     const doc = await readFile(join(REPO_ROOT, ".claude", "commands", "pick-cast.md"), "utf8");
     // Before the attended producer was restored (PR #46), this doc had to flag the render runtime as
     // not-yet-wired (audit finding C2). That gap is closed: the render genuinely runs today, in the
-    // Operator's own session — pin the CURRENT, true claim instead of the old honesty disclaimer.
+    // Operator's own session. Then, up to issue #208, this suite pinned "no unattended background
+    // worker" as the CURRENT, true claim — issue #208 built exactly that worker, and ADR-0030 records
+    // partially superseding ADR-0008's "no unattended" decision, so that claim is now itself stale. Pin
+    // the CURRENT reality instead: both paths named, neither denied.
     assert.match(
       doc,
       /Operator's session/i,
-      "pick-cast.md must state the render runs in the Operator's session",
-    );
-    assert.match(
-      doc,
-      /no unattended background worker/i,
-      "pick-cast.md must state there is no unattended background worker",
+      "pick-cast.md must state the attended path's render runs in the Operator's session",
     );
     assert.match(doc, /ADR-0008/, "pick-cast.md must cite ADR-0008 for the attended-runtime decision");
+    assert.match(doc, /ADR-0030/, "pick-cast.md must cite ADR-0030 for the unattended worker path");
+    assert.match(doc, /unattended/i, "pick-cast.md must name the unattended worker path");
     // It must never re-introduce the stale "not yet wired" disclaimer now that the flow is built.
     assert.doesNotMatch(
       doc,
       /not yet (wired|built|operational|runnable)/i,
       "pick-cast.md must not claim the render runtime is not yet wired — it is attended and wired today",
+    );
+    // It must never re-introduce the OLD, now-false, unqualified "no unattended background worker"
+    // claim — ADR-0030 means an unattended worker genuinely exists now.
+    assert.doesNotMatch(
+      doc,
+      /no unattended background worker/i,
+      "pick-cast.md must not claim there is no unattended background worker — ADR-0030 introduced one",
     );
     // It must still promise the command records the Character correctly (the part that does work).
     assert.match(

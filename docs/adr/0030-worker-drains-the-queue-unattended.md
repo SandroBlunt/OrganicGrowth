@@ -63,6 +63,19 @@ regardless") was never true for either of them.
 
 ## Consequences
 
+- **Nobody watches a render happen in real time on the unattended path — this is the real thing being
+  given up.** The attended model's protective property was never just "a human approves the Magnific
+  calls"; it was that the Operator could SEE a render happening — a garbled canvas, a wasteful loop, an
+  obviously-wrong image — and stop or redirect it in the moment. On the unattended path, no one is
+  watching. The two backstops that exist instead are narrower than that: the phase self-audits
+  (`author`/`bind-media`/`copy`) catch a broken Production-Spec SHAPE, a missing REQUIRED Brand Asset, or
+  a banned WORD — never a structurally-valid render that is simply visually wrong, off-brand in tone, or
+  a low-quality generation the Space itself reports as "succeeded." Generate-never-publish (ADR-0002)
+  catches nothing until a human later reviews the `produced` Asset before Publish — by which point Space
+  credits are already spent and the render already exists. This ADR accepts that gap deliberately, for
+  the two zero/single-gate wired Recipes, in exchange for throughput; it is not free, and a future
+  Recipe with a higher visual-quality bar than News Carousel's should weigh this cost explicitly before
+  being added to the worker's unattended path.
 - **`docs/adr/0008` carries a forward-pointer to this ADR** (the repo's established pattern — see how
   ADR-0011 points at ADR-0028, and ADR-0014 at ADR-0029), rather than being silently contradicted.
 - **`.claude/rules/always/organicgrowth-rules.md` rule 11 is rewritten, not merely appended to**, so it

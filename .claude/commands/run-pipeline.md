@@ -81,15 +81,24 @@ how you invoke it selects the Brand:
      explicit — attribution is keyed `(Idea, Recipe)`, ADR-0011). After logging, the conductor offers
      `/track-performance <brand>` and `/report <brand>`.
 
-> **Production runtime — attended (ADR-0008).** Production runs **in your session**, not in a background
-> process. The `producer` is an interactive agent, given the Magnific MCP tools, that drives the **live**
-> Space while you are present and approve the Space calls as they happen. It works the Production Queue
-> **serially — one Space generation at a time** (the Space has no parallelism, and this holds across every
-> chosen Recipe/Space of a Brand — ADR-0010), pausing each Asset at its Recipe's gate for your pick; a
-> gate-paused job does **not** hold the Space, so the next queued job can run. There is deliberately **no
-> headless worker host and no unattended-permission wiring** — that background, self-draining runtime
-> (epic #39) was designed and then dropped as unnecessary, because you are already present at each Recipe's
-> pick-gate.
+> **Production runtime — two paths (ADR-0008 attended; ADR-0030 unattended).** An accepted Idea's job can
+> be produced either way; which path drains a given job is your own choice, not something either agent
+> decides for itself.
+>
+> **Attended.** Production runs **in your session**, not in a background process. The `producer` is an
+> interactive agent, given the Magnific MCP tools, that drives the **live** Space while you are present
+> and approve the Space calls as they happen. It works the Production Queue **serially — one Space
+> generation at a time** (the Space has no parallelism, and this holds across every chosen Recipe/Space
+> of a Brand — ADR-0010), pausing each Asset at its Recipe's gate for your pick; a gate-paused job does
+> **not** hold the Space, so the next queued job can run.
+>
+> **Unattended.** A separate **worker** (`src/commands/run-worker.ts`'s `drainQueue`) is a local process
+> you start yourself, holding its own Magnific credentials — not a Claude Code agent session, so the
+> permission classifier that originally justified attended-only mode never applies to it. It drains the
+> SAME Production Queue with **no human present**, for the wired Recipes declaring zero or one gate,
+> self-auditing each phase (author / bind-media / copy) before advancing, and parks a gate-paused job
+> without holding the Space exactly like the attended path does. Nobody watches the render happen in real
+> time on this path — ADR-0030's own Consequences section names that cost and its backstops plainly.
 >
 > **Gates are per-Recipe (ADR-0009/0010/0011).** An accepted Idea fans out to the Operator's chosen
 > **Recipes** — one production job and **one Asset** each — and each Recipe declares its own ordered

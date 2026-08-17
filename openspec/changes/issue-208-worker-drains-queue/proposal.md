@@ -106,6 +106,14 @@ holding its own credentials).
   one).
 - `asset-store`: gains `getAssetById` — the by-id read `runOneJob` needs (a `job` row carries only
   `asset_id`, never `(idea, recipe)` directly).
+- `docs-conformance` (Round 3): the "Docs-conformance tests pin the CURRENT reality" Requirement's
+  `report.docs-test.ts`/`run-pipeline.docs-test.ts` Scenarios are widened to pin BOTH production paths —
+  `docs/adr/0030` (this change) partially supersedes `docs/adr/0008`'s "no unattended/background worker"
+  decision, so a docs-test (and the live doc it pins: `CLAUDE.md`, `README.md`,
+  `.claude/commands/run-pipeline.md`, `.claude/commands/pick-cast.md`, `.claude/agents/producer.md`)
+  that still asserted the OLD, now-false, unqualified claim would itself become the thing Priority One
+  exists to catch. Two new Scenarios (`CLAUDE.md`, `README.md`) are added for symmetry with the
+  existing `pick-cast.md`/`run-pipeline.md`/`producer.md` ones.
 
 ## Impact
 
@@ -118,6 +126,16 @@ holding its own credentials).
   shape, +test), `src/production-queue/job-store.ts` (+`findNextQueuedJob`, +test),
   `src/production-queue/gate-request-store.ts` (+`listGateRequestsForAsset`, +test),
   `src/command-surface/index.ts` (+re-exports).
+- **Governance/documentation (Round 2 + Round 3, no `src/` production-logic change):**
+  `docs/adr/0030-worker-drains-the-queue-unattended.md` (new — supersedes, in part, `docs/adr/0008`;
+  gained a Round-3 Consequences bullet naming what real-time human oversight is lost on the unattended
+  path, and what backstops replace it), `docs/adr/0008-...md` (+forward-pointer blockquote),
+  `.claude/rules/always/organicgrowth-rules.md` rule 11 (rewritten), `CLAUDE.md`, `README.md`,
+  `.claude/commands/run-pipeline.md`, `.claude/commands/pick.md`, `.claude/commands/pick-cast.md`,
+  `.claude/agents/producer.md` (Round 3 — each now names BOTH production paths and cites ADR-0030),
+  `src/commands/run-pipeline.docs-test.ts`, `src/commands/report.docs-test.ts`,
+  `src/production-spec/producer-agent.docs-test.ts` (Round 3 — re-pinned to the new wording, strengthened
+  rather than weakened).
 - **Hermetic, no live Magnific/Zoho/Apify call.** Every worker test drives `FakeSpace`/
   `FakeCarouselSpace` (the established Magnific fakes) through a real, throwaway SQLite file
   (`db/test-support.ts`'s `withTempDb`, never `:memory:`) and an injected fake `fetch` for the media
