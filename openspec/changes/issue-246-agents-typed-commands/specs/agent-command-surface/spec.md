@@ -41,7 +41,7 @@ Every stateful read or write described in `.claude/agents/{developer,idea-strate
 
 ### Requirement: No agent definition holds a bare, unscoped Bash grant — every retained Bash grant is a tool-enforced Bash(<pattern>) scope
 
-Where an agent's `tools:` frontmatter grants shell access, it SHALL do so ONLY as one or more scoped `Bash(<pattern>)` entries (an exact-match form, e.g. `Bash(npm test)`, or a prefix-wildcard form, e.g. `Bash(git status *)`) — never a bare, unscoped `Bash` entry. This is a real, Claude-Code-enforced boundary (verified against the CLI's own `--allowedTools` help text and against live `Bash(...)`-scoped rules already active in the Operator's own settings), not merely a documented convention. Where an agent's process performs no shell-out at all, `Bash` SHALL be removed from its `tools:` frontmatter entirely. Each `Bash(<pattern>)` entry SHALL correspond to a specific, real command or invocation named in that agent's own body prose — no pattern SHALL be granted without a matching, stated purpose.
+Where an agent's `tools:` frontmatter grants shell access, it SHALL do so ONLY as one or more scoped `Bash(<pattern>)` entries (an exact-match form, e.g. `Bash(npm test)`, or a prefix-wildcard form, e.g. `Bash(git status *)`) — never a bare, unscoped `Bash` entry. This is a real, Claude-Code-enforced boundary (verified against the CLI's own `--allowedTools` help text and against live `Bash(...)`-scoped rules already active in the Operator's own settings), not merely a documented convention. Where an agent's process performs no shell-out at all, `Bash` SHALL be removed from its `tools:` frontmatter entirely. Each `Bash(<pattern>)` entry SHALL correspond to a specific, real command or invocation named in that agent's own body prose — no pattern SHALL be granted without a matching, stated purpose. Where the granted command anchors on a shell builtin that mutates environment/shell state (e.g. `set`), the grant SHALL be the exact, literal, full command with NO wildcard — Claude Code hard-blocks any wildcard grant anchored on such a builtin regardless of its suffix, so a prefix-wildcard form is not merely imprecise there, it is non-functional.
 
 #### Scenario: idea-strategist's tool list carries no Bash entry, scoped or otherwise
 
@@ -54,7 +54,14 @@ Where an agent's `tools:` frontmatter grants shell access, it SHALL do so ONLY a
 - **GIVEN** `.claude/agents/{developer,performance-tracker,producer,qa,trend-scout}.md`, each of which retains shell access
 - **WHEN** each file's `tools:` frontmatter is read
 - **THEN** none contains a bare `Bash` entry
-- **AND** each contains one or more `Bash(<pattern>)` entries matching that agent's own documented need (e.g. `Bash(git status *)`/`Bash(git diff *)`/`Bash(git commit *)`/`Bash(npm test)`/`Bash(npx tsx *)`/`Bash(openspec validate *)` for developer; `Bash(npm run track-performance *)`/`Bash(npm run apify-smoke *)`/`Bash(curl *)` for performance-tracker; `Bash(curl *)`/`Bash(set -a *)` for trend-scout; `Bash(npx tsx src/commands/upload-camera-hub-scripts.ts *)`/`Bash(npm run export-schedule *)` for producer; `Bash(npm test)`/`Bash(npm run test:docs)`/`Bash(openspec validate *)` for qa)
+- **AND** each contains one or more `Bash(<pattern>)` entries matching that agent's own documented need (e.g. `Bash(git status *)`/`Bash(git diff *)`/`Bash(git commit *)`/`Bash(npm test)`/`Bash(npx tsx *)`/`Bash(openspec validate *)` for developer; `Bash(npm run track-performance *)`/`Bash(npm run apify-smoke *)`/`Bash(curl *)` for performance-tracker; `Bash(curl *)`/`Bash(set -a; [ -f .env ] && . ./.env; set +a)` for trend-scout; `Bash(npx tsx src/commands/upload-camera-hub-scripts.ts *)`/`Bash(npm run export-schedule *)` for producer; `Bash(npm test)`/`Bash(npm run test:docs)`/`Bash(openspec validate *)` for qa)
+
+#### Scenario: an environment-mutating shell builtin is granted as an exact-match Bash entry, never a wildcard
+
+- **GIVEN** trend-scout's and performance-tracker's `.env`-loading step, which always runs the identical literal command `set -a; [ -f .env ] && . ./.env; set +a`
+- **WHEN** their `tools:` frontmatter is read
+- **THEN** each grants that FULL command as one exact-match `Bash(<exact command>)` entry, with no trailing wildcard
+- **AND** neither grants any `Bash(set...*)`-shaped wildcard entry — Claude Code hard-blocks any wildcard `Bash` grant anchored on `set` (verified live: it changes shell option state, defeating static env-var analysis), so a wildcard there can never authorise this step regardless of its suffix
 
 #### Scenario: developer's scoped git/gh grants exclude push and PR/issue authorship
 
@@ -68,12 +75,19 @@ Where an agent's `tools:` frontmatter grants shell access, it SHALL do so ONLY a
 - **WHEN** it is read
 - **THEN** it grants no `Bash(git commit...)`, no `Bash(git push...)`, and no `Bash(npm install...)` entry of any kind
 
-#### Scenario: qa's file-write tool is narrowed from Write to Edit
+#### Scenario: qa's file-write tool is narrowed from Write to a path-scoped Edit
 
 - **GIVEN** `.claude/agents/qa.md`'s `tools:` frontmatter, and its own stated contract that it never edits product code
 - **WHEN** it is read
-- **THEN** `tools:` lists `Edit`, not `Write`
+- **THEN** `tools:` lists `Edit(openspec/changes/**/handoff.md)`, not a bare `Edit` and not `Write`
 - **AND** the Output section instructs appending the QA Verdict via `Edit` against the Slice Handoff's existing trailing content
+
+#### Scenario: the path-scoped Edit grant genuinely tightens the boundary, verified both ways
+
+- **GIVEN** `Edit(openspec/changes/**/handoff.md)` granted in an isolated Claude Code session
+- **WHEN** an Edit is attempted against a real `handoff.md` matching that glob, and separately against an unrelated file that does not match it
+- **THEN** the matching-file Edit is allowed and the file is changed
+- **AND** the non-matching-file Edit is denied and the file is left unchanged
 
 ### Requirement: Agent descriptions carry no Operator brand name
 

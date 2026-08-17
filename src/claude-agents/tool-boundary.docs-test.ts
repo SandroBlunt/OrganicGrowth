@@ -1,5 +1,6 @@
 /**
- * Documentation-conformance suite for issue #246 Round 2 (QA Round-1 defects 1 and 2).
+ * Documentation-conformance suite for issue #246 (Round 2's fix for QA Round-1 defects 1 and 2; Round
+ * 3's fix for QA Round-2 defect 5).
  *
  * Round 1 shipped two brand-new invariants across the six `.claude/agents/*.md` files with NO test
  * pinning either: (a) `idea-strategist.md` carries no `Bash` grant at all, and (b) no agent's
@@ -8,6 +9,19 @@
  * `Bash`-retaining agent's `tools:` frontmatter grants only SCOPED `Bash(<pattern>)` entries — never a
  * bare, unscoped `Bash` — so a future edit that widens any of these back to a blanket `Bash` fails the
  * build instead of passing quietly.
+ *
+ * Round 2 shipped `trend-scout.md`/`performance-tracker.md` with `Bash(set -a *)` — a pattern that reads
+ * as a correct scope but is, empirically, non-functional: Claude Code hard-blocks ANY wildcard `Bash`
+ * grant anchored on `set` (it mutates shell option state), so every real invocation of the `.env`-load
+ * step would have hit an unexpected manual-approval prompt. QA's Round-2 Verdict caught this live, and
+ * it was independently reproduced during Round 3 (see this issue's `handoff.md`). The fix — the exact,
+ * literal, full command with NO wildcard — is pinned below (a STATIC check: no wildcard-anchored-on-`set`
+ * pattern is granted anywhere). **What this suite deliberately does NOT and CANNOT prove: that the
+ * exact-match grant actually authorises the command at runtime.** That requires a live Claude Code
+ * permission call (as both QA and this round's own verification used) — outside what a hermetic,
+ * no-live-call suite can exercise. This is stated here plainly rather than implied as covered; the
+ * regression this suite DOES catch is a future edit re-introducing the wildcard shape that is already
+ * known, empirically, not to work.
  *
  * Kept as a `*.docs-test.ts` (run by `npm run test:docs`, and by `npm test`'s combined glob), matching
  * the naming convention every other suite pinning `.claude/agents/*.md` content already uses.
@@ -93,6 +107,20 @@ describe("issue #246 Round 2 — no agent tools: list carries a bare, unscoped B
       const scopedBash = entries.filter((entry) => entry.startsWith("Bash(") && entry.endsWith(")"));
       assert.ok(scopedBash.length > 0, `${file} must grant at least one Bash(<pattern>) entry`);
     });
+
+    it(`${file} grants no wildcard Bash pattern anchored on an environment-mutating shell builtin (set)`, async () => {
+      const entries = splitToolEntries(extractToolsLine(await readAgent(file)));
+      const unsafeWildcard = entries.filter(
+        (entry) => /^Bash\(\s*set\b.*\*\s*\)$/.test(entry),
+      );
+      assert.equal(
+        unsafeWildcard.length,
+        0,
+        `${file} must not grant a wildcard Bash(set...*) entry — Claude Code hard-blocks any wildcard ` +
+          `grant anchored on "set" (it mutates shell option state), regardless of the wildcard's suffix; ` +
+          `an environment-mutating builtin must be granted as the exact, literal, full command only`,
+      );
+    });
   }
 });
 
@@ -139,9 +167,24 @@ describe("issue #246 Round 2 — each Bash-retaining agent's scoped grants cover
     assert.ok(!toolsLine.includes("Bash(npm install"), "qa.md must never be granted npm install");
   });
 
-  it("trend-scout can load .env and run curl, for the Apify scrape calls", async () => {
+  it("qa's one file-write tool is path-scoped to a handoff.md under openspec/changes/, never a bare Edit or Write", async () => {
+    const entries = splitToolEntries(extractToolsLine(await readAgent("qa.md")));
+    assert.ok(
+      entries.includes("Edit(openspec/changes/**/handoff.md)"),
+      "qa.md's tools: line must grant exactly Edit(openspec/changes/**/handoff.md)",
+    );
+    assert.ok(!entries.includes("Edit"), "qa.md must not grant a bare, unscoped Edit");
+    assert.ok(!entries.includes("Write"), "qa.md must not grant Write at all");
+  });
+
+  const ENV_LOAD_EXACT_GRANT = "Bash(set -a; [ -f .env ] && . ./.env; set +a)";
+
+  it("trend-scout can load .env (exact-match, no wildcard) and run curl, for the Apify scrape calls", async () => {
     const toolsLine = extractToolsLine(await readAgent("trend-scout.md"));
-    assert.ok(toolsLine.includes("Bash(set -a *)"), "trend-scout.md's tools: line must include \"Bash(set -a *)\"");
+    assert.ok(
+      toolsLine.includes(ENV_LOAD_EXACT_GRANT),
+      `trend-scout.md's tools: line must include "${ENV_LOAD_EXACT_GRANT}"`,
+    );
     assert.ok(toolsLine.includes("Bash(curl *)"), "trend-scout.md's tools: line must include \"Bash(curl *)\"");
   });
 
@@ -151,7 +194,7 @@ describe("issue #246 Round 2 — each Bash-retaining agent's scoped grants cover
       "Bash(npm run track-performance *)",
       "Bash(npm run apify-smoke *)",
       "Bash(npx tsx src/apify/live/smoke.ts *)",
-      "Bash(set -a *)",
+      ENV_LOAD_EXACT_GRANT,
       "Bash(curl *)",
     ]) {
       assert.ok(toolsLine.includes(pattern), `performance-tracker.md's tools: line must include "${pattern}"`);

@@ -83,7 +83,7 @@ docs-conformance scenario to chase a citation rewrite the underlying system is n
 This is the same class of judgment call `.claude/agents/developer.md`'s "Respect the canon" guardrail
 already demands: never invent a fact the code does not yet support.
 
-## What Changes — the Bash boundary (revised in Round 2)
+## What Changes — the Bash boundary (revised in Round 2, corrected again in Round 3)
 
 **Round 1 got this wrong and Round 2 fixes it.** Round 1 claimed Claude Code has no way to scope `Bash`
 to specific commands, citing `docs/producer-worker-permissions.md`. That document only documents a
@@ -113,25 +113,62 @@ a real, tool-enforced boundary, not a documented-discipline one:
   `Bash(openspec validate *)`, and read-only `Bash(git status *)`/`Bash(git diff *)`/`Bash(git log *)`/
   `Bash(git show *)`/`Bash(gh issue view *)` — no write-capable git/gh/npm command is granted at all.
   Its tool list also still drops `Write` for `Edit` (unchanged from Round 1).
-- **`trend-scout`** keeps `Bash`, now as `Bash(set -a *)` (the `.env` load) and `Bash(curl *)` (the
-  Apify scrape calls) — `curl *` is scoped to the `curl` binary, not further to the Apify domain
-  specifically, since Claude Code's own pattern matching works on command text, not a URL allowlist; this
-  residual breadth is disclosed, not silently assumed away.
+- **`trend-scout`** keeps `Bash`, now as `Bash(set -a; [ -f .env ] && . ./.env; set +a)` (the `.env`
+  load — an EXACT-match grant, no wildcard) and `Bash(curl *)` (the Apify scrape calls) — `curl *` is
+  scoped to the `curl` binary, not further to the Apify domain specifically, since Claude Code's own
+  pattern matching works on command text, not a URL allowlist; this residual breadth is disclosed, not
+  silently assumed away.
 - **`performance-tracker`** keeps `Bash`, now as `Bash(npm run track-performance *)`,
-  `Bash(npm run apify-smoke *)`, `Bash(npx tsx src/apify/live/smoke.ts *)`, `Bash(set -a *)`, and
-  `Bash(curl *)` for the manual-debug fallback.
+  `Bash(npm run apify-smoke *)`, `Bash(npx tsx src/apify/live/smoke.ts *)`,
+  `Bash(set -a; [ -f .env ] && . ./.env; set +a)`, and `Bash(curl *)` for the manual-debug fallback.
 - **`producer`** keeps `Bash`, now as exactly `Bash(npx tsx src/commands/upload-camera-hub-scripts.ts *)`
   and `Bash(npm run export-schedule *)` — no other command is granted.
 
-Every agent's Guardrails prose was updated to match: each now states its `Bash` grant is
-**tool-enforced**, not merely documented, and names the still-genuine platform limitation that remains
-true (no path-scoped `Write`/`Edit` — that half of Round 1's claim was correct and is unchanged).
+**Round 3 fixes a real, live-verified gap Round 2 introduced: `Bash(set -a *)` does not authorise the
+command it was granted for.** Claude Code hard-blocks any WILDCARD `Bash` grant anchored on `set`
+(confirmed live, in an isolated scratch session, both by QA's own testing and independently reproduced
+during this round: `set -a` mutates shell option state, and a wildcard there would let anything be
+silently chained after it and auto-approved — the denial reason is `SET_O_SAFE_LETTERS`). `trend-scout`
+and `performance-tracker` would have hit an unexpected manual-approval prompt on their very first,
+routine step, every real run — a functional regression invisible to `npm test`, since nothing in the
+test suite executes a live Bash permission check. The fix, independently verified live (both by QA and
+again during this round, in a fresh isolated session): grant the exact, literal, full command with NO
+wildcard — `Bash(set -a; [ -f .env ] && . ./.env; set +a)` — which is not a workaround but the more
+accurate grant anyway, since this step always runs the identical literal line. Every other granted
+pattern across all five `Bash`-retaining agents was re-checked against the same standard ("does this
+authorise the literal command the file instructs," not "does it look like it should"): all of them
+invoke external binaries (`git`, `gh`, `npm`, `npx`, `node`, `openspec`, `curl`), never a shell builtin
+that mutates state — `set` was the one and only anchor of this kind anywhere in the six files, and it
+appeared in exactly the two places now fixed.
 
-A new docs-test, `src/claude-agents/tool-boundary.docs-test.ts`, pins this Round-2 fix mechanically: no
+**Round 3 also corrects a second instance of the SAME citation mistake Round 1 made.** Round 2's own
+"Known limits" claimed Claude Code still has no path-scoped `Write`/`Edit`, citing the same MCP-specific
+`docs/producer-worker-permissions.md` note that never established the `Bash` claim either. It was wrong
+for the identical reason: the CLI's own embedded permission-rule reference lists `Edit(docs/**)` as a
+real example (`Format: ["Tool(specifier)"]. Examples: ["Bash(npm run build)", "Edit(docs/**)",
+"Read(~/.zshrc)"]`), and a live test in this round (an isolated scratch session, `Edit(openspec/changes/**/handoff.md)`
+granted, then exercised against both a matching and a non-matching file) confirmed path-scoped `Edit`
+genuinely works — the grant let an edit of a real `handoff.md` through and denied an edit of an unrelated
+file. Since this DOES genuinely tighten a real boundary, `qa.md`'s `tools:` now grants
+`Edit(openspec/changes/**/handoff.md)` instead of a bare `Edit` — qa's only legal write is now
+tool-enforced to the exact file its own contract already limits it to, not merely documented.
+
+Every agent's Guardrails prose was updated to match, across both rounds: each states its `Bash` grant is
+**tool-enforced**, not merely documented; `qa.md` additionally states its `Edit` grant is now
+path-scoped, tool-enforced to `openspec/changes/**/handoff.md`.
+
+`src/claude-agents/tool-boundary.docs-test.ts` (added in Round 2) pins the Round-2 fix mechanically: no
 `tools:` line contains a bare `Bash` entry, every `Bash`-retaining agent's own documented need is
 matched by a specific `Bash(<pattern>)` entry actually present in its `tools:` line, developer is never
-granted `git push` or any `gh pr` subcommand, and qa is never granted a write-capable git/npm command.
-It also pins the two invariants Round 1 shipped with no test at all (see "Doc-conformance," below).
+granted `git push` or any `gh pr` subcommand, and qa is never granted a write-capable git/npm command. It
+also pins the two invariants Round 1 shipped with no test at all (see "Doc-conformance," below). **A
+non-functional-but-present grant — a pattern that reads correctly but is denied at runtime, exactly this
+round's own defect — is NOT something this suite can catch**, and is stated here plainly rather than
+implied as covered: proving a `Bash(<pattern>)` grant actually authorises its command requires a live
+Claude Code permission call (as both QA and this round's own verification used), which is outside what
+`npm test`'s hermetic, no-live-call suite can exercise. The mitigation is procedural, not mechanical: this
+round's fix was independently re-verified live before being written down, the same discipline that caught
+it in the first place.
 
 ## What Changes — descriptions and other light edits
 

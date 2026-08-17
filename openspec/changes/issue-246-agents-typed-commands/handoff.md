@@ -486,3 +486,317 @@ empty).
   rather than silently assumed correct.
 - All Round-1 known limits not superseded by the above (the SQL command-surface cutover remains
   deliberately out of scope; #247 remains untouched) still stand.
+
+---
+
+## QA Verdict — Round 2: FAIL
+
+### Suite result
+
+- `openspec validate issue-246-agents-typed-commands --strict` → valid. Green.
+- `openspec validate --all --strict` → `Totals: 63 passed, 0 failed (63 items)`. Matches the reported
+  number exactly.
+- `npm test` → `# tests 3395 / # suites 893 / # pass 3395 / # fail 0`. Matches exactly (main's 3373/890
+  floor + this round's 22 new).
+- `npm run test:docs` → `# tests 321 / # suites 84 / # pass 321 / # fail 0`. Matches exactly.
+- The 12 tests/docs-tests pinning these six files, run directly together → `# tests 200 / # suites 43 /
+  # pass 200 / # fail 0`. Matches exactly: 178 (Round 1) + 22 (the new file) = 200, confirmed
+  independently, not just taken on the build's word.
+
+All reported numbers are real and reproduce exactly. **The suite being green is not the reason this
+round fails** — see below.
+
+### Defects 1–4 from Round 1 — status
+
+| # | Status | Verification |
+|---|---|---|
+| 1 (High, Bash) | **Mostly fixed — see new Defect 5 below for the residual gap** | Zero bare `Bash` entries anywhere: confirmed with a precise per-file parse (not a loose grep) that splits each `tools:` line on commas and checks for a literal `Bash` token — all six files return `[]`. `developer`/`qa` correctly exclude `git push`, any `gh pr` subcommand, and (for qa) every write-capable git/npm command — confirmed by reading every granted pattern in both files. No `Bash(npm *)`-shaped over-broad grant exists anywhere (checked all patterns individually) — the specific over-breadth risk the coordinator named as an example does not occur. **However:** two of the granted patterns (`Bash(set -a *)` in `trend-scout.md` and `performance-tracker.md`) do not actually cover the real command those same files instruct running — confirmed live, empirically. See "New defect 5," below. |
+| 2 (Medium, no test) | **Fixed, verified** | `src/claude-agents/tool-boundary.docs-test.ts`, 22/22 green (independently run). Mutation-tested the six negative assertions against six hand-crafted, in-memory mutated copies of the real file content (bare-`Bash` regression on `qa.md`, `Bash` re-added to `idea-strategist.md`, `qa.md` gaining a write-capable git command, `developer.md` gaining `git push`, and both brand-name regressions on a `description:` field) — **all six fired correctly**, confirming these are real guards, not vacuous ones. Also confirmed no line-wrap blind spot: both `tools:` and `description:` are genuinely single physical lines in all six files (the exact failure class this batch has hit before), verified directly, not assumed. |
+| 3 (Medium, dangling `handoff.md` pointer) | **Fixed, verified** | `grep -n "handoff.md" .claude/agents/developer.md` now returns nothing near the Bash Guardrails bullet — the two remaining `handoff.md` mentions in the file are generic references inside the pipeline-description prose (what the Slice Handoff *is*), not a per-agent-Bash-rationale pointer. Read the actual bullet: it is now fully self-contained. |
+| 4 (Low, anti-rhetoric location unstated) | **Fixed, verified** | `proposal.md` now states plainly: *"The anti-rhetoric caption rules are not in any of the six `.claude/agents/*.md` files at all. They live in `.claude/skills/write-social-copy/SKILL.md`..."*, quoting *"Close on a FRESH engagement CTA every time — never a canned, repeated line"* and the banned boilerplate *`"Swipe through the 7-slide..."`*. I read the real `SKILL.md` (lines 111–121): the quote matches the source exactly (a faithful excerpt with an ellipsis on the long boilerplate string, not a paraphrase or reword). `git diff cdf8f8f eee0beb --stat -- .claude/skills/` is empty — genuinely untouched, this round too. |
+
+### The scoped grants — ruling: the "no broad `git *`" reasoning holds; the RESULT is not fully sufficient
+
+**The reasoning (excluding `git push`/`gh pr`/write-capable commands from `developer`/`qa` rather than
+granting a broad `Bash(git *)`) is correct and verified — not assumed.** I read every granted pattern in
+both files directly: `developer.md` has 7 distinct `git` patterns (`status`, `diff`, `log`, `show`, `add`,
+`commit`, `branch`) and exactly one `gh` pattern (`issue view`) — no `push`, no `pr` anywhere. `qa.md` has
+5 read-only `git`/`gh` patterns and zero write-capable ones. `tool-boundary.docs-test.ts` pins both
+negatives mechanically, and I mutation-tested that the negative assertions actually fire (see Defect 2's
+row above). **Ruling: sound, not a defect.**
+
+**No over-broad pattern was found.** I checked every single `Bash(<pattern>)` entry across all five
+Bash-retaining agents by hand: no `Bash(npm *)` (the coordinator's own named example risk) or similar
+blanket-package-manager pattern exists anywhere — every `npm run <x> *` pattern names the specific script.
+`developer.md`'s `Bash(npx tsx *)` and `Bash(node --import tsx --test *)` are broad in the abstract sense
+that `npx tsx`/`node` can execute arbitrary code — but this is inherent to `developer`'s actual, stated job
+(write and run new source files under `src/` as part of a slice; there is no narrower pattern that could
+name a not-yet-written filename in advance), not a boundary violation of its contract (no `git push`, no
+`gh pr`, no live Brand/Space/Zoho reach — all still correctly excluded). This is a reasonable, disclosed
+trade-off, not an unflagged risk.
+
+**Sufficiency — this is where a real, concrete gap was found, verified live, not just suspected.**
+
+`trend-scout.md` and `performance-tracker.md` each grant `Bash(set -a *)` to cover the `.env`-loading step
+their own Process sections instruct verbatim: `` set -a; [ -f .env ] && . ./.env; set +a `` (a single
+compound command). I tested this **empirically**, against a live, isolated, throwaway Claude Code session
+(a fresh scratch directory outside this repo, using only the `--allowedTools` CLI flag — never touching
+the Operator's own global `~/.claude/settings.json` or `~/.claude.json`, consistent with never changing my
+own or another session's permission configuration):
+
+1. Granting exactly `Bash(set -a *)` and asking a nested session to run the real one-liner verbatim →
+   **BLOCKED**.
+2. Granting the SAME `Bash(set -a *)` and asking it to run bare `set -a` alone (no chaining at all) →
+   **also BLOCKED**, with an explicit denial reason surfaced in the tool-call record: *"'set -a' changes
+   shell option state (allexport/keyword/…) — defeats static env-var analysis; see SET_O_SAFE_LETTERS."*
+3. Granting the exact-match form instead — `Bash(set -a)`, no wildcard — and asking it to run bare
+   `set -a` → **RAN**, no denial.
+4. Granting an exact-match of the FULL real command — `Bash(set -a; [ -f .env ] && . ./.env; set +a)`,
+   still no wildcard — and asking it to run that exact line → **RAN**, no denial, output as expected.
+
+**Conclusion, confirmed by direct, live, reproducible testing (not inference from documentation alone):**
+Claude Code has a hard-coded safety classifier that blocks any *wildcard* `Bash` grant anchored on
+`set -a` (an environment-mutating shell builtin) — regardless of what the wildcard's suffix actually
+contains — because a wildcard here would let anything be silently chained after an env-mutating command
+and auto-approved. This is unconditional: no `Bash(set -a *)` formulation can ever cover this step. The
+fix is not a broader or differently-worded wildcard; it is to grant the **exact, literal, full command**
+as an exact-match specifier (test 4 above), which is also the more correct match anyway since the command
+is always invoked identically every time. As currently written, `trend-scout.md`'s and
+`performance-tracker.md`'s `Bash(set -a *)` grants will not cover their own documented `.env`-loading step
+in real, live use — every real invocation of this step, on either agent, will hit an unexpected manual
+approval prompt, defeating the purpose of scoping `Bash` at all for exactly the step both files run first,
+every time, before any Apify call. This is precisely the failure mode named in the brief: *"a too-narrow
+grant fails at runtime rather than in the test suite, so nobody finds out until an agent stalls mid-slice"*
+— except here it is worse than mid-slice: `trend-scout` is a **weekly content-loop agent**, not an
+internal engineering one, so this would surface on essentially every real run.
+
+Credit where due: the build's own Round-2 "Known limits" section (the tokenization-boundary note) already
+disclosed general uncertainty in exactly this area rather than asserting confidence it hadn't verified —
+that intellectual honesty is real and consistent with this batch's own hard-won lesson. But disclosure of
+uncertainty is not the same as the grant actually working, and this specific instance was concrete,
+checkable, and (once I looked) wrong.
+
+**What would fix it (verified working, both files):** replace `Bash(set -a *)` with the exact literal
+`Bash(set -a; [ -f .env ] && . ./.env; set +a)` in both `trend-scout.md`'s and `performance-tracker.md`'s
+`tools:` frontmatter (no wildcard — the command is always invoked identically, so an exact match is not
+just a workaround but the more accurate grant), and update the accompanying Guardrails prose to match.
+
+### New defect 5 (low-medium, distinct from the above) — the residual Write/Edit platform claim
+
+Round 2's own correction states, verbatim, that *"Claude Code still has no PATH-scoped `Write`/`Edit`...
+that half of Round 1's claim was correct and is unchanged"* (`qa.md`, `proposal.md`), still citing
+`docs/producer-worker-permissions.md`'s MCP-specific note as support. I checked this the same way I
+checked the Bash claim in Round 1: the CLI's own embedded permission-rule reference (the SAME source that
+resolved the Bash question) states the general rule-format explicitly — *"Permission rules must be in an
+array. Format: [\"Tool(specifier)\"]. Examples: [\"Bash(npm run build)\", \"Edit(docs/\*\*)\",
+\"Read(~/.zshrc)\"]."* `Edit(docs/**)` is a real, first-party, documented example of a path-scoped `Edit`
+rule — directly contradicting the "still no PATH-scoped Write/Edit" claim, by the same evidentiary
+standard used to correct the Bash claim. This is the identical root-cause mistake as the original Round-1
+defect (borrowing `docs/producer-worker-permissions.md`'s MCP-specific fact for an unrelated tool class),
+now narrowed to the untouched half of the same sentence rather than fully resolved.
+
+**Practical impact is limited** — no acceptance criterion depends on Write/Edit scoping, and `qa.md`'s
+actual tool list (`Edit`, not `Write`) is unaffected either way. But it does mean a strictly tighter grant
+was left on the table: `qa.md`'s `Edit` could, in principle, be scoped to something like
+`Edit(openspec/changes/**/handoff.md)` — the exact file it is contractually allowed to touch — mirroring
+the very principle (a real, tool-enforced boundary, not a documented one) this whole ticket is about. Not
+required to pass, but should be corrected in the same prose pass as Defect 6's fix so a future reader isn't
+handed a second, still-inaccurate platform claim right next to a freshly-corrected one.
+
+### Editorial rules — re-verified this round, not assumed carried over
+
+Diffed `cdf8f8f` → `eee0beb` (this round's own commits) directly, per file:
+
+- `idea-strategist.md` — **zero lines changed** (`git diff cdf8f8f eee0beb -- .claude/agents/idea-strategist.md`
+  is empty). Every Round-1 finding about this file stands untouched.
+- `trend-scout.md`, `performance-tracker.md`, `qa.md`, `developer.md`, `producer.md` — each touched only in
+  its frontmatter `tools:` line and its Bash-rationale Guardrails bullet(s); confirmed by listing every
+  `@@` diff-hunk line range per file and checking none overlaps the editorial-rule line ranges identified
+  in Round 1 (`trend-scout.md`'s primary-source/paywalled block, `producer.md`'s brand-safety line and
+  Zoho/Camera-Hub/Copy-skill sections). No hunk touches any of them.
+- No rule was reworded, compressed, or "improved" anywhere in this round's diff. A second pass over the
+  same five files — exactly the scenario flagged as the risk worth checking rather than assuming — did not
+  disturb any protected rule.
+
+### Also verified
+
+- **The 12→200 test-count delta is exact**, not merely "not fewer": 200 − 178 = 22, exactly the new file's
+  own count, confirmed by running the 12-file set directly rather than trusting the arithmetic.
+- **`openspec validate --all --strict`'s 63 total is unchanged from Round 1** (still 63; Round 2 modified
+  the existing `agent-command-surface` change rather than adding a new capability) — consistent, no
+  drift.
+
+### Always-rules + Magnific-fake checks (re-confirmed this round)
+
+- No product code under `src/` touched other than the new, additive `tool-boundary.docs-test.ts` (a pure
+  test file, no runtime behavior). `git diff cdf8f8f eee0beb --stat -- .claude/skills/ .claude/commands/`
+  is empty — still hermetic, still no live-Space/MCP reach. Ledger-as-source-of-truth, explicit-attribution,
+  relative-not-absolute, public-metrics-only, generate-never-publish: unaffected by this round's changes
+  (none of them touch ledger/queue writes or metrics logic; Round 1's rulings stand).
+
+### Defect list (Round 2)
+
+| # | Severity | Defect | Repro |
+|---|---|---|---|
+| 5 | **High** | `Bash(set -a *)` in `trend-scout.md` and `performance-tracker.md` does not cover the real `.env`-loading command (`set -a; [ -f .env ] && . ./.env; set +a`) those same files instruct running — Claude Code has a hard-coded classifier that blocks any wildcard `Bash` grant anchored on `set -a`, confirmed live (see "Sufficiency" above). Every real invocation of this routine, first step will hit an unexpected manual approval prompt instead of running silently — for `trend-scout`, a weekly content-loop agent, not an internal one. | In an isolated scratch dir outside this repo, run `claude -p "Use the Bash tool to run exactly: set -a; [ -f .env ] && . ./.env; set +a" --allowedTools "Bash(set -a *)" --permission-mode default --output-format json` and inspect `permission_denials` in the JSON output — non-empty, with the `SET_O_SAFE_LETTERS` denial reason. Contrast with the same test using `--allowedTools "Bash(set -a; [ -f .env ] && . ./.env; set +a)"` (exact match, no wildcard) — `permission_denials` is empty, command runs. |
+| 6 | Low-Medium | `qa.md`/`proposal.md` still assert "Claude Code has no PATH-scoped `Write`/`Edit`" as an unchanged-true claim, citing the same MCP-specific `docs/producer-worker-permissions.md` note that was already shown (Round 1) not to generalize. The CLI's own embedded permission-rule reference lists `Edit(docs/**)` as a real, valid example, directly contradicting this. No AC depends on it, but it leaves `qa.md`'s `Edit` grant unnecessarily broad and repeats the same citation mistake on the untouched half of the sentence. | `grep -n "PATH-scoped\|path-scoped" .claude/agents/qa.md openspec/changes/issue-246-agents-typed-commands/proposal.md`; compare against the CLI's own `--allowedTools`/permission-rule format string (`Format: ["Tool(specifier)"]. Examples: ["Bash(npm run build)", "Edit(docs/**)", "Read(~/.zshrc)"]`). |
+
+### Ruling
+
+Defects 1–4 from Round 1 are genuinely, rigorously fixed — verified independently, not taken on the
+build's word, including live mutation-testing of the new negative assertions. The reasoning behind
+excluding broad `git */gh *` grants from `developer`/`qa` is sound and correctly implemented. No
+over-broad pattern (the coordinator's own named `Bash(npm *)` risk) exists anywhere. **But the
+"sufficiency" half of this round's ask is not fully met**: a concrete, empirically-confirmed instance of
+"a too-narrow grant fails at runtime" was found in exactly the two agents that touch it, on their most
+routine step. This is a narrow, well-diagnosed, one-line-per-file fix with a verified-working
+replacement already in hand — not a redesign — but it is a real functional gap in a slice whose entire
+point this round was to make the Bash boundary REAL rather than documented, and it should not ship
+unfixed.
+
+**This blocks merge.** Recommend one more narrow round: replace `Bash(set -a *)` with the exact literal
+`Bash(set -a; [ -f .env ] && . ./.env; set +a)` in both `trend-scout.md` and `performance-tracker.md`
+(verified working above), and, in the same pass, correct Defect 6's residual Write/Edit claim. Everything
+else in this round is solid and should not need to be redone.
+
+## QA Verdict — Round 2: FAIL
+
+---
+
+## Build Report (Round 3)
+
+### Independent, live re-verification before touching anything
+
+Given this is the second time a documented-limitation claim has been wrong in this slice, this round
+did not take QA's Round-2 findings on the page — it reproduced both, live, in an isolated scratch
+session before writing a single fix, using the `claude` CLI directly (never touching the Operator's own
+global `~/.claude/settings.json`/`~/.claude.json`):
+
+1. Granted exactly `Bash(set -a *)` and asked a nested session to run the real
+   `set -a; [ -f .env ] && . ./.env; set +a` one-liner verbatim → `permission_denials` non-empty, denial
+   reason `"'set -a' changes shell option state (allexport/keyword/…) — defeats static env-var analysis;
+   see SET_O_SAFE_LETTERS."` — matches QA's finding exactly.
+2. Granted the exact literal `Bash(set -a; [ -f .env ] && . ./.env; set +a)` (no wildcard) and ran the
+   same command → `permission_denials: []`, ran clean, no output (expected — the step is silent).
+3. Grepped the installed `@anthropic-ai/claude-code` binary directly for the CLI's own embedded
+   permission-rule reference → confirmed it verbatim: `Format: ["Tool(specifier)"]. Examples:
+   ["Bash(npm run build)", "Edit(docs/**)", "Read(~/.zshrc)"]. Use * for wildcards.` — `Edit(docs/**)`
+   is real, contradicting the "no PATH-scoped Write/Edit" claim exactly as QA found.
+4. Granted `Edit(openspec/changes/**/handoff.md)` in a fresh isolated session and exercised it two ways:
+   an Edit against a real, matching `handoff.md` (allowed, file changed) and an Edit against an
+   unrelated, non-matching file in the same directory (denied, `permission_denials` non-empty, file
+   unchanged). Confirmed the tighter grant genuinely works both directions, not just in the allow case.
+
+### What changed
+
+**Defect 5 (High) — the `set -a` wildcard, fixed with the verified exact-match grant.**
+`trend-scout.md`'s and `performance-tracker.md`'s `tools:` frontmatter now grant
+`Bash(set -a; [ -f .env ] && . ./.env; set +a)` — the exact, literal, full command, no wildcard — in
+place of the non-functional `Bash(set -a *)`. Both files' Bash-rationale Guardrails prose was rewritten
+to explain WHY: Claude Code hard-blocks any wildcard `Bash` grant anchored on `set` regardless of the
+wildcard's suffix, so no differently-worded wildcard could ever have covered this step; the exact-match
+form is not a workaround, it is the more accurate grant, since this step always runs the identical
+literal line every time.
+
+**Every other granted `Bash(<pattern>)` pattern across all five Bash-retaining agents was re-checked**
+against the standard the coordinator named ("does this authorise the literal command the file
+instructs," not "does it look like it should"): every one of them anchors on an external binary (`git`,
+`gh`, `npm`, `npx`, `node`, `openspec`, `curl`), never a shell builtin that mutates state. `set` was the
+only such anchor anywhere in the six files, and it appeared in exactly the two places QA named — no
+other file needed a change.
+
+**Defect 6 (Low-Medium) — the residual Write/Edit claim, corrected, and the tighter grant actually
+applied.** `qa.md`'s `tools:` now grants `Edit(openspec/changes/**/handoff.md)` instead of a bare
+`Edit` — a real, tool-enforced, path-scoped boundary matching qa's own contract exactly (its only legal
+write is appending to a Slice Handoff), not merely a corrected sentence. `qa.md`'s and `proposal.md`'s
+prose no longer claims Claude Code has no path-scoped `Write`/`Edit`; both now state the verified truth
+and cite the same CLI-embedded permission-rule reference that resolved the Round-1 Bash question, rather
+than continuing to lean on `docs/producer-worker-permissions.md`'s unrelated MCP-specific note for a
+claim it never supported.
+
+**The OpenSpec change itself updated to match:** `proposal.md`'s Bash section gained a Round-3
+correction describing both fixes, and states plainly that a non-functional-but-present grant is a class
+of defect `npm test` cannot catch — proving a `Bash(<pattern>)`/`Edit(<pattern>)` grant actually
+authorises its command requires a live permission call, which is outside a hermetic, no-live-call
+suite's reach; the mitigation is procedural (independent live re-verification before writing a fix down),
+not mechanical. `tasks.md` gained a Round-3 section; Round 2's own task 8.3 was annotated (not deleted)
+to note its "genuinely-still-true" claim was itself later found wrong, so the historical record stays
+honest about what Round 2 believed at the time without asserting it as still-current truth.
+`specs/agent-command-surface/spec.md`'s Bash Requirement gained a sentence requiring exact-match grants
+for environment-mutating builtins, a new Scenario pinning it, and the qa Write→Edit Scenario was
+rewritten to the path-scoped form plus a new Scenario proving the two-way live verification.
+
+### Files touched (Round 3, in addition to Rounds 1–2's)
+
+- `.claude/agents/trend-scout.md` (further edit — `tools:` + Guardrails prose)
+- `.claude/agents/performance-tracker.md` (further edit — `tools:` + Guardrails prose)
+- `.claude/agents/qa.md` (further edit — `tools:` + two prose paragraphs)
+- `.claude/agents/developer.md`, `.claude/agents/producer.md`, `.claude/agents/idea-strategist.md` —
+  **unchanged this round** (no `set -a` pattern, no Write/Edit claim, in any of the three)
+- `src/claude-agents/tool-boundary.docs-test.ts` (further edit — updated the two exact-match string
+  checks, added a new negative check per Bash-retaining agent that no `Bash(set...*)`-shaped wildcard is
+  ever granted, added a check that qa's file-write tool is exactly `Edit(openspec/changes/**/handoff.md)`
+  and never a bare `Edit` or `Write`)
+- `openspec/changes/issue-246-agents-typed-commands/proposal.md` (further edit)
+- `openspec/changes/issue-246-agents-typed-commands/tasks.md` (further edit — new section 9)
+- `openspec/changes/issue-246-agents-typed-commands/specs/agent-command-surface/spec.md` (further edit)
+- `openspec/changes/issue-246-agents-typed-commands/handoff.md` (this Round-3 block)
+
+### How to run
+
+- `openspec validate issue-246-agents-typed-commands --strict` — green.
+- `openspec validate --all --strict` — green, `Totals: 63 passed, 0 failed (63 items)` (unchanged from
+  Round 2 — no new capability added, the existing one was only further refined).
+- `npm test` — green, `# tests 3401 / # suites 893 / # pass 3401 / # fail 0` (Round 2's 3395 floor plus
+  this round's 6 new assertions).
+- `npm run test:docs` — green, `# tests 327 / # suites 84 / # pass 327 / # fail 0`.
+- The 12 tests/docs-tests pinning these six files, run directly together → `# tests 206 / # suites 43 /
+  # pass 206 / # fail 0` (was 200 after Round 2; +6, exactly this round's own new assertions — nothing
+  pre-existing regressed).
+
+### Defect-to-proof mapping (issue #246 Round 3)
+
+| Defect | Fix | Proof |
+|---|---|---|
+| 5 (High) — `Bash(set -a *)` non-functional | Replaced with exact-match `Bash(set -a; [ -f .env ] && . ./.env; set +a)` in both files | Independently reproduced live (steps 1–2 above, this round's own verification, not just QA's); `tool-boundary.docs-test.ts`'s new per-agent "no wildcard anchored on set" check, mutation-tested (see below) |
+| 6 (Low-Medium) — residual Write/Edit claim | Corrected the claim; applied the genuinely-tighter `Edit(openspec/changes/**/handoff.md)` grant to `qa.md` | Independently reproduced live (steps 3–4 above); `tool-boundary.docs-test.ts`'s new qa-Edit-path-scope check, mutation-tested |
+
+### Self-review notes (Round 3)
+
+- **Mutation-tested both new negative-assertion classes against the real files, not just against
+  invented fixtures** — the same discipline QA used on Round 2's own assertions. Temporarily reverted
+  `trend-scout.md`'s grant back to the broken `Bash(set -a *)` wildcard: both the new "no unsafe
+  wildcard" check and the exact-match content check failed correctly (2 suites, `# fail 2`). Restored
+  from a backup copy, re-ran, confirmed green (`# fail 0`). Temporarily reverted `qa.md`'s grant back to
+  a bare `Edit`: the new qa-Edit-path-scope check failed correctly (`# fail 1`). Restored from a backup
+  copy, re-ran, confirmed green. Neither mutation left any residual diff (`git status --short` clean of
+  anything beyond the intended edits both times).
+- Deliberately did NOT trust QA's report on its word for either defect, despite QA's own verification
+  already being thorough and live — re-derived both findings independently before writing a single line
+  of fix, given this is the second round in a row a citation turned out to say something adjacent to
+  what was claimed. The pattern across all three rounds: **assumed platform limitations must be
+  independently, empirically verified — never inferred from a document's general subject matter.**
+- Considered granting `Edit(openspec/changes/<issue-N-slug>/handoff.md)` (only ONE wildcard segment, for
+  the specific slug) instead of the double-star `openspec/changes/**/handoff.md` — rejected: `qa.md`'s
+  own `<issue-N-slug>` is a per-invocation variable qa itself does not know in advance from its own
+  file content (it is supplied by `/build-issue` at invocation), so a literal, slug-specific pattern
+  cannot be baked into the static file; the double-star form (the exact one live-verified above) is
+  the correct generalization.
+
+### Known limits (Round 3, in addition to Rounds 1–2's)
+
+- **This suite still cannot prove a `Bash(<pattern>)`/`Edit(<pattern>)` grant authorises its command at
+  runtime — only that the grant's TEXT matches an expected string, and that a known-bad shape (a
+  wildcard anchored on `set`) is absent.** This is the same class of gap the coordinator asked about
+  directly: "consider whether the new grants can be pinned in a way that would catch a non-functional
+  grant." The honest answer is that the STATIC half (never regress to the known-broken wildcard shape)
+  is testable and now tested; the DYNAMIC half (does this specific exact-match string actually get
+  approved by Claude Code's live classifier) is not testable without a live permission call, which is
+  outside `npm test`'s hermetic, no-live-call design by the same rule that keeps the Magnific Space fake
+  in every other build. The mitigation applied here is procedural: this round's own two fixes were each
+  independently, live re-verified (steps 1–4 above) before being written into the files, rather than
+  taken on faith or inferred from documentation.
+- **The `curl *`/`npx tsx *`/`node --import tsx --test *` residual-breadth disclosures from Rounds 1–2
+  stand unchanged** — this round did not re-verify those live (they invoke external binaries, not a
+  shell builtin like `set`, so they were outside this round's own re-check scope per task 9.4's finding).
+- All earlier-round known limits not superseded by the above still stand.

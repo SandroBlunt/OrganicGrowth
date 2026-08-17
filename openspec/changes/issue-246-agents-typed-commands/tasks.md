@@ -110,7 +110,9 @@
   developer and every write-capable command for qa.
 - [x] 8.3 Replace every bare `Bash` entry in the five agents' `tools:` frontmatter with its own scoped
   entries; update each file's Bash-rationale prose to state the boundary is now tool-enforced, keeping
-  only the genuinely-still-true platform limitation (no path-scoped `Write`/`Edit`).
+  the claimed platform limitation (no path-scoped `Write`/`Edit`) — **this claim was itself later found
+  wrong in Round 3, see section 9 below; it is left here as the historical record of what Round 2
+  actually believed and shipped, not as a currently-true statement.**
 - [x] 8.4 Fix `developer.md`'s dangling "the OpenSpec change's `handoff.md`" reference — replace with a
   self-contained statement of the same rationale, inline, that resolves correctly on any future slice.
 - [x] 8.5 Add `.claude/skills/write-social-copy/SKILL.md` as the anti-rhetoric caption rules' real,
@@ -131,3 +133,39 @@
   `npm test`'s totals are at/above `main`'s real 3373/890/0-fail floor (the Round-1 number was measured
   against a stale fork point — the Operator's own correction, not a defect of this build).
 - [x] 8.10 Append a `Round-2 Build` block to `handoff.md`, never overwriting Round 1 or the QA Verdict.
+
+## 9. Round 3 — fix QA's Round-2 defects
+
+- [x] 9.1 Read the full QA Round-2 Verdict in `handoff.md`. Verify, don't assume — independently
+  reproduce, live, rather than trust the report: in an isolated scratch directory outside this repo, use
+  the `claude` CLI's own `-p`/`--allowedTools`/`--output-format json` flags to grant exactly
+  `Bash(set -a *)` and ask a nested session to run the real `.env`-loading one-liner verbatim — confirmed
+  `permission_denials` non-empty, `SET_O_SAFE_LETTERS` reason, matching QA's finding exactly.
+- [x] 9.2 Independently verify the proposed fix, live, in the same isolated session: grant the exact
+  literal `Bash(set -a; [ -f .env ] && . ./.env; set +a)` (no wildcard) and run the same command —
+  confirmed `permission_denials: []`, runs clean.
+- [x] 9.3 Apply the exact-match fix to both `trend-scout.md` and `performance-tracker.md`'s `tools:`
+  frontmatter and their accompanying Bash-rationale Guardrails prose.
+- [x] 9.4 Re-check every OTHER granted `Bash(<pattern>)` pattern across all five Bash-retaining agents
+  against the same standard ("does this authorise the literal command the file instructs") — confirmed
+  none anchors on a shell builtin that mutates state (`set`, `export`, `cd`, `source`/`.`, `alias`,
+  `eval`, `exec`); every other pattern invokes an external binary (`git`, `gh`, `npm`, `npx`, `node`,
+  `openspec`, `curl`), which this classifier does not block. `set -a` was the only occurrence, in exactly
+  the two files QA named — no other file needed a change.
+- [x] 9.5 Independently verify the Round-2 "no path-scoped Write/Edit" claim the same way QA verified the
+  Round-1 Bash claim: `grep` the installed Claude Code binary for the CLI's own embedded permission-rule
+  reference — confirmed it lists `Edit(docs/**)` as a real example, contradicting the claim.
+- [x] 9.6 Live-verify a genuinely tighter `qa.md` grant works both ways, in the same isolated session:
+  grant `Edit(openspec/changes/**/handoff.md)`, exercise an Edit against a matching `handoff.md` (allowed,
+  file changed) and against a non-matching file (denied, file unchanged) — both confirmed.
+- [x] 9.7 Apply the path-scoped `Edit` grant to `qa.md`'s `tools:` frontmatter; correct its prose (and
+  `proposal.md`'s/`tasks.md`'s) to state the real, verified capability instead of the disproven claim.
+- [x] 9.8 Update the OpenSpec change: `proposal.md`'s Bash section gains a Round-3 correction describing
+  both fixes and states plainly that a non-functional-but-present grant is NOT catchable by `npm test` —
+  proving a `Bash(<pattern>)`/`Edit(<pattern>)` grant actually authorises its command requires a live
+  permission call, outside what a hermetic suite can exercise. Run `openspec validate --strict` until
+  green.
+- [x] 9.9 Re-run `npm test`, `npm run test:docs`, `openspec validate --all --strict`, and the 12-file
+  docs-test set — confirm the 3395/893, 321, and 200 floors all hold or exceed (none regressed).
+- [x] 9.10 Append a `Round-3 Build` block to `handoff.md`, never overwriting earlier rounds or either QA
+  Verdict.
