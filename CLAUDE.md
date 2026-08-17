@@ -72,12 +72,13 @@ it can run itself, and never renders past a gate before the Operator acts.** Gat
 > history) — `/pick`/`/pick-cast` do not put it there.
 
 1. `/run-trends <brand> <format>` → for that Brand's named **Format** (ADR-0013 — its own voice, trend
-   sources/mode, and `ideas_per_run`, read from `data/brands/<slug>/formats/<format>.yaml`):
+   sources/mode, and `ideas_per_run`, read via FormatStore's `loadFormat(brand, format)`,
+   `src/format/store.ts`):
    `trend-scout` scrapes peer Pages (Apify) for posts beating their *own* page baseline, or — for a
    Format in `curated` mode — digests the Operator's own curated public newsletters instead, distilling
    **Trends**; then `idea-strategist` turns the strongest into ~10 **Idea briefs** with **Fit Scores**,
-   written to `data/brands/<slug>/ideas/<format>/<run>/` and tagged with that Format. Running the whole
-   Brand is a loop over its Formats.
+   written under `runIdeasDirFor(brand, format, run, cadence)` (`src/format/run-id.ts`) and tagged with
+   that Format. Running the whole Brand is a loop over its Formats.
 2. 👤 **Gate 1 — Review.** `/review-ideas <brand>` → Operator accepts/rejects conversationally; every
    **Rejection Reason** is logged verbatim (v1 does not auto-apply them). **Accepting an Idea also picks
    its Recipes** (ADR-0009) — pre-filled from the Idea's Format `default_recipes`, filtered to wired
@@ -119,7 +120,8 @@ it can run itself, and never renders past a gate before the Operator acts.** Gat
    never inferred). That Asset moves `produced → posted`.
 7. `/track-performance <brand>` → `performance-tracker` pulls public metrics (Apify) for every posted
    Asset across every chosen Recipe, computes each one's **Performance Score** (relative to the Channel's
-   one baseline), updates `data/brands/<slug>/ledger.json` and **Your Data**. This is the feedback.
+   one baseline), updates the Brand's own ledger (`src/ledger/ledger.ts`) and **Your Data**. This is the
+   feedback.
 8. `/report <brand>` → pipeline state, the per-Idea Fit Score vs the best measured Performance Score
    across that Idea's per-Recipe Posts (an explicit 1:N comparison — ADR-0011), what's feeding back.
 
@@ -274,9 +276,10 @@ carries no lifecycle meaning of its own; `status` stays `produced` until `/log-p
 
 - **Apify** does two jobs: peer-Page scraping (Trends) and our-own-post scraping (Performance). Both
   **public metrics only**. `APIFY_API_TOKEN` lives in `.env`.
-- **Meta Content export** (in `data/brands/<slug>/your-data/`) is an *optional* enrichment for Saves /
-  Net-follows / watch-through. It is git-ignored — keep it there, never at the pre-migration root
-  `data/your-data/`. See [`docs/adr/0001`](./docs/adr/0001-apify-public-metrics-for-performance.md).
+- **Meta Content export** (in the Brand's own `your-data/` directory, `resolveBrand(brand).yourData`)
+  is an *optional* enrichment for Saves / Net-follows / watch-through. It is git-ignored — keep it
+  there, never at the pre-migration root `data/your-data/`. See
+  [`docs/adr/0001`](./docs/adr/0001-apify-public-metrics-for-performance.md).
 - **S3** hosts a Schedule Batch export's JPGs behind SIGNED, EXPIRING links for Zoho Social to fetch —
   the bucket is private (no public-read policy), every key carries an unguessable token, and a link's
   expiry is derived from its Asset's own `scheduled_at` (the Media Host port, issue #144; locked down

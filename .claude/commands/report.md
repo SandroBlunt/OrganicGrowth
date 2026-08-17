@@ -8,13 +8,13 @@ description: "Show the OrganicGrowth pipeline state for a named Brand at a glanc
 Usage: `/report <brand>`
 
 A read-only snapshot of the whole loop for the named Brand. `<brand>` is required — omitting it is
-an error, never a silent default. `/report` reads the Brand's ledger at
-`data/brands/<slug>/ledger.json` (the source of truth) and **never modifies any file**.
+an error, never a silent default. `/report` reads the Brand's own ledger, via `src/ledger/ledger.ts`
+(the source of truth), and **never modifies any file**.
 
 ## Steps
 
-1. Resolve the Brand: slugify `<brand>`, then use the Brand resolver to get the Brand's ledger at
-   `data/brands/<slug>/ledger.json`. State the active Brand at the top of the output.
+1. Resolve the Brand: slugify `<brand>`, then use `resolveBrand(brand)` (`src/brand/resolver.ts`) to
+   locate the Brand's ledger. State the active Brand at the top of the output.
 2. Read the Brand's ledger.
 3. Show:
    - **Brand:** `<brand>` — restated at the top so the Operator always knows which Brand this is.

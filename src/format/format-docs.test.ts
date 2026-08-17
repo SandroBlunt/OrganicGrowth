@@ -134,7 +134,7 @@ describe("/review-ideas resolves a suggested Idea's Brief via resolveBriefPathCa
 
   it("documents the Format-namespaced-then-legacy fallback order for records with no brief_path", async () => {
     const doc = await readDoc(".claude", "commands", "review-ideas.md");
-    assert.match(doc, /brands\/<slug>\/ideas\/<Idea\.format>\/<run>\/idea-NN\.md/);
+    assert.match(doc, /ideas\/<Idea\.format>\/<run>\/idea-NN\.md/);
     assert.match(doc, /legacy Brand-level path/i);
   });
 });

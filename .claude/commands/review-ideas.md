@@ -12,13 +12,13 @@ error, never a silent default. Optional: run id (default = latest run with `sugg
 this Brand).
 
 **Gate 1 — Review. Brand: `<brand>`.** The Operator is reviewing Ideas for Brand `<brand>`. All
-ledger reads and writes use `data/brands/<slug>/ledger.json`.
+ledger reads and writes go through the Brand's own ledger (`src/ledger/ledger.ts`).
 
 ## Steps
 
 1. **Resolve the Brand.** Slugify `<brand>` and derive the Brand's paths via the resolver. State the
    active Brand: "Reviewing Ideas for Brand: `<brand>`."
-2. **Load** all `status: suggested` Ideas for the run from `data/brands/<slug>/ledger.json`, and
+2. **Load** all `status: suggested` Ideas for the run via `src/ledger/ledger.ts`'s `loadIdeas`, and
    resolve each Idea's Brief path via `resolveBriefPathCandidates`
    (`src/format/brief-path.ts`) — do **not** hand-build the path from `format`/`run` yourself. The
    ledger is canonical (always-rules #7), so a recorded `brief_path` (verbatim) is trusted
@@ -26,9 +26,9 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
    other candidate. Only when a record has NO `brief_path` at all does the resolver reconstruct one
    — for a run id shaped like a daily Run's ISO date (`YYYY-MM-DD`) it FIRST tries the nested
    week+weekday path (ADR-0023, issue #185), then preferring the Format-namespaced path
-   `data/brands/<slug>/ideas/<Idea.format>/<run>/idea-NN.md`
+   `ideas/<Idea.format>/<run>/idea-NN.md`
    (today's convention for Ideas suggested under this slice), then the legacy Brand-level path
-   `data/brands/<slug>/ideas/<run>/idea-NN.md` (pre-multi-format Ideas). This is required because a
+   `ideas/<run>/idea-NN.md` (pre-multi-format Ideas). This is required because a
    record's `format` field is NOT a reliable indicator of where its Brief physically lives —
    pre-existing records may carry either the retired media-sense value or a real Format slug while
    their Brief still sits at the old, non-namespaced path. If every candidate is missing, STOP and
@@ -66,7 +66,10 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
    5. **Write the selection** via `writeIdeaRecipeSelection(ideaId, chosen, declinedWithReasons,
       { ledgerPath: resolveBrand(brand).ledger })` (`src/ledger/ledger.ts`) — `declinedWithReasons` is
       `declined` paired with each captured reason: `{ recipe, reason }`.
-   6. **Then:** set `status: accepted` in `data/brands/<slug>/ledger.json`. If `chosen` is non-empty,
+   6. **Then:** set `status: accepted` on the Brand's ledger (`src/ledger/ledger.ts`) — shaped the way
+      command-surface's `recordReviewDecision` (`src/command-surface/ideas.ts`) records a review
+      decision, the sanctioned target once Ideas move onto the SQL-backed pipeline; today's operative
+      write is the ledger append itself (rule 7). If `chosen` is non-empty,
       **auto-enqueue** the Idea's chosen Recipes for production by calling
       `enqueueOnAccept(ideaId, brand, chosen, { ledgerPath: resolveBrand(brand).ledger })`
       (`src/production-queue/enqueue-on-accept.ts`) — `chosen` is the SAME array `resolveRecipeSelection`
@@ -82,9 +85,9 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
       add), do **not** enqueue — there is nothing to produce yet; tell the Operator the Idea is accepted
       but not yet queued, and that adding a Recipe later is not yet supported (v1). Run `/queue <brand>`
       to see the backlog.
-6. **For each REJECT:** set `status: rejected` in `data/brands/<slug>/ledger.json` and store their
-   reason **verbatim** in `rejection_reason`. Log it as-is — do **not** argue, re-pitch, or act on
-   it (v1 logs only).
+6. **For each REJECT:** set `status: rejected` on the Brand's ledger (`src/ledger/ledger.ts`) and store
+   their reason **verbatim** in `rejection_reason` — the same `recordReviewDecision`-shaped write as
+   step 5.6 above. Log it as-is — do **not** argue, re-pitch, or act on it (v1 logs only).
 7. **Offer replacements** (optional): if the Operator wants more, invoke **idea-strategist** with
    Brand `<brand>` for fresh briefs honoring what they just said, and add them as new `suggested` Ideas.
 8. **Summarize:** the accepted set (ready to create, with its chosen Recipe(s)) and the rejected set
@@ -92,7 +95,7 @@ ledger reads and writes use `data/brands/<slug>/ledger.json`.
 
 ## Guardrails
 - **Brand is explicit** — `<brand>` is required; never fall back to a default Brand.
-- All ledger reads/writes are scoped to `data/brands/<slug>/ledger.json`.
+- All ledger reads/writes go through the Brand's own ledger (`src/ledger/ledger.ts`).
 - Capture every **Rejection Reason** verbatim; rejection feedback is **logged only** in v1.
 - Don't pressure the Operator or defend an Idea — record the decision and move on.
 - **Only wired Recipes are ever offered.** A Recipe not present in `src/recipe/registry.ts`

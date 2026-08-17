@@ -27,7 +27,7 @@ interface, and never claim it belongs to a named product.
 
 ## Inputs — load all three; STOP if the baseline document or the brief is missing
 
-1. **Brand hard rules** — `data/brands/<slug>/brand-profile.yaml`, read via
+1. **Brand hard rules** — the Brand's own `brand-profile.yaml`, read via
    `src/production-spec/brand-profile.ts`'s `loadBannedWords`/`loadCopyRules`: banned words, the
    watermark @handle, required CTA/hashtags. (Copy is composed later, out of the canvas, by this
    Recipe's own copy step — not by this Skill; ADR-0012.)
@@ -38,9 +38,10 @@ interface, and never claim it belongs to a named product.
    reproduce its fixed clauses verbatim — never reconstruct them from memory.** If
    `loadBaselinePrompt` returns `found: false` (any reason — `"not-declared"`, `"malformed"`, or
    `"dangling"`), **STOP** and report the reason; never author a prompt without it.
-3. **The Idea brief** — the accepted Idea's angle, hook concept, talking points, and sources
-   (`data/brands/<slug>/ideas/<format>/<run>/idea-NN.md`). If the brief cannot be read, **STOP** and
-   report; never invent one.
+3. **The Idea brief** — the accepted Idea's angle, hook concept, talking points, and sources, resolved
+   via `src/format/brief-path.ts`'s `resolveBriefPathCandidates` (the ledger's own recorded
+   `brief_path` wins; only a record with none falls back to a reconstructed Format-namespaced or
+   legacy path). If the brief cannot be read, **STOP** and report; never invent one.
 
 ## Steps
 
@@ -169,10 +170,9 @@ step 1) and fold the outcome back in with that module's own `applyCarouselMediaR
 Spec you save already carries the RESOLVED kind (a slide that fell back is saved as `"generated"`,
 never left claiming a `kind` it will not actually render — ADR-0024). Write the RESOLVED Spec via
 `src/production-spec/store.ts`'s `saveSpec` to the path
-`specPathFor(ideaId, run, ideasRoot, "news-carousel")` —
-`data/brands/<slug>/ideas/<format>/<run>/idea-NN.news-carousel.spec.json`, sitting beside the
-Brief. The rich reasoning (why this subject, why this card) stays in your working notes, not the
-saved Spec (ADR-0015: the richness lives in the document, the stored Spec stays thin).
+`specPathFor(ideaId, run, ideasRoot, "news-carousel")` (the Format-namespaced Ideas directory, sitting
+beside the Brief). The rich reasoning (why this subject, why this card) stays in your working notes,
+not the saved Spec (ADR-0015: the richness lives in the document, the stored Spec stays thin).
 
 Completion: the RESOLVED Spec passes BOTH `validateNewsCarouselSpec` and
 `auditNewsCarouselAuthorPhase`, and is saved at that path.

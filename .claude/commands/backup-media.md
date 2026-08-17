@@ -7,16 +7,16 @@ description: "Copy every Brand's ledger-referenced media plus its whole produced
 
 Usage: `/backup-media [<destination>] [--verify]`
 
-The **media backup** (issue #197). The ~800 MB of produced media the ledgers point at
-(`data/brands/<slug>/ideas/**/*.output/` and `*.assets/`) exists in exactly one place on one machine —
-it is gitignored by design (issue #112) and has no history and no backup. This command copies it
-somewhere durable. `<destination>` and `--verify` are both OPTIONAL, in any order: with no arguments it
-runs a full backup to the resolved destination; with `--verify` it checks an EXISTING backup at that
-destination against its own manifest instead of copying anything.
+The **media backup** (issue #197). The ~800 MB of produced media the ledgers point at (every Brand's
+own `.output`/`.assets` bundles, walked by `src/media-backup/produced-media-tree.ts`) exists in exactly
+one place on one machine — it is gitignored by design (issue #112) and has no history and no backup.
+This command copies it somewhere durable. `<destination>` and `--verify` are both OPTIONAL, in any
+order: with no arguments it runs a full backup to the resolved destination; with `--verify` it checks
+an EXISTING backup at that destination against its own manifest instead of copying anything.
 
-**Every Brand, discovered, never hardcoded.** Backs up every Brand slug `listBrands` finds under
-`data/brands/` — not a fixed pair — so a Brand added later is covered automatically, with no code
-change.
+**Every Brand, discovered, never hardcoded.** Backs up every Brand slug `listBrands`
+(`src/brand/resolver.ts`) finds — not a fixed pair — so a Brand added later is covered automatically,
+with no code change.
 
 **The destination is never a hardcoded personal path.** Resolved in order: the `<destination>`
 argument, then the `MEDIA_BACKUP_DEST` environment variable, then `~/OrganicGrowth-Backups` (`~`
@@ -70,8 +70,8 @@ against temp directories and tiny fixture files, never the real ~800 MB corpus.
   Recipe, with the exact raw path recorded in the ledger.
 - **Generate-never-publish (ADR-0002).** This command only reads the ledger and copies files; it never
   calls Magnific, Zoho, Facebook, or any other platform API, and never writes to a Brand's `ledger.json`.
-- **Hermetic build.** Every test uses temp directories and hand-written fixture ledgers — never the
-  real `data/brands/*/ledger.json` and never the real default destination.
+- **Hermetic build.** Every test uses temp directories and hand-written fixture ledgers — never a real
+  Brand's own ledger and never the real default destination.
 - **Run from the actual working checkout, not a fresh worktree.** The produced-media tree is
   gitignored and per-checkout — a worktree that never produced any media will report most
   ledger-referenced files as missing; that is a filesystem-locality fact, not a bug.

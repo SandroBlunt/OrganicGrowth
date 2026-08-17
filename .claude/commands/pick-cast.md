@@ -38,10 +38,12 @@ Operator means (explicit attribution, always-rules #5).
 ## Steps
 
 1. **Run** `npm run pick-cast <brand> <idea-id> <n>` (or call `pickCastCommand()` in `src/commands/pick-cast.ts`).
-2. It resolves the Brand's ledger via the Brand resolver (`data/brands/<slug>/ledger.json`), loads the
+2. It resolves the Brand's ledger via the Brand resolver (`src/ledger/ledger.ts`), loads the
    Idea's recorded **Cast** (from the Asset actually paused at the Cast gate), selects the **nth**
    (1-based) Cast member as the chosen **Character**, and **writes that Character onto a next-leg job**
-   in the global Production Queue (`data/queue.json`), stamped with the RESOLVED Asset's own Recipe. The
+   in the global Production Queue (`data/queue.json`), stamped with the RESOLVED Asset's own Recipe —
+   the SAME shape of decision command-surface's `resolveGate` (`src/command-surface/gates.ts`) makes
+   for the SQL-backed `job` table (rule 7); this command only ever writes the file-based queue job. The
    command **refuses the pick unless the Idea has exactly one Asset at the Cast gate**; an unknown Idea,
    an Idea not at the gate, an Idea with no Cast, an out-of-range `<n>`, or MULTIPLE Assets paused at
    the gate at once returns an identifiable, non-crashing message — it never invents a Character and
@@ -49,8 +51,8 @@ Operator means (explicit attribution, always-rules #5).
    A **re-pick** on an Idea whose Character is already set reports "no change; earlier pick stands"
    rather than claiming a fresh render was queued.
    On a valid pick, the output names the picked candidate's own **downloaded local file** when the
-   Producer already saved one (`data/brands/<slug>/ideas/<format>/<run>/idea-NN.<recipe>.cast/` — issue
-   #119), falling back to its remote Magnific URL for a candidate recorded before that field existed.
+   Producer already saved one — `src/asset/cast-candidates.ts`'s `castCandidatesDirFor` (issue #119) —
+   falling back to its remote Magnific URL for a candidate recorded before that field existed.
 3. The output restates the active Brand: "Brand: `<brand>`" so the Operator can confirm the pick is
    for the correct Brand.
 
@@ -68,5 +70,5 @@ Operator means (explicit attribution, always-rules #5).
 - The Operator picks the Character — the Producer never picks for them (this is a human gate).
 - Nothing renders past this gate until the Operator picks; the Producer then resumes the render in the
   Operator's session, one generation at a time.
-- The Brand's ledger (`data/brands/<slug>/ledger.json`) is the source of truth; every status change
+- The Brand's own ledger (`src/ledger/ledger.ts`) is the source of truth; every status change
   is written to it. The global Production Queue (`data/queue.json`) is brand-agnostic.

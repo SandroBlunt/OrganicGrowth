@@ -33,7 +33,7 @@ Producer's own conductor prose.
 
 ## Inputs — load what's available; nothing here ever blocks a run by itself
 
-1. **Brand hard rules** — `data/brands/<slug>/brand-profile.yaml`, read via
+1. **Brand hard rules** — the Brand's own `brand-profile.yaml`, read via
    `src/production-spec/brand-profile.ts`'s `loadCopyRules`: the required CTA, the required hashtags,
    and the banned words every composed Copy must respect (ADR-0012).
 2. **The resolved Format's voice** — how this caption should read (`FormatFile.voice`,

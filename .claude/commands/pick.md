@@ -27,6 +27,10 @@ it resumes the job in the Operator's session. The next leg's own `gate` cursor i
 Recipe's OWN declared gate list (`Recipe.gates`) — the entry after `<gate>`, or `null` (the final,
 Asset-rendering leg) when `<gate>` was the Recipe's last one. An unwired/unknown `<recipe>`, or a `<gate>`
 absent from that Recipe's own list, defensively resolves the next leg to `null` rather than guessing.
+This is the SAME shape of decision command-surface's `resolveGate` (`src/command-surface/gates.ts`)
+makes for the SQL-backed `job` table's own gate requests — the sanctioned target once a pick resolved
+here is also carried into SQL (rule 7); today this command only ever writes the file-based queue job
+above.
 
 ## Steps
 
@@ -64,5 +68,5 @@ hand.
   is the resolved identifier the Operator (or a Recipe-specific wrapper command) already chose.
 - Nothing renders past a gate until a pick is recorded; the Producer then resumes the render in the
   Operator's session, one generation at a time.
-- The global Production Queue (`data/queue.json`) is brand-agnostic; the Brand's ledger
-  (`data/brands/<slug>/ledger.json`) remains the source of truth for production status.
+- The global Production Queue (`data/queue.json`) is brand-agnostic; the Brand's own ledger
+  (`src/ledger/ledger.ts`) remains the source of truth for production status.
