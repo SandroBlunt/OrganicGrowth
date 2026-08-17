@@ -80,6 +80,7 @@ export const NODE_FS_ALLOW_LIST: readonly string[] = [
   //     — this IS the "read through the existing loaders" boundary itself, not a bypass of it. Every
   //     write it makes still routes through the typed command surface (src/command-surface/), never a
   //     store directly; this list is about `node:fs` reads, which the importer's whole job requires.
+  "src/importer/cli.ts",
   "src/importer/load-brief.ts",
   "src/importer/load-trends.ts",
   "src/importer/plan-asset-media.ts",

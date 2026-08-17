@@ -21,6 +21,7 @@
     "export-schedule": "tsx src/commands/export-schedule.ts",
     "cleanup-schedule-media": "tsx src/commands/cleanup-schedule-media.ts",
     "backup-media": "tsx src/commands/backup-media.ts",
+    "import-data": "tsx src/importer/cli.ts",
     "media-host-smoke": "tsx src/media-host/live/smoke.ts",
     "space-driver-smoke": "tsx src/space-driver/live/smoke.ts",
     "apify-smoke": "tsx src/apify/live/smoke.ts"
