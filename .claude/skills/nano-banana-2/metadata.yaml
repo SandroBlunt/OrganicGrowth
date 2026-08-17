@@ -1,5 +1,7 @@
 name: gen-prompting-nano-banana-2
 version: 0.2.1
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-04-27
 updated: 2026-07-06
@@ -10,6 +12,7 @@ target_model:
   model_id: nano-banana-2
   api_id: gemini-3.1-flash-image-preview
   modalities: [text-to-image, image-to-image, multi-reference-edit, frame-sequence]
+  fallbacks: []
 sibling_model:
   friendly_name: nano-banana-pro
   api_id: gemini-3-pro-image-preview
@@ -68,6 +71,11 @@ configuration_parameters:
   resolution_variant_constraints:
     - resolution: "512"
       variants_supported: [flash]
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -120,6 +128,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Nano Banana 2 prompt across all four modes including variant-aware MR caps.
@@ -132,6 +144,10 @@ references:
     purpose: Distilled summary of the Google Cloud blog, Gemini API Image Generation Guide, and DeepMind Prompt Construction Guide.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-nano-banana
   additional_sources:
@@ -141,3 +157,5 @@ source_tracking:
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside

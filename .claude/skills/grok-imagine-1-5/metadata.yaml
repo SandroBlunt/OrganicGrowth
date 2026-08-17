@@ -1,5 +1,7 @@
 name: gen-prompting-grok-imagine-1-5
 version: 0.1.0
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-07-17
 updated: 2026-07-17T12:00:00Z
@@ -10,6 +12,7 @@ target_model:
   model_id: grok-imagine-1.5
   front_end: grok.com / X / Grok Imagine app
   modalities: [text-to-video, image-to-video, video-extension, reference-guidance, native-audio]
+  fallbacks: []
 modes:
   - id: T2V
     name: text-to-video
@@ -46,6 +49,11 @@ prompt_rules:
   negative_prompt_field: false
   separate_audio_step: false
   camera_moves_per_clip: 1
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -98,6 +106,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Grok Imagine 1.5 video prompt across all four modes, with the required Sound section, the one-camera-move rule, and the moderation-safety scanner.
@@ -110,6 +122,10 @@ references:
     purpose: Distilled summary of the Grok Imagine 1.5 prompt guide and moderation tactics with source URLs and fetch date.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://www.imagine.art/blogs/grok-imagine-video-1-5-prompt-guide
   additional_sources:
@@ -127,3 +143,5 @@ source_tracking:
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside

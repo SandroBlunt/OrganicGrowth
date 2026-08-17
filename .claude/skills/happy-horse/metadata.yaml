@@ -1,5 +1,7 @@
 name: gen-prompting-happy-horse
 version: 0.1.1
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-06-04
 updated: 2026-07-06
@@ -10,6 +12,7 @@ target_model:
   model_id: happyhorse-1.0
   front_end: happy-horse.ai
   modalities: [text-to-video, image-to-video, reference-to-video, video-edit, native-audio, multilingual-lip-sync]
+  fallbacks: []
 modes:
   - id: T2V
     name: text-to-video
@@ -43,6 +46,11 @@ prompt_rules:
   negative_prompt_field: false
   motion_strength_slider: false
   last_frame_input: false
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -92,6 +100,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Happy Horse front-end prompt across all four modes.
@@ -104,6 +116,10 @@ references:
     purpose: Distilled summary of the happy-horse.ai docs and the HappyHorse-1.0 model facts with source URLs and fetch date.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://happy-horse.ai/docs/basic-usage
   additional_sources:
@@ -122,3 +138,5 @@ source_tracking:
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside

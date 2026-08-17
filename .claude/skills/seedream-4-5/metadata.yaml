@@ -1,5 +1,7 @@
 name: gen-prompting-seedream-4-5
 version: 0.1.1
+licence: MIT
+owner: Sandro Franco
 disclosure_tier: 2
 created: 2026-06-04
 updated: 2026-07-06
@@ -10,6 +12,7 @@ target_model:
   model_id: seedream-4-5
   modalities: [text-to-image, image-edit, multi-reference, sequential-set]
   front_ends: [dreamina, jimeng, fal, wavespeed]
+  fallbacks: []
 modes:
   - id: T2I
     name: text-to-image
@@ -48,6 +51,11 @@ prompt_rules:
 signature_strengths:
   - in-image-text-rendering
   - sequential-consistent-set
+entities:
+  reads:
+    - references/*.md
+    - ../../references/*.md
+  writes: []
 inputs:
   - name: mode
     type: string
@@ -88,6 +96,10 @@ inputs:
 outputs:
   - name: prompt
     type: string
+tools:
+  - name: python3
+    kind: runtime-interpreter
+    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Seedream 4.5 front-end prompt across all four modes.
@@ -100,6 +112,10 @@ references:
     purpose: Distilled summary of the BytePlus prompt guide and fal/wavespeed prompt guidance with source URLs and fetch date.
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
+evals:
+  - path: scripts/test_build_prompt.py
+    method: unit-tests
+    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://docs.byteplus.com/en/docs/ModelArk/1829186
   additional_sources:
@@ -116,3 +132,5 @@ source_tracking:
 shared_references:
   mode: relative-link
   path: ../../references/
+  required: true
+  install: copy-alongside
