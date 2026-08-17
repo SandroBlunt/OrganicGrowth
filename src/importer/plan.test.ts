@@ -236,6 +236,27 @@ describe("planImport — refuses (never partially writes) on every named problem
     });
   });
 
+  it("refuses when the ledger silently dropped a record loadFullIdeas could not parse (issue #204 QA round 1's Defect 2)", async () => {
+    const files: MiniRepoFile[] = [
+      { path: "data/brands/acme/brand-profile.yaml", content: MINIMAL_BRAND_PROFILE },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      {
+        path: "data/brands/acme/ledger.json",
+        // The first record has no "id" at all — loadFullIdeas silently skips it (mirrors loadIdeas'
+        // own convention); planImport must now cross-check the raw count and refuse instead.
+        content: json({ ideas: [{ run: "2026-W01", status: "suggested" }, { id: "idea-01", run: "2026-W01", format: "news", status: "suggested" }] }),
+      },
+      { path: "data/brands/acme/ideas/news/2026-W01/idea-01.md", content: "# hi\n" },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, false);
+      if (result.ok) return;
+      assert.ok(result.problems.some((p) => p.includes("acme") && p.includes("silently dropped")));
+    });
+  });
+
   it("refuses when data/queue.json drops a malformed job (never a silent drop)", async () => {
     const files: MiniRepoFile[] = [
       { path: "data/brands/acme/brand-profile.yaml", content: MINIMAL_BRAND_PROFILE },

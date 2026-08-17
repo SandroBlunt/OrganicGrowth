@@ -24,7 +24,7 @@
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
 
-import { loadFullIdeas, type FullLedgerIdea } from "../ledger/ledger.ts";
+import { loadFullIdeas, countRawIdeaRecords, type FullLedgerIdea } from "../ledger/ledger.ts";
 import { resolveBrand } from "../brand/resolver.ts";
 import { listFormatSlugs, loadFormat, type FormatCadence, type FormatSourceMode } from "../format/store.ts";
 import { loadZohoConfig, loadCopyRules, loadWatermarkHandle } from "../production-spec/brand-profile.ts";
@@ -229,6 +229,20 @@ async function planBrand(
 
   const formatSlugs = await listFormatSlugs(slug, options.brandsRoot);
   const fullIdeas = await loadFullIdeas(paths.ledger, slug);
+
+  // QA round 1's Defect 2: loadFullIdeas silently skips a record with no string id (mirrors loadIdeas'
+  // own convention) — with no problem raised, so a caller comparing "counts in" against "counts out"
+  // could see the two silently agree on the wrong number. countRawIdeaRecords never parses record
+  // content (just the raw array's length, via the SAME readLedgerJson loadFullIdeas itself uses), so
+  // this check stays inside "read through the existing loader", not a second raw-JSON reader.
+  const rawIdeaCount = await countRawIdeaRecords(paths.ledger, slug);
+  if (rawIdeaCount !== fullIdeas.length) {
+    problems.push(
+      `Brand "${slug}": ledger.json's raw ideas array has ${rawIdeaCount} record(s) but loadFullIdeas ` +
+        `only returned ${fullIdeas.length} — at least one record was silently dropped (most likely one ` +
+        `with no string id) and must be fixed in the source ledger before this import can proceed.`,
+    );
+  }
 
   // Group Ideas by resolved Format slug.
   const ideasByFormat = new Map<string, FullLedgerIdea[]>();

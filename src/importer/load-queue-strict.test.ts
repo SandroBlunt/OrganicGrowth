@@ -60,4 +60,22 @@ describe("loadQueueStrict — captures any drop-warning the tolerant loader emit
     assert.deepEqual(result.state.jobs, []);
     assert.deepEqual(result.warnings, []);
   });
+
+  it("captures a warning for a malformed top-level shape too (issue #204 QA round 1's Defect 2 — a genuinely malformed file used to load as an empty queue with zero warnings)", async () => {
+    await withQueueFile("not the expected shape at all", async (path) => {
+      const result = await loadQueueStrict(path);
+      assert.deepEqual(result.state.jobs, []);
+      assert.equal(result.warnings.length, 1);
+      assert.match(result.warnings[0]!, /non-object/);
+    });
+  });
+
+  it("captures a warning when the top-level \"jobs\" key is not an array", async () => {
+    await withQueueFile({ jobs: "not an array" }, async (path) => {
+      const result = await loadQueueStrict(path);
+      assert.deepEqual(result.state.jobs, []);
+      assert.equal(result.warnings.length, 1);
+      assert.match(result.warnings[0]!, /jobs/);
+    });
+  });
 });

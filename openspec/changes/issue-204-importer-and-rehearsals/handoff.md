@@ -15,8 +15,7 @@ exclusively through the existing loaders/normalisers this repo already ships.
 validated `ImportPlan` or a complete list of every problem found across BOTH Brands. It **never writes**.
 It composes: `src/ledger/ledger.ts`'s new `loadFullIdeas` (additive — the SAME `normalizeIdeaStatus`
 normalizer `loadIdeas`/`loadReport` already use, just a richer projection); `src/format/store.ts`'s
-`listFormatSlugs`/`loadFormat`; `src/format/brief-path.ts`'s existing `resolveBriefPathCandidates`
-(wrapped by the new `loadBrief`); `src/production-spec/brand-profile.ts`'s `loadZohoConfig`/
+`listFormatSlugs`/`loadFormat`; `src/production-spec/brand-profile.ts`'s `loadZohoConfig`/
 `loadCopyRules`/`loadWatermarkHandle`; and `src/production-queue/store.ts`'s `loadQueue` (wrapped by the
 new `loadQueueStrict`, which turns that loader's own tolerant "drop with a `console.warn`" behavior into
 a hard, named refusal). Every legacy `asset_paths` entry is relativized (`relativizeLegacyPath`), checked
@@ -265,3 +264,335 @@ deleted after this rehearsal; nothing from it was committed or left behind.
   `"MundoTip"` capitalization — no field anywhere in this repo's real data names it (MundoTip has no
   `zoho` block, the one real source this importer found for Straw Motion's own exact name). Documented
   explicitly in `src/importer/brand-fields.ts`'s own doc comment.
+
+---
+
+## QA Verdict — Round 1: FAIL
+
+Worked entirely inside `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-204-importer-and-rehearsals`
+(branch `issue-204-importer-and-rehearsals`, HEAD `b45c868`). No product code, test, spec, or ledger was
+edited. One read-only excursion into the live checkout
+(`/Users/CaxtonTaylor/Developer/OrganicGrowth`) was made, strictly to independently re-derive the five
+ground-truth numbers straight from the real `data/` files (Python `json.load` + `os.path.exists` checks
+only — no writes, confirmed clean before and after via `git status`).
+
+### Suite result — actually run, actually green
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Type-check (app) | `npx tsc -p tsconfig.json --noEmit` | clean, no output |
+| Type-check (build) | `npx tsc -p tsconfig.build.json --noEmit` | clean, no output |
+| Full suite | `npm test` | **3240 / 847 suites / 0 fail** (matches the task brief's expected post-rebase figure exactly) |
+| Docs suite | `npm run test:docs` | **295 / 80 suites / 0 fail** |
+| OpenSpec, all | `npx openspec validate --all --strict` | **60 passed, 0 failed** |
+| OpenSpec, this change | `npx openspec validate issue-204-importer-and-rehearsals --strict` | `Change 'issue-204-importer-and-rehearsals' is valid` |
+
+The developer's own reported pre-rebase figures (3218/841) are correctly superseded; the branch as
+handed to QA reproduces the task brief's stated 3240/847/0-fail baseline exactly.
+
+### Independent re-derivation of all five ground-truth numbers (plus AC7's 191)
+
+Computed directly from the live `data/brands/*/ledger.json` and `data/queue.json` (read-only, Python,
+no code from this change used) — every number matches the developer's rehearsal and the issue's own
+stated ground truth exactly:
+
+| Metric | Independently derived | Developer's rehearsal | Issue ground truth |
+| --- | --- | --- | --- |
+| Ideas (Briefs) | 61 (10 mundotip + 51 straw-motion) | 61 | 61 |
+| Assets | 54 (0 mundotip + 54 straw-motion) | 54 | 54 |
+| Queue jobs | 66 | 66 | 66 |
+| Dead media paths | 8 (exact same 8 records, byte-for-byte identical list) | 8 | 8 |
+| Duplicate job identity keys | 12 (exact same 12 `(brand, idea_id, recipe)` groups) | 12 | 12 |
+| Absolute paths (AC7, bonus) | 191 | 191 | 191 |
+
+One nuance surfaced during this check, not a defect: the live checkout currently carries an *uncommitted*
+working-tree edit (`idea-01`'s `news-carousel` Asset for `straw-motion`, `data/brands/straw-motion/
+ledger.json` + `data/queue.json`, file mtimes 2026-08-14 — pre-dating this review, not a concurrent
+write happening right now) that adds 7 real, existing absolute paths. This is why this WORKTREE's own
+git-tracked `data/` (184 absolute paths, per the developer's own `tasks.md` §1.3 parenthetical) differs
+from the LIVE checkout's 191 — the rehearsal captured the live filesystem, uncommitted content included,
+which is correct (a raw directory copy, not `git archive`). Ideas/Assets/Jobs/duplicate-key counts are
+identical either way since that edit only populated fields on an *already-counted* row. **Operational
+takeaway for the real run, below.**
+
+### Per-criterion results
+
+| # | Acceptance criterion | Result | Proving test / evidence |
+| --- | --- | --- | --- |
+| AC1 | Reads through loaders/normalisers, never raw JSON | **PASS**, with one latent gap noted below (Defect 2) | `grep JSON.parse src/importer/*.ts` finds exactly 2 non-test sites: `load-trends.ts` (a Run's `trends.json` — no pre-existing loader anywhere in the repo, verified by `grep -rl spec_path src --include=*.ts`) and `plan.ts`'s `makeDefaultLoadSpec` (an Asset's `spec_path` file — likewise no pre-existing file-path loader exists; `production-spec/store.ts` only has file *writers* and a DB-keyed reader). No `ledger.json`/Idea file is ever `JSON.parse`d outside `src/ledger/ledger.ts`. `src/ledger/load-full-ideas.test.ts` proves `loadFullIdeas` reuses the SAME `normalizeIdeaStatus` as `loadIdeas` |
+| AC2 | Refusal naming the record, never silent drop/repair | **PASS on every tested path; latent gap found, not live-triggered** — see Defect 2 | `plan.test.ts`'s 6 named-refusal tests (missing Brief, unresolvable Trend, foreign absolute path, malformed queue job, unresolvable job, ambiguous Format) each assert the specific id/path appears in `problems`; `plan-idea.test.ts`'s rejected-no-reason test |
+| AC3 | Re-runnable from an empty database | PASS | `cli.test.ts`: `"succeeds, writes the database..."` + `"refuses to run against a non-empty database..."` |
+| AC4 | Golden fixtures, every legacy shape | PASS | `golden-shapes.test.ts` — 11 tests, each against a named real record (verified each id exists in the real ledgers) |
+| AC5 | 12 duplicate job keys reported, not resolved | PASS | `plan.test.ts` real-data smoke test (`duplicateJobKeys.length === 12`) + `execute.test.ts`'s "creates two job rows..." (never merged) + my own independent recount |
+| AC6 | 8 dead media paths reported, never nulled | PASS | `plan-asset-media.ts`'s dead-path branch (no fabricated `bytes`/`checksum`) + `plan-asset-media.test.ts` + my own independent recount (byte-identical list) |
+| AC7 | 191 absolute paths → root-relative; none survive | PASS | `storage-key-from-legacy-path.test.ts` (pure conversion + refusal on a foreign root) + `plan.test.ts`'s "no absolute path anywhere in a storage key" loop + `src/db/storage-key.ts`'s `assertRootRelativeStorageKey` (read directly: throws on any leading `/`, confirmed wired into every write via `src/db/media-ref.ts`) |
+| AC8 | `created_at`/`updated_at`/schema version on every record | PASS (structural) | `src/db/schema.ts` (untouched, confirmed via `git diff`): every `ENTITY_TABLES` column is `NOT NULL DEFAULT` on all three |
+| AC9 | Per-entity reconciliation, counts in vs out, both Brands | PASS | `reconcile.ts` + `reconcile.test.ts` (matching + deliberately-mismatched cases); "counts out" is a real post-execute SQL query, never an echo |
+| AC10 | ≥1 rehearsal against a copy, reconciliation posted before real run | PASS | Posted on issue #204 comment thread; numbers independently reproduced above |
+| AC11 | Real import runs, reconciliation posted+committed | **Correctly out of scope** — not run, no db left in the repo (`find . -iname "*.db"` empty, `git status` clean), no evidence of a real run anywhere in the branch |
+| AC12 | Reconciliation accounts for 54 Assets, 61 Briefs, 66 jobs | PASS | Same reconciliation numbers, independently reproduced |
+
+### Per-scenario results (spec deltas)
+
+Every Scenario in `openspec/changes/issue-204-importer-and-rehearsals/specs/importer/spec.md` was traced
+to a passing test; spot-checked in depth (code read + test read, not just grep):
+
+- "a legacy un-migrated production status still folds through the same normalizer" → `load-full-ideas.test.ts` — PASS
+- "the real MundoTip and Straw Motion ledgers both load successfully" → `plan.test.ts` real-data smoke test — PASS
+- All 5 refusal scenarios (missing Brief / unresolvable Trend / foreign absolute path / dropped queue job / rejected-no-reason) → `plan.test.ts`'s refusal `describe` block, each asserting the named record — PASS
+- "a full rehearsal... succeeds and reconciles" / "re-running against the same database is refused" / "a fresh, empty database imports cleanly" → `cli.test.ts` (all 3 read directly) — PASS
+- All 3 golden-shape scenarios → `golden-shapes.test.ts` (read in full, all 11 tests against named real ids) — PASS
+- Both duplicate-job-key scenarios → `execute.test.ts`'s two-job-rows test + `plan.test.ts`'s exact-12 assertion — PASS
+- Both dead-media-path scenarios → `plan-asset-media.ts` code path (no row + named on `dead[]`) + independently reproduced the exact 8 — PASS
+- Both absolute-path scenarios → `storage-key-from-legacy-path.test.ts` + the real-data "no absolute path" loop — PASS
+- "every imported Idea is unclassified" / "a Source(s) bullet with no URL is dropped" → `execute.ts`'s hardcoded `UNCLASSIFIED_HOOK_TYPE`/`UNCLASSIFIED_THEME` (read directly — never conditional on Brief content) + `source-urls.ts`'s `URL_PATTERN`-only extraction (read directly) — PASS
+- "a Trend is always created before any Idea that references it" → `execute.ts`'s `executeRun`: trends loop runs to completion before the ideas loop begins, keyed by `trendIdByLegacyId` — PASS. Note: `planImport` refuses the WHOLE plan up front if any referenced Trend fails to resolve (`resolveTrendInfo` → `problems`), so in practice `executeImport` never actually reaches the raw-FK-error case described in the issue's comment #3 — the dangling-trendId risk is preempted at planning time rather than caught at execution time, which is a stronger guarantee than the scenario technically asks for, not a gap.
+- "a job reaches its real historical status through the same legal transitions" → `execute.ts`'s `executeJob` (`enqueueJob`→`claimJob`→`releaseJob`, never a raw status write) — PASS
+- Both reconciliation scenarios → `reconcile.test.ts` — PASS
+
+### Always-rules + Magnific-fake checks
+
+| Rule | Result | Evidence |
+| --- | --- | --- |
+| Generate-never-publish | PASS (N/A) | No content-generation or publish code touched |
+| Public-metrics-only | PASS (N/A) | No metrics/performance code touched |
+| Relative-not-absolute (scoring vs. baseline) | PASS (N/A) | No scoring/comparison code touched (AC7's "absolute→relative" is about storage *paths*, a different concern) |
+| Explicit-attribution | PASS (N/A) | Post/attribution deliberately not imported by this change (documented in "Known limits") |
+| Ledger-as-source-of-truth | PASS | `data/brands/*/ledger.json`/`data/queue.json` confirmed untouched by `git diff` inside the worktree; the rehearsal ran against a copy; SQLite stays additive infra only |
+| Magnific fake / hermetic | PASS | `grep -rniE "magnific\|spaces_\|creations_\|zoho.*mcp" src/importer/ src/run/ src/command-surface/tenancy.ts` → zero matches. No file under `src/space-driver/`/`src/producer/` is imported by anything this change added. Every DB test uses `withTempDb` (a real, throwaway SQLite file) — grepped `:memory:` across every new test file, zero matches |
+
+### Defect list
+
+**Defect 1 — HIGH — `src/run/store.ts`'s `createRun` is not registered in the store-write-boundary
+guard's `STORE_WRITE_FUNCTIONS`, leaving the new store unprotected.**
+
+`src/store-write-boundary/scan.ts`'s `STORE_WRITE_FUNCTIONS` map (read in full) lists every other
+SQL-backed store this change touches (`brand/store.ts`, `format/store.ts`, `trend/store.ts` all already
+present) but has NO entry for `src/run/store.ts`, even though `createRun(db: DatabaseSync, ...)` is a
+genuine new SQL write function this change introduces and routes through
+`src/command-surface/tenancy.ts`. `git diff main...HEAD -- src/store-write-boundary/` is completely
+empty — the file was never touched by this branch.
+
+This is a direct, provable violation of an EXISTING, already-shipped requirement, not something this
+change's own spec needs to restate: `openspec/specs/store-write-boundary-guard/spec.md`'s "every
+SQL-backed... domain store SHALL have its write-function exports named in
+`src/store-write-boundary/scan.ts`'s `STORE_WRITE_FUNCTIONS`." Because `findStoreWriteImports` only
+matches a resolved module that already has an entry in that map, `store-write-guard.test.ts` cannot see
+`src/run/store.ts` at all — a future, un-audited direct import of `createRun` from ANY non-command-surface
+file would pass the guard silently. Today's only caller (`tenancy.ts`) is legitimate, so there is no LIVE
+bypass yet — but the protection mechanism itself has a hole exactly where a brand-new store was just
+added, which is precisely the scenario this guard exists to catch. The task brief flagged this exact
+class of omission from sibling issue #209's own QA failure; it recurs here.
+
+*Repro:*
+```
+cd /Users/CaxtonTaylor/Developer/.og-worktrees/issue-204-importer-and-rehearsals
+grep -n '"src/run/store.ts"' src/store-write-boundary/scan.ts   # no output — not registered
+git diff main...HEAD -- src/store-write-boundary/               # empty — never touched
+```
+*Fix:* add `"src/run/store.ts": ["createRun"]` to `STORE_WRITE_FUNCTIONS` in
+`src/store-write-boundary/scan.ts`. `store-write-guard.test.ts` will then correctly see (and continue to
+pass on) `tenancy.ts`'s existing, legitimate import.
+
+**Defect 2 — MEDIUM — two top-level "shape didn't match, degrade silently" fallbacks give AC2's "never a
+silent drop" a real, if currently dormant, hole.**
+
+1. `src/ledger/ledger.ts`'s `loadFullIdeas`/`loadIdeas` (the read path this importer is built on) skip a
+   ledger record with no string `id` — confirmed by `src/ledger/load-full-ideas.test.ts:169`, `"skips a
+   record with no string id, same as loadIdeas"` — with ZERO problem raised, and `planImport` never
+   cross-checks the loaded count against the ledger's own raw `ideas.length`.
+2. `src/production-queue/store.ts`'s `parseQueueState` (`return emptyQueue()` when the parsed JSON's
+   top level isn't an object) has no `console.warn` on that branch, so `loadQueueStrict`'s
+   warn-capturing technique — otherwise airtight; verified every one of `parseJob`'s 7 individual
+   `return null` branches DOES warn — cannot see this one specific top-level case.
+
+Neither is new to this ticket (both are inherited from the pre-existing, more tolerant `loadIdeas`/
+`loadQueue`), and neither is live-triggered by today's real data: I independently verified, directly
+against both real ledgers, zero records with a missing/non-string `id` (`0` in both files), and
+`data/queue.json`'s top level is a well-formed `{ jobs: [...] }` object. So AC9/AC10/AC12's stated 61/
+54/66 are NOT at risk for the imminent real run. But this ticket's own stated purpose is "the failure
+mode is not a crash — it is a silent success that loses data," and a reconciliation whose "counts in"
+is computed from the SAME already-filtered planned data as "counts out" cannot catch a record dropped
+before planning even begins — the two would silently agree on the wrong number. This is exactly the
+class of gap AC2's "never a silent drop" language exists to close, even though it currently costs
+nothing on the real corpus.
+
+*Repro (would only manifest on a corrupted/malformed source file, not on real data today):*
+```js
+// loadFullIdeas silently drops this record instead of refusing:
+{ ideas: [{ status: "suggested" }, { id: "idea-01", run: "2026-W29", status: "suggested" }] }
+// -> loadFullIdeas(...) returns 1 Idea, not 2, with no problem raised anywhere in planImport
+```
+*Suggested fix (not required to block the real run given the live-data check above, but should land
+before this importer, or `loadFullIdeas`, is reused/re-run):* have `planBrand` compare
+`rawIdeas.ideas.length` (a cheap raw count) against `fullIdeas.length` and push a named problem on any
+mismatch; give `parseQueueState`'s non-object branch the same `console.warn` every other drop in that
+file already has.
+
+### Judgement on whether the Operator can safely approve the real run
+
+**Not yet — fix Defect 1 first; Defect 2 does not block approval.**
+
+On the numbers: this is as solid as a rehearsal gets. All five stated ground-truth counts (61 Ideas, 54
+Assets, 66 jobs, 8 dead media paths, 12 duplicate job keys) plus AC7's 191 absolute paths were
+independently re-derived, from scratch, directly against the real `data/` files with no code from this
+change — and matched the developer's own rehearsal and the issue's stated ground truth exactly, byte-for-
+byte on the two named-record lists (dead media paths, duplicate job keys). The refusal paths are real,
+tested, and named; the two report-only categories are genuinely never resolved by the importer (verified
+by reading the code, not just the tests); the command surface is used exclusively for every write in the
+right dependency order; and AC11's own scope boundary was respected — no live data mutated, no database
+left in the repo.
+
+Defect 1 is why I'm not clearing this for the real run as-is: it's a confirmed, direct violation of an
+already-shipped, already-tested invariant ("every SQL-backed store's write functions must be named in
+the guard"), not a matter of interpretation, and it is the exact failure class the task brief called out
+by name from sibling #209. It costs one line in `scan.ts` to fix and re-verify — cheap to close before
+this becomes the permanent shape of the codebase the real run gets executed against.
+
+**What the Operator should specifically check in the reconciliation before saying yes, beyond the above:**
+
+1. **The live `data/` directory needs to be quiesced at copy time.** During this review I found the live
+   checkout currently carries an uncommitted, in-progress edit (a `straw-motion` `news-carousel` Asset
+   for `idea-01`, dated 2026-08-14 — old work-in-progress, not a concurrent write happening during this
+   review, but still uncommitted). It didn't move any of the five headline counts, but it DID move the
+   absolute-path figure from 184 (this repo's last git commit) to 191 (the live working tree). The
+   `191`/`61`/`54`/`66`/`8`/`12` figures the Operator is being asked to approve against are a snapshot of
+   whatever is sitting in the live working tree at copy time, not the last git commit — if any other
+   session (content-loop or otherwise) touches `data/brands/*/ledger.json` or `data/queue.json` between
+   now and the real run, these numbers will drift and need to be re-verified immediately before the real
+   run starts, ideally with no other agent/process writing to `data/` during the copy itself.
+2. **Re-run the rehearsal one more time, immediately before the real run**, against a fresh copy taken at
+   that moment, and confirm the reconciliation still reads exactly 61/54/66/8/12 (or reconcile any drift
+   explicitly) — cheap insurance given point 1.
+3. Confirm Defect 1 is fixed and `store-write-guard.test.ts` still passes before merging, so the real
+   run executes against a codebase where every SQL-backed store the importer touches is actually covered
+   by the write-boundary guard.
+
+## Round-2 Build
+
+Branch was rebased onto `main` (`f2fd6f1`) by the coordinator between Round 1 and this round; HEAD at the
+start of this round was `b45c868`, on top of the rebased baseline (`npm test` 3240/847/0 fail, matching
+QA's own reported figure exactly). Both defects fixed below; nothing else touched.
+
+### Defect 1 (HIGH) — fixed: `src/run/store.ts` registered with the store-write-boundary guard
+
+One line: `"src/run/store.ts": ["createRun"]` added to `STORE_WRITE_FUNCTIONS`
+(`src/store-write-boundary/scan.ts`). `createRun`'s only real caller
+(`src/command-surface/tenancy.ts`) is already under `src/command-surface/`, which
+`findStoreWriteImports` exempts by construction (`isCommandSurfacePath`) — so registering the store
+needed no new `allow-list.ts` entry, matching the QA-suggested fix exactly. Verified no other
+non-command-surface, non-test file imports `createRun` (`grep -rn "createRun" src --include="*.ts"`,
+read every hit).
+
+Took the general rule QA named, not just the one-line fix: **the habit is "adding a store now includes
+registering its write functions with the guard,"** stated explicitly here so it does not recur a third
+time on this epic.
+
+Verified: `node --import tsx --test src/store-write-boundary/*.test.ts` — 21/5/0 fail (was already
+green pre-fix on the OLD map; now also correctly SEES `src/run/store.ts` and still passes).
+
+### Defect 2 (MEDIUM) — fixed: both silent-drop paths beneath the importer now report, at the loader layer they live in
+
+**1. `src/production-queue/store.ts`'s `parseQueueState`** had two silent-degrade branches with no
+`console.warn` — the non-object top-level case QA named, plus a second, analogous one found while
+fixing it (a present-but-non-array top-level `jobs` key). Both now warn, using the same
+`[queue] parseQueueState: ...` style every other drop in that file already uses — purely additive (the
+function's return value is byte-for-byte unchanged on every existing test; all 19 pre-existing
+`store.test.ts` tests pass unmodified). `src/importer/load-queue-strict.ts`'s existing warn-capture
+technique needed ZERO changes — it was already correct, it simply had nothing to capture on these two
+paths before now.
+
+**2. `src/ledger/ledger.ts`** gains `countRawIdeaRecords(path, brand?)` — reads the ledger's raw `ideas`
+array LENGTH only (via the SAME `readLedgerJson` primitive `loadFullIdeas` itself calls; never a second
+raw-JSON reader, never touching record content), so `planImport` can detect a record `loadFullIdeas`
+silently skipped (its own existing, documented "no string id → skip" convention, shared with
+`loadIdeas`) by comparing this raw count against `loadFullIdeas`'s own returned length.
+`src/importer/plan.ts`'s `planBrand` now runs this comparison right after loading a Brand's Ideas and
+pushes a named, refusal-worthy problem on any mismatch — **`loadFullIdeas`/`loadIdeas` themselves are
+completely unchanged** (deliberate: they have other real callers today — `loadReport`, `/report`, the
+live `/review-ideas` path — and this ticket's own instruction was "be careful not to break existing
+callers... return the problem alongside the data rather than swallowing it." Adding a THROW or a new
+return shape to `loadFullIdeas` itself would have changed a shared, already-relied-on contract for
+every other caller; a comparison at the one NEW caller that needs the stronger guarantee is the
+narrower, lower-risk fix, and it is exactly what QA's own suggested fix described).
+
+Both real ledgers independently confirmed to have ZERO records dropped by this check
+(`src/ledger/load-full-ideas.test.ts`'s new `"counts the real straw-motion and mundotip ledgers with
+zero drops"` test) — matching QA's own live-data verification. This closes the gap defensively without
+changing today's real-run numbers at all.
+
+**Choice made explicit, as asked:** for `parseQueueState`, adding a warning was safe (purely additive,
+never breaking a caller). For `loadFullIdeas`, I chose "return the problem alongside the data" —
+concretely, "compute it at the ONE new call site that needs it" — over "raise inside the shared
+loader," for the reason above.
+
+### Files touched (Round 2 — additive to Round 1's list)
+
+- `src/store-write-boundary/scan.ts` — registers `src/run/store.ts`'s `createRun`.
+- `src/production-queue/store.ts` (+`.test.ts`) — `parseQueueState` now warns on both silent-degrade
+  branches; 2 new tests.
+- `src/ledger/ledger.ts` (+`load-full-ideas.test.ts`) — new `countRawIdeaRecords`; 4 new tests.
+- `src/importer/plan.ts` (+`plan.test.ts`) — `planBrand` cross-checks the raw count and refuses on a
+  mismatch; 1 new test proving the refusal end-to-end.
+- `src/importer/load-queue-strict.ts` test file — 2 new tests proving the malformed-top-level-shape
+  warning is now captured.
+- `openspec/changes/issue-204-importer-and-rehearsals/specs/importer/spec.md` — 2 new Scenarios under
+  the existing "Anything the importer cannot parse causes a refusal" Requirement.
+
+### How to run (Round 2)
+
+```
+cd /Users/CaxtonTaylor/Developer/.og-worktrees/issue-204-importer-and-rehearsals
+npx tsc -p tsconfig.json --noEmit
+npx tsc -p tsconfig.build.json --noEmit
+npm test                                        # 3249 / 848 suites / 0 fail (baseline: 3240/847/0 fail)
+npm run test:docs                               # 295 / 80 suites / 0 fail (matches baseline exactly)
+npx openspec validate issue-204-importer-and-rehearsals --strict
+npx openspec validate --all --strict            # 60 passed, 0 failed (matches baseline exactly)
+```
+
+Just the 9 new/changed tests:
+```
+node --import tsx --test src/store-write-boundary/*.test.ts src/production-queue/store.test.ts \
+  src/ledger/load-full-ideas.test.ts src/importer/plan.test.ts src/importer/load-queue-strict.test.ts
+```
+
+### The operational finding — folded into the Operator runbook
+
+QA found the live `data/` directory carries uncommitted edits during the review (not a concurrent
+write happening in the moment, but pre-existing, uncommitted content) — the absolute-path count moved
+from 184 (this branch's own last commit) to 191 (the live working tree) purely from that, even though
+none of the five headline counts moved. **This is now a recorded, explicit part of the runbook for
+whoever approves AC11, not just a note in this file:**
+
+> **Before the real run:** re-copy `data/` and re-run `npm run import-data --` ONE more time,
+> immediately before the real import, against a copy taken while no other session is writing to
+> `data/brands/*/ledger.json` or `data/queue.json`. Compare that fresh reconciliation against the one
+> already posted on this issue. The 61/54/66/8/12/191 figures are a snapshot of whatever is in the
+> working tree at copy time — not a fixed property of the repo — and can drift the moment another
+> session (content-loop or otherwise) touches those files. A rehearsal from hours earlier is evidence
+> about a different dataset, not a guarantee about the one the real run will actually see.
+
+This is now stated explicitly in three places: this Round-2 Build note, and it should be the first
+thing quoted back to the Operator alongside the real-run go-ahead request — `/build-issue` or whoever
+carries this to the Operator should paste the blockquote above verbatim rather than re-deriving it.
+
+### Self-review notes (Round 2)
+
+- Considered adding the raw-count check to `loadFullIdeas` itself (a stronger, "impossible to forget"
+  guarantee for any FUTURE caller too) versus only at `planBrand`'s call site. Chose the narrower fix
+  per the task's own explicit instruction to avoid changing `loadFullIdeas`'s existing contract for its
+  other real callers, and because `countRawIdeaRecords` is exported and reusable — a future caller that
+  needs the same guarantee can adopt the identical two-line comparison without this ticket having to
+  guess its exact needs (throw? return a discriminated result? a different granularity of "problem"?).
+- Verified the `parseQueueState` warning fix doesn't change `loadQueue`'s return value on any existing
+  path by running the full pre-existing `store.test.ts` suite unmodified alongside the 2 new tests —
+  all 21 pass, including the 13 tests that predate this round.
+- Re-ran the FULL suite (not just the touched files) after both fixes to confirm no unrelated regression:
+  `npm test` 3249/848/0 fail.
+
+### Known limits (unchanged from Round 1)
+
+See Round 1's own "Known limits" section — nothing in this round changes any of those decisions. AC11
+(the real import) remains Operator-gated and was NOT run in this round either; no database file, no
+copy of `data/`, and no evidence of a real run exist anywhere in this branch or the worktree.

@@ -14,7 +14,7 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadFullIdeas } from "./ledger.ts";
+import { loadFullIdeas, countRawIdeaRecords } from "./ledger.ts";
 
 async function withLedger(seed: unknown, fn: (path: string) => Promise<void>): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "og-ledger-full-"));
@@ -173,5 +173,44 @@ describe("loadFullIdeas — the richer per-Idea projection the importer needs", 
       assert.equal(ideas.length, 1);
       assert.equal(ideas[0]!.id, "idea-01");
     });
+  });
+});
+
+describe("countRawIdeaRecords — the raw ideas array length, for detecting a loadFullIdeas drop (issue #204 QA round 1's Defect 2)", () => {
+  it("matches loadFullIdeas's own length for a well-formed ledger (nothing dropped)", async () => {
+    const seed = { ideas: [{ id: "idea-01", run: "2026-W29", status: "suggested" }, { id: "idea-02", run: "2026-W29", status: "suggested" }] };
+    await withLedger(seed, async (path) => {
+      const rawCount = await countRawIdeaRecords(path);
+      const ideas = await loadFullIdeas(path);
+      assert.equal(rawCount, 2);
+      assert.equal(rawCount, ideas.length);
+    });
+  });
+
+  it("is GREATER than loadFullIdeas's length when a record was silently dropped (a missing string id)", async () => {
+    const seed = { ideas: [{ status: "suggested" }, { id: "idea-01", run: "2026-W29", status: "suggested" }] };
+    await withLedger(seed, async (path) => {
+      const rawCount = await countRawIdeaRecords(path);
+      const ideas = await loadFullIdeas(path);
+      assert.equal(rawCount, 2);
+      assert.equal(ideas.length, 1);
+      assert.notEqual(rawCount, ideas.length, "the mismatch is exactly what a caller checks for");
+    });
+  });
+
+  it("returns 0 for a ledger with no ideas array at all, never throws", async () => {
+    await withLedger({ notIdeas: [] }, async (path) => {
+      assert.equal(await countRawIdeaRecords(path), 0);
+    });
+  });
+
+  it("counts the real straw-motion and mundotip ledgers with zero drops (no record anywhere lacks a string id)", async () => {
+    const mundotipRaw = await countRawIdeaRecords("data/brands/mundotip/ledger.json", "mundotip");
+    const mundotipParsed = await loadFullIdeas("data/brands/mundotip/ledger.json", "mundotip");
+    assert.equal(mundotipRaw, mundotipParsed.length);
+
+    const strawMotionRaw = await countRawIdeaRecords("data/brands/straw-motion/ledger.json", "straw-motion");
+    const strawMotionParsed = await loadFullIdeas("data/brands/straw-motion/ledger.json", "straw-motion");
+    assert.equal(strawMotionRaw, strawMotionParsed.length);
   });
 });

@@ -244,6 +244,18 @@ describe("parseQueueState (defensive)", () => {
     assert.ok(tsWarn.some((w) => w.includes("idea-t") && w.includes("enqueued_at")));
   });
 
+  it("WARNS on a non-object top-level value (issue #204 QA round 1's Defect 2)", () => {
+    const { result, warnings } = captureWarn(() => parseQueueState("not an object"));
+    assert.deepEqual(result, emptyQueue());
+    assert.ok(warnings.some((w) => w.includes("non-object")), "a warning must name the non-object shape it dropped");
+  });
+
+  it("WARNS when the top-level \"jobs\" key is not an array (issue #204 QA round 1's Defect 2)", () => {
+    const { result, warnings } = captureWarn(() => parseQueueState({ jobs: "not an array" }));
+    assert.deepEqual(result, emptyQueue());
+    assert.ok(warnings.some((w) => w.includes("jobs") && w.includes("not an array")));
+  });
+
   it("a raw lock field is ignored — parseQueueState never reads or reconstitutes it (issue #203)", () => {
     const raw = {
       jobs: [

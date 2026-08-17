@@ -53,6 +53,9 @@ export const STORE_WRITE_FUNCTIONS: Readonly<Record<string, readonly string[]>> 
   "src/brand/store.ts": ["createBrand", "updateBrand"],
   "src/copy/store.ts": ["upsertCopyVariant", "upsertCopyVariants"],
   "src/schedule-outbox/store.ts": ["reserveScheduleOutboxEntry", "confirmScheduleOutboxEntry"],
+  // Issue #204's own new store — QA round 1's Defect 1: a store the guard cannot see is unprotected,
+  // even when today's only caller (src/command-surface/tenancy.ts) is already legitimate.
+  "src/run/store.ts": ["createRun"],
 };
 
 /** `true` when `path` is test-support code by this repo's own convention — identical rule to

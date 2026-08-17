@@ -248,6 +248,27 @@ export async function loadFullIdeas(path: string, brand?: string): Promise<FullL
     });
 }
 
+/**
+ * Counts the ledger's RAW `ideas` array length — never parses a single record's content, just its
+ * length. Reuses `readLedgerJson`, the SAME I/O primitive `loadFullIdeas` itself calls, so this stays
+ * squarely inside "the existing loader module" rather than becoming a second, competing raw-JSON
+ * reader (issue #204's own AC1 constraint).
+ *
+ * Exists so a caller of `loadFullIdeas` (the one-shot importer's `planImport`) can detect a record
+ * `loadFullIdeas` silently skipped (e.g. one with no string `id` — issue #204 QA round 1's Defect 2)
+ * by comparing this raw count against `loadFullIdeas`'s own returned length, and refuse rather than
+ * silently continuing with fewer Ideas than the source file actually holds. Returns `0` for a missing/
+ * malformed top-level shape, mirroring `loadFullIdeas`'s own degrade-to-`[]` convention for the same
+ * shapes — a caller comparing the two counts still catches a genuine drop (a non-zero raw count next to
+ * a smaller parsed count); it does not, on its own, distinguish "no Ideas array at all" from "zero
+ * Ideas", which is an existing, unrelated shape this function does not change the handling of.
+ */
+export async function countRawIdeaRecords(path: string, brand?: string): Promise<number> {
+  const raw: unknown = await readLedgerJson(path, brand);
+  if (!isObject(raw) || !Array.isArray(raw.ideas)) return 0;
+  return raw.ideas.length;
+}
+
 // --- Report projection (issue #9: /report surfaces the whole pipeline at a glance) -----------------
 
 /**

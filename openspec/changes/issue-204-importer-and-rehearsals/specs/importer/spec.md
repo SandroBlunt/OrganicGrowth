@@ -61,6 +61,23 @@ becomes a refusal instead of a silent omission.
 - **THEN** it returns `ok: false` with a problem naming the dropped job, rather than silently omitting it
   the way the underlying `loadQueue` would on its own
 
+#### Scenario: a malformed data/queue.json top-level shape is a refusal, not a silent empty queue
+
+- **GIVEN** a `data/queue.json` whose top level is not the expected `{ jobs: [...] }` object shape
+- **WHEN** `planImport` runs
+- **THEN** it returns `ok: false` naming the malformed shape, rather than silently proceeding as if the
+  queue held zero jobs
+
+#### Scenario: a ledger record loadFullIdeas silently skipped is a refusal, not an unnoticed count drop
+
+- **GIVEN** a Brand's `ledger.json` whose raw `ideas` array holds a record with no string `id` (a shape
+  `loadFullIdeas` — mirroring `loadIdeas`'s own established convention — skips without raising a
+  problem of its own)
+- **WHEN** `planImport` runs
+- **THEN** it returns `ok: false` naming the Brand and the mismatch between the ledger's raw record count
+  and the count `loadFullIdeas` actually returned — never silently continuing with fewer Ideas than the
+  source file holds
+
 #### Scenario: a rejected Idea with no rejection_reason is a refusal at planning time, not an execution-time crash
 
 - **GIVEN** an Idea whose resolved status is `rejected` and which carries no `rejection_reason`
