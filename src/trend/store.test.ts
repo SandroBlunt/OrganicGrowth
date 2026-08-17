@@ -75,6 +75,17 @@ describe("createTrend — inserts one trend row (issue #223)", () => {
       assert.throws(() => createTrend(db, { runId: "does-not-exist", label: "x" }), /FOREIGN KEY/);
     });
   });
+
+  it("rejects a platform outside KNOWN_PLATFORMS (issue #228 — the coverage gap #223's tasks.md claimed was closed)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const runId = seedRun(db);
+      assert.throws(
+        () => createTrend(db, { runId, label: "x", platform: "myspace" as never }),
+        /CHECK/,
+      );
+    });
+  });
 });
 
 describe("getTrend — null for unknown", () => {

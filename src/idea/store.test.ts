@@ -227,6 +227,128 @@ describe("createIdea — hook_type/theme are required and validated against the 
   });
 });
 
+describe("createIdea — the openly-readable-source rule is enforced at the store boundary (issue #228)", () => {
+  it("accepts a paywalled trendId when the Idea carries its own sourceUrls — the case a naive implementation breaks", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const trendId = createTrend(db, {
+        runId: fixture.runId,
+        label: "FT reports a private valuation leak",
+        isPaywalled: true,
+      });
+      const id = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        trendId,
+        title: "Test Idea",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        sourceUrls: ["https://an-open-outlet.example/covers-the-same-story"],
+      });
+      const idea = getIdea(db, id) as IdeaRecord;
+      assert.equal(idea.trendId, trendId);
+      assert.deepEqual(idea.sourceUrls, ["https://an-open-outlet.example/covers-the-same-story"]);
+    });
+  });
+
+  it("rejects a paywalled trendId when the Idea's own sourceUrls is empty (omitted), BEFORE any write", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const trendId = createTrend(db, {
+        runId: fixture.runId,
+        label: "FT reports a private valuation leak",
+        isPaywalled: true,
+      });
+      assert.throws(
+        () =>
+          createIdea(db, {
+            runId: fixture.runId,
+            brandId: fixture.brandId,
+            formatId: fixture.formatId,
+            trendId,
+            title: "Test Idea",
+            brief: "A brief.",
+            hookType: VALID_HOOK_TYPE,
+            theme: VALID_THEME,
+          }),
+        IdeaValidationError,
+      );
+      assert.deepEqual(listIdeasForRun(db, fixture.runId), []);
+    });
+  });
+
+  it("rejects a paywalled trendId when the Idea's own sourceUrls is explicitly []", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const trendId = createTrend(db, { runId: fixture.runId, label: "NYT scoop", isPaywalled: true });
+      assert.throws(
+        () =>
+          createIdea(db, {
+            runId: fixture.runId,
+            brandId: fixture.brandId,
+            formatId: fixture.formatId,
+            trendId,
+            title: "Test Idea",
+            brief: "A brief.",
+            hookType: VALID_HOOK_TYPE,
+            theme: VALID_THEME,
+            sourceUrls: [],
+          }),
+        IdeaValidationError,
+      );
+      assert.deepEqual(listIdeasForRun(db, fixture.runId), []);
+    });
+  });
+
+  it("never blocks on a non-paywalled trendId, even with no sourceUrls — this rule is about the Idea's OWN sources, never the Trend's paywall status alone", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const trendId = createTrend(db, {
+        runId: fixture.runId,
+        label: "Openly readable launch post",
+        isPaywalled: false,
+      });
+      const id = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        trendId,
+        title: "Test Idea",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+      });
+      const idea = getIdea(db, id) as IdeaRecord;
+      assert.equal(idea.trendId, trendId);
+      assert.deepEqual(idea.sourceUrls, []);
+    });
+  });
+
+  it("never blocks when trendId is omitted entirely, regardless of sourceUrls", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const id = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "Test Idea",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+      });
+      const idea = getIdea(db, id) as IdeaRecord;
+      assert.equal("trendId" in idea, false);
+    });
+  });
+});
+
 describe("getIdea / listIdeasForRun — null-for-unknown, [] for none, never throw", () => {
   it("getIdea returns null for an unknown id", async () => {
     await withTempDb(async (db) => {
@@ -286,6 +408,19 @@ describe("acceptIdea / rejectIdea — the two Review outcomes, guarding the sugg
     });
   });
 
+  it("acceptIdea throws, changing nothing, for an already-REJECTED Idea (the cross-case, not just already-accepted)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+      rejectIdea(db, ideaId, "Not a fit");
+      assert.throws(() => acceptIdea(db, ideaId), /rejected/);
+      const idea = getIdea(db, ideaId) as IdeaRecord;
+      assert.equal(idea.status, "rejected");
+      assert.equal(idea.rejectionReason, "Not a fit");
+    });
+  });
+
   it("rejectIdea moves a suggested Idea to rejected and records the reason verbatim", async () => {
     await withTempDb(async (db) => {
       runMigrations(db);
@@ -317,6 +452,19 @@ describe("acceptIdea / rejectIdea — the two Review outcomes, guarding the sugg
       assert.throws(() => rejectIdea(db, ideaId, "Second reason"), /rejected/);
       const idea = getIdea(db, ideaId) as IdeaRecord;
       assert.equal(idea.rejectionReason, "Not a fit");
+    });
+  });
+
+  it("rejectIdea throws, changing nothing, for an already-ACCEPTED Idea (the cross-case, not just already-rejected)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+      acceptIdea(db, ideaId);
+      assert.throws(() => rejectIdea(db, ideaId, "Too late"), /accepted/);
+      const idea = getIdea(db, ideaId) as IdeaRecord;
+      assert.equal(idea.status, "accepted");
+      assert.equal("rejectionReason" in idea, false);
     });
   });
 });
