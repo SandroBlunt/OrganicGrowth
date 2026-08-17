@@ -18,6 +18,7 @@ import {
   getPostForAssetAndChannel,
   listPostsForAsset,
   updatePostTrackingState,
+  listAllPosts,
   type PostRecord,
 } from "./store.ts";
 
@@ -130,6 +131,27 @@ describe("updatePostTrackingState", () => {
     await withTempDb(async (db) => {
       runMigrations(db);
       assert.throws(() => updatePostTrackingState(db, "does-not-exist", "tracking"), /not found/);
+    });
+  });
+});
+
+describe("listAllPosts — every Post in the database, across every Asset/Channel (issue #210)", () => {
+  it("returns [] for an empty database", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      assert.deepEqual(listAllPosts(db), []);
+    });
+  });
+
+  it("returns every Post, across more than one Channel for the same Asset", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, assetId, channelId: facebook } = await seedAssetAndChannel(db);
+      const linkedin = createChannel(db, { brandId, platform: "linkedin" });
+      const facebookPostId = recordPost(db, { assetId, channelId: facebook, postUrl: "https://facebook.com/p/1", postedAt: "2026-06-05T10:00:00.000Z" });
+      const linkedinPostId = recordPost(db, { assetId, channelId: linkedin, postUrl: "https://linkedin.com/p/1", postedAt: "2026-06-05T11:00:00.000Z" });
+
+      assert.deepEqual(listAllPosts(db).map((p) => p.id).sort(), [facebookPostId, linkedinPostId].sort());
     });
   });
 });

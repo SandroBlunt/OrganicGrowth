@@ -32,6 +32,7 @@ import {
   addAssetMediaBatch,
   listAssetMedia,
   getAssetById,
+  listAllAssets,
   type DbAssetRecord,
 } from "./store.ts";
 
@@ -262,6 +263,31 @@ describe("getAssetById — looks up one Asset by its own stable id (issue #208)"
     await withTempDb(async (db) => {
       runMigrations(db);
       assert.equal(getAssetById(db, "does-not-exist"), null);
+    });
+  });
+});
+
+describe("listAllAssets — every Asset in the database, across every Idea (issue #210)", () => {
+  it("returns [] for an empty database", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      assert.deepEqual(listAllAssets(db), []);
+    });
+  });
+
+  it("returns every Asset — including more than one Recipe on the SAME Idea — in creation order", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const ideaId = seedIdea(db);
+      await writeAsset(ideaId, "news-carousel", { status: "queued" }, { db });
+      await writeAsset(ideaId, "character-explainer-with-cast", { status: "produced" }, { db });
+
+      const all = listAllAssets(db);
+      assert.equal(all.length, 2);
+      assert.deepEqual(
+        all.map((a) => a.recipe).sort(),
+        ["character-explainer-with-cast", "news-carousel"],
+      );
     });
   });
 });

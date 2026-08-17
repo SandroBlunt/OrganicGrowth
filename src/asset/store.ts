@@ -242,6 +242,14 @@ export function getAssetById(db: DatabaseSync, id: string): DbAssetRecord | null
   return row ? toDbAssetRecord(row) : null;
 }
 
+/** Every `asset` row in the database, across every Idea/Brand, in creation order — `[]` for an empty
+ *  database (issue #210, the local read-only Library: the Library screen lists EVERY Asset, so it needs
+ *  the whole table, not one Idea's slice — mirrors `IdeaStore.listAllIdeas`'s identical need). */
+export function listAllAssets(db: DatabaseSync): readonly DbAssetRecord[] {
+  const rows = db.prepare(`SELECT * FROM asset ORDER BY created_at ASC`).all() as unknown as AssetRow[];
+  return rows.map(toDbAssetRecord);
+}
+
 async function loadIdeaAssetsDb(db: DatabaseSync, ideaId: string): Promise<readonly DbAssetRecord[] | null> {
   const idea = db.prepare(`SELECT id FROM idea WHERE id = ?`).get(ideaId);
   if (idea === undefined) return null;
@@ -379,4 +387,12 @@ export function listAssetMedia(db: DatabaseSync, assetId: string): readonly Asse
     .prepare(`SELECT * FROM asset_media WHERE asset_id = ? ORDER BY ordinal ASC`)
     .all(assetId) as unknown as AssetMediaRow[];
   return rows.map(toAssetMediaRecord);
+}
+
+/** Looks up one `asset_media` row by its own stable id — returns `null` for an unknown id, never
+ *  throws (issue #210: the Library's `/media/:id` byte-serving route resolves a media item by its own
+ *  id, not by walking its Asset first). */
+export function getAssetMediaById(db: DatabaseSync, id: string): AssetMediaRecord | null {
+  const row = db.prepare(`SELECT * FROM asset_media WHERE id = ?`).get(id) as unknown as AssetMediaRow | undefined;
+  return row ? toAssetMediaRecord(row) : null;
 }
