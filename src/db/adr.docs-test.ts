@@ -105,6 +105,26 @@ describe("Rule 7 (always-rules) cites the new SQLite foundation, accurately scop
   });
 });
 
+describe("Rule 7 (always-rules) names the typed command surface and the node:fs guard (issue #205)", () => {
+  it("names issue #203's own additional SQL-backed stores", async () => {
+    const doc = await read(".claude/rules/always/organicgrowth-rules.md");
+    assert.match(doc, /Issue #203 additionally backs the Job, Gate Request, Post, and Performance time-series/);
+  });
+
+  it("names the typed command surface as the sanctioned way anything above the stores writes", async () => {
+    const doc = await read(".claude/rules/always/organicgrowth-rules.md");
+    assert.match(doc, /typed command surface/);
+    assert.match(doc, /src\/command-surface\//);
+    assert.match(doc, /no production caller is wired onto it yet either/);
+  });
+
+  it("names the automated node:fs boundary guard", async () => {
+    const doc = await read(".claude/rules/always/organicgrowth-rules.md");
+    assert.match(doc, /src\/fs-boundary\//);
+    assert.match(doc, /fails the build when a new, un-audited production module imports `node:fs`/);
+  });
+});
+
 describe("CONTEXT.md's Post entry reflects the ADR-0028 reversal", () => {
   it("cites ADR-0028 and states Post is keyed on (Asset, Channel), not a scalar on the Asset", async () => {
     const doc = await read("CONTEXT.md");

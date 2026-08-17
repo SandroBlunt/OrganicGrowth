@@ -26,11 +26,15 @@ ideas is sharper. It **generates the Asset but never publishes it** — a human 
   truth; update it on every status change. A **local SQLite database** foundation also exists under
   `data/`, opened in-process by Node's built-in `node:sqlite` (`src/db/`) — schema, migration runner,
   and the closed-vocabulary reference tables (ADR-0029, issue #201). It now backs typed `{ db }` stores
-  for Asset, Production Spec, Brand, Channel, Format, Brand Asset (issue #222), and Idea/Trend (issue
-  #223) — but **no existing production command has been switched over to any of them yet**: every store
-  above still reads/writes the plain files described above until the one-shot importer (issue #204)
-  populates the database from the real corpus and a caller is rewired onto it. No hosted service, no
-  HTTP API, no container, no cloud database, ever (ADR-0029).
+  for Asset, Production Spec, Brand, Channel, Format, Brand Asset (issue #222), Idea/Trend (issue #223),
+  and Job/Gate Request/Post/Performance time-series (issue #203) — but **no existing production command
+  has been switched over to any of them yet**: every store above still reads/writes the plain files
+  described above until the one-shot importer (issue #204) populates the database from the real corpus
+  and a caller is rewired onto it. Since issue #205, a **typed in-process command surface**
+  (`src/command-surface/`) sits above these stores as the only thing permitted to write — a plain
+  TypeScript function per pipeline operation, for the worker/viewer/agents (issues #208/#210/#211) to
+  call instead of touching a store or a file directly; likewise not yet wired to any production caller.
+  No hosted service, no HTTP API, no container, no cloud database, ever (ADR-0029).
 - **External muscle:** Apify (public-metric scraping) and a Magnific Space via MCP (production).
   Engineering builds and tests against a **fake/stand-in for the Magnific Space** — never the live
   Space (no credits, no board mutation; hermetic CI).
