@@ -134,7 +134,7 @@ references:
   - path: references/official-guidelines.md
     purpose: Distilled summary of the ByteDance Seed announcement plus fal / wavespeed / morphic guidance, with source URLs, fetch date, and known uncertainties.
   - path: references/README.md
-    purpose: Pointer to shared references at ../../../references/.
+    purpose: Pointer to shared references at ../../references/.
 source_tracking:
   official_guidelines_url: https://seed.bytedance.com/en/seedream5_0_pro
   additional_sources:
@@ -155,4 +155,4 @@ source_tracking:
     guide existed at fetch time.
 shared_references:
   mode: relative-link
-  path: ../../../references/
+  path: ../../references/

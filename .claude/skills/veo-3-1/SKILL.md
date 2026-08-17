@@ -40,11 +40,11 @@ Layered techniques:
   start and end frames; Veo 3.1 F/L interpolates between them.
 
 The shared discipline lives in
-`../../../references/prompt-discipline.md`,
-`../../../references/cinematography.md`,
-`../../../references/lighting.md`,
-`../../../references/photography.md`, and
-`../../../references/production-design.md` (paths relative to
+`../../references/prompt-discipline.md`,
+`../../references/cinematography.md`,
+`../../references/lighting.md`,
+`../../references/photography.md`, and
+`../../references/production-design.md` (paths relative to
 this skill folder). Read those before writing a prompt for the first
 time.
 
@@ -330,7 +330,7 @@ description ("an empty street") plus the noun-phrase exclusion field.
 ## Production design anchors
 
 Use named-tradition style anchors instead of generic adjectives. The
-shared catalogue lives in `../../../references/production-design.md`.
+shared catalogue lives in `../../references/production-design.md`.
 Strong for Veo: format-and-stock anchors ("shot on 1980s color film,
 slightly grainy"), anamorphic lens flare references, named director
 traditions paired with format ("Christopher Nolan grounded, IMAX

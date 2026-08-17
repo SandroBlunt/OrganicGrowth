@@ -56,10 +56,10 @@ references:
   - path: references/official-guidelines.md
     purpose: Distilled summary of the official OpenAI prompt guide with sources.
   - path: references/README.md
-    purpose: Pointer to shared references at ../../../references/.
+    purpose: Pointer to shared references at ../../references/.
 source_tracking:
   official_guidelines_url: https://developers.openai.com/api/docs/models/gpt-image-2
   fetched_at: 2026-04-27
 shared_references:
   mode: relative-link
-  path: ../../../references/
+  path: ../../references/

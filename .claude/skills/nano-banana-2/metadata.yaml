@@ -131,7 +131,7 @@ references:
   - path: references/official-guidelines.md
     purpose: Distilled summary of the Google Cloud blog, Gemini API Image Generation Guide, and DeepMind Prompt Construction Guide.
   - path: references/README.md
-    purpose: Pointer to shared references at ../../../references/.
+    purpose: Pointer to shared references at ../../references/.
 source_tracking:
   official_guidelines_url: https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-nano-banana
   additional_sources:
@@ -140,4 +140,4 @@ source_tracking:
   fetched_at: 2026-04-28
 shared_references:
   mode: relative-link
-  path: ../../../references/
+  path: ../../references/

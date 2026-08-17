@@ -55,11 +55,11 @@ prompt text):
   on-screen concern, never as prompt text.
 
 The shared discipline lives in
-`../../../references/prompt-discipline.md`,
-`../../../references/photography.md`,
-`../../../references/lighting.md`,
-`../../../references/cinematography.md`, and
-`../../../references/production-design.md` (paths relative to
+`../../references/prompt-discipline.md`,
+`../../references/photography.md`,
+`../../references/lighting.md`,
+`../../references/cinematography.md`, and
+`../../references/production-design.md` (paths relative to
 this skill folder). Read those before writing a prompt for the first
 time, then return here for model-specific behaviour.
 

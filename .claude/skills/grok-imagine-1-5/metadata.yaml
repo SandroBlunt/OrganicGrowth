@@ -109,7 +109,7 @@ references:
   - path: references/official-guidelines.md
     purpose: Distilled summary of the Grok Imagine 1.5 prompt guide and moderation tactics with source URLs and fetch date.
   - path: references/README.md
-    purpose: Pointer to shared references at ../../../_shared/references/.
+    purpose: Pointer to shared references at ../../references/.
 source_tracking:
   official_guidelines_url: https://www.imagine.art/blogs/grok-imagine-video-1-5-prompt-guide
   additional_sources:
@@ -126,4 +126,4 @@ source_tracking:
     heuristic, not an official xAI publication.
 shared_references:
   mode: relative-link
-  path: ../../../_shared/references/
+  path: ../../references/

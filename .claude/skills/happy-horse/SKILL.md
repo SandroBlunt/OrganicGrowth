@@ -53,11 +53,11 @@ On-screen settings (you pick these in the UI, NOT part of the prompt):
 - **Aspect ratio** — 16:9, 9:16, 1:1, 4:3, 3:4.
 
 The shared discipline lives in
-`../../../references/prompt-discipline.md`,
-`../../../references/cinematography.md`,
-`../../../references/lighting.md`,
-`../../../references/photography.md`, and
-`../../../references/production-design.md` (paths relative to
+`../../references/prompt-discipline.md`,
+`../../references/cinematography.md`,
+`../../references/lighting.md`,
+`../../references/photography.md`, and
+`../../references/production-design.md` (paths relative to
 this skill folder). Read those before writing a prompt for the first
 time.
 

@@ -32,11 +32,11 @@ Modes covered:
   coreference (3+ speakers), dialects/accents, and five languages.
 
 The shared discipline lives in
-`../../../references/prompt-discipline.md`,
-`../../../references/cinematography.md`,
-`../../../references/lighting.md`,
-`../../../references/photography.md`, and
-`../../../references/production-design.md` (paths relative to
+`../../references/prompt-discipline.md`,
+`../../references/cinematography.md`,
+`../../references/lighting.md`,
+`../../references/photography.md`, and
+`../../references/production-design.md` (paths relative to
 this skill folder). Read those before writing a prompt for the first
 time.
 

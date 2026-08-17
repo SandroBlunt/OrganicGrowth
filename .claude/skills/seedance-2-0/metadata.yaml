@@ -99,7 +99,7 @@ references:
   - path: references/official-guidelines.md
     purpose: Distilled summary of the Seedance 2.0 vendor docs.
   - path: references/README.md
-    purpose: Pointer to shared references at ../../../references/.
+    purpose: Pointer to shared references at ../../references/.
 source_tracking:
   official_guidelines_url: https://seed.bytedance.com/en/seedance2_0
   additional_sources:
@@ -110,4 +110,4 @@ source_tracking:
   fetched_at: 2026-04-28
 shared_references:
   mode: relative-link
-  path: ../../../references/
+  path: ../../references/
