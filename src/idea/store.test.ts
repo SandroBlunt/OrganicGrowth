@@ -23,12 +23,16 @@ import {
   createIdea,
   getIdea,
   listIdeasForRun,
+  listAllIdeas,
+  listIdeasByHookType,
   acceptIdea,
   rejectIdea,
   selectIdeaRecipes,
   listIdeaRecipes,
+  classifyIdea,
   IdeaValidationError,
   type IdeaRecord,
+  type ClassificationSource,
 } from "./store.ts";
 
 const VALID_HOOK_TYPE = HOOK_TYPES[0]!.value;
@@ -658,6 +662,224 @@ describe("selectIdeaRecipes / listIdeaRecipes — Recipe selection, atomic (issu
       const fixture = seedRun(db);
       const ideaId = seedIdea(db, fixture);
       assert.deepEqual(listIdeaRecipes(db, ideaId), []);
+    });
+  });
+});
+
+const OTHER_HOOK_TYPE = HOOK_TYPES[1]!.value;
+const OTHER_THEME = THEMES[1]!.value;
+
+describe("listAllIdeas — every Idea in the database, across every Run, in creation order (issue #206)", () => {
+  it("returns [] for an empty database", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      assert.deepEqual(listAllIdeas(db), []);
+    });
+  });
+
+  it("returns every Idea across MULTIPLE Runs, in creation order", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixtureA = seedRun(db);
+      const ideaA = seedIdea(db, fixtureA);
+      const fixtureB = seedRun(db);
+      const ideaB = seedIdea(db, fixtureB);
+      const ids = listAllIdeas(db).map((i) => i.id);
+      assert.deepEqual(ids, [ideaA, ideaB]);
+    });
+  });
+});
+
+describe("classifyIdea — writes hook_type/theme plus their provenance, through IdeaStore (issue #206)", () => {
+  it("updates hook_type, theme, and both provenance columns, readable back by getIdea", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+
+      classifyIdea(db, ideaId, {
+        hookType: asHookType(OTHER_HOOK_TYPE),
+        theme: asTheme(OTHER_THEME),
+        hookTypeSource: "heading",
+        themeSource: "inferred",
+      });
+
+      const idea = getIdea(db, ideaId) as IdeaRecord;
+      assert.equal(idea.hookType, OTHER_HOOK_TYPE);
+      assert.equal(idea.theme, OTHER_THEME);
+      assert.equal(idea.hookTypeSource, "heading");
+      assert.equal(idea.themeSource, "inferred");
+    });
+  });
+
+  it("a freshly created Idea carries no provenance (hookTypeSource/themeSource absent) until classifyIdea is called", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+      const idea = getIdea(db, ideaId) as IdeaRecord;
+      assert.equal("hookTypeSource" in idea, false);
+      assert.equal("themeSource" in idea, false);
+    });
+  });
+
+  it("calling classifyIdea again for the SAME Idea overwrites in place, never a second row", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+
+      classifyIdea(db, ideaId, {
+        hookType: asHookType(OTHER_HOOK_TYPE),
+        theme: asTheme(OTHER_THEME),
+        hookTypeSource: "heading",
+        themeSource: "heading",
+      });
+      classifyIdea(db, ideaId, {
+        hookType: asHookType(VALID_HOOK_TYPE),
+        theme: asTheme(VALID_THEME),
+        hookTypeSource: "inferred",
+        themeSource: "inferred",
+      });
+
+      assert.equal(listAllIdeas(db).length, 1, "must still be exactly one idea row");
+      const idea = getIdea(db, ideaId) as IdeaRecord;
+      assert.equal(idea.hookType, VALID_HOOK_TYPE);
+      assert.equal(idea.theme, VALID_THEME);
+      assert.equal(idea.hookTypeSource, "inferred");
+      assert.equal(idea.themeSource, "inferred");
+    });
+  });
+
+  it("rejects an out-of-vocabulary hookType before any write", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+      assert.throws(
+        () =>
+          classifyIdea(db, ideaId, {
+            hookType: asHookType("not_a_real_hook_type"),
+            theme: asTheme(VALID_THEME),
+            hookTypeSource: "heading",
+            themeSource: "heading",
+          }),
+        IdeaValidationError,
+      );
+      const idea = getIdea(db, ideaId) as IdeaRecord;
+      assert.equal(idea.hookType, VALID_HOOK_TYPE, "the original value must be untouched");
+    });
+  });
+
+  it("rejects an out-of-vocabulary theme before any write", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+      assert.throws(
+        () =>
+          classifyIdea(db, ideaId, {
+            hookType: asHookType(VALID_HOOK_TYPE),
+            theme: asTheme("not_a_real_theme"),
+            hookTypeSource: "heading",
+            themeSource: "heading",
+          }),
+        IdeaValidationError,
+      );
+    });
+  });
+
+  it("rejects an out-of-vocabulary hookTypeSource before any write", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+      assert.throws(
+        () =>
+          classifyIdea(db, ideaId, {
+            hookType: asHookType(VALID_HOOK_TYPE),
+            theme: asTheme(VALID_THEME),
+            hookTypeSource: "guessed" as ClassificationSource,
+            themeSource: "heading",
+          }),
+        IdeaValidationError,
+      );
+    });
+  });
+
+  it("rejects an out-of-vocabulary themeSource before any write", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const ideaId = seedIdea(db, fixture);
+      assert.throws(
+        () =>
+          classifyIdea(db, ideaId, {
+            hookType: asHookType(VALID_HOOK_TYPE),
+            theme: asTheme(VALID_THEME),
+            hookTypeSource: "heading",
+            themeSource: "guessed" as ClassificationSource,
+          }),
+        IdeaValidationError,
+      );
+    });
+  });
+
+  it("throws a clear error, naming the Idea, for an unknown ideaId", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      assert.throws(
+        () =>
+          classifyIdea(db, "does-not-exist", {
+            hookType: asHookType(VALID_HOOK_TYPE),
+            theme: asTheme(VALID_THEME),
+            hookTypeSource: "heading",
+            themeSource: "heading",
+          }),
+        /does-not-exist/,
+      );
+    });
+  });
+});
+
+describe("listIdeasByHookType — a query for a single hook type returns exactly the expected Ideas (issue #206 AC)", () => {
+  it("returns only the Ideas currently at that hook_type, none other", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const matchIdeaA = seedIdea(db, fixture);
+      const matchIdeaB = seedIdea(db, fixture);
+      const otherIdea = seedIdea(db, fixture);
+      classifyIdea(db, matchIdeaA, {
+        hookType: asHookType(OTHER_HOOK_TYPE),
+        theme: asTheme(VALID_THEME),
+        hookTypeSource: "heading",
+        themeSource: "heading",
+      });
+      classifyIdea(db, matchIdeaB, {
+        hookType: asHookType(OTHER_HOOK_TYPE),
+        theme: asTheme(VALID_THEME),
+        hookTypeSource: "inferred",
+        themeSource: "heading",
+      });
+      // otherIdea stays at VALID_HOOK_TYPE (createIdea's default in this test's own seedIdea helper).
+
+      const results = listIdeasByHookType(db, asHookType(OTHER_HOOK_TYPE));
+
+      assert.deepEqual(
+        results.map((r) => r.id).sort(),
+        [matchIdeaA, matchIdeaB].sort(),
+      );
+      assert.ok(!results.some((r) => r.id === otherIdea), "an Idea at a different hook_type must not be returned");
+    });
+  });
+
+  it("returns [] for a hook type no Idea currently carries", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      seedIdea(db, fixture);
+      assert.deepEqual(listIdeasByHookType(db, asHookType(OTHER_HOOK_TYPE)), []);
     });
   });
 });

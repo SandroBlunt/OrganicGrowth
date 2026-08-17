@@ -27,11 +27,13 @@ import {
   acceptIdea,
   rejectIdea,
   selectIdeaRecipes,
+  classifyIdea as classifyIdeaRow,
   type IdeaInput,
   type IdeaRecipeSelectionItem,
+  type IdeaClassificationInput,
 } from "../idea/store.ts";
 
-export type { IdeaInput, IdeaRecipeSelectionItem };
+export type { IdeaInput, IdeaRecipeSelectionItem, IdeaClassificationInput };
 
 /** The Operator's Review decision for one Idea (CONTEXT.md "Review") — accept with its chosen/declined
  *  Recipes, or reject with a required, non-blank reason. */
@@ -71,4 +73,20 @@ export function recordReviewDecision(
     return;
   }
   rejectIdea(db, ideaId, decision.rejectionReason, now);
+}
+
+/**
+ * Records one Idea's `hookType`/`theme` classification, plus how each was arrived at (issue #206's
+ * backfill classifier — `src/hook-theme-backfill/`'s only write, and the only sanctioned entry point for
+ * setting these columns after `createIdea`). Throws `IdeaValidationError` for an out-of-vocabulary
+ * `hookType`/`theme`/source, or a plain error naming an unknown `ideaId`, BEFORE any write — see
+ * `src/idea/store.ts`'s `classifyIdea` for the full contract.
+ */
+export function classifyIdea(
+  db: DatabaseSync,
+  ideaId: string,
+  input: IdeaClassificationInput,
+  now: () => string = () => new Date().toISOString(),
+): void {
+  classifyIdeaRow(db, ideaId, input, now);
 }

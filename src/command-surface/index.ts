@@ -50,8 +50,10 @@ export {
 export {
   createIdea,
   recordReviewDecision,
+  classifyIdea,
   type IdeaInput,
   type IdeaRecipeSelectionItem,
+  type IdeaClassificationInput,
   type ReviewDecision,
 } from "./ideas.ts";
 export { enqueueJob, claimJob, releaseJob, type JobInput, type JobRecord, type ReleaseStatus } from "./jobs.ts";

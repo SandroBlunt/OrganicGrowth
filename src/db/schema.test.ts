@@ -109,24 +109,35 @@ function insertRunFixture(db: DatabaseSync): { readonly brandId: string; readonl
 
 function insertIdea(
   db: DatabaseSync,
-  overrides: { readonly hookType?: string; readonly theme?: string } = {},
-): void {
+  overrides: {
+    readonly hookType?: string;
+    readonly theme?: string;
+    readonly hookTypeSource?: string | null;
+    readonly themeSource?: string | null;
+  } = {},
+): string {
   const { brandId, runId } = insertRunFixture(db);
   const now = new Date().toISOString();
   const formatRow = db.prepare(`SELECT format_id FROM run WHERE id = ?`).get(runId);
+  const id = randomUUID();
   db.prepare(
-    `INSERT INTO idea (id, run_id, brand_id, format_id, title, brief, status, hook_type, theme, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'Test Idea', 'A brief.', 'suggested', ?, ?, ?, ?)`,
+    `INSERT INTO idea
+       (id, run_id, brand_id, format_id, title, brief, status, hook_type, theme, hook_type_source, theme_source,
+        created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'Test Idea', 'A brief.', 'suggested', ?, ?, ?, ?, ?, ?)`,
   ).run(
-    randomUUID(),
+    id,
     runId,
     brandId,
     formatRow?.format_id,
     overrides.hookType ?? VALID_HOOK_TYPE,
     overrides.theme ?? VALID_THEME,
+    overrides.hookTypeSource ?? null,
+    overrides.themeSource ?? null,
     now,
     now,
   );
+  return id;
 }
 
 describe("idea.hook_type and idea.theme are FOREIGN KEYS into the seeded closed-vocabulary tables", () => {
@@ -168,6 +179,42 @@ describe("idea.hook_type and idea.theme accept the explicit 'unclassified' membe
       const rows = db.prepare(`SELECT hook_type, theme FROM idea WHERE hook_type != 'unclassified'`).all();
       assert.equal(rows.length, 1, "an 'unclassified' Idea must not be indistinguishable from a classified one");
       assert.equal(rows[0]?.hook_type, VALID_HOOK_TYPE);
+    });
+  });
+});
+
+describe("idea.hook_type_source and idea.theme_source are nullable, two-value-CHECKed provenance columns (migration 4, issue #206)", () => {
+  it("both default to NULL when omitted — 'no provenance recorded', never a fabricated value", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const id = insertIdea(db);
+      const row = db.prepare(`SELECT hook_type_source, theme_source FROM idea WHERE id = ?`).get(id);
+      assert.equal(row?.hook_type_source, null);
+      assert.equal(row?.theme_source, null);
+    });
+  });
+
+  it("'heading' and 'inferred' both round-trip, independently for each column", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      const id = insertIdea(db, { hookTypeSource: "heading", themeSource: "inferred" });
+      const row = db.prepare(`SELECT hook_type_source, theme_source FROM idea WHERE id = ?`).get(id);
+      assert.equal(row?.hook_type_source, "heading");
+      assert.equal(row?.theme_source, "inferred");
+    });
+  });
+
+  it("rejects a value outside 'heading'/'inferred' on hook_type_source (CHECK)", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      assert.throws(() => insertIdea(db, { hookTypeSource: "guessed" }), /CHECK/);
+    });
+  });
+
+  it("rejects a value outside 'heading'/'inferred' on theme_source (CHECK)", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      assert.throws(() => insertIdea(db, { themeSource: "guessed" }), /CHECK/);
     });
   });
 });

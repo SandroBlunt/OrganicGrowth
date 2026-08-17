@@ -83,6 +83,28 @@ function assertValidTheme(value: string): asserts value is Theme {
 }
 
 /**
+ * A classification's provenance (issue #206, migration 4): how `classifyIdea` arrived at the
+ * `hookType`/`theme` it is writing — `'heading'` when a literal technique/subject was named in the
+ * Brief's own `## Hook concept`/`## Hook Concept` heading, `'inferred'` when the classifier read the
+ * Brief as a whole because the heading named no literal technique. A plain, schema-fixed two-value set
+ * (`idea.hook_type_source`/`idea.theme_source`'s own `CHECK`, `src/db/schema.ts`'s `MIGRATION_4`) — not
+ * one of the three cross-Brand, independently-evolving closed vocabularies (`hook_type`/`theme`/
+ * `recipe_slug`), so it lives here beside `classifyIdea` rather than under `src/vocabulary/`.
+ */
+export type ClassificationSource = "heading" | "inferred";
+
+const CLASSIFICATION_SOURCE_VALUES: ReadonlySet<string> = new Set<ClassificationSource>(["heading", "inferred"]);
+
+function assertValidClassificationSource(
+  field: "hookTypeSource" | "themeSource",
+  value: string,
+): asserts value is ClassificationSource {
+  if (!CLASSIFICATION_SOURCE_VALUES.has(value)) {
+    throw new IdeaValidationError(`Unknown ${field} ${JSON.stringify(value)}. Must be one of: heading, inferred.`);
+  }
+}
+
+/**
  * `true` when `sourceUrls` holds at least one entry that is not blank/whitespace-only after trimming —
  * "there is a source a human could actually open", not merely "the array is non-empty" (issue #228, QA
  * round-1 finding: `sourceUrls: [""]`/`["   "]` was accepted as if it were a real source). Deliberately
@@ -178,6 +200,13 @@ export interface IdeaRecord {
   readonly brandFit?: number;
   readonly hookType: HookType;
   readonly theme: Theme;
+  /** Present only once `classifyIdea` has recorded provenance for this Idea's `hookType` (issue #206) —
+   *  absent (never a fabricated value) for an Idea `createIdea` created but `classifyIdea` has never
+   *  touched, INCLUDING one carrying the importer's own `unclassified` default (issue #219/#204), which
+   *  records no provenance because nothing was actually read. */
+  readonly hookTypeSource?: ClassificationSource;
+  /** The `theme` sibling of `hookTypeSource` above — independently present/absent. */
+  readonly themeSource?: ClassificationSource;
   readonly sourceUrls: readonly string[];
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -199,6 +228,8 @@ interface IdeaRow {
   readonly brand_fit: number | null;
   readonly hook_type: string;
   readonly theme: string;
+  readonly hook_type_source: string | null;
+  readonly theme_source: string | null;
   readonly source_urls_json: string;
   readonly created_at: string;
   readonly updated_at: string;
@@ -221,6 +252,8 @@ function toIdeaRecord(row: IdeaRow): IdeaRecord {
     ...(row.brand_fit !== null ? { brandFit: row.brand_fit } : {}),
     hookType: row.hook_type as HookType,
     theme: row.theme as Theme,
+    ...(row.hook_type_source !== null ? { hookTypeSource: row.hook_type_source as ClassificationSource } : {}),
+    ...(row.theme_source !== null ? { themeSource: row.theme_source as ClassificationSource } : {}),
     sourceUrls: JSON.parse(row.source_urls_json) as string[],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -289,6 +322,25 @@ export function listIdeasForRun(db: DatabaseSync, runId: string): readonly IdeaR
   const rows = db
     .prepare(`SELECT * FROM idea WHERE run_id = ? ORDER BY created_at ASC`)
     .all(runId) as unknown as IdeaRow[];
+  return rows.map(toIdeaRecord);
+}
+
+/** Every Idea in the database, across EVERY Run/Brand/Format, in creation order — `[]` for an empty
+ *  database (issue #206: the backfill classifier needs the whole table, not one Run's slice, since the
+ *  61 real Briefs it upgrades span many Runs). */
+export function listAllIdeas(db: DatabaseSync): readonly IdeaRecord[] {
+  const rows = db.prepare(`SELECT * FROM idea ORDER BY created_at ASC`).all() as unknown as IdeaRow[];
+  return rows.map(toIdeaRecord);
+}
+
+/** Every Idea currently at `hookType`, in creation order — `[]` when none currently are (issue #206's
+ *  own acceptance criterion: "a query for a single hook type returns the expected Ideas"). Reflects the
+ *  Idea's CURRENT `hook_type`, so an Idea `classifyIdea` later moves to a different value stops
+ *  appearing here — this is a live query, not a point-in-time snapshot. */
+export function listIdeasByHookType(db: DatabaseSync, hookType: HookType): readonly IdeaRecord[] {
+  const rows = db
+    .prepare(`SELECT * FROM idea WHERE hook_type = ? ORDER BY created_at ASC`)
+    .all(hookType) as unknown as IdeaRow[];
   return rows.map(toIdeaRecord);
 }
 
@@ -464,4 +516,50 @@ export function listIdeaRecipes(db: DatabaseSync, ideaId: string): readonly Idea
     .prepare(`SELECT * FROM idea_recipe WHERE idea_id = ? ORDER BY created_at ASC`)
     .all(ideaId) as unknown as IdeaRecipeRow[];
   return rows.map(toIdeaRecipeRecord);
+}
+
+// ---------------------------------------------------------------------------
+// classifyIdea — the Hook Type / Theme backfill's one write (issue #206)
+// ---------------------------------------------------------------------------
+
+/** The fields `classifyIdea` writes: the two closed-vocabulary values PLUS how each was arrived at. All
+ *  four are required — a classification with no recorded provenance is exactly the gap issue #206 exists
+ *  to close (the Operator's own condition: "how it was arrived at ... must be queryable, not just
+ *  present in a log"). */
+export interface IdeaClassificationInput {
+  readonly hookType: HookType;
+  readonly theme: Theme;
+  readonly hookTypeSource: ClassificationSource;
+  readonly themeSource: ClassificationSource;
+}
+
+/**
+ * Updates an EXISTING Idea's `hook_type`/`theme` plus their provenance columns, in place — this is the
+ * ONE write `src/hook-theme-backfill/`'s classifier (issue #206) is allowed to make, so that "the
+ * classifications are written through IdeaStore, not by editing the database directly" (issue #206's own
+ * acceptance criterion) is enforced by there being no OTHER way to set these columns after creation.
+ * Validates `hookType`/`theme` against the closed vocabularies and `hookTypeSource`/`themeSource`
+ * against the two-value provenance set (`IdeaValidationError`, naming the bad value) BEFORE any write —
+ * mirroring `createIdea`'s own validate-before-write discipline. Throws a clear error naming `ideaId`
+ * for an unknown Idea. Calling this again for the SAME Idea overwrites in place (an UPDATE, never a
+ * second row) — this IS the mechanism that makes the backfill job re-runnable: a second run that computes
+ * the SAME desired values is a safe, idempotent no-op at the database level (the deep planning module,
+ * `src/hook-theme-backfill/backfill.ts`, additionally skips calling this at all when nothing would
+ * change, so a re-run's report can honestly say "0 updated").
+ */
+export function classifyIdea(
+  db: DatabaseSync,
+  ideaId: string,
+  input: IdeaClassificationInput,
+  now: () => string = () => new Date().toISOString(),
+): void {
+  assertValidHookType(input.hookType);
+  assertValidTheme(input.theme);
+  assertValidClassificationSource("hookTypeSource", input.hookTypeSource);
+  assertValidClassificationSource("themeSource", input.themeSource);
+  requireIdea(db, ideaId);
+
+  db.prepare(
+    `UPDATE idea SET hook_type = ?, theme = ?, hook_type_source = ?, theme_source = ?, updated_at = ? WHERE id = ?`,
+  ).run(input.hookType, input.theme, input.hookTypeSource, input.themeSource, now(), ideaId);
 }

@@ -97,7 +97,11 @@ describe("runMigrations — creates and upgrades the schema, and records the ver
     // without a full table rebuild, so `brand`'s baked-in default honestly stays `1`.
     await withTempDb((db) => {
       runMigrations(db);
-      assert.equal(CURRENT_SCHEMA_VERSION, 3, "this assertion assumes migrations 2 (issue #219) and 3 (issue #209) exist");
+      assert.equal(
+        CURRENT_SCHEMA_VERSION,
+        4,
+        "this assertion assumes migrations 2 (issue #219), 3 (issue #209), and 4 (issue #206) exist",
+      );
       const now = new Date().toISOString();
       db.prepare(
         `INSERT INTO brand (id, slug, name, timezone, media_root, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -209,6 +213,42 @@ describe("runMigrations — creates and upgrades the schema, and records the ver
       // Every table migration 1/2 already created is untouched — same table set plus exactly one new one.
       const added = after.filter((name) => !before.includes(name));
       assert.deepEqual(added, ["schedule_outbox"]);
+    });
+  });
+
+  it("migration 4 adds ONLY idea.hook_type_source / idea.theme_source, on top of an already-applied migration 1+2+3, touching no other column or table (issue #206)", async () => {
+    await withTempDb((db) => {
+      // Simulate a database created BEFORE issue #206 landed: migrations 1, 2, and 3 applied, not 4.
+      const migration1 = MIGRATIONS.find((m) => m.version === 1);
+      const migration2 = MIGRATIONS.find((m) => m.version === 2);
+      const migration3 = MIGRATIONS.find((m) => m.version === 3);
+      assert.ok(migration1, "migration 1 must exist");
+      assert.ok(migration2, "migration 2 must exist");
+      assert.ok(migration3, "migration 3 must exist");
+      db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
+      for (const migration of [migration1, migration2, migration3]) {
+        db.exec("BEGIN");
+        db.exec(migration.sql);
+        db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(
+          migration.version,
+          new Date().toISOString(),
+        );
+        db.exec("COMMIT");
+      }
+      assert.equal(getSchemaVersion(db), 3);
+      const before = db.prepare(`PRAGMA table_info(idea)`).all().map((c) => c.name);
+      assert.equal(before.includes("hook_type_source"), false, "a pre-#206 database must not have hook_type_source yet");
+      assert.equal(before.includes("theme_source"), false, "a pre-#206 database must not have theme_source yet");
+      const tablesBefore = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all().map((r) => r.name);
+
+      const result = runMigrations(db);
+
+      assert.equal(result, CURRENT_SCHEMA_VERSION);
+      const after = db.prepare(`PRAGMA table_info(idea)`).all().map((c) => c.name);
+      assert.ok(after.includes("hook_type_source"), "hook_type_source must exist once migration 4 has run");
+      assert.ok(after.includes("theme_source"), "theme_source must exist once migration 4 has run");
+      const tablesAfter = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all().map((r) => r.name);
+      assert.deepEqual(tablesAfter, tablesBefore, "migration 4 must not create or drop any table");
     });
   });
 

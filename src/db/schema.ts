@@ -511,11 +511,37 @@ CREATE TABLE schedule_outbox (
 `,
 };
 
+/**
+ * Migration 4 (issue #206): adds `idea.hook_type_source` / `idea.theme_source` — the queryable
+ * provenance of a classification, distinct from the classification VALUE itself (`hook_type`/`theme`,
+ * already `NOT NULL` since migration 1). Nullable (never `NOT NULL`): most existing `idea` rows were
+ * classified before this ticket existed (or carry the importer's own `unclassified` default, issue
+ * #219/#204, which records no provenance because nothing was actually read) — `NULL` here honestly means
+ * "no provenance recorded," never a fabricated third value standing in for that. Each column accepts
+ * exactly two values, `'heading'` (the classifier read a literal technique/subject named in the Brief's
+ * own `## Hook concept`/`## Hook Concept` heading) or `'inferred'` (the classifier read the Brief as a
+ * whole because the heading named no literal technique) — a plain `CHECK`, not a third seeded reference
+ * table: a two-value, schema-fixed set is exactly the class of thing `schema.ts`'s own doc comment above
+ * already reserves for a `CHECK` rather than a vocabulary table (`format.cadence`/`asset.status` and
+ * siblings), not the cross-Brand, independently-evolving kind of set `hook_type`/`theme` are. Purely
+ * additive: `ALTER TABLE ... ADD COLUMN`, touching no existing column, row, or constraint — migration 1's
+ * and migration 2's own shipped SQL is untouched, mirroring how migration 3 (issue #209) added a whole
+ * new table without touching either earlier migration.
+ */
+const MIGRATION_4: Migration = {
+  version: 4,
+  description: "Adds idea.hook_type_source / idea.theme_source — queryable classification provenance.",
+  sql: `
+ALTER TABLE idea ADD COLUMN hook_type_source TEXT CHECK (hook_type_source IS NULL OR hook_type_source IN ('heading', 'inferred'));
+ALTER TABLE idea ADD COLUMN theme_source TEXT CHECK (theme_source IS NULL OR theme_source IN ('heading', 'inferred'));
+`,
+};
+
 /** Every migration, in ascending version order. A future schema change (a new table, a widened
  *  vocabulary, a relaxed constraint) is a NEW entry appended here, never an edit to an already-shipped
- *  migration's SQL — migration 2 (issue #219) and migration 3 (issue #209) are both cases of this rule
- *  actually being exercised. */
-export const MIGRATIONS: readonly Migration[] = [MIGRATION_1, MIGRATION_2, MIGRATION_3];
+ *  migration's SQL — migration 2 (issue #219), migration 3 (issue #209), and migration 4 (issue #206)
+ *  are all cases of this rule actually being exercised. */
+export const MIGRATIONS: readonly Migration[] = [MIGRATION_1, MIGRATION_2, MIGRATION_3, MIGRATION_4];
 
 /** The schema version a freshly migrated database ends up at — the highest version in `MIGRATIONS`. */
 export const CURRENT_SCHEMA_VERSION: number = Math.max(...MIGRATIONS.map((m) => m.version));
