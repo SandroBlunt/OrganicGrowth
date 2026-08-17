@@ -64,9 +64,14 @@ the production spec, and the copy step are all **per-Recipe** (ADRs 0009–0018)
 ```
 
 👤 = you (the **Operator**). Three human gates — **Review**, **each Recipe's own picks**, **Publish** —
-everything between runs itself. Production is **attended**: it runs in your session and you approve the
-Magnific calls as they happen — there is no unattended background worker
-([`docs/adr/0008`](./docs/adr/0008-producer-drives-the-space-attended.md)).
+everything between runs itself. Production runs through one of two paths: **attended** (ADR-0008), in
+your own session, approving the Magnific calls as they happen
+([`docs/adr/0008`](./docs/adr/0008-producer-drives-the-space-attended.md)); or **unattended** (ADR-0030),
+via a separate local **worker** process you start yourself, holding its own Magnific credentials, that
+drains the Production Queue with **no human present** for the zero/single-gate Recipes
+([`docs/adr/0030`](./docs/adr/0030-worker-drains-the-queue-unattended.md) — nobody watches the render
+happen in real time on this path; that ADR's own Consequences names the cost and its backstops). Either
+way, nothing renders past a gate before you act.
 
 ## A two-sided solution
 

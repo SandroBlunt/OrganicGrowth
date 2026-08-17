@@ -22,10 +22,15 @@ export interface AssetDownloadTarget {
   readonly filename: string;
 }
 
-/** One target, downloaded and written to disk. */
+/** One target, downloaded and written to disk. `bytes`/`contentType` are additive (issue #208): the
+ *  worker's save step needs the raw bytes (to compute a checksum without re-reading the file back off
+ *  disk) and the response's own content-type (to infer the media kind/extension) — every EXISTING
+ *  caller destructures only `filename`/`path` and is unaffected by these extra fields. */
 export interface DownloadedAssetFile {
   readonly filename: string;
   readonly path: string;
+  readonly bytes: Uint8Array;
+  readonly contentType?: string;
 }
 
 /**
@@ -62,7 +67,16 @@ export async function downloadAssetFiles(
     const bytes = Buffer.from(await response.arrayBuffer());
     const path = join(destDir, target.filename);
     await writeFileAtomic(path, bytes);
-    results.push({ filename: target.filename, path });
+    // Optional-chained: some callers' fetch stubs return a bare `{ ok, status, arrayBuffer }` with no
+    // `headers` at all (pre-dating issue #208) — `contentType` degrades to omitted for those, never a
+    // crash, mirroring `arrayBuffer`'s own defensive-by-injection posture.
+    const contentType = response.headers?.get?.("content-type") ?? null;
+    results.push({
+      filename: target.filename,
+      path,
+      bytes,
+      ...(contentType !== null ? { contentType } : {}),
+    });
   }
   return results;
 }

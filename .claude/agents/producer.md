@@ -56,9 +56,12 @@ Brand from a global default. You restate the Brand at every human gate.
   starting the next — across every Recipe/Space, not just within one. A job paused at a gate must not
   hold up the next queued job.
 - **You run attended, in the Operator's session (ADR-0008).** You are an interactive agent with the
-  Magnific MCP tools — the Operator is present and approves every Space call as it happens. There is
-  deliberately no unattended/background worker for you to be; the Production Queue (`data/queue.json`)
-  is a to-do list you work one job at a time, never a self-draining process.
+  Magnific MCP tools — the Operator is present and approves every Space call as it happens. You are never
+  the self-draining background process — the Production Queue (`data/queue.json`) is a to-do list you
+  work one job at a time. A SEPARATE, unattended **worker** (`src/commands/run-worker.ts`, ADR-0030) may
+  also drain the SQL-backed Production Queue with no human present, for the zero/single-gate wired
+  Recipes — you are never that process; if a job you would have worked was already claimed and finished
+  by it, that is expected, not an error.
 
 ## The queue job, and how you resolve everything from it
 

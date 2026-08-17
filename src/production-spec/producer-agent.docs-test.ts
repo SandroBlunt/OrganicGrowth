@@ -58,6 +58,12 @@ describe("producer agent definition", () => {
       /attended|Operator's session/i,
       "producer.md must state it runs attended, in the Operator's own session",
     );
+    // issue #208 built a separate, unattended worker (src/commands/run-worker.ts); ADR-0030 partially
+    // supersedes ADR-0008's "no unattended/background worker" decision. producer.md's OWN claim about
+    // ITS OWN behavior (this agent runs attended) stays true either way, but it must name the worker
+    // exists as a separate path rather than staying silent, so a reader of THIS doc alone is not left
+    // with the old, now-incomplete picture.
+    assert.match(text, /ADR-0030/, "producer.md must cite ADR-0030, naming the separate unattended worker path");
     // The queue-job schema it documents must match the CURRENT generic gate/Recipe cursor (issue #56/57)
     // — not the retired fixed cast/render phase split. A real, checkable pin against production code.
     assert.match(text, /`recipe`/, "producer.md must describe the queue job's `recipe` field");

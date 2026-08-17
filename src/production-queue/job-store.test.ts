@@ -14,7 +14,16 @@ import assert from "node:assert/strict";
 import { runMigrations } from "../db/migrate.ts";
 import { withTempDb } from "../db/test-support.ts";
 import { seedAsset, FIXTURE_RECIPE as RECIPE } from "../db/fixtures/seed-chain.ts";
-import { createJob, getJob, listJobsForComposite, claimJob, releaseJob, requeueJob, type JobRecord } from "./job-store.ts";
+import {
+  createJob,
+  getJob,
+  listJobsForComposite,
+  claimJob,
+  releaseJob,
+  requeueJob,
+  findNextQueuedJob,
+  type JobRecord,
+} from "./job-store.ts";
 
 describe("createJob / getJob", () => {
   it("inserts a job at status: 'queued', attempt: 0, with no lock held", async () => {
@@ -250,6 +259,36 @@ describe("requeueJob — revives a failed job (C4's SQL-backed sibling)", () => 
       const { brandId, assetId } = await seedAsset(db);
       const id = createJob(db, { assetId, brandId });
       assert.equal(requeueJob(db, id), null, "a queued job is not failed");
+    });
+  });
+});
+
+describe("findNextQueuedJob — the FIFO-oldest-queued read the worker's drain loop uses (issue #208)", () => {
+  it("returns the queued job with the earliest enqueued_at, never a running/awaiting_pick/done/failed one", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, assetId } = await seedAsset(db);
+      const earlier = createJob(db, { assetId, brandId }, () => "2026-08-17T09:00:00.000Z");
+      const later = createJob(db, { assetId, brandId }, () => "2026-08-17T09:05:00.000Z");
+      const parked = createJob(db, { assetId, brandId }, () => "2026-08-17T08:00:00.000Z");
+      claimJob(db, parked, "worker-1", 30000);
+      releaseJob(db, parked, "awaiting_pick");
+
+      const next = findNextQueuedJob(db);
+      assert.notEqual(next, null);
+      assert.equal(next!.id, earlier);
+      assert.notEqual(next!.id, later);
+      assert.notEqual(next!.id, parked);
+    });
+  });
+
+  it("returns null when no job is queued", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, assetId } = await seedAsset(db);
+      const id = createJob(db, { assetId, brandId });
+      claimJob(db, id, "worker-1", 30000);
+      assert.equal(findNextQueuedJob(db), null);
     });
   });
 });

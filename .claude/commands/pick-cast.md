@@ -54,11 +54,14 @@ Operator means (explicit attribution, always-rules #5).
 3. The output restates the active Brand: "Brand: `<brand>`" so the Operator can confirm the pick is
    for the correct Brand.
 
-> **How the render runs:** once the pick is in, the Producer resumes the job **in the Operator's
-> session** and renders it one generation at a time — there is no unattended background worker
-> (ADR-0008). This command only records the Character on the queue job; recording the pick does not
-> move that Asset to `produced` on its own (the Idea itself stays `accepted` throughout) — the Producer
-> does that when it resumes the job. A gate-paused job does not hold the Space.
+> **How the render runs:** this command resumes the job in the file-based Production Queue
+> (`data/queue.json`) ONLY. The Producer resumes it **in the Operator's session** and renders it one
+> generation at a time, with the Operator approving each Space call (ADR-0008). This command only
+> records the Character on the queue job; recording the pick does not move that Asset to `produced` on
+> its own (the Idea itself stays `accepted` throughout) — the attended Producer does that when it
+> resumes the job. A gate-paused job does not hold the Space. A SEPARATE, unattended **worker**
+> (`src/commands/run-worker.ts`, ADR-0030) also exists, but it drains a DIFFERENT, SQL-backed `job`
+> table — this command never writes there, so a pick recorded here is **not** visible to that worker.
 
 ## Guardrails
 - **Brand is explicit** — `<brand>` is required; never fall back to a default Brand.

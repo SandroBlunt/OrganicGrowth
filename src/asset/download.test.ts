@@ -16,7 +16,12 @@ async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
 }
 
 /** A hand-rolled fetch stub — never touches the network. */
-function stubFetch(byUrl: Record<string, { readonly ok: boolean; readonly status?: number; readonly body?: string }>) {
+function stubFetch(
+  byUrl: Record<
+    string,
+    { readonly ok: boolean; readonly status?: number; readonly body?: string; readonly contentType?: string }
+  >,
+) {
   return async (url: string | URL | Request): Promise<Response> => {
     const key = String(url);
     const entry = byUrl[key];
@@ -25,8 +30,9 @@ function stubFetch(byUrl: Record<string, { readonly ok: boolean; readonly status
       ok: entry.ok,
       status: entry.status ?? (entry.ok ? 200 : 500),
       statusText: entry.ok ? "OK" : "Error",
+      headers: { get: (name: string) => (name.toLowerCase() === "content-type" ? entry.contentType ?? null : null) },
       arrayBuffer: async () => new TextEncoder().encode(entry.body ?? "").buffer,
-    } as Response;
+    } as unknown as Response;
   };
 }
 
@@ -117,6 +123,36 @@ describe("downloadAssetFiles — turns remote creation URLs into durable local f
       const results = await downloadAssetFiles(destDir, [], stubFetch({}));
       assert.deepEqual(results, []);
       assert.deepEqual(await readdir(destDir), []);
+    });
+  });
+
+  it("each downloaded result also carries its raw bytes and content-type (issue #208)", async () => {
+    await withTempDir(async (dir) => {
+      const destDir = join(dir, "assets");
+      const fetchImpl = stubFetch({
+        "https://example.com/hook.png": { ok: true, body: "hook-bytes", contentType: "image/png" },
+      });
+
+      const [result] = await downloadAssetFiles(
+        destDir,
+        [{ url: "https://example.com/hook.png", filename: "0-hook.png" }],
+        fetchImpl,
+      );
+
+      assert.equal(result!.contentType, "image/png");
+      assert.ok(result!.bytes instanceof Uint8Array);
+      assert.equal(Buffer.from(result!.bytes).toString("utf8"), "hook-bytes");
+    });
+  });
+
+  it("omits contentType when the response carries no content-type header", async () => {
+    await withTempDir(async (dir) => {
+      const destDir = join(dir, "assets");
+      const fetchImpl = stubFetch({ "https://example.com/x.png": { ok: true, body: "x" } });
+
+      const [result] = await downloadAssetFiles(destDir, [{ url: "https://example.com/x.png", filename: "x.png" }], fetchImpl);
+
+      assert.equal("contentType" in result!, false);
     });
   });
 });

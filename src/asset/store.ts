@@ -231,6 +231,17 @@ function toDbAssetRecord(row: AssetRow): DbAssetRecord {
   };
 }
 
+/**
+ * Looks up one Asset by its own stable id — returns `null` for an unknown id, never throws. A `job` row
+ * carries only `asset_id`, never `(idea_id, recipe_slug)` directly, so a caller holding a claimed job
+ * cannot reach its Asset's Production Spec/status through `loadIdeaAssets` (keyed by Idea) without first
+ * resolving the Asset by id (issue #208).
+ */
+export function getAssetById(db: DatabaseSync, id: string): DbAssetRecord | null {
+  const row = db.prepare(`SELECT * FROM asset WHERE id = ?`).get(id) as unknown as AssetRow | undefined;
+  return row ? toDbAssetRecord(row) : null;
+}
+
 async function loadIdeaAssetsDb(db: DatabaseSync, ideaId: string): Promise<readonly DbAssetRecord[] | null> {
   const idea = db.prepare(`SELECT id FROM idea WHERE id = ?`).get(ideaId);
   if (idea === undefined) return null;

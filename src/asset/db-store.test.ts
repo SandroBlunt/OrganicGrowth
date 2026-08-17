@@ -31,6 +31,7 @@ import {
   addAssetMedia,
   addAssetMediaBatch,
   listAssetMedia,
+  getAssetById,
   type DbAssetRecord,
 } from "./store.ts";
 
@@ -235,6 +236,32 @@ describe("addAssetMedia / addAssetMediaBatch / listAssetMedia — asset_media as
         { ordinal: 1, kind: "image", storageKey: "sm/1.jpg", mime: "image/jpeg", bytes: 1, checksum: "b" },
       ]);
       assert.equal(listAssetMedia(db, assetId).length, 2);
+    });
+  });
+});
+
+describe("getAssetById — looks up one Asset by its own stable id (issue #208)", () => {
+  it("returns the full record, including its saved Spec, for a known id", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const ideaId = seedIdea(db);
+      const spec = { character_concepts: ["a", "b", "c"] };
+      await writeAsset(ideaId, "news-carousel", { status: "queued", spec }, { db });
+      const assetId = (await loadIdeaAssets(ideaId, { db }))![0]!.id;
+
+      const found = getAssetById(db, assetId) as DbAssetRecord;
+      assert.equal(found.id, assetId);
+      assert.equal(found.ideaId, ideaId);
+      assert.equal(found.recipe, "news-carousel");
+      assert.equal(found.status, "queued");
+      assert.deepEqual(found.spec, spec);
+    });
+  });
+
+  it("returns null for an unknown id — never throws", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      assert.equal(getAssetById(db, "does-not-exist"), null);
     });
   });
 });

@@ -5,6 +5,17 @@
 model now spans a Brand's several Recipes/Spaces — serialization is bounded by the single Operator, not
 per-Space capacity; still no background worker.
 
+> **Partially superseded by [ADR-0030](./0030-worker-drains-the-queue-unattended.md)** (issue #208, epic
+> #195, Operator decision 2026-08-17): the decision below that there is "no headless worker host, no
+> unattended-permission wiring" is reversed — a worker process now drains the Production Queue
+> **unattended**, for the wired Recipes that declare zero or one gate (*News Carousel* end to end;
+> *Character Explainer with Cast*'s resumed, post-pick leg), because the permission-classifier reason
+> given below never applied to a plain process holding its own Magnific credentials (only to a Claude
+> Code agent session attempting the same call), and because two of the three wired Recipes declare no
+> gate at all — "a human is present partway through every job regardless" no longer holds universally.
+> Everything else below — the `producer` content agent itself driving the Space attended, in the
+> Operator's own session — is UNCHANGED: this is a second, parallel path, not a replacement.
+
 ADR-0004 had the `producer` own an **unattended, background** Production Queue: accepting an Idea spawns
 a background task that drives the Magnific Space with no human present, plus a periodic tick to reap
 async renders. Building that runtime was scoped as epic #39 (slices #40–43). We dropped it.
