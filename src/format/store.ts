@@ -29,7 +29,10 @@
 
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { parse as parseYaml } from "yaml";
+
+import type { DatabaseSync } from "node:sqlite";
 
 import { resolveBrand } from "../brand/resolver.ts";
 import { normalizeSeeds, type NormalizedSeed } from "../readiness/check-config.ts";
@@ -365,4 +368,184 @@ export async function loadFormat(
   }
 
   return parseFormatFile(raw, formatSlug);
+}
+
+// ---------------------------------------------------------------------------
+// SQL-backed store (issue #222, ADR-0029) — ADDITIVE
+// ---------------------------------------------------------------------------
+//
+// The Format YAML file above stays the Operator-authored document (ADR-0029: "documents a human
+// authors or reads directly stay files") — `loadFormat`/`listFormatSlugs`/`parseFormatFile` are
+// UNCHANGED by this section. But `format` is also a real, referenced SQL table: `run.format_id`,
+// `idea.format_id`, and `baseline_prompt.format_id` all foreign-key into it (`src/db/schema.ts`), so a
+// `format` row is required PLUMBING for those tables to be usable at all — not an optional convenience.
+// `createFormat`/`getFormatBySlug`/`getFormatById`/`listFormatsForBrand`/`updateFormat` below are that
+// typed SQL boundary, `{ db }`-only (mirrors `src/brand/store.ts`/`src/channel/store.ts` — there was no
+// pre-existing `{ ledgerPath }` option to port here either, since Format was always a YAML file, never
+// a ledger record).
+
+/** The fields `createFormat` requires/accepts, minus id/timestamps (assigned by this module). */
+export interface FormatDbInput {
+  readonly brandId: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly voice: string;
+  readonly cadence?: FormatCadence;
+  readonly ideasPerRun?: number;
+  readonly sourceMode?: FormatSourceMode;
+  readonly sources?: FormatSources;
+  readonly defaultRecipes?: readonly string[];
+}
+
+/** One `format` row, fully typed. */
+export interface FormatDbRecord {
+  readonly id: string;
+  readonly brandId: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly voice: string;
+  readonly cadence: FormatCadence;
+  readonly ideasPerRun: number;
+  readonly sourceMode: FormatSourceMode;
+  readonly sources: FormatSources;
+  readonly defaultRecipes: readonly string[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/** A patch `updateFormat` accepts — every field optional; only the given ones are written. */
+export type FormatDbPatch = Partial<FormatDbInput>;
+
+interface FormatRow {
+  readonly id: string;
+  readonly brand_id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly voice: string;
+  readonly cadence: string;
+  readonly ideas_per_run: number;
+  readonly source_mode: string;
+  readonly sources_json: string;
+  readonly default_recipes_json: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+const EMPTY_FORMAT_SOURCES = (mode: FormatSourceMode): FormatSources => ({
+  mode,
+  seedPages: [],
+  curatedSources: [],
+  keywords: [],
+  lookbackDays: 7,
+  overperformanceOnly: true,
+});
+
+function toDbRecord(row: FormatRow): FormatDbRecord {
+  return {
+    id: row.id,
+    brandId: row.brand_id,
+    slug: row.slug,
+    name: row.name,
+    voice: row.voice,
+    cadence: row.cadence as FormatCadence,
+    ideasPerRun: row.ideas_per_run,
+    sourceMode: row.source_mode as FormatSourceMode,
+    sources: JSON.parse(row.sources_json) as FormatSources,
+    defaultRecipes: JSON.parse(row.default_recipes_json) as string[],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Inserts one `format` row and returns its generated id. Throws (SQLite FOREIGN KEY error) for an
+ * unknown `brandId`, and (UNIQUE error) for a `(brandId, slug)` pair already committed
+ * (`format`'s own `UNIQUE (brand_id, slug)`, mirroring one Format slug per Brand — same rule
+ * `formatFilePath` enforces on disk by the filename itself).
+ */
+export function createFormat(
+  db: DatabaseSync,
+  input: FormatDbInput,
+  now: () => string = () => new Date().toISOString(),
+): string {
+  const id = randomUUID();
+  const timestamp = now();
+  const sourceMode = input.sourceMode ?? "peer";
+  const sources = input.sources ?? EMPTY_FORMAT_SOURCES(sourceMode);
+  db.prepare(
+    `INSERT INTO format
+       (id, brand_id, slug, name, voice, cadence, ideas_per_run, source_mode, sources_json, default_recipes_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    input.brandId,
+    input.slug,
+    input.name,
+    input.voice,
+    input.cadence ?? "weekly",
+    input.ideasPerRun ?? 10,
+    sourceMode,
+    JSON.stringify(sources),
+    JSON.stringify(input.defaultRecipes ?? []),
+    timestamp,
+    timestamp,
+  );
+  return id;
+}
+
+/** Looks up one Format by its stable id. Returns `null` for an unknown id — never throws. */
+export function getFormatById(db: DatabaseSync, id: string): FormatDbRecord | null {
+  const row = db.prepare(`SELECT * FROM format WHERE id = ?`).get(id) as unknown as FormatRow | undefined;
+  return row ? toDbRecord(row) : null;
+}
+
+/** Looks up one Brand's Format by slug. Returns `null` when that Brand has none for that slug. */
+export function getFormatBySlug(db: DatabaseSync, brandId: string, slug: string): FormatDbRecord | null {
+  const row = db
+    .prepare(`SELECT * FROM format WHERE brand_id = ? AND slug = ?`)
+    .get(brandId, slug) as unknown as FormatRow | undefined;
+  return row ? toDbRecord(row) : null;
+}
+
+/** Every Format for one Brand, sorted by slug. `[]` for a Brand with none. */
+export function listFormatsForBrand(db: DatabaseSync, brandId: string): readonly FormatDbRecord[] {
+  const rows = db
+    .prepare(`SELECT * FROM format WHERE brand_id = ? ORDER BY slug ASC`)
+    .all(brandId) as unknown as FormatRow[];
+  return rows.map(toDbRecord);
+}
+
+/**
+ * Merges `patch` onto the Format at `id`. Throws a clear, actionable error naming the id for an unknown
+ * Format — a Format row is a required FK anchor for `run`/`idea`/`baseline_prompt`, so a silent no-op
+ * would let a caller believe an update landed when it did not.
+ */
+export function updateFormat(
+  db: DatabaseSync,
+  id: string,
+  patch: FormatDbPatch,
+  now: () => string = () => new Date().toISOString(),
+): void {
+  const existing = getFormatById(db, id);
+  if (existing === null) {
+    throw new Error(`Format "${id}" not found — cannot update a Format that does not exist.`);
+  }
+  const merged: FormatDbRecord = { ...existing, ...patch, updatedAt: now() };
+  db.prepare(
+    `UPDATE format
+       SET slug = ?, name = ?, voice = ?, cadence = ?, ideas_per_run = ?, source_mode = ?,
+           sources_json = ?, default_recipes_json = ?, updated_at = ?
+     WHERE id = ?`,
+  ).run(
+    merged.slug,
+    merged.name,
+    merged.voice,
+    merged.cadence,
+    merged.ideasPerRun,
+    merged.sourceMode,
+    JSON.stringify(merged.sources),
+    JSON.stringify(merged.defaultRecipes),
+    merged.updatedAt,
+    id,
+  );
 }

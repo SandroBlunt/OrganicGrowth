@@ -34,7 +34,10 @@
 import { readdir, stat } from "node:fs/promises";
 import { extname, join } from "node:path";
 
+import type { DatabaseSync } from "node:sqlite";
+
 import { resolveBrand } from "../brand/resolver.ts";
+import { insertBrandAsset } from "../db/media-ref.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -208,4 +211,94 @@ export async function getBrandAsset(
     key,
     message: `Brand Asset "${key}" not found for Brand "${brand}" (looked in ${dir}). ${hint}`,
   };
+}
+
+// ---------------------------------------------------------------------------
+// SQL-backed store (issue #222, ADR-0029) — ADDITIVE
+// ---------------------------------------------------------------------------
+//
+// The file-based `listBrandAssets`/`getBrandAsset` above stay untouched — a committed Brand Asset FILE
+// (`data/brands/<slug>/assets/<key>.<ext>`) is still how the Operator adds one (ADR-0029: "documents a
+// human authors... stay files"). These SQL operations are the typed `brand_asset` ROW boundary
+// `src/db/media-ref.ts`'s own doc comment named as issue #202's job — reusing that module's
+// `insertBrandAsset` (and its `assertRootRelativeStorageKey` guard) rather than re-implementing the
+// insert, plus the typed reads that module deliberately left out.
+
+/** The fields `createBrandAsset` requires, minus id/timestamps (assigned by `insertBrandAsset`). */
+export interface BrandAssetDbInput {
+  readonly brandId: string;
+  readonly key: string;
+  readonly storageKey: string;
+  readonly mime: string;
+  readonly bytes: number;
+  readonly checksum: string;
+}
+
+/** One `brand_asset` row, fully typed. */
+export interface BrandAssetDbRecord {
+  readonly id: string;
+  readonly brandId: string;
+  readonly key: string;
+  readonly storageKey: string;
+  readonly mime: string;
+  readonly bytes: number;
+  readonly checksum: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+interface BrandAssetRow {
+  readonly id: string;
+  readonly brand_id: string;
+  readonly key: string;
+  readonly storage_key: string;
+  readonly mime: string;
+  readonly bytes: number;
+  readonly checksum: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+function toDbRecord(row: BrandAssetRow): BrandAssetDbRecord {
+  return {
+    id: row.id,
+    brandId: row.brand_id,
+    key: row.key,
+    storageKey: row.storage_key,
+    mime: row.mime,
+    bytes: row.bytes,
+    checksum: row.checksum,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Inserts one `brand_asset` row and returns its generated id. Delegates to `src/db/media-ref.ts`'s
+ * `insertBrandAsset`, so an absolute/home-shorthand/traversal `storageKey` is rejected (`StorageKeyError`)
+ * BEFORE any row is written — the SAME store-boundary guard `asset_media` writes go through. Throws
+ * (SQLite UNIQUE error) for a `(brandId, key)` pair already committed.
+ */
+export function createBrandAsset(
+  db: DatabaseSync,
+  input: BrandAssetDbInput,
+  now: () => string = () => new Date().toISOString(),
+): string {
+  return insertBrandAsset(db, input, now);
+}
+
+/** Looks up one Brand's Brand Asset by key. Returns `null` when not found — never throws. */
+export function getBrandAssetByKey(db: DatabaseSync, brandId: string, key: string): BrandAssetDbRecord | null {
+  const row = db
+    .prepare(`SELECT * FROM brand_asset WHERE brand_id = ? AND key = ?`)
+    .get(brandId, key) as unknown as BrandAssetRow | undefined;
+  return row ? toDbRecord(row) : null;
+}
+
+/** Every Brand Asset for one Brand, sorted by key. `[]` for a Brand with none. */
+export function listBrandAssetsForBrand(db: DatabaseSync, brandId: string): readonly BrandAssetDbRecord[] {
+  const rows = db
+    .prepare(`SELECT * FROM brand_asset WHERE brand_id = ? ORDER BY key ASC`)
+    .all(brandId) as unknown as BrandAssetRow[];
+  return rows.map(toDbRecord);
 }
