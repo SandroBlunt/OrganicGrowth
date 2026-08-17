@@ -20,10 +20,12 @@ import { HOOK_TYPES } from "../vocabulary/hook-type.ts";
 import { THEMES } from "../vocabulary/theme.ts";
 import { FIXTURE_RECIPE } from "../db/fixtures/seed-chain.ts";
 
-import { createIdea, recordReviewDecision } from "./ideas.ts";
+import { createIdea, recordReviewDecision, classifyIdea } from "./ideas.ts";
 
 const VALID_HOOK_TYPE = HOOK_TYPES[0]!.value;
 const VALID_THEME = THEMES[0]!.value;
+const OTHER_HOOK_TYPE = HOOK_TYPES[1]!.value;
+const OTHER_THEME = THEMES[1]!.value;
 const OTHER_RECIPE = "news-carousel";
 
 function seedRun(db: DatabaseSync): { readonly brandId: string; readonly formatId: string; readonly runId: string } {
@@ -192,6 +194,64 @@ describe("recordReviewDecision — rejected (issue #205)", () => {
         IdeaValidationError,
       );
       assert.equal(getIdea(db, ideaId)?.status, "suggested");
+    });
+  });
+});
+
+describe("classifyIdea — the command surface's write over IdeaStore's classification (issue #206)", () => {
+  it("updates hook_type/theme plus their provenance, readable back through getIdea", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { runId, brandId, formatId } = seedRun(db);
+      const ideaId = createIdea(db, {
+        runId,
+        brandId,
+        formatId,
+        title: "x",
+        brief: "y",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+      });
+
+      classifyIdea(db, ideaId, {
+        hookType: OTHER_HOOK_TYPE,
+        theme: OTHER_THEME,
+        hookTypeSource: "heading",
+        themeSource: "inferred",
+      });
+
+      const idea = getIdea(db, ideaId);
+      assert.equal(idea?.hookType, OTHER_HOOK_TYPE);
+      assert.equal(idea?.theme, OTHER_THEME);
+      assert.equal(idea?.hookTypeSource, "heading");
+      assert.equal(idea?.themeSource, "inferred");
+    });
+  });
+
+  it("propagates IdeaValidationError for an out-of-vocabulary hookType — never a raw SQLite error", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { runId, brandId, formatId } = seedRun(db);
+      const ideaId = createIdea(db, {
+        runId,
+        brandId,
+        formatId,
+        title: "x",
+        brief: "y",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+      });
+
+      assert.throws(
+        () =>
+          classifyIdea(db, ideaId, {
+            hookType: "not_a_real_hook_type" as unknown as (typeof HOOK_TYPES)[number]["value"],
+            theme: VALID_THEME,
+            hookTypeSource: "heading",
+            themeSource: "heading",
+          }),
+        IdeaValidationError,
+      );
     });
   });
 });

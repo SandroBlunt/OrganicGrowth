@@ -54,7 +54,7 @@ describe("STORE_WRITE_FUNCTIONS", () => {
     const ideaWrites = STORE_WRITE_FUNCTIONS["src/idea/store.ts"];
     assert.deepEqual(
       [...ideaWrites!].sort(),
-      ["acceptIdea", "createIdea", "rejectIdea", "selectIdeaRecipes"].sort(),
+      ["acceptIdea", "createIdea", "rejectIdea", "selectIdeaRecipes", "classifyIdea"].sort(),
     );
     assert.equal(ideaWrites!.includes("getIdea"), false);
     assert.equal(ideaWrites!.includes("listIdeasForRun"), false);
@@ -129,7 +129,7 @@ describe("findStoreWriteImports", () => {
       {
         path: "src/qa-demo/namespace-bypass-write.ts",
         store: "src/idea/store.ts",
-        functions: ["createIdea", "acceptIdea", "rejectIdea", "selectIdeaRecipes"],
+        functions: ["createIdea", "acceptIdea", "rejectIdea", "selectIdeaRecipes", "classifyIdea"],
       },
     ]);
   });

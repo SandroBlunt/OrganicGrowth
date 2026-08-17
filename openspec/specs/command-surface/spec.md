@@ -6,13 +6,13 @@ TBD - created by archiving change issue-205-typed-command-surface. Update Purpos
 ### Requirement: A typed command surface exposes the pipeline's write operations as plain functions over the stores
 
 `src/command-surface/` SHALL expose the operations the pipeline needs — listing Trends, creating an
-Idea, recording a Review decision, enqueuing and claiming jobs, saving an Asset, logging a Post, and
-reading Performance — as plain exported TypeScript functions, each taking an already-open,
-already-migrated `node:sqlite` `DatabaseSync` as its first argument (the SAME convention every
-`{ db }`-backed store already follows). Each function SHALL be a thin orchestration shell over one (or,
-where the pipeline operation genuinely spans more than one store call, more than one) of the SQL-backed
-stores issue #201/#222/#223/#203 shipped — never a store bypassed, and never new business logic
-duplicated from what a store already implements.
+Idea, recording a Review decision, classifying an Idea's Hook Type/Theme (issue #206), enqueuing and
+claiming jobs, saving an Asset, logging a Post, and reading Performance — as plain exported TypeScript
+functions, each taking an already-open, already-migrated `node:sqlite` `DatabaseSync` as its first
+argument (the SAME convention every `{ db }`-backed store already follows). Each function SHALL be a
+thin orchestration shell over one (or, where the pipeline operation genuinely spans more than one store
+call, more than one) of the SQL-backed stores issue #201/#222/#223/#203 shipped — never a store bypassed,
+and never new business logic duplicated from what a store already implements.
 
 #### Scenario: listTrends wraps TrendStore without duplicating its logic
 
@@ -27,6 +27,13 @@ duplicated from what a store already implements.
 - **WHEN** `createIdea(db, input)` is called
 - **THEN** it throws `IdeaValidationError`, naming the invalid value, before any row is written —
   identical to calling `IdeaStore.createIdea` directly
+
+#### Scenario: classifyIdea wraps IdeaStore.classifyIdea, including its validation
+
+- **GIVEN** an Idea and a `classifyIdea` call with an out-of-vocabulary `hookType`
+- **WHEN** `classifyIdea(db, ideaId, input)` is called
+- **THEN** it throws `IdeaValidationError`, naming the invalid value, before any row is written —
+  identical to calling `IdeaStore.classifyIdea` directly
 
 #### Scenario: enqueueJob wraps JobStore.createJob
 
