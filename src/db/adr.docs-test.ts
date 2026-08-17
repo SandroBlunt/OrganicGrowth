@@ -125,6 +125,18 @@ describe("Rule 7 (always-rules) names the typed command surface and the node:fs 
   });
 });
 
+describe("Rule 7 (always-rules) names the store-write boundary guard (issue #233)", () => {
+  it("names the second guard and what it fails the build on", async () => {
+    const doc = await read(".claude/rules/always/organicgrowth-rules.md");
+    assert.match(doc, /src\/store-write-boundary\//);
+    assert.match(
+      doc,
+      /fails the build when a new, un-audited production module imports a SQL-backed store's write function/,
+    );
+    assert.match(doc, /outside `src\/command-surface\/` and its own reviewed allow-list/);
+  });
+});
+
 describe("CONTEXT.md's Post entry reflects the ADR-0028 reversal", () => {
   it("cites ADR-0028 and states Post is keyed on (Asset, Channel), not a scalar on the Asset", async () => {
     const doc = await read("CONTEXT.md");
