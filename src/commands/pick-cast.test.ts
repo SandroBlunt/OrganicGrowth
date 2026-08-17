@@ -190,7 +190,6 @@ describe("pickCastCommand — persists the pick, clears the gate, and reports ho
         jobs: [
           { idea_id: "idea-A", brand: "mundotip", recipe: RECIPE, gate: "cast", status: "awaiting_pick", enqueued_at: "2026-06-05T10:00:00.000Z" },
         ],
-        lock: { active_job: null },
       };
       await saveQueue(atGate, queuePath);
 

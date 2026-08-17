@@ -28,17 +28,16 @@ function fixtureWithOneJob(): QueueState {
         enqueued_at: "2026-06-05T10:00:00.000Z",
       },
     ],
-    lock: { active_job: null },
   };
 }
 
 const ISO_8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 describe("emptyQueue", () => {
-  it("is well-formed: no jobs, lock free", () => {
+  it("is well-formed: no jobs, and carries no lock field (issue #203)", () => {
     const q = emptyQueue();
     assert.deepEqual(q.jobs, []);
-    assert.equal(q.lock.active_job, null);
+    assert.equal("lock" in q, false);
   });
 });
 
@@ -114,7 +113,6 @@ describe("enqueue (append + no-duplicate, keyed on (brand, idea, recipe))", () =
           enqueued_at: "2026-06-05T09:00:00.000Z",
         },
       ],
-      lock: { active_job: null },
     };
     const after = enqueue(withFailed, "idea-2026-W22-07", "2026-06-05T11:00:00.000Z", BRAND_A, RECIPE, "cast");
     assert.equal(after.jobs.length, 2, "a fresh queued job is appended past the failed one");
@@ -171,7 +169,6 @@ describe("hasJobFor", () => {
         { idea_id: "idea-f", brand: BRAND_A, recipe: RECIPE, gate: "cast", status: "failed", enqueued_at: "2026-06-05T10:00:00.000Z" },
         { idea_id: "idea-d", brand: BRAND_A, recipe: RECIPE, gate: null, status: "done", enqueued_at: "2026-06-05T10:01:00.000Z" },
       ],
-      lock: { active_job: null },
     };
     assert.equal(hasJobFor(q, BRAND_A, "idea-f", RECIPE), false, "a failed-only (Idea, Recipe) has no live job");
     assert.equal(hasJobFor(q, BRAND_A, "idea-d", RECIPE), false, "a done-only (Idea, Recipe) has no live job");
@@ -192,7 +189,6 @@ describe("enqueueNextLeg (a resolved gate's pick enqueues the next leg)", () => 
           enqueued_at: "2026-06-05T10:00:00.000Z",
         },
       ],
-      lock: { active_job: null },
     };
   }
 
@@ -260,7 +256,6 @@ describe("hasJobAtGate", () => {
             enqueued_at: "2026-06-05T10:00:00.000Z",
           },
         ],
-        lock: { active_job: null },
       },
       "idea-X",
       "2026-06-05T12:00:00.000Z",
@@ -296,7 +291,6 @@ describe("/queue renderer reflects all five worker statuses", () => {
         { idea_id: "idea-d", brand: BRAND_B, recipe: RECIPE, gate: null, status: "done", enqueued_at: "2026-06-05T10:03:00.000Z" },
         { idea_id: "idea-f", brand: BRAND_B, recipe: RECIPE, gate: null, status: "failed", enqueued_at: "2026-06-05T10:04:00.000Z" },
       ],
-      lock: { active_job: { brand: BRAND_A, idea_id: "idea-r", recipe: RECIPE } },
     };
     const out = formatQueue(state);
     for (const status of ["queued", "running", "awaiting_pick", "done", "failed"]) {

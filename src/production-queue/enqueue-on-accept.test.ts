@@ -124,7 +124,6 @@ describe("planEnqueue (pure policy: accepted-only + no-duplicate + wired-only + 
       jobs: [
         { idea_id: "idea-accepted", brand: BRAND, recipe: RECIPE, gate: "cast" as const, status: "failed" as const, enqueued_at: "2026-06-05T09:00:00.000Z" },
       ],
-      lock: { active_job: null },
     };
     const r = planEnqueue(IDEAS, withFailed, "idea-accepted", NOW, BRAND, [RECIPE]);
     assert.equal(r.enqueued, true, "a failed job must not permanently block re-enqueue");

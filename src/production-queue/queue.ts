@@ -14,7 +14,7 @@
  * One Idea can now fan out into 1..N chosen Recipes (ADR-0009), each producing its own Asset. A job
  * therefore represents ONE (brand, idea, recipe) production leg — never a bare `(brand, idea_id)` pair,
  * which would collide two Recipes' jobs for the same Idea into one dedupe bucket and silently drop the
- * second Recipe's job. Every lookup, dedupe check, transition, and the lock key on the COMPOSITE
+ * second Recipe's job. Every lookup, dedupe check, and transition key on the COMPOSITE
  * `(brand, idea_id, recipe)` triple.
  *
  * --- Job shape (documented contract; see also openspec/specs/production-queue) ---
@@ -42,13 +42,21 @@
  * the very first leg — an unattended end-to-end render), without hard-coding "cast"/"render" here.
  *
  * `awaiting_pick` generalizes the old `awaiting_cast`: a job reaching this status has produced its
- * gate's candidates and is PAUSED for the Operator, releasing the single-Space lock so the next queued
+ * gate's candidates and is PAUSED for the Operator, releasing the single-Space slot so the next queued
  * job can proceed (the gate does not hold the Space).
  *
- * --- Lock ---
+ * --- No stored lock field (issue #203) ---
  *
- *   { active_job: { brand, idea_id, recipe } | null }   // at most one Space-busy job; the composite
- *                                                        // ref of the active job, or null when free.
+ * An earlier revision of this module carried a separate `lock: { active_job }` field alongside `jobs` —
+ * a single pointer meant to guard the single-Space invariant. That field lived INSIDE the very
+ * `data/queue.json` file two concurrent Operator sessions could race on (read-whole-file →
+ * mutate-in-memory → write-whole-file), so it could itself drift out of sync with the `jobs` array it
+ * was supposed to describe — and separately went missing from the live file entirely, with the loader
+ * silently reinventing a `{ active_job: null }` replacement on every read. It has been DELETED, not
+ * ported: "at most one job is `running`" is now derived PURELY from each job's own `status` field
+ * (`scheduler.ts`'s `spaceBusy`) — there is no second, independently-writable copy of that fact left to
+ * go stale. Real atomic claiming (an owner + expiry lease, safe under genuine concurrent writers) now
+ * lives in the SQL `job` table (`job-store.ts`, issue #203) — not a field in this contended file.
  *
  * --- Terminal vs live jobs ---
  *
@@ -91,32 +99,16 @@ export interface QueueJob {
   readonly pick?: string;
 }
 
-/**
- * The composite identity of a job: `(brand, idea_id, recipe)`. Idea ids are not Brand-unique, and one
- * Idea can hold several Recipes' jobs at once, so this triple — never a bare `idea_id` or
- * `(brand, idea_id)` pair — is what the lock and every transition key on.
- */
-export interface JobRef {
-  readonly brand: string;
-  readonly idea_id: string;
-  readonly recipe: string;
-}
-
-/** The single-active-run lock: at most one Space-busy job at a time. */
-export interface QueueLock {
-  /** The composite `(brand, idea_id, recipe)` of the active job, or `null` when the Space is free. */
-  readonly active_job: JobRef | null;
-}
-
-/** The full persisted Production Queue state. */
+/** The full persisted Production Queue state. No separate lock field (issue #203 — see this module's
+ *  own doc comment, "No stored lock field"): the single-active-run invariant is derived from `jobs`
+ *  itself, never a second, independently-writable pointer. */
 export interface QueueState {
   readonly jobs: readonly QueueJob[];
-  readonly lock: QueueLock;
 }
 
-/** The canonical empty queue: no jobs, lock free. */
+/** The canonical empty queue: no jobs. */
 export function emptyQueue(): QueueState {
-  return { jobs: [], lock: { active_job: null } };
+  return { jobs: [] };
 }
 
 /**
@@ -200,7 +192,7 @@ export function enqueue(
     status: "queued",
     enqueued_at: now,
   };
-  return { jobs: [...state.jobs, job], lock: state.lock };
+  return { jobs: [...state.jobs, job] };
 }
 
 /**
@@ -243,5 +235,5 @@ export function enqueueNextLeg(
     enqueued_at: now,
     pick,
   };
-  return { jobs: [...state.jobs, job], lock: state.lock };
+  return { jobs: [...state.jobs, job] };
 }

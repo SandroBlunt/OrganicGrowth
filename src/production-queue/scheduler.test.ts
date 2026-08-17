@@ -9,7 +9,7 @@ import {
   markFailed,
   requeueFailed,
 } from "./scheduler.ts";
-import type { JobRef, QueueJob, QueueState } from "./queue.ts";
+import type { QueueJob, QueueState } from "./queue.ts";
 
 const BRAND = "test-brand";
 const RECIPE = "character-explainer-with-cast";
@@ -26,14 +26,10 @@ function job(over: Partial<QueueJob> & Pick<QueueJob, "idea_id">): QueueJob {
   };
 }
 
-/** The composite lock ref for an Idea/Recipe of the default `test-brand`. */
-function ref(ideaId: string, brand: string = BRAND, recipe: string = RECIPE): JobRef {
-  return { brand, idea_id: ideaId, recipe };
-}
-
-/** Build a queue state from jobs + an optional active lock (a composite `JobRef`). */
-function queue(jobs: QueueJob[], active: JobRef | null = null): QueueState {
-  return { jobs, lock: { active_job: active } };
+/** Build a queue state from jobs. There is no separate lock field (issue #203) — "the Space is busy"
+ *  is derived purely from whichever job(s) already carry `status: "running"`. */
+function queue(jobs: QueueJob[]): QueueState {
+  return { jobs };
 }
 
 describe("nextReady — FIFO by acceptance time", () => {
@@ -69,21 +65,12 @@ describe("nextReady — FIFO by acceptance time", () => {
   });
 });
 
-describe("nextReady — single-Space lock (≤1 running)", () => {
+describe("nextReady — single-Space concurrency (≤1 running)", () => {
   it("returns nothing while a job is running", () => {
-    const state = queue(
-      [
-        job({ idea_id: "idea-run", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
-        job({ idea_id: "idea-wait", enqueued_at: "2026-06-05T10:00:00.000Z" }),
-      ],
-      ref("idea-run"),
-    );
-    assert.equal(nextReady(state), null);
-  });
-
-  it("returns nothing when the lock is held even if no job is marked running", () => {
-    // Defensive: a held lock alone bars a new start.
-    const state = queue([job({ idea_id: "idea-wait" })], ref("idea-some-active"));
+    const state = queue([
+      job({ idea_id: "idea-run", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
+      job({ idea_id: "idea-wait", enqueued_at: "2026-06-05T10:00:00.000Z" }),
+    ]);
     assert.equal(nextReady(state), null);
   });
 });
@@ -111,23 +98,19 @@ describe("nextReady — failure isolation", () => {
 });
 
 describe("markRunning", () => {
-  it("moves a queued job to running and sets the lock", () => {
+  it("moves a queued job to running, and it is the only running job", () => {
     const before = queue([job({ idea_id: "idea-A" }), job({ idea_id: "idea-B", enqueued_at: "2026-06-05T11:00:00.000Z" })]);
     const result = markRunning(before, BRAND, "idea-A", RECIPE);
     assert.equal(result.ok, true);
     const after = result.state;
     const a = after.jobs.find((j) => j.idea_id === "idea-A")!;
     assert.equal(a.status, "running");
-    assert.deepEqual(after.lock.active_job, ref("idea-A"));
     // exactly one running job
     assert.equal(after.jobs.filter((j) => j.status === "running").length, 1);
   });
 
-  it("refuses to start a second run while the lock is held", () => {
-    const before = queue(
-      [job({ idea_id: "idea-A", status: "running" }), job({ idea_id: "idea-B", enqueued_at: "2026-06-05T11:00:00.000Z" })],
-      ref("idea-A"),
-    );
+  it("refuses to start a second run while another job is already running", () => {
+    const before = queue([job({ idea_id: "idea-A", status: "running" }), job({ idea_id: "idea-B", enqueued_at: "2026-06-05T11:00:00.000Z" })]);
     const result = markRunning(before, BRAND, "idea-B", RECIPE);
     assert.equal(result.ok, false);
     assert.equal(result.code, "space_busy");
@@ -165,13 +148,13 @@ describe("markRunning", () => {
 });
 
 describe("markAwaitingPick", () => {
-  it("moves a running job to awaiting_pick and releases the lock", () => {
-    const before = queue([job({ idea_id: "idea-A", status: "running" })], ref("idea-A"));
+  it("moves a running job to awaiting_pick, freeing the Space", () => {
+    const before = queue([job({ idea_id: "idea-A", status: "running" })]);
     const result = markAwaitingPick(before, BRAND, "idea-A", RECIPE);
     assert.equal(result.ok, true);
     const a = result.state.jobs.find((j) => j.idea_id === "idea-A")!;
     assert.equal(a.status, "awaiting_pick");
-    assert.equal(result.state.lock.active_job, null);
+    assert.equal(result.state.jobs.some((j) => j.status === "running"), false);
   });
 
   it("refuses when the job is not running", () => {
@@ -184,26 +167,26 @@ describe("markAwaitingPick", () => {
 });
 
 describe("markPickConsumed — the gate clears when the Operator's pick is recorded (C24, generalized)", () => {
-  it("moves an awaiting_pick job to done and leaves the lock untouched", () => {
+  it("moves an awaiting_pick job to done", () => {
     const before = queue([job({ idea_id: "idea-A", status: "awaiting_pick" })]);
     const result = markPickConsumed(before, BRAND, "idea-A", RECIPE);
     assert.equal(result.ok, true);
     const a = result.state.jobs.find((j) => j.idea_id === "idea-A")!;
     assert.equal(a.status, "done", "the cleared gate is a terminal record, not a pending gate");
-    assert.equal(result.state.lock.active_job, null);
   });
 
-  it("preserves a held lock (clearing a gate never touches the running job's lock)", () => {
-    const before = queue(
-      [
-        job({ idea_id: "idea-run", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
-        job({ idea_id: "idea-gate", status: "awaiting_pick", enqueued_at: "2026-06-05T10:00:00.000Z" }),
-      ],
-      ref("idea-run"),
-    );
+  it("never touches a sibling job that is currently running", () => {
+    const before = queue([
+      job({ idea_id: "idea-run", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
+      job({ idea_id: "idea-gate", status: "awaiting_pick", enqueued_at: "2026-06-05T10:00:00.000Z" }),
+    ]);
     const result = markPickConsumed(before, BRAND, "idea-gate", RECIPE);
     assert.equal(result.ok, true);
-    assert.deepEqual(result.state.lock.active_job, ref("idea-run"), "the running job's lock is kept");
+    assert.equal(
+      result.state.jobs.find((j) => j.idea_id === "idea-run")!.status,
+      "running",
+      "clearing a gate never touches an unrelated running job",
+    );
   });
 
   it("refuses an unknown (brand, idea_id, recipe) with unknown_job", () => {
@@ -250,13 +233,13 @@ describe("markPickConsumed — the gate clears when the Operator's pick is recor
 });
 
 describe("markDone", () => {
-  it("moves a running job to done and releases the lock", () => {
-    const before = queue([job({ idea_id: "idea-A", gate: null, status: "running" })], ref("idea-A"));
+  it("moves a running job to done, freeing the Space", () => {
+    const before = queue([job({ idea_id: "idea-A", gate: null, status: "running" })]);
     const result = markDone(before, BRAND, "idea-A", RECIPE);
     assert.equal(result.ok, true);
     const a = result.state.jobs.find((j) => j.idea_id === "idea-A")!;
     assert.equal(a.status, "done");
-    assert.equal(result.state.lock.active_job, null);
+    assert.equal(result.state.jobs.some((j) => j.status === "running"), false);
   });
 
   it("refuses to complete a job that is not running", () => {
@@ -269,23 +252,20 @@ describe("markDone", () => {
 });
 
 describe("markFailed", () => {
-  it("moves a running job to failed and releases the lock", () => {
-    const before = queue([job({ idea_id: "idea-A", status: "running" })], ref("idea-A"));
+  it("moves a running job to failed, freeing the Space", () => {
+    const before = queue([job({ idea_id: "idea-A", status: "running" })]);
     const result = markFailed(before, BRAND, "idea-A", RECIPE);
     assert.equal(result.ok, true);
     const a = result.state.jobs.find((j) => j.idea_id === "idea-A")!;
     assert.equal(a.status, "failed");
-    assert.equal(result.state.lock.active_job, null);
+    assert.equal(result.state.jobs.some((j) => j.status === "running"), false);
   });
 
   it("frees the Space so a later queued job becomes ready", () => {
-    const before = queue(
-      [
-        job({ idea_id: "idea-A", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
-        job({ idea_id: "idea-B", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" }),
-      ],
-      ref("idea-A"),
-    );
+    const before = queue([
+      job({ idea_id: "idea-A", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
+      job({ idea_id: "idea-B", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" }),
+    ]);
     const result = markFailed(before, BRAND, "idea-A", RECIPE);
     assert.equal(result.ok, true);
     // after the failure, nextReady returns the later queued job
@@ -294,22 +274,21 @@ describe("markFailed", () => {
 });
 
 describe("lifecycle integration — queued → running → done", () => {
-  it("advances a job end to end, keeping the lock in step", () => {
+  it("advances a job end to end", () => {
     let state = queue([job({ idea_id: "idea-A", gate: null })]);
     const run = markRunning(state, BRAND, "idea-A", RECIPE);
     assert.equal(run.ok, true);
-    assert.deepEqual(run.state.lock.active_job, ref("idea-A"));
+    assert.equal(run.state.jobs[0]!.status, "running");
     state = run.state;
     const done = markDone(state, BRAND, "idea-A", RECIPE);
     assert.equal(done.ok, true);
     assert.equal(done.state.jobs[0]!.status, "done");
-    assert.equal(done.state.lock.active_job, null);
   });
 });
 
 describe("transitions are keyed on (brand, idea_id, recipe) — no cross-Brand/cross-Recipe collision", () => {
   it("markRunning targets the named Brand's job, not another Brand's same Idea id (C6)", () => {
-    // Two Brands both hold idea-X. Only Brand alpha's job may be started, and the lock must name alpha.
+    // Two Brands both hold idea-X. Only Brand alpha's job may be started.
     const before = queue([
       job({ idea_id: "idea-X", brand: "alpha", enqueued_at: "2026-06-05T09:00:00.000Z" }),
       job({ idea_id: "idea-X", brand: "beta", enqueued_at: "2026-06-05T10:00:00.000Z" }),
@@ -320,7 +299,6 @@ describe("transitions are keyed on (brand, idea_id, recipe) — no cross-Brand/c
     const beta = result.state.jobs.find((j) => j.brand === "beta")!;
     assert.equal(alpha.status, "running", "alpha's job runs");
     assert.equal(beta.status, "queued", "beta's identically-named job is untouched");
-    assert.deepEqual(result.state.lock.active_job, ref("idea-X", "alpha"));
   });
 
   it("markRunning targets the named Recipe's job, not another Recipe of the same Idea (issue #56)", () => {
@@ -337,13 +315,10 @@ describe("transitions are keyed on (brand, idea_id, recipe) — no cross-Brand/c
   });
 
   it("markFailed on one Brand does not touch the other Brand's same-id job", () => {
-    const before = queue(
-      [
-        job({ idea_id: "idea-X", brand: "alpha", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
-        job({ idea_id: "idea-X", brand: "beta", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" }),
-      ],
-      ref("idea-X", "alpha"),
-    );
+    const before = queue([
+      job({ idea_id: "idea-X", brand: "alpha", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
+      job({ idea_id: "idea-X", brand: "beta", status: "queued", enqueued_at: "2026-06-05T10:00:00.000Z" }),
+    ]);
     const result = markFailed(before, "alpha", "idea-X", RECIPE);
     assert.equal(result.ok, true);
     assert.equal(result.state.jobs.find((j) => j.brand === "alpha")!.status, "failed");
@@ -352,27 +327,27 @@ describe("transitions are keyed on (brand, idea_id, recipe) — no cross-Brand/c
 });
 
 describe("requeueFailed — revive a failed job so its (Idea, Recipe) can be produced again (C4)", () => {
-  it("moves a failed job back to queued and leaves the lock untouched", () => {
+  it("moves a failed job back to queued", () => {
     const before = queue([job({ idea_id: "idea-A", status: "failed" })]);
     const result = requeueFailed(before, BRAND, "idea-A", RECIPE);
     assert.equal(result.ok, true);
     assert.equal(result.state.jobs[0]!.status, "queued");
-    assert.equal(result.state.lock.active_job, null);
     // the revived job is now startable
     assert.equal(nextReady(result.state)?.idea_id, "idea-A");
   });
 
-  it("preserves a held lock (reviving a failed job never starts a run)", () => {
-    const before = queue(
-      [
-        job({ idea_id: "idea-run", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
-        job({ idea_id: "idea-A", status: "failed", enqueued_at: "2026-06-05T10:00:00.000Z" }),
-      ],
-      ref("idea-run"),
-    );
+  it("never touches a sibling job that is currently running", () => {
+    const before = queue([
+      job({ idea_id: "idea-run", status: "running", enqueued_at: "2026-06-05T09:00:00.000Z" }),
+      job({ idea_id: "idea-A", status: "failed", enqueued_at: "2026-06-05T10:00:00.000Z" }),
+    ]);
     const result = requeueFailed(before, BRAND, "idea-A", RECIPE);
     assert.equal(result.ok, true);
-    assert.deepEqual(result.state.lock.active_job, ref("idea-run"), "the running job's lock is kept");
+    assert.equal(
+      result.state.jobs.find((j) => j.idea_id === "idea-run")!.status,
+      "running",
+      "reviving a failed job never starts (or touches) an unrelated run",
+    );
   });
 
   it("refuses an unknown (brand, idea_id, recipe) with unknown_job", () => {

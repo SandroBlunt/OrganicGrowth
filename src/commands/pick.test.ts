@@ -100,7 +100,6 @@ describe("resumeGate — enqueues the generic next leg and clears the resolved g
             enqueued_at: "2026-06-05T10:00:00.000Z",
           },
         ],
-        lock: { active_job: null },
       };
       await saveQueue(atGate, queuePath);
 

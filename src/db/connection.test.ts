@@ -41,4 +41,19 @@ describe("openDatabase — creates a fresh file (and missing parent directories)
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("enables PRAGMA busy_timeout = 5000 — a concurrent writer waits, not an immediate SQLITE_BUSY (issue #203)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "og-connection-"));
+    try {
+      const db = await openDatabase(join(root, "db.sqlite"));
+      try {
+        const row = db.prepare("PRAGMA busy_timeout").get() as { readonly timeout: number };
+        assert.equal(row.timeout, 5000);
+      } finally {
+        db.close();
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
