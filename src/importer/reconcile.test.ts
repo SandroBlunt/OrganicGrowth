@@ -1,7 +1,6 @@
 /**
  * Tests for `buildReconciliation`/`formatReconciliationMarkdown` (`src/importer/reconcile.ts`) — issue
- * #204 AC9/AC12: "the run ends with a per-entity reconciliation: counts in versus counts out, for both
- * Brands."
+ * #204 AC9/AC12, extended by issue #240 AC4 (Posts in/out, plus the coverage prose).
  *
  * "Counts in" come from the PLAN (what the source data says should be written — planning already
  * refused rather than silently dropping anything, so this is a faithful count of the source). "Counts
@@ -29,6 +28,7 @@ function twoBrandPlan(): ImportPlan {
         mediaRoot: "data/brands/acme",
         bannedWords: [],
         requiredHashtags: [],
+        channels: [{ platform: "facebook", url: "https://www.facebook.com/acme", isPrimary: true }],
         formats: [
           {
             slug: "news",
@@ -52,7 +52,17 @@ function twoBrandPlan(): ImportPlan {
                     status: "accepted",
                     sourceUrls: [],
                     recipeSelections: [{ recipe: "news-carousel", chosen: true }],
-                    assets: [{ recipe: "news-carousel", status: "queued", media: [], deadMedia: [] }],
+                    assets: [
+                      {
+                        recipe: "news-carousel",
+                        status: "posted",
+                        media: [],
+                        deadMedia: [],
+                        postUrl: "https://www.facebook.com/permalink/1",
+                        postedAt: "2026-01-02T00:00:00Z",
+                        postPlatform: "facebook",
+                      },
+                    ],
                   },
                   {
                     legacyId: "idea-02",
@@ -76,6 +86,7 @@ function twoBrandPlan(): ImportPlan {
         mediaRoot: "data/brands/beta",
         bannedWords: [],
         requiredHashtags: [],
+        channels: [],
         formats: [
           {
             slug: "life-hacks",
@@ -130,6 +141,8 @@ describe("buildReconciliation — counts in (the Plan) vs counts out (a real que
       assert.equal(acme.assetsOut, 1);
       assert.equal(acme.jobsIn, 1);
       assert.equal(acme.jobsOut, 1);
+      assert.equal(acme.postsIn, 1);
+      assert.equal(acme.postsOut, 1);
 
       const beta = report.brands.find((b) => b.brand === "beta")!;
       assert.equal(beta.ideasIn, 1);
@@ -138,6 +151,8 @@ describe("buildReconciliation — counts in (the Plan) vs counts out (a real que
       assert.equal(beta.assetsOut, 0);
       assert.equal(beta.jobsIn, 0);
       assert.equal(beta.jobsOut, 0);
+      assert.equal(beta.postsIn, 0);
+      assert.equal(beta.postsOut, 0);
 
       assert.equal(report.totals.ideasIn, 3);
       assert.equal(report.totals.ideasOut, 3);
@@ -145,6 +160,8 @@ describe("buildReconciliation — counts in (the Plan) vs counts out (a real que
       assert.equal(report.totals.assetsOut, 1);
       assert.equal(report.totals.jobsIn, 1);
       assert.equal(report.totals.jobsOut, 1);
+      assert.equal(report.totals.postsIn, 1);
+      assert.equal(report.totals.postsOut, 1);
 
       assert.equal(report.deadMediaPaths.length, 1);
       assert.equal(report.duplicateJobKeys.length, 1);
@@ -159,12 +176,14 @@ describe("buildReconciliation — counts in (the Plan) vs counts out (a real que
       const report = buildReconciliation(db, plan, () => "2026-01-01T00:00:00Z");
       assert.equal(report.totals.ideasIn, 3);
       assert.equal(report.totals.ideasOut, 0);
+      assert.equal(report.totals.postsIn, 1);
+      assert.equal(report.totals.postsOut, 0);
     });
   });
 });
 
 describe("formatReconciliationMarkdown — a human-readable rendering", () => {
-  it("names every Brand, the totals, and both report-only categories", async () => {
+  it("names every Brand, the totals, both report-only categories, the Posts column, and what it does/does not cover", async () => {
     await withTempDb(async (db) => {
       runMigrations(db);
       const plan = twoBrandPlan();
@@ -176,6 +195,10 @@ describe("formatReconciliationMarkdown — a human-readable rendering", () => {
       assert.match(markdown, /Dead media paths/i);
       assert.match(markdown, /Duplicate job identity keys/i);
       assert.match(markdown, /data\/x\/1\.png/);
+      assert.match(markdown, /Posts in/);
+      assert.match(markdown, /What this reconciliation covers/i);
+      assert.match(markdown, /NOT independently counted/);
+      assert.match(markdown, /channel_baseline/);
     });
   });
 });

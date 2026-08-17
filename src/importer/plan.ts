@@ -27,7 +27,8 @@ import { readFile } from "node:fs/promises";
 import { loadFullIdeas, countRawIdeaRecords, type FullLedgerIdea } from "../ledger/ledger.ts";
 import { resolveBrand } from "../brand/resolver.ts";
 import { listFormatSlugs, loadFormat, type FormatCadence, type FormatSourceMode } from "../format/store.ts";
-import { loadZohoConfig, loadCopyRules, loadWatermarkHandle } from "../production-spec/brand-profile.ts";
+import { loadZohoConfig, loadCopyRules, loadWatermarkHandle, loadChannels } from "../production-spec/brand-profile.ts";
+import { KNOWN_PLATFORMS, type KnownPlatform } from "../copy/platform-shape.ts";
 import { deriveBrandDisplayFields } from "./brand-fields.ts";
 import { loadBrief } from "./load-brief.ts";
 import { loadQueueStrict } from "./load-queue-strict.ts";
@@ -55,6 +56,16 @@ export interface RunPlanItem {
   readonly ideas: readonly PlannedIdea[];
 }
 
+/** One entry on the Brand's `channel` list (`brand-profile.yaml`, ADR-0019), planned as a `channel` row
+ *  (issue #240 — the importer never created any before this). `platform` is already validated against
+ *  `KNOWN_PLATFORMS` at plan time (a `platform` outside that closed vocabulary is a problem, not a
+ *  silently-skipped Channel). */
+export interface ChannelPlanItem {
+  readonly platform: KnownPlatform;
+  readonly url: string;
+  readonly isPrimary: boolean;
+}
+
 export interface FormatPlanItem {
   readonly slug: string;
   readonly name: string;
@@ -75,6 +86,10 @@ export interface BrandPlanItem {
   readonly requiredCta?: string;
   readonly requiredHashtags: readonly string[];
   readonly watermarkHandle?: string;
+  /** This Brand's Channel list (issue #240) — created before any of its Formats/Runs/Ideas/Assets, so
+   *  a Post any of its Assets carries always has a real Channel row to key against. `[]` for a Brand
+   *  with no `channel` list configured at all (never fabricated). */
+  readonly channels: readonly ChannelPlanItem[];
   readonly formats: readonly FormatPlanItem[];
 }
 
@@ -227,6 +242,25 @@ async function planBrand(
   const copyRules = await loadCopyRules(paths.brandProfile);
   const watermarkHandle = await loadWatermarkHandle(paths.brandProfile);
 
+  // This Brand's Channel list (issue #240) — resolved and validated BEFORE any Idea/Asset is planned,
+  // so a later post_url can be checked against a real, known set of configured platforms rather than
+  // assumed. A platform outside KNOWN_PLATFORMS is a problem, never a silently-skipped Channel.
+  const rawChannels = await loadChannels(paths.brandProfile);
+  const channelPlans: ChannelPlanItem[] = [];
+  const brandChannelPlatforms = new Set<KnownPlatform>();
+  const knownPlatforms: readonly string[] = KNOWN_PLATFORMS;
+  for (const channel of rawChannels) {
+    if (!knownPlatforms.includes(channel.platform)) {
+      problems.push(
+        `Brand "${slug}": Channel platform "${channel.platform}" is not a known platform (expected one of ${KNOWN_PLATFORMS.join(", ")})`,
+      );
+      continue;
+    }
+    const platform = channel.platform as KnownPlatform;
+    channelPlans.push({ platform, url: channel.url, isPrimary: channel.primary });
+    brandChannelPlatforms.add(platform);
+  }
+
   const formatSlugs = await listFormatSlugs(slug, options.brandsRoot);
   const fullIdeas = await loadFullIdeas(paths.ledger, slug);
 
@@ -306,6 +340,7 @@ async function planBrand(
         checkoutRoot: options.checkoutRoot,
         mediaFileOps: options.mediaFileOps,
         loadSpec: options.loadSpec,
+        brandChannelPlatforms,
       };
       for (const idea of ideasForRun) {
         const brief = await loadBrief({ id: idea.id, run: runKey, ...(idea.format !== undefined ? { format: idea.format } : {}), ...(idea.briefPath !== undefined ? { briefPath: idea.briefPath } : {}) }, slug, options.brandsRoot);
@@ -352,6 +387,7 @@ async function planBrand(
     ...(copyRules.requiredCta !== null ? { requiredCta: copyRules.requiredCta } : {}),
     requiredHashtags: copyRules.requiredHashtags,
     ...(watermarkHandle.length > 0 ? { watermarkHandle } : {}),
+    channels: channelPlans,
     formats: formatPlans,
   };
 

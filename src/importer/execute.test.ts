@@ -39,6 +39,7 @@ function onePlan(overrides: Partial<ImportPlan> = {}): ImportPlan {
         mediaRoot: "data/brands/acme",
         bannedWords: [],
         requiredHashtags: [],
+        channels: [],
         formats: [
           {
             slug: "news",
@@ -95,7 +96,7 @@ describe("executeImport — writes an ImportPlan through the command surface, in
     await withTempDb(async (db: DatabaseSync) => {
       runMigrations(db);
       const counts = await executeImport(db, onePlan());
-      assert.deepEqual(counts, { brands: 1, formats: 1, runs: 1, trends: 1, ideas: 1, assets: 1, assetMedia: 1, jobs: 1 });
+      assert.deepEqual(counts, { brands: 1, channels: 0, formats: 1, runs: 1, trends: 1, ideas: 1, assets: 1, assetMedia: 1, posts: 0, jobs: 1 });
 
       const brand = getBrandBySlug(db, "acme")!;
       assert.equal(brand.name, "Acme");
@@ -183,6 +184,116 @@ describe("executeImport — writes an ImportPlan through the command surface, in
     });
   });
 
+  it("resolves an Asset's postPlatform against the created Channel and writes one post row (issue #240)", async () => {
+    await withTempDb(async (db: DatabaseSync) => {
+      runMigrations(db);
+      const plan = onePlan();
+      const brand = plan.brands[0]!;
+      const run = brand.formats[0]!.runs[0]!;
+      const idea = run.ideas[0]!;
+      const mutatedPlan: ImportPlan = {
+        ...plan,
+        brands: [
+          {
+            ...brand,
+            channels: [{ platform: "facebook", url: "https://www.facebook.com/acme", isPrimary: true }],
+            formats: [
+              {
+                ...brand.formats[0]!,
+                runs: [
+                  {
+                    ...run,
+                    ideas: [
+                      {
+                        ...idea,
+                        assets: [
+                          {
+                            ...idea.assets[0]!,
+                            status: "posted",
+                            postUrl: "https://www.facebook.com/permalink/999",
+                            postedAt: "2026-01-03T00:00:00Z",
+                            postPlatform: "facebook",
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const counts = await executeImport(db, mutatedPlan);
+      assert.equal(counts.channels, 1);
+      assert.equal(counts.posts, 1);
+
+      const brandRow = getBrandBySlug(db, "acme")!;
+      const formatRow = getFormatBySlug(db, brandRow.id, "news")!;
+      const runRow = db.prepare(`SELECT id FROM run WHERE format_id = ?`).get(formatRow.id) as unknown as { id: string };
+      const ideaRow = listIdeasForRun(db, runRow.id)[0]!;
+      const asset = (await getAssetByRecipe(db, ideaRow.id, "news-carousel"))!;
+
+      const post = db.prepare(`SELECT * FROM post WHERE asset_id = ?`).get(asset.id) as unknown as { post_url: string; posted_at: string; channel_id: string } | undefined;
+      assert.ok(post, "expected exactly one post row for the Asset");
+      assert.equal(post!.post_url, "https://www.facebook.com/permalink/999");
+      assert.equal(post!.posted_at, "2026-01-03T00:00:00Z");
+
+      const channelRow = db.prepare(`SELECT * FROM channel WHERE brand_id = ? AND platform = 'facebook'`).get(brandRow.id) as unknown as { id: string };
+      assert.equal(post!.channel_id, channelRow.id);
+    });
+  });
+
+  it("an Asset with no postUrl writes no post row — the count stays meaningful (issue #240 AC3)", async () => {
+    await withTempDb(async (db: DatabaseSync) => {
+      runMigrations(db);
+      const counts = await executeImport(db, onePlan());
+      assert.equal(counts.posts, 0);
+      const postCount = (db.prepare(`SELECT COUNT(*) AS c FROM post`).get() as unknown as { c: number }).c;
+      assert.equal(postCount, 0);
+    });
+  });
+
+  it("throws an internal error (never silently drops) when a planned postPlatform has no created Channel", async () => {
+    await withTempDb(async (db: DatabaseSync) => {
+      runMigrations(db);
+      const plan = onePlan();
+      const brand = plan.brands[0]!;
+      const run = brand.formats[0]!.runs[0]!;
+      const idea = run.ideas[0]!;
+      // No matching "facebook" Channel is planned on this Brand — planImport should never let this
+      // shape through; this proves the executor's own defensive guard, not a normal path.
+      const mutatedPlan: ImportPlan = {
+        ...plan,
+        brands: [
+          {
+            ...brand,
+            channels: [],
+            formats: [
+              {
+                ...brand.formats[0]!,
+                runs: [
+                  {
+                    ...run,
+                    ideas: [
+                      {
+                        ...idea,
+                        assets: [
+                          { ...idea.assets[0]!, postUrl: "https://www.facebook.com/permalink/999", postedAt: "2026-01-03T00:00:00Z", postPlatform: "facebook" },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      await assert.rejects(executeImport(db, mutatedPlan), /Internal error/);
+    });
+  });
+
   it("creates two job rows for a duplicate identity key (never merged/resolved)", async () => {
     await withTempDb(async (db: DatabaseSync) => {
       runMigrations(db);
@@ -233,7 +344,10 @@ function json(value: unknown): string {
 describe("executeImport — end to end with planImport, against a real checkout copy and a real db", () => {
   it("plans, then executes, and the database matches", async () => {
     const files: MiniRepoFile[] = [
-      { path: "data/brands/acme/brand-profile.yaml", content: "niche: test\n" },
+      {
+        path: "data/brands/acme/brand-profile.yaml",
+        content: "niche: test\nchannel:\n  - platform: facebook\n    url: https://www.facebook.com/acme\n    primary: true\n",
+      },
       { path: "data/brands/acme/formats/news.yaml", content: 'name: "News"\nvoice: "plain"\ncadence: weekly\n' },
       {
         path: "data/brands/acme/ledger.json",
@@ -247,7 +361,14 @@ describe("executeImport — end to end with planImport, against a real checkout 
               status: "accepted",
               recipes: ["news-carousel"],
               created_at: "2026-01-01T00:00:00Z",
-              assets: [{ recipe: "news-carousel", status: "queued" }],
+              assets: [
+                {
+                  recipe: "news-carousel",
+                  status: "posted",
+                  post_url: "https://www.facebook.com/permalink/1",
+                  posted_at: "2026-01-05T00:00:00Z",
+                },
+              ],
             },
           ],
         }),
@@ -257,19 +378,24 @@ describe("executeImport — end to end with planImport, against a real checkout 
     ];
     await withMiniRepo(files, async (checkoutRoot) => {
       const planResult = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
-      assert.equal(planResult.ok, true);
+      assert.equal(planResult.ok, true, planResult.ok ? "" : JSON.stringify((planResult as { problems: readonly string[] }).problems));
       if (!planResult.ok) return;
 
       await withTempDb(async (db: DatabaseSync) => {
         runMigrations(db);
         const counts = await executeImport(db, planResult.plan);
         assert.equal(counts.brands, 1);
+        assert.equal(counts.channels, 1);
         assert.equal(counts.ideas, 1);
         assert.equal(counts.assets, 1);
         assert.equal(counts.jobs, 1);
+        assert.equal(counts.posts, 1);
 
         const brand = getBrandBySlug(db, "acme")!;
         assert.equal(brand.slug, "acme");
+
+        const postRow = db.prepare(`SELECT post_url FROM post`).get() as unknown as { post_url: string };
+        assert.equal(postRow.post_url, "https://www.facebook.com/permalink/1");
       });
     });
   });

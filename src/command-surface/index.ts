@@ -37,12 +37,15 @@ export {
   createBrand,
   createFormat,
   createRun,
+  createChannel,
   type BrandInput,
   type BrandRecord,
   type FormatDbInput,
   type FormatDbRecord,
   type RunInput,
   type RunRecord,
+  type ChannelInput,
+  type ChannelRecord,
 } from "./tenancy.ts";
 export {
   createIdea,

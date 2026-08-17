@@ -22,9 +22,11 @@
 
 import type { FullLedgerIdea, FullLedgerDeclinedRecipe } from "../ledger/ledger.ts";
 import type { AssetStatus, ZohoScheduleReference, LedgerAssetRecord } from "../asset/asset.ts";
+import type { KnownPlatform } from "../copy/platform-shape.ts";
 import { extractSourceUrls } from "./source-urls.ts";
 import { resolveIdeaStatus, type CanonicalIdeaStatus } from "./idea-status.ts";
 import { planAssetMedia, type AssetMediaFileOps, type PlannedAssetMediaItem, type DeadAssetMediaPath } from "./plan-asset-media.ts";
+import { resolvePostPlatform } from "./resolve-post-platform.ts";
 
 export type { CanonicalIdeaStatus };
 
@@ -52,6 +54,11 @@ export interface PlanIdeaDeps {
   /** Reads one Asset's Spec file, returning its parsed JSON body, or `null` when the path is missing/
    *  unreadable (never a refusal — see this module's own doc comment). */
   readonly loadSpec: (specPath: string) => Promise<Record<string, unknown> | null>;
+  /** The platforms THIS Brand actually has a configured Channel for (`src/importer/plan.ts`'s own
+   *  `planBrand`, reading `brand-profile.yaml`'s `channel` list via `loadChannels`) — issue #240. An
+   *  Asset's `post_url` resolves to a platform purely from its own hostname
+   *  (`resolvePostPlatform`); that resolved platform is then checked against THIS set, never assumed. */
+  readonly brandChannelPlatforms: ReadonlySet<KnownPlatform>;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +80,13 @@ export interface PlannedAsset {
   readonly scheduledAt?: string;
   readonly cameraHubUploadedAt?: string;
   readonly zohoScheduleReference?: ZohoScheduleReference;
+  /** The three fields present ONLY when the source Asset carried a `post_url` (issue #240) — an Asset
+   *  with none of them produces no `post` row at execute time (AC3). `postPlatform` is the Channel
+   *  platform `postUrl` resolved to (`resolvePostPlatform`), already checked against the Brand's own
+   *  configured Channels — `executeImport` trusts it rather than re-resolving. */
+  readonly postUrl?: string;
+  readonly postedAt?: string;
+  readonly postPlatform?: KnownPlatform;
   readonly media: readonly PlannedAssetMediaItem[];
   readonly deadMedia: readonly DeadAssetMediaPath[];
 }
@@ -119,9 +133,42 @@ interface PlanOneAssetResult {
   readonly problems: readonly string[];
 }
 
+/**
+ * Resolves an Asset's `post_url`/`posted_at` into the three `PlannedAsset` Post fields (issue #240), or
+ * a named problem — never a silent drop, mirroring `planAssetMedia`'s own refusal discipline. Returns
+ * `{}` (no problem) for an Asset carrying no `post_url` at all — AC3's "no Post row" case.
+ */
+function planAssetPost(
+  asset: LedgerAssetRecord,
+  ideaId: string,
+  brandChannelPlatforms: ReadonlySet<KnownPlatform>,
+): { readonly fields: Pick<PlannedAsset, "postUrl" | "postedAt" | "postPlatform">; readonly problem?: string } {
+  if (asset.post_url === undefined) return { fields: {} };
+
+  const label = `Idea "${ideaId}" Asset "${asset.recipe}"`;
+  if (asset.posted_at === undefined) {
+    return { fields: {}, problem: `${label}: has post_url ("${asset.post_url}") but no posted_at — cannot create a Post row without a real timestamp` };
+  }
+
+  const platform = resolvePostPlatform(asset.post_url);
+  if (platform === null) {
+    return { fields: {}, problem: `${label}: post_url "${asset.post_url}" does not resolve to any known platform` };
+  }
+  if (!brandChannelPlatforms.has(platform)) {
+    const configured = [...brandChannelPlatforms].join(", ") || "none";
+    return {
+      fields: {},
+      problem: `${label}: post_url "${asset.post_url}" resolves to platform "${platform}", which this Brand has no configured Channel for (configured: ${configured})`,
+    };
+  }
+
+  return { fields: { postUrl: asset.post_url, postedAt: asset.posted_at, postPlatform: platform } };
+}
+
 async function planOneAsset(asset: LedgerAssetRecord, ideaId: string, deps: PlanIdeaDeps): Promise<PlanOneAssetResult> {
   const mediaResult = await planAssetMedia(asset.asset_paths ?? [], deps.legacyAbsolutePrefix, deps.checkoutRoot, deps.mediaFileOps);
   const spec = asset.spec_path !== undefined ? await deps.loadSpec(asset.spec_path) : null;
+  const postResult = planAssetPost(asset, ideaId, deps.brandChannelPlatforms);
   const planned: PlannedAsset = {
     recipe: asset.recipe,
     status: asset.status,
@@ -131,10 +178,12 @@ async function planOneAsset(asset: LedgerAssetRecord, ideaId: string, deps: Plan
     ...(asset.scheduled_at !== undefined ? { scheduledAt: asset.scheduled_at } : {}),
     ...(asset.camera_hub_uploaded_at !== undefined ? { cameraHubUploadedAt: asset.camera_hub_uploaded_at } : {}),
     ...(asset.zoho_schedule_reference !== undefined ? { zohoScheduleReference: asset.zoho_schedule_reference } : {}),
+    ...postResult.fields,
     media: mediaResult.media,
     deadMedia: mediaResult.dead,
   };
   const problems = mediaResult.problems.map((p) => `Idea "${ideaId}" Asset "${asset.recipe}": ${p}`);
+  if (postResult.problem !== undefined) problems.push(postResult.problem);
   return { asset: planned, problems };
 }
 

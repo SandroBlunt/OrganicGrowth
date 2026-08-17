@@ -30,10 +30,13 @@ ideas is sharper. It **generates the Asset but never publishes it** — a human 
   and Job/Gate Request/Post/Performance time-series (issue #203) — but **no existing production command
   has been switched over to any of them yet**: every store above still reads/writes the plain files
   described above. The one-shot importer (issue #204, `src/importer/`) that populates the database from
-  the real corpus is now built, test-first, and has completed one full rehearsal against a copy of
-  `data/` (reconciliation posted on issue #204) — but the real corpus import stays Operator-gated and has
-  not run; a production caller is not yet rewired onto SQL either way. Since issue #205, a **typed
-  in-process command surface**
+  the real corpus is now built, test-first, has completed a full rehearsal against a copy of `data/`,
+  and now also plans/creates each Brand's Channel rows and resolves+logs a Post for every ledger Asset
+  carrying a `post_url` — the platform resolved from the URL itself, never assumed (issue #240, closing
+  a gap #204's own real run left: 7 real Straw Motion Posts existed only in `ledger.json`, nowhere in
+  SQL). A full real import (61 Ideas, 54 Assets, 66 Jobs, 7 Posts, all in=out) has been run and
+  reconciled (posted on issue #204); a production caller is not yet rewired onto SQL either way. Since
+  issue #205, a **typed in-process command surface**
   (`src/command-surface/`) sits above these stores as the only thing permitted to write — a plain
   TypeScript function per pipeline operation, for the worker/viewer/agents (issues #208/#210/#211) to
   call instead of touching a store or a file directly; likewise not yet wired to any production caller.
