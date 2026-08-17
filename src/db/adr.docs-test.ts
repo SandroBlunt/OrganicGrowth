@@ -137,6 +137,19 @@ describe("Rule 7 (always-rules) names the store-write boundary guard (issue #233
   });
 });
 
+describe("Rule 7 (always-rules) names the store-write boundary guard's file-backed-write and namespace-import coverage (issue #235)", () => {
+  it("names the file-backed write function coverage, with saveSpec as the concrete example", async () => {
+    const doc = await read(".claude/rules/always/organicgrowth-rules.md");
+    assert.match(doc, /Since issue #235, that same\s+guard also names a store's file-backed write function/);
+    assert.match(doc, /`saveSpec`, alongside its SQL-backed `saveProductionSpec`/);
+  });
+
+  it("names the namespace-import coverage", async () => {
+    const doc = await read(".claude/rules/always/organicgrowth-rules.md");
+    assert.match(doc, /resolves a namespace import \(`import \* as store from \.\.\.`\) as importing every one/);
+  });
+});
+
 describe("CONTEXT.md's Post entry reflects the ADR-0028 reversal", () => {
   it("cites ADR-0028 and states Post is keyed on (Asset, Channel), not a scalar on the Asset", async () => {
     const doc = await read("CONTEXT.md");
