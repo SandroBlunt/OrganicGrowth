@@ -33,8 +33,9 @@
  * documented instructions) is the one who decides to offer `/export-schedule` instead.
  *
  * Every business-rule refusal (not approved, MCP unavailable, an empty run, a Brand not configured, a
- * preflight problem, a schedule time inside the 1-hour lead window) is a RETURNED, clearly-worded
- * string — never a throw — mirroring `src/commands/export-schedule.ts`'s own posture exactly.
+ * preflight problem, a schedule time inside the 1-hour lead window, a schedule time so far out that
+ * its signed media link would expire before the post fires) is a RETURNED, clearly-worded string —
+ * never a throw — mirroring `src/commands/export-schedule.ts`'s own posture exactly.
  */
 
 import { mkdtemp, rm } from "node:fs/promises";

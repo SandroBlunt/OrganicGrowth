@@ -127,13 +127,16 @@ merged `buildMcpSchedulePlan` (`src/schedule-batch/mcp-plan.ts`, issue #160) —
 independently-computed decision — and run the SAME preflight `validateAssetsForExport`
 (`src/schedule-batch/plan.ts`) as defense in depth, refusing the WHOLE run (zero port/Media-Host calls,
 zero ledger writes) on any preflight problem, an empty eligible set, a Brand with no usable Zoho
-configuration, or a derived schedule slot inside the 1-hour lead window. Every such refusal SHALL be a
-RETURNED, clearly-worded message — never a throw. `scheduleViaZohoMcpCommand` SHALL accept an OPTIONAL
-`options.postsPerDay` (issue #171 — the Unhypped Daily Format's ~6 Assets/day volume), defaulting to `1`,
-passed straight through to `buildMcpSchedulePlan` with no reimplementation — an omitted value reproduces
-the exact pre-#171 one-Asset-per-day schedule byte-for-byte, and this is the SAME `postsPerDay` value the
-CSV/S3 fallback path (`exportScheduleCommand`) accepts, so a Run's schedule is identical regardless of
-which of ADR-0020's two mechanisms ends up scheduling it.
+configuration, a derived schedule slot inside the 1-hour lead window, or — since issue #198 (QA Round 1
+Defect #1) — a derived schedule slot whose signed media link cannot survive to reach its own post time
+(`buildMcpSchedulePlan`'s own `reason: "presign-window"` refusal, forwarded verbatim the SAME way the
+`"lead-window"` refusal already is). Every such refusal SHALL be a RETURNED, clearly-worded message —
+never a throw. `scheduleViaZohoMcpCommand` SHALL accept an OPTIONAL `options.postsPerDay` (issue #171 —
+the Unhypped Daily Format's ~6 Assets/day volume), defaulting to `1`, passed straight through to
+`buildMcpSchedulePlan` with no reimplementation — an omitted value reproduces the exact pre-#171
+one-Asset-per-day schedule byte-for-byte, and this is the SAME `postsPerDay` value the CSV/S3 fallback
+path (`exportScheduleCommand`) accepts, so a Run's schedule is identical regardless of which of
+ADR-0020's two mechanisms ends up scheduling it.
 
 #### Scenario: an empty run reports nothing eligible, zero port calls
 
@@ -164,6 +167,22 @@ which of ADR-0020's two mechanisms ends up scheduling it.
 - **WHEN** `scheduleViaZohoMcpCommand` is called with `approved: true` and an injected port
 - **THEN** the returned message names the lead-window refusal
 - **AND** the port recorded zero calls
+
+#### Scenario: a schedule time beyond AWS's presign ceiling refuses, zero port/Media Host calls (issue #198)
+
+- **GIVEN** an eligible Asset whose derived schedule slot's signed media link cannot reach that slot's
+  own scheduled time (beyond AWS's ~7-day presign ceiling from `now`)
+- **WHEN** `scheduleViaZohoMcpCommand` is called with `approved: true` and an injected port
+- **THEN** the returned message names the presign-window refusal and that Asset's Idea id
+- **AND** the port and the Media Host both recorded zero calls
+- **AND** the Asset's `scheduled_at` remains unset, re-read through the ledger store
+
+#### Scenario: a schedule time exactly AT AWS's presign ceiling proceeds normally (boundary is inclusive)
+
+- **GIVEN** an eligible Asset whose derived schedule slot's signed media link reaches EXACTLY its own
+  scheduled time (exactly AWS's ~7-day presign ceiling from `now`, no further)
+- **WHEN** `scheduleViaZohoMcpCommand` is called with `approved: true` and an injected port
+- **THEN** the run proceeds normally, hosting media and calling the port
 
 #### Scenario: a re-run against an already-scheduled Asset finds nothing eligible — never double-schedules
 

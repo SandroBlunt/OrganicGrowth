@@ -103,9 +103,13 @@ future use of the MCP path is out of scope for this decision layer.
 business-rule refusals: an empty (or, after excluding non-`news-carousel` entries, effectively empty)
 run of eligible Assets (`reason: "empty-run"`); a Brand with no usable Zoho configuration, i.e. a
 `ZohoConfigLookup` with `configured: false` for either its `"not_configured"` or `"malformed"` reason
-(`reason: "zoho-not-configured"`, carrying that lookup's own `message` verbatim); and any derived
-schedule slot landing inside the 1-hour lead window (`reason: "lead-window"`, naming every violating
-Asset, never just the first). No file is written and no plan is returned for any of these three cases.
+(`reason: "zoho-not-configured"`, carrying that lookup's own `message` verbatim); any derived schedule
+slot landing inside the 1-hour lead window (`reason: "lead-window"`, naming every violating Asset, never
+just the first); and, since issue #198 (QA Round 1 Defect #1), any derived schedule slot whose signed
+media link cannot survive to reach its own post time, beyond AWS's own ~7-day presign ceiling
+(`reason: "presign-window"`, via `src/schedule-batch/media-expiry.ts`'s `validateWithinPresignWindow`,
+naming every violating Asset, never just the first — mirroring `"lead-window"`'s own refusal shape
+exactly). No file is written and no plan is returned for any of these four cases.
 
 #### Scenario: An empty run of eligible Assets is refused clearly, never thrown
 
@@ -129,6 +133,25 @@ Asset, never just the first). No file is written and no plan is returned for any
 - **WHEN** `buildMcpSchedulePlan` is called
 - **THEN** the result is `{ ok: false, reason: "lead-window" }` whose message names that Asset's Idea id
 - **AND** no exception is thrown
+
+#### Scenario: A slot beyond AWS's presign ceiling is refused, naming the violation (issue #198)
+
+- **GIVEN** one eligible Asset, a configured Brand, and a start date/`nowMs` pair whose derived slot's
+  signed media link cannot reach that slot's own scheduled time (beyond AWS's ~7-day presign ceiling
+  from `nowMs`)
+- **WHEN** `buildMcpSchedulePlan` is called
+- **THEN** the result is `{ ok: false, reason: "presign-window" }` whose message names that Asset's Idea
+  id and the ~7-day ceiling
+- **AND** no exception is thrown
+
+#### Scenario: A slot exactly AT AWS's presign ceiling is NOT refused (boundary is inclusive)
+
+- **GIVEN** one eligible Asset, a configured Brand, and a start date/`nowMs` pair whose derived slot's
+  signed media link reaches EXACTLY its own scheduled time (exactly AWS's ~7-day presign ceiling from
+  `nowMs`, no further)
+- **WHEN** `buildMcpSchedulePlan` is called
+- **THEN** the result is `{ ok: true }` — a schedule that is merely `cappedByAwsLimit` but still reaches
+  its own post time is not a violation
 
 ### Requirement: The plan is pure — no clock read, no I/O, deterministic
 
