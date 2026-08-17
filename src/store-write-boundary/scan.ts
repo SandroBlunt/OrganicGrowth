@@ -52,6 +52,7 @@ export const STORE_WRITE_FUNCTIONS: Readonly<Record<string, readonly string[]>> 
   "src/channel/store.ts": ["createChannel", "setPrimaryChannel"],
   "src/brand/store.ts": ["createBrand", "updateBrand"],
   "src/copy/store.ts": ["upsertCopyVariant", "upsertCopyVariants"],
+  "src/schedule-outbox/store.ts": ["reserveScheduleOutboxEntry", "confirmScheduleOutboxEntry"],
 };
 
 /** `true` when `path` is test-support code by this repo's own convention — identical rule to

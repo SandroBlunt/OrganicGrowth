@@ -20,6 +20,12 @@
  * Plus two small reads: `getScheduleOutboxEntry` (by key) and `listReservedScheduleOutboxEntries` (every
  * `'reserved'`-but-not-yet-`'confirmed'` row — the set a worker sweeps on restart to reconcile, issue
  * #209's own AC).
+ *
+ * `reserveScheduleOutboxEntry`/`confirmScheduleOutboxEntry` are registered in
+ * `src/store-write-boundary/scan.ts`'s `STORE_WRITE_FUNCTIONS` (issue #233's guard) — the ONLY
+ * production caller is `src/command-surface/schedule-outbox.ts`; the one other direct importer,
+ * `fixtures/crash-schedule-worker.ts`, is individually allow-listed (a genuine crash-simulation
+ * fixture, not a bypass).
  */
 
 import { randomUUID } from "node:crypto";
@@ -58,8 +64,8 @@ export interface ScheduleOutboxReserveResult {
   readonly record: ScheduleOutboxRecord;
   /** `false` when THIS call created the reservation for the first time; `true` when `idempotencyKey`
    *  already existed — a resumed attempt (a prior crash, or a genuine retry), NOT a fresh one. The
-   *  caller (`src/schedule-outbox/run.ts`) uses this to decide whether it is safe to call Zoho directly
-   *  or must reconcile first. */
+   *  caller (`src/command-surface/schedule-outbox.ts`'s `scheduleViaOutbox`) uses this to decide whether
+   *  it is safe to call Zoho directly or must reconcile first. */
   readonly alreadyReserved: boolean;
 }
 
@@ -148,7 +154,7 @@ export function reserveScheduleOutboxEntry(
  * Atomically confirms `idempotencyKey`: moves a `'reserved'` row to `'confirmed'`, recording `reference`
  * and `confirmedAt`. Idempotent: confirming an ALREADY-`'confirmed'` key changes nothing and returns the
  * existing record unchanged (never re-writes `reference` to a different value silently — the caller
- * decides what to do if that would ever legitimately differ, which `run.ts` never allows). Returns
+ * decides what to do if that would ever legitimately differ, which `scheduleViaOutbox` never allows). Returns
  * `null` only for a genuinely unknown `idempotencyKey` (never reserved at all).
  */
 export function confirmScheduleOutboxEntry(

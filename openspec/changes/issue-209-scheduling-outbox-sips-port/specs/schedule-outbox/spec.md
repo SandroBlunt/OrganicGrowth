@@ -2,7 +2,7 @@
 
 ### Requirement: Scheduling reserves its idempotency key before calling Zoho, and confirms afterwards
 
-`src/schedule-outbox/run.ts`'s `runScheduleOutboxEntry` SHALL reserve `idempotencyKey`
+`src/command-surface/schedule-outbox.ts`'s `scheduleViaOutbox` SHALL reserve `idempotencyKey`
 (`db`, `{ idempotencyKey, assetId, request }`, `port`, `now` — `src/schedule-outbox/store.ts`'s
 `reserveScheduleOutboxEntry`) BEFORE any `ZohoSchedulePort.createSchedule` call is made, and SHALL
 confirm the reservation
@@ -15,7 +15,7 @@ throwing.
 #### Scenario: A brand-new reservation calls createSchedule exactly once and confirms with its reference
 
 - **GIVEN** an idempotency key never seen before
-- **WHEN** `runScheduleOutboxEntry` is called
+- **WHEN** `scheduleViaOutbox` is called
 - **THEN** `createSchedule` is called exactly once, and the `schedule_outbox` row ends `'confirmed'`
   with the reference `createSchedule` returned
 
@@ -29,7 +29,7 @@ throwing.
 ### Requirement: A crash between reserve and confirm cannot cause a re-run to double-post
 
 A `'reserved'`-but-not-yet-`'confirmed'` `schedule_outbox` entry SHALL NEVER cause a subsequent call to
-`runScheduleOutboxEntry` for the SAME `idempotencyKey` to call `ZohoSchedulePort.createSchedule` a SECOND
+`scheduleViaOutbox` for the SAME `idempotencyKey` to call `ZohoSchedulePort.createSchedule` a SECOND
 time for a post Zoho already accepted. This SHALL be proven by a GENUINE crash: a real, separate OS
 process reserves the key, actually calls a real (file-backed, cross-process-durable) fake Zoho's
 `createSchedule`, and then exits (`process.exit`) WITHOUT ever calling `confirmScheduleOutboxEntry` —
@@ -40,7 +40,7 @@ never merely an asserted intermediate state within one process.
 - **GIVEN** a real, separate OS process that reserves `idempotencyKey`, calls the real (fake) Zoho's
   `createSchedule` (which durably records the schedule), and then crashes (`process.exit`) WITHOUT
   confirming
-- **WHEN** `runScheduleOutboxEntry` is called again, in a DIFFERENT process, for the SAME
+- **WHEN** `scheduleViaOutbox` is called again, in a DIFFERENT process, for the SAME
   `idempotencyKey` and the SAME request
 - **THEN** `createSchedule` is NOT called again — the crashed process's own schedule remains the only one
   Zoho holds for that target
@@ -49,7 +49,7 @@ never merely an asserted intermediate state within one process.
 
 ### Requirement: A reserved-but-unconfirmed key is reconcilable against Zoho, never left ambiguous
 
-`src/schedule-outbox/run.ts`'s `reconcileScheduleOutboxEntry(db, idempotencyKey, port, now)` SHALL
+`src/command-surface/schedule-outbox.ts`'s `reconcileScheduleOutbox(db, idempotencyKey, port, now)` SHALL
 resolve a `'reserved'`-but-not-yet-`'confirmed'` entry by ASKING Zoho — `ZohoSchedulePort.listSchedules`
 for the entry's own target — rather than assuming the earlier `createSchedule` call failed (which would
 double-post on a blind retry) or assuming it succeeded (which would silently drop the post if it never
@@ -58,22 +58,22 @@ actually reached Zoho). A match is found via `src/schedule-outbox/reconcile.ts`'
 itself generated — never on Zoho's own reference (unknown until discovered) and never on "the only one
 returned" (a target can legitimately hold more than one schedule). An unknown key returns `"unknown-key"`;
 an already-`'confirmed'` key returns its reference WITHOUT calling `listSchedules` at all.
-`reconcileScheduleOutboxEntry` SHALL NEVER call `createSchedule`, under any outcome — the corresponding
-`createSchedule` call, when reconciliation finds nothing, is `runScheduleOutboxEntry`'s own responsibility,
+`reconcileScheduleOutbox` SHALL NEVER call `createSchedule`, under any outcome — the corresponding
+`createSchedule` call, when reconciliation finds nothing, is `scheduleViaOutbox`'s own responsibility,
 not this function's.
 
 #### Scenario: Reconciliation finds a match and confirms without calling createSchedule
 
 - **GIVEN** a `'reserved'` entry whose request Zoho's `listSchedules` reports as already scheduled
   (same content, same local schedule time)
-- **WHEN** `reconcileScheduleOutboxEntry` is called
+- **WHEN** `reconcileScheduleOutbox` is called
 - **THEN** it returns `"confirmed-by-reconciliation"` with the matched reference, the entry becomes
   `'confirmed'`, and `createSchedule` is never called
 
 #### Scenario: Reconciliation finds no match and changes nothing
 
 - **GIVEN** a `'reserved'` entry whose request Zoho's `listSchedules` does NOT report
-- **WHEN** `reconcileScheduleOutboxEntry` is called
+- **WHEN** `reconcileScheduleOutbox` is called
 - **THEN** it returns `"still-unconfirmed"`, the entry remains `'reserved'`, and `createSchedule` is
   never called
 
@@ -81,20 +81,20 @@ not this function's.
 
 - **GIVEN** a real, separate OS process that reserves `idempotencyKey` and crashes BEFORE ever calling
   Zoho
-- **WHEN** `runScheduleOutboxEntry` is called again for the SAME `idempotencyKey`
+- **WHEN** `scheduleViaOutbox` is called again for the SAME `idempotencyKey`
 - **THEN** reconciliation finds nothing, `createSchedule` IS called (exactly once), and the entry ends
   `'confirmed'`
 
 ### Requirement: An already-confirmed key short-circuits — calling Zoho zero times
 
-A `runScheduleOutboxEntry` call for an idempotency key that is ALREADY `'confirmed'` SHALL return that
+A `scheduleViaOutbox` call for an idempotency key that is ALREADY `'confirmed'` SHALL return that
 entry's existing reference immediately, calling NO method on `ZohoSchedulePort` at all — not
 `createSchedule`, not even the read-only `listSchedules`.
 
 #### Scenario: A second call for an already-confirmed key makes zero port calls
 
-- **GIVEN** an idempotency key already `'confirmed'` (a prior `runScheduleOutboxEntry` call succeeded)
-- **WHEN** `runScheduleOutboxEntry` is called again for the SAME key
+- **GIVEN** an idempotency key already `'confirmed'` (a prior `scheduleViaOutbox` call succeeded)
+- **WHEN** `scheduleViaOutbox` is called again for the SAME key
 - **THEN** it returns the SAME reference, `alreadyConfirmed: true`, `calledCreateSchedule: false`, and no
   new call of any kind reaches the port
 
@@ -126,18 +126,36 @@ CHECKed to exactly `'reserved'` or `'confirmed'` — no other value. `schedule_o
 
 ### Requirement: The Schedule Outbox is proven, not yet wired to a live command
 
-The Schedule Outbox (`src/schedule-outbox/`) SHALL be exposed on the typed command surface
-(`scheduleViaOutbox`/`reconcileScheduleOutbox`, `src/command-surface/schedule-outbox.ts`), but SHALL NOT
-be wired into any currently-live production command by this change — the live, attended
-`scheduleViaZohoMcpCommand` (`src/commands/schedule-via-zoho-mcp.ts`) keeps its own existing
-call-then-write order until a later slice (the worker, issue #208) rewires it. This mirrors
-`src/production-queue/job-store.ts`'s own issue #203 posture: prove the primitive against the real
-schema, first.
+The Schedule Outbox SHALL be exposed on the typed command surface (`scheduleViaOutbox`/
+`reconcileScheduleOutbox`, `src/command-surface/schedule-outbox.ts`), which itself calls
+`src/schedule-outbox/store.ts` (the SQL primitives) and `src/schedule-outbox/reconcile.ts` (the PURE
+matching logic) directly — mirroring `src/command-surface/ideas.ts`'s own `recordReviewDecision`
+precedent for a command-surface function composing more than one store call. There SHALL be no separate
+deep-orchestration module BETWEEN the store and the command surface for this capability: the reserve/
+reconcile/create-if-needed/confirm sequencing lives in the command-surface module itself, so the
+store-write boundary guard (issue #233)'s existing `isCommandSurfacePath` exemption covers it by
+construction, with no separate audit needed for an intermediate layer. This SHALL NOT be wired into any
+currently-live production command by this change — the live, attended `scheduleViaZohoMcpCommand`
+(`src/commands/schedule-via-zoho-mcp.ts`) keeps its own existing call-then-write order until a later
+slice (the worker, issue #208) rewires it. This mirrors `src/production-queue/job-store.ts`'s own issue
+#203 posture: prove the primitive against the real schema, first.
 
 #### Scenario: scheduleViaOutbox is reachable only through the command surface, over a real database
 
 - **GIVEN** a fresh, migrated, throwaway database and a fake `ZohoSchedulePort`
 - **WHEN** a test imports only `scheduleViaOutbox` from `src/command-surface/index.ts` (or
   `schedule-outbox.ts` directly) and calls it
-- **THEN** the SAME reserve/call/confirm behavior `runScheduleOutboxEntry` provides is observed —
-  proving the command-surface shell forwards correctly, never re-implementing the logic
+- **THEN** the full reserve/reconcile/create-if-needed/confirm behavior is observed directly — there is
+  no separate deep module elsewhere in `src/schedule-outbox/` importing the store's write functions to
+  re-prove
+
+#### Scenario: the store-write boundary guard covers schedule_outbox's write functions
+
+- **GIVEN** `src/schedule-outbox/store.ts`'s `reserveScheduleOutboxEntry`/`confirmScheduleOutboxEntry`,
+  registered in `src/store-write-boundary/scan.ts`'s `STORE_WRITE_FUNCTIONS`
+- **WHEN** the store-write boundary guard (`store-write-guard.test.ts`) runs
+- **THEN** it flags any future direct import of either function from outside
+  `src/command-surface/**` and test paths as an un-audited violation, exactly like every other
+  governed store — proven by temporarily removing the ONE legitimate remaining exception
+  (`src/schedule-outbox/fixtures/crash-schedule-worker.ts`'s allow-list entry) and observing the guard
+  fail, naming that exact triple

@@ -12,22 +12,37 @@ blocking any later move to CI or another host.
 
 ## What Changes
 
-- **A Schedule Outbox** (`src/schedule-outbox/`, genuinely new — mirrors `src/production-queue/
-  job-store.ts`'s own "prove the primitive against the schema, not yet wired to a live command" posture,
-  issue #203): reserve the idempotency key BEFORE calling Zoho, call Zoho, confirm AFTER.
-  `reserveScheduleOutboxEntry` is insert-or-find, keyed on a UNIQUE `idempotency_key` — a retry after a
-  crash finds the SAME row rather than creating a second one. `confirmScheduleOutboxEntry` atomically
-  moves `'reserved'` -> `'confirmed'`, idempotently.
+- **A Schedule Outbox** (`src/schedule-outbox/store.ts` + `reconcile.ts`, genuinely new; the command
+  surface itself is the orchestration shell — see "Round 2" below): reserve the idempotency key BEFORE
+  calling Zoho, call Zoho, confirm AFTER. `reserveScheduleOutboxEntry` is insert-or-find, keyed on a
+  UNIQUE `idempotency_key` — a retry after a crash finds the SAME row rather than creating a second one.
+  `confirmScheduleOutboxEntry` atomically moves `'reserved'` -> `'confirmed'`, idempotently.
 - **Reconciliation, not guessing.** A `'reserved'`-but-unconfirmed entry is ambiguous by construction —
   this system genuinely does not know whether Zoho accepted the earlier `createSchedule` call.
-  `reconcileScheduleOutboxEntry` asks Zoho (`ZohoSchedulePort.listSchedules`, a NEW method — the real,
-  already-granted `ZohoSocial_listSocialSchedules` MCP tool was simply unused until now) whether a
-  schedule matching the exact content + local schedule time already exists
-  (`src/schedule-outbox/reconcile.ts`'s pure `findMatchingSchedule`), and confirms from THAT match rather
-  than calling `createSchedule` again. `runScheduleOutboxEntry` composes the whole sequence: a BRAND NEW
-  reservation goes straight to `createSchedule` (nothing could have reached Zoho yet); a RESUMED one
-  reconciles first and only calls `createSchedule` when Zoho confirms it does not already have it; an
-  ALREADY-CONFIRMED key short-circuits, calling Zoho zero times.
+  `reconcileScheduleOutbox` (`src/command-surface/schedule-outbox.ts`) asks Zoho
+  (`ZohoSchedulePort.listSchedules`, a NEW method — the real, already-granted
+  `ZohoSocial_listSocialSchedules` MCP tool was simply unused until now) whether a schedule matching the
+  exact content + local schedule time already exists (`src/schedule-outbox/reconcile.ts`'s pure
+  `findMatchingSchedule`), and confirms from THAT match rather than calling `createSchedule` again.
+  `scheduleViaOutbox` composes the whole sequence: a BRAND NEW reservation goes straight to
+  `createSchedule` (nothing could have reached Zoho yet); a RESUMED one reconciles first and only calls
+  `createSchedule` when Zoho confirms it does not already have it; an ALREADY-CONFIRMED key
+  short-circuits, calling Zoho zero times.
+- **Round 2 (qa Defect 1 — HIGH): collapsed a novel, un-audited three-layer shape into the established
+  one.** Round 1 shipped a separate `src/schedule-outbox/run.ts` deep module calling the store's write
+  functions directly, underneath the command surface — a shape no other capability in this codebase
+  uses, and `src/schedule-outbox/store.ts` was never registered in `src/store-write-boundary/scan.ts`'s
+  `STORE_WRITE_FUNCTIONS` (issue #233's guard, which landed on `main` mid-build), so the guard had zero
+  visibility into that write path. Fixed by (1) registering the store in `STORE_WRITE_FUNCTIONS` and (2)
+  deleting `run.ts` entirely — its reserve/reconcile/create-if-needed/confirm logic moved VERBATIM into
+  `src/command-surface/schedule-outbox.ts` itself, mirroring `src/command-surface/ideas.ts`'s own
+  `recordReviewDecision` precedent (a command-surface function composing more than one store call behind
+  real branching logic is an established shape here). The ONE remaining direct store import outside the
+  command surface — `src/schedule-outbox/fixtures/crash-schedule-worker.ts`'s `reserveScheduleOutboxEntry`
+  call, needed for the genuine cross-process crash proof — is individually allow-listed, mirroring the
+  already-allow-listed `src/production-queue/fixtures/claim-worker.ts`. See the Build Report's Round-2
+  section for the full reasoning on why collapsing (rather than allow-listing `run.ts`'s two call sites)
+  was chosen.
 - **Proven by a genuine crash, not an asserted intermediate state.** `crash-recovery.test.ts` spawns a
   REAL, separate OS process (`fixtures/crash-schedule-worker.ts`, mirroring
   `src/production-queue/fixtures/claim-worker.ts`'s own issue #203 precedent) that reserves, optionally
@@ -84,9 +99,10 @@ blocking any later move to CI or another host.
 
 ## Impact
 
-- **New code:** `src/schedule-outbox/store.ts`, `reconcile.ts`, `run.ts` (+`.test.ts` each),
-  `crash-recovery.test.ts`, `fixtures/db-backed-fake-zoho.ts`, `fixtures/crash-schedule-worker.ts`;
-  `src/command-surface/schedule-outbox.ts` (+`.test.ts`); `src/media-host/live/png-decode.ts`,
+- **New code:** `src/schedule-outbox/store.ts`, `reconcile.ts` (+`.test.ts` each), `crash-recovery.test.ts`,
+  `fixtures/db-backed-fake-zoho.ts`, `fixtures/crash-schedule-worker.ts`;
+  `src/command-surface/schedule-outbox.ts` (+`.test.ts` — the FULL reserve/reconcile/create-if-needed/
+  confirm behavior lives and is tested here, since Round 2); `src/media-host/live/png-decode.ts`,
   `jpeg-encode.ts`, `png-to-jpg.ts` (+`.test.ts` each); `openspec/changes/
   issue-209-scheduling-outbox-sips-port/` (this change).
 - **Modified code:** `src/db/schema.ts` (+`MIGRATION_3`, `OUTBOX_TABLES`), `src/db/schema.test.ts`,
@@ -96,9 +112,12 @@ blocking any later move to CI or another host.
   `src/schedule-batch/mcp-schedule.test.ts` (a `call.kind` guard widened for the new `"list"` call kind),
   `src/media-host/live/adapter.ts` (+`.test.ts`), `src/media-host/live/command-runner.ts`,
   `src/media-host/live/smoke.ts`, `src/media-host/port.ts` (doc comments only), `src/command-surface/
-  index.ts`, `src/fs-boundary/allow-list.ts` (+`png-to-jpg.ts`, audited), `package.json`/
-  `package-lock.json` (+`jpeg-js`).
-- **Removed code:** `src/media-host/live/sips.ts`, `src/media-host/live/sips.test.ts`.
+  index.ts`, `src/fs-boundary/allow-list.ts` (+`png-to-jpg.ts`, audited), `src/store-write-boundary/
+  scan.ts` (+`schedule-outbox/store.ts`'s two write functions registered), `src/store-write-boundary/
+  allow-list.ts` (+`crash-schedule-worker.ts`, audited), `package.json`/`package-lock.json` (+`jpeg-js`).
+- **Removed code:** `src/media-host/live/sips.ts`, `src/media-host/live/sips.test.ts`;
+  `src/schedule-outbox/run.ts`, `src/schedule-outbox/run.test.ts` (Round 2 — collapsed into
+  `src/command-surface/schedule-outbox.ts`/`schedule-outbox.test.ts`, see above).
 - **Hermetic, no live Zoho MCP or AWS call.** Every new test opens a REAL, throwaway SQLite file per
   test (`withTempDb`, never `:memory:`). The Zoho fake (`FakeZohoSchedulePort`, in-process) and the
   crash test's disk-backed fake (`DbBackedFakeZohoSchedulePort`) both stand in for Zoho — no MCP tool is

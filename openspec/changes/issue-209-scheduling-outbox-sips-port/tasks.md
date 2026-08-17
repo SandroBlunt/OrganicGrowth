@@ -108,3 +108,42 @@
 - [x] 4.3 Self-review pass: remove dead code, tighten module boundaries, confirm every issue #209
   acceptance criterion maps to a specific test.
 - [x] 4.4 Write the Build Report into `handoff.md`.
+
+## 5. Round 2 — fix qa Defect 1 (HIGH): the store-write boundary guard never saw schedule_outbox
+
+Branch rebased onto `main` (issue #233's store-write boundary guard landed while this ticket was being
+built). qa found: `src/schedule-outbox/store.ts` was never registered in `src/store-write-boundary/
+scan.ts`'s `STORE_WRITE_FUNCTIONS`, so the guard had zero visibility into `run.ts`'s two direct store
+calls — a novel, un-audited three-layer shape (store -> deep module -> command surface) no other
+capability in this codebase uses.
+
+- [x] 5.1 Register `src/schedule-outbox/store.ts`'s write functions
+  (`reserveScheduleOutboxEntry`/`confirmScheduleOutboxEntry`) in `STORE_WRITE_FUNCTIONS`. Ran the guard —
+  confirmed 3 new, un-audited violations appear immediately (matching qa's own repro exactly).
+- [x] 5.2 Weighed the two suggested fixes: collapse `run.ts`'s store calls into the command surface, or
+  allow-list `run.ts`'s two call sites. Chose collapsing — `src/command-surface/ideas.ts`'s
+  `recordReviewDecision` is direct, existing precedent for a command-surface function composing more than
+  one store call behind real branching logic, so `run.ts`'s three-layer shape was avoidable, not
+  necessary. Reasoning recorded in `proposal.md`'s Round 2 bullet and the Build Report.
+- [x] 5.3 Deleted `src/schedule-outbox/run.ts` + `run.test.ts`. Moved the reserve/reconcile/
+  create-if-needed/confirm logic VERBATIM into `src/command-surface/schedule-outbox.ts`
+  (`scheduleViaOutbox`/`reconcileScheduleOutbox`); moved the full behavioral test matrix into
+  `src/command-surface/schedule-outbox.test.ts`. Updated `crash-recovery.test.ts` to import from the
+  command surface. Updated `index.ts`'s re-exported type names
+  (`RunScheduleOutboxEntryInput`/`RunScheduleOutboxOutcome` -> `ScheduleViaOutboxInput`/
+  `ScheduleViaOutboxOutcome`).
+- [x] 5.4 Added ONE allow-list entry for `src/schedule-outbox/fixtures/crash-schedule-worker.ts`'s
+  `reserveScheduleOutboxEntry` import — the genuine cross-process crash proof needs to call the store
+  directly, exactly the same category as the already-allow-listed `src/production-queue/fixtures/
+  claim-worker.ts`. Broke it (removed the entry) and confirmed the guard fails, naming the exact triple;
+  restored, confirmed green.
+- [x] 5.5 Re-falsified the crash-safety logic at its NEW location (`command-surface/schedule-outbox.ts`):
+  temporarily reproduced the original call-then-write bug, confirmed the double-post crash test goes RED
+  with the same assertion/message as Round 1's falsification, restored, confirmed 3x green with no flakes.
+- [x] 5.6 Updated the `schedule-outbox` and `command-surface` spec deltas (both still ADDED/unarchived —
+  edited directly, no RENAMED needed) to reference the new module layout and add two Requirements
+  covering the guard registration. Updated `proposal.md`'s file lists. Ran `openspec validate --strict`
+  until green.
+- [x] 5.7 Re-ran `npm test`, `npm run test:docs`, `openspec validate --all --strict` — confirmed at/above
+  the post-rebase 3178/822/0-fail baseline.
+- [x] 5.8 Appended a `Round-2 Build` block to `handoff.md`, leaving Round 1 and the QA Verdict untouched.

@@ -7,7 +7,8 @@
  * (epic #195, issue #205's own brief.)
  *
  * Every function re-exported here is a thin orchestration shell over one (or, for
- * `ideas.ts`'s `recordReviewDecision`, two) of the SQL-backed `{ db }` stores issue #201/#222/#223/#203
+ * `ideas.ts`'s `recordReviewDecision` and `schedule-outbox.ts`'s `scheduleViaOutbox`/
+ * `reconcileScheduleOutbox`, more than one) of the SQL-backed `{ db }` stores issue #201/#222/#223/#203
  * shipped — never a store bypassed, never raw SQL of its own. Each takes an already-open, already-
  * migrated `node:sqlite` `DatabaseSync` as its first argument (the SAME convention every store already
  * follows) and is tested in-process against a real, throwaway SQLite file (`src/db/test-support.ts`'s
@@ -56,6 +57,6 @@ export {
   scheduleViaOutbox,
   reconcileScheduleOutbox,
   type ReconcileScheduleOutboxOutcome,
-  type RunScheduleOutboxEntryInput,
-  type RunScheduleOutboxOutcome,
+  type ScheduleViaOutboxInput,
+  type ScheduleViaOutboxOutcome,
 } from "./schedule-outbox.ts";

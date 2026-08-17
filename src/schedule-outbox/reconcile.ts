@@ -11,8 +11,8 @@
  * `src/schedule-batch/confirmed-live.ts`'s own `referencesMatch` posture for a related, but distinct,
  * reconciliation).
  *
- * No I/O here — `listSchedules` is called by `src/schedule-outbox/run.ts`'s orchestration; this module
- * only decides, given the results, whether one of them IS the request in question.
+ * No I/O here — `listSchedules` is called by `src/command-surface/schedule-outbox.ts`'s orchestration;
+ * this module only decides, given the results, whether one of them IS the request in question.
  */
 
 import type { ZohoPostRequest, ZohoScheduleRecord } from "../schedule-batch/mcp-schedule-port.ts";

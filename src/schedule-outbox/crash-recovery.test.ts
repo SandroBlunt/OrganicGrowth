@@ -4,8 +4,10 @@
  * reserves an idempotency key and (depending on the scenario) really calls the fake Zoho, then exits via
  * `process.exit()` WITHOUT ever confirming — a genuine crash between reserve and confirm, not merely an
  * asserted intermediate state. A SEPARATE call (this file's own process, using its own already-open `db`
- * connection to the SAME file) then re-runs the real `runScheduleOutboxEntry` and proves neither failure
- * mode occurs: no double-post, and no silently-dropped post.
+ * connection to the SAME file) then re-runs the real `scheduleViaOutbox` (`src/command-surface/
+ * schedule-outbox.ts` — the command surface itself, since Round 2 collapsed the separate `run.ts` deep
+ * module into it; see that file's own doc comment) and proves neither failure mode occurs: no
+ * double-post, and no silently-dropped post.
  */
 
 import { describe, it } from "node:test";
@@ -19,7 +21,7 @@ import { withTempDb } from "../db/test-support.ts";
 import { seedAsset } from "../db/fixtures/seed-chain.ts";
 import type { ZohoPostRequest } from "../schedule-batch/mcp-schedule-port.ts";
 import { getScheduleOutboxEntry } from "./store.ts";
-import { runScheduleOutboxEntry } from "./run.ts";
+import { scheduleViaOutbox } from "../command-surface/schedule-outbox.ts";
 import { DbBackedFakeZohoSchedulePort, countFakeZohoSchedules } from "./fixtures/db-backed-fake-zoho.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -89,11 +91,11 @@ describe("A crash AFTER Zoho already accepted the schedule, but BEFORE the local
       assert.equal(getScheduleOutboxEntry(db, idempotencyKey)?.status, "reserved");
       assert.equal(countFakeZohoSchedules(db), 1, "the crashed process's real Zoho call must have landed");
 
-      // The retry: the REAL runScheduleOutboxEntry, run against the SAME file, using a NEW
+      // The retry: the REAL scheduleViaOutbox, run against the SAME file, using a NEW
       // DbBackedFakeZohoSchedulePort instance over THIS process's own db connection (exactly what a
       // restarted worker process would do).
       const port = new DbBackedFakeZohoSchedulePort(db);
-      const outcome = await runScheduleOutboxEntry(db, { idempotencyKey, assetId, request: req }, port);
+      const outcome = await scheduleViaOutbox(db, { idempotencyKey, assetId, request: req }, port);
 
       assert.equal(outcome.calledCreateSchedule, false, "must NOT call createSchedule again — that would double-post");
       const liveRow = db.prepare(`SELECT reference FROM fake_zoho_schedule`).get() as { readonly reference: string };
@@ -119,7 +121,7 @@ describe("A crash BEFORE Zoho was ever called allows a retry to proceed, and sch
       assert.equal(countFakeZohoSchedules(db), 0, "Zoho was never actually called by the crashed process");
 
       const port = new DbBackedFakeZohoSchedulePort(db);
-      const outcome = await runScheduleOutboxEntry(db, { idempotencyKey, assetId, request: req }, port);
+      const outcome = await scheduleViaOutbox(db, { idempotencyKey, assetId, request: req }, port);
 
       assert.equal(outcome.calledCreateSchedule, true, "reconciliation found nothing — safe (and necessary) to schedule now");
       assert.equal(countFakeZohoSchedules(db), 1, "exactly one schedule now exists — the post was not silently dropped");

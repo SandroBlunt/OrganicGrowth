@@ -44,6 +44,17 @@ export const STORE_WRITE_BOUNDARY_ALLOW_LIST: readonly StoreWriteImport[] = [
     functions: ["claimJob"],
   },
 
+  // --- Crash-simulation fixture (issue #209): NOT *.test.ts-named, same category as claim-worker.ts
+  //     immediately above — spawned as its OWN OS process by crash-recovery.test.ts, calling the REAL
+  //     reserveScheduleOutboxEntry (never a re-implemented copy) so a genuine process crash can be
+  //     simulated between reserve and confirm. It deliberately never calls confirmScheduleOutboxEntry —
+  //     that is the whole point of the fixture (a crash never gets there) — so only reserve is listed. ---
+  {
+    path: "src/schedule-outbox/fixtures/crash-schedule-worker.ts",
+    store: "src/schedule-outbox/store.ts",
+    functions: ["reserveScheduleOutboxEntry"],
+  },
+
   // --- Pre-#205 live production callers of AssetStore.writeAsset's FILE-BACKED `{ ledgerPath }`
   //     overload — the live ledger.json write path (always-rule 7, ledger-as-source-of-truth),
   //     pre-dating and untouched by the SQL-side migration. `writeAsset` is one export name serving two
