@@ -72,17 +72,22 @@ describe("ADR-0014 carries a forward-pointer to ADR-0029, not a silent contradic
   });
 });
 
-describe("Rule 7 (always-rules) cites the new SQLite foundation, accurately scoped to issue #222's actual swap", () => {
+describe("Rule 7 (always-rules) cites the new SQLite foundation, accurately scoped to issue #222/#223's actual swap", () => {
   it("cites docs/adr/0029 and states which stores are now SQL-backed", async () => {
     const doc = await read(".claude/rules/always/organicgrowth-rules.md");
     assert.match(doc, /docs\/adr\/0029/);
-    assert.match(doc, /now the backing of the Asset, Production Spec, Brand, Channel, Format, and Brand Asset stores/);
+    assert.match(doc, /now the backing of the Asset, Production Spec, Brand, Channel, Format, Brand Asset, Idea, and Trend stores/);
   });
 
   it("states no existing production caller has been switched over yet, and ledger.json still stays canonical", async () => {
     const doc = await read(".claude/rules/always/organicgrowth-rules.md");
     assert.match(doc, /no existing production caller has been switched over/);
     assert.match(doc, /ledger\.json.{0,40}stays the source of truth/);
+  });
+
+  it("points the next wiring step at issue #204 (the one-shot importer), not a re-stated #223", async () => {
+    const doc = await read(".claude/rules/always/organicgrowth-rules.md");
+    assert.match(doc, /that follows once the one-shot importer runs \(issue #204\)/);
   });
 });
 

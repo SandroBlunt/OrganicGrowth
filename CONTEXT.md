@@ -55,7 +55,11 @@ A theme with current momentum on the Channel's platform, surfaced from Apify by 
 people's* public posts (engagement + recency). Momentum is carried more by topics/formats/sounds than by
 hashtags. For a **Format** that lists `curated_sources`, trend-scout surfaces Trends from the Operator's own
 curated public sources (newsletters, RSS feeds) instead of scraping peers — momentum there means
-editorial prominence in the source, not peer over-performance.
+editorial prominence in the source, not peer over-performance. A Trend also records its own
+`source_urls`, `platform`, and an `is_paywalled` flag (`docs/adr/0029`'s schema, issue #223): a story may
+take momentum signals from a paywalled feed, but it needs an openly readable source before it can be
+briefed (Operator rule, 2026-08-11) — `is_paywalled` turns that rule into a queryable fact instead of
+something an agent has to remember.
 _Avoid_: hashtag (a Trend is more than a tag), topic.
 
 **Run** (a Format's Trend Research Run):
@@ -388,7 +392,11 @@ _Avoid_: Fit Score (the pre-publication prediction), raw views.
 **Fit Score**:
 A pre-publication *prediction* (0–1) of how well an Idea suits the Channel and rides a live Trend —
 our guess at an Idea's quality before a human acts on it. How it's computed is an open decision,
-designed fresh for OrganicGrowth (not inherited).
+designed fresh for OrganicGrowth (not inherited). It is recorded alongside three explanatory
+components — `idea.relevance`, `idea.momentum`, `idea.brand_fit` (`docs/adr/0029`'s schema, issue
+#223) — so a wrong prediction can be inspected ("it ranked badly because Relevance was guessing"), not
+just observed as a bare number; the exact formula that composes them into the single `fit_score` stays
+an open decision.
 _Avoid_: quality score, performance (Performance is *measured*, Fit Score is *predicted*).
 
 **Brand Profile**:
