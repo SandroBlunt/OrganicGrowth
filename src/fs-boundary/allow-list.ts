@@ -75,4 +75,13 @@ export const NODE_FS_ALLOW_LIST: readonly string[] = [
 
   // --- The CI credential scanner: reads arbitrary git-tracked files, unrelated to domain stores -------
   "src/secrets-scan/tracked-files.ts",
+
+  // --- The one-shot importer (issue #204): reads raw Brief/trends.json/media files directly by design
+  //     — this IS the "read through the existing loaders" boundary itself, not a bypass of it. Every
+  //     write it makes still routes through the typed command surface (src/command-surface/), never a
+  //     store directly; this list is about `node:fs` reads, which the importer's whole job requires.
+  "src/importer/load-brief.ts",
+  "src/importer/load-trends.ts",
+  "src/importer/plan-asset-media.ts",
+  "src/importer/plan.ts",
 ] as const;

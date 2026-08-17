@@ -141,15 +141,20 @@ function isEnoent(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: string }).code === "ENOENT";
 }
 
-async function defaultLoadSpec(specPath: string): Promise<Record<string, unknown> | null> {
-  try {
-    const text = await readFile(specPath, "utf8");
-    const parsed: unknown = JSON.parse(text);
-    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
-  } catch (err: unknown) {
-    if (isEnoent(err)) return null;
-    throw err;
-  }
+/** `spec_path` in the ledger is always root-relative (verified against both real ledgers) — read it
+ *  joined against `checkoutRoot`, the SAME real-vs-rehearsal-copy distinction `checkoutRoot` exists for
+ *  everywhere else in this module. */
+function makeDefaultLoadSpec(checkoutRoot: string): (specPath: string) => Promise<Record<string, unknown> | null> {
+  return async (specPath: string): Promise<Record<string, unknown> | null> => {
+    try {
+      const text = await readFile(join(checkoutRoot, specPath), "utf8");
+      const parsed: unknown = JSON.parse(text);
+      return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
+    } catch (err: unknown) {
+      if (isEnoent(err)) return null;
+      throw err;
+    }
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +183,21 @@ function resolveIdeaFormat(idea: FullLedgerIdea, brandFormatSlugs: readonly stri
     ok: false,
     problem: `Idea "${idea.id}" carries no format and its Brand has ${brandFormatSlugs.length} Formats (${brandFormatSlugs.join(", ") || "none"}) — cannot resolve unambiguously`,
   };
+}
+
+/**
+ * MundoTip's real ledger names exactly two rejected Ideas whose `trend` field is the literal string
+ * `"PROSPECTIVE"` — a documented editorial sentinel (verbatim in both records' `fit_basis`: "PROSPECTIVE
+ * / brand-fit-only — NO peer evidence"), never a real Trend id and never resolvable to one. Returns a
+ * copy of `idea` with `trendId` (and any inline `trendLabel`) omitted when it is this exact sentinel —
+ * everything else passes through unchanged.
+ */
+const PROSPECTIVE_TREND_SENTINEL = "PROSPECTIVE";
+
+function stripProspectiveSentinel(idea: FullLedgerIdea): FullLedgerIdea {
+  if (idea.trendId !== PROSPECTIVE_TREND_SENTINEL) return idea;
+  const { trendId: _trendId, trendLabel: _trendLabel, ...rest } = idea;
+  return rest;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,7 +262,15 @@ async function planBrand(
     }
 
     const runPlans: RunPlanItem[] = [];
-    for (const [runKey, ideasForRun] of ideasByRun) {
+    for (const [runKey, rawIdeasForRun] of ideasByRun) {
+      // MundoTip records two real, rejected Ideas (idea-09/idea-10 of Run 2026-W22) whose `trend` field
+      // is the literal sentinel "PROSPECTIVE" — the idea-strategist's own documented convention for "no
+      // peer evidence, brand-fit-only, speculative" (verbatim in both records' own `fit_basis`: "PROSPECTIVE
+      // / brand-fit-only — NO peer evidence"). This never names a real Trend and never will — stripped
+      // here, at the one place both the Trend-resolution loop and planIdea read `trendId` from, so
+      // neither treats it as a dangling reference to refuse over.
+      const ideasForRun = rawIdeasForRun.map(stripProspectiveSentinel);
+
       // Resolve every referenced Trend, in order, before planning any Idea (order Trend creation
       // before Idea creation — a dangling trendId raises a raw FK error by design, issue #228).
       const trendPlans: TrendPlanItem[] = [];
@@ -367,7 +395,7 @@ function planJobs(
 
 export async function planImport(options: PlanImportOptions): Promise<PlanResult> {
   const mediaFileOps = options.mediaFileOps ?? REAL_ASSET_MEDIA_FILE_OPS;
-  const loadSpec = options.loadSpec ?? defaultLoadSpec;
+  const loadSpec = options.loadSpec ?? makeDefaultLoadSpec(options.checkoutRoot);
   const now = options.now ?? (() => new Date().toISOString());
   const brandsRoot = options.brandsRoot ?? join(options.checkoutRoot, "data", "brands");
 
