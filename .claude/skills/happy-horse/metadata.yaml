@@ -103,7 +103,7 @@ references:
   - path: references/official-guidelines.md
     purpose: Distilled summary of the happy-horse.ai docs and the HappyHorse-1.0 model facts with source URLs and fetch date.
   - path: references/README.md
-    purpose: Pointer to shared references at ../../../references/.
+    purpose: Pointer to shared references at ../../references/.
 source_tracking:
   official_guidelines_url: https://happy-horse.ai/docs/basic-usage
   additional_sources:
@@ -121,4 +121,4 @@ source_tracking:
     deliberately excluded.
 shared_references:
   mode: relative-link
-  path: ../../../references/
+  path: ../../references/

@@ -99,7 +99,7 @@ references:
   - path: references/official-guidelines.md
     purpose: Distilled summary of the BytePlus prompt guide and fal/wavespeed prompt guidance with source URLs and fetch date.
   - path: references/README.md
-    purpose: Pointer to shared references at ../../../references/.
+    purpose: Pointer to shared references at ../../references/.
 source_tracking:
   official_guidelines_url: https://docs.byteplus.com/en/docs/ModelArk/1829186
   additional_sources:
@@ -115,4 +115,4 @@ source_tracking:
     NOT have; those are deliberately excluded.
 shared_references:
   mode: relative-link
-  path: ../../../references/
+  path: ../../references/

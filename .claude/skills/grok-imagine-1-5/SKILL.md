@@ -49,11 +49,11 @@ Every prompt **must** include a Sound section — the build script refuses one
 without it.
 
 The shared discipline lives in
-`../../../references/prompt-discipline.md`,
-`../../../references/cinematography.md`,
-`../../../references/lighting.md`,
-`../../../references/photography.md`, and
-`../../../references/production-design.md` (paths relative to this
+`../../references/prompt-discipline.md`,
+`../../references/cinematography.md`,
+`../../references/lighting.md`,
+`../../references/photography.md`, and
+`../../references/production-design.md` (paths relative to this
 skill folder). Read those before writing a prompt for the first time.
 
 ## When to invoke

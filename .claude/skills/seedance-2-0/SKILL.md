@@ -41,11 +41,11 @@ Layered techniques (apply on top of any mode):
   prompt.
 
 The shared discipline lives in
-`../../../references/prompt-discipline.md`,
-`../../../references/cinematography.md`,
-`../../../references/lighting.md`,
-`../../../references/photography.md`, and
-`../../../references/production-design.md` (paths relative to
+`../../references/prompt-discipline.md`,
+`../../references/cinematography.md`,
+`../../references/lighting.md`,
+`../../references/photography.md`, and
+`../../references/production-design.md` (paths relative to
 this skill folder). Read those first.
 
 ## When to invoke
@@ -74,7 +74,7 @@ exceed the per-call duration cap (the consuming agent chains).
    community usage; document in metadata).
 5. **Duration** — 4 to 15 seconds per call.
 6. **Style anchor** — optional. Strongly prefer named traditions from
-   `../../../references/production-design.md`.
+   `../../references/production-design.md`.
 7. **Motion intent** — what changes across the clip.
 8. **Audio intent** (optional) — Seedance 2.0 supports synthesized
    audio: ambient, foley, dialogue (8+ languages, lip-synced).
@@ -330,7 +330,7 @@ expanded versions.
 ## Production design anchors
 
 For the **Style** clause, prefer named traditions over adjectives. The
-shared catalogue lives in `../../../references/production-design.md`.
+shared catalogue lives in `../../references/production-design.md`.
 Strong for Seedance: Tsui Hark Wuxia, DaVinci industrial-grade color
 grading, naturalistic film print emulation, 100% real-life shooting
 texture, Hollywood IMAX blockbuster quality.
