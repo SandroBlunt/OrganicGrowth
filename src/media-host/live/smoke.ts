@@ -4,7 +4,9 @@
  * criterion 7). NEVER run by `npm test` — this is not a `*.test.ts` file and nothing else imports it.
  *
  * What it proves, for real, in order:
- *   1. `sips` converts a tiny fixture PNG to a JPG (the source PNG stays untouched).
+ *   1. The pure-JS `convertPngToJpg` (issue #209 — no `sips`, no shell-out of any kind) converts a tiny
+ *      fixture PNG to a JPG (the source PNG stays untouched) — proving the cross-platform converter
+ *      against a REAL PNG-decode + JPEG-encode round trip, not just a stubbed command.
  *   2. The AWS CLI uploads that JPG under a clearly-namespaced, unguessable
  *      `straw-motion/smoke-test/<random-token>/...` key.
  *   3. The returned SIGNED link is a DIRECT `.jpg` link (before its query string): HTTP 200,
@@ -20,10 +22,10 @@
  * `live/env.ts`, `live/redact.ts`).
  *
  * Run:   npx tsx src/media-host/live/smoke.ts
- * Requires: `sips` (macOS, built in) and the AWS CLI on PATH with credentials that can read/write
- * `strawmotion-schedule-media` (`s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`) — see
- * `docs/schedule-batch-s3-setup.md` for the Operator's one-time bucket setup and the exact IAM
- * permissions the running credentials need.
+ * Requires: the AWS CLI on PATH with credentials that can read/write `strawmotion-schedule-media`
+ * (`s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`) — see `docs/schedule-batch-s3-setup.md` for the
+ * Operator's one-time bucket setup and the exact IAM permissions the running credentials need. Image
+ * conversion needs nothing beyond Node itself (issue #209) — no `sips`, no ImageMagick, no ffmpeg.
  */
 
 import { mkdtemp, rm } from "node:fs/promises";
@@ -53,7 +55,7 @@ async function main(): Promise<void> {
   let uploaded = false;
 
   try {
-    console.log(`[1/6] converting a tiny fixture PNG -> JPG via sips (${pngPath} -> ${jpgPath})`);
+    console.log(`[1/6] converting a tiny fixture PNG -> JPG via the pure-JS converter (${pngPath} -> ${jpgPath})`);
     await writeTinyPng(pngPath);
     await host.convertToJpg(pngPath, jpgPath);
 

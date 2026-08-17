@@ -92,6 +92,17 @@ export const ENTITY_TABLES = [
   "channel_baseline",
 ] as const;
 
+/**
+ * `schedule_outbox` (issue #209, migration 3) is deliberately NOT one of `ENTITY_TABLES` above: it is
+ * engineering infrastructure (the outbox-pattern reserve/confirm ledger for Zoho scheduling calls), not
+ * one of the domain entities `CONTEXT.md` names — `ENTITY_TABLES`' own Requirement (`sqlite-foundation`
+ * spec) is specifically "every entity CONTEXT.md names", and mixing in a non-domain table would make
+ * that claim inaccurate. It still carries the SAME `id`/`created_at`/`updated_at`/`schema_version`
+ * columns as every `ENTITY_TABLES` member (proven directly, not via that generic loop —
+ * `src/db/schema.test.ts`).
+ */
+export const OUTBOX_TABLES = ["schedule_outbox"] as const;
+
 /** The three seeded, closed-vocabulary reference tables (distinct from `ENTITY_TABLES`: these carry no
  *  `updated_at`/`schema_version` of their own — they are lookup data, not per-Brand records). */
 export const VOCABULARY_TABLES = ["hook_type_vocabulary", "theme_vocabulary", "recipe_vocabulary"] as const;
@@ -464,10 +475,47 @@ ${MIGRATION_2_THEMES.map((t) => `INSERT INTO theme_vocabulary (value, meaning) V
 `,
 };
 
+/**
+ * Migration 3 (issue #209): adds `schedule_outbox` — the reserve/confirm ledger the outbox scheduling
+ * pattern needs. The current Zoho scheduling order is "call, then write" — a crash between the two means
+ * a retry double-posts publicly. This table reverses that: reserve the idempotency key (one row per
+ * `(Asset, Channel target)` scheduling attempt) BEFORE calling Zoho, confirm it AFTER — so a crash
+ * between the two leaves a `'reserved'`-but-not-`'confirmed'` row, never an ambiguous gap outside the
+ * database. `idempotency_key` is UNIQUE: a second reservation attempt for the SAME key (a retry after a
+ * crash, or a genuine resubmission) finds the EXISTING row rather than creating a second one
+ * (`src/schedule-outbox/store.ts`'s `reserveScheduleOutboxEntry`). `request_json` carries the full
+ * `ZohoPostRequest` (`src/schedule-batch/mcp-schedule-port.ts`) this reservation is FOR, so a resumed
+ * attempt can reconcile against Zoho (`ZohoSchedulePort.listSchedules`) without the caller re-supplying
+ * anything. Only two states exist — `'reserved'` and `'confirmed'` — deliberately no `'failed'`: a
+ * `createSchedule` call that throws leaves the row `'reserved'`, which is exactly "not yet known to have
+ * succeeded", resolved by reconciliation on the next attempt rather than a separate terminal state.
+ */
+const MIGRATION_3: Migration = {
+  version: 3,
+  description: "Adds schedule_outbox — the reserve/confirm ledger for Zoho scheduling calls.",
+  sql: `
+CREATE TABLE schedule_outbox (
+  id TEXT PRIMARY KEY,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  asset_id TEXT NOT NULL REFERENCES asset(id),
+  platform TEXT NOT NULL CHECK (platform IN ${PLATFORM_CHECK}),
+  request_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'reserved' CHECK (status IN ('reserved', 'confirmed')),
+  reference_json TEXT,
+  reserved_at TEXT NOT NULL,
+  confirmed_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 3
+);
+`,
+};
+
 /** Every migration, in ascending version order. A future schema change (a new table, a widened
  *  vocabulary, a relaxed constraint) is a NEW entry appended here, never an edit to an already-shipped
- *  migration's SQL — migration 2 (issue #219) is the first case of this rule actually being exercised. */
-export const MIGRATIONS: readonly Migration[] = [MIGRATION_1, MIGRATION_2];
+ *  migration's SQL — migration 2 (issue #219) and migration 3 (issue #209) are both cases of this rule
+ *  actually being exercised. */
+export const MIGRATIONS: readonly Migration[] = [MIGRATION_1, MIGRATION_2, MIGRATION_3];
 
 /** The schema version a freshly migrated database ends up at — the highest version in `MIGRATIONS`. */
 export const CURRENT_SCHEMA_VERSION: number = Math.max(...MIGRATIONS.map((m) => m.version));

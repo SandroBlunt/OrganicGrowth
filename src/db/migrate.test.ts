@@ -97,7 +97,7 @@ describe("runMigrations — creates and upgrades the schema, and records the ver
     // without a full table rebuild, so `brand`'s baked-in default honestly stays `1`.
     await withTempDb((db) => {
       runMigrations(db);
-      assert.equal(CURRENT_SCHEMA_VERSION, 2, "this assertion assumes migration 2 (issue #219) exists");
+      assert.equal(CURRENT_SCHEMA_VERSION, 3, "this assertion assumes migrations 2 (issue #219) and 3 (issue #209) exist");
       const now = new Date().toISOString();
       db.prepare(
         `INSERT INTO brand (id, slug, name, timezone, media_root, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -178,6 +178,37 @@ describe("runMigrations — creates and upgrades the schema, and records the ver
       const themeValues = db.prepare("SELECT value FROM theme_vocabulary").all().map((r) => r.value);
       assert.equal(themeValues.length, THEMES.length, "exactly one new row must be added, not a re-seed");
       assert.ok(themeValues.includes("unclassified"));
+    });
+  });
+
+  it("migration 3 adds ONLY schedule_outbox, on top of an already-applied migration 1+2, touching no other table (issue #209)", async () => {
+    await withTempDb((db) => {
+      // Simulate a database created BEFORE issue #209 landed: migrations 1 and 2 applied, not 3.
+      const migration1 = MIGRATIONS.find((m) => m.version === 1);
+      const migration2 = MIGRATIONS.find((m) => m.version === 2);
+      assert.ok(migration1, "migration 1 must exist");
+      assert.ok(migration2, "migration 2 must exist");
+      db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
+      db.exec("BEGIN");
+      db.exec(migration1.sql);
+      db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)").run(new Date().toISOString());
+      db.exec("COMMIT");
+      db.exec("BEGIN");
+      db.exec(migration2.sql);
+      db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?)").run(new Date().toISOString());
+      db.exec("COMMIT");
+      assert.equal(getSchemaVersion(db), 2);
+      const before = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all().map((r) => r.name);
+      assert.equal(before.includes("schedule_outbox"), false, "a pre-#209 database must not have schedule_outbox yet");
+
+      const result = runMigrations(db);
+
+      assert.equal(result, CURRENT_SCHEMA_VERSION);
+      const after = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all().map((r) => r.name);
+      assert.ok(after.includes("schedule_outbox"), "schedule_outbox must exist once migration 3 has run");
+      // Every table migration 1/2 already created is untouched — same table set plus exactly one new one.
+      const added = after.filter((name) => !before.includes(name));
+      assert.deepEqual(added, ["schedule_outbox"]);
     });
   });
 

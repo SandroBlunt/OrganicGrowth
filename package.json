@@ -26,6 +26,7 @@
     "apify-smoke": "tsx src/apify/live/smoke.ts"
   },
   "dependencies": {
+    "jpeg-js": "^0.4.4",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

@@ -6,6 +6,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import { runMigrations } from "./migrate.ts";
 import { withTempDb } from "./test-support.ts";
+import { seedAsset } from "./fixtures/seed-chain.ts";
 import { HOOK_TYPES } from "../vocabulary/hook-type.ts";
 import { THEMES } from "../vocabulary/theme.ts";
 import { listWiredRecipeSlugs } from "../recipe/registry.ts";
@@ -225,6 +226,58 @@ describe("channel.platform / trend.platform are checked against KNOWN_PLATFORMS"
           `INSERT INTO channel (id, brand_id, platform, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
         ).run(randomUUID(), brandId, "myspace", now, now);
       }, /CHECK/);
+    });
+  });
+});
+
+describe("schedule_outbox (migration 3, issue #209) — additive; carries id/created_at/updated_at/schema_version despite NOT being in ENTITY_TABLES", () => {
+  function insertOutboxRow(db: DatabaseSync, assetId: string, overrides: { readonly idempotencyKey?: string; readonly status?: string; readonly platform?: string } = {}): void {
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO schedule_outbox (id, idempotency_key, asset_id, platform, request_json, status, reserved_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, '{}', ?, ?, ?, ?)`,
+    ).run(randomUUID(), overrides.idempotencyKey ?? `key-${randomUUID()}`, assetId, overrides.platform ?? "facebook", overrides.status ?? "reserved", now, now, now);
+  }
+
+  it("exists after migration and carries id/created_at/updated_at/schema_version", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const columns = db.prepare(`PRAGMA table_info(schedule_outbox)`).all().map((c) => c.name);
+      for (const required of ["id", "created_at", "updated_at", "schema_version"]) {
+        assert.ok(columns.includes(required), `schedule_outbox must carry a "${required}" column`);
+      }
+    });
+  });
+
+  it("rejects an unknown asset_id (FOREIGN KEY)", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      assert.throws(() => insertOutboxRow(db, "does-not-exist"), /FOREIGN KEY/);
+    });
+  });
+
+  it("rejects a duplicate idempotency_key (UNIQUE)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { assetId } = await seedAsset(db);
+      insertOutboxRow(db, assetId, { idempotencyKey: "dup-key" });
+      assert.throws(() => insertOutboxRow(db, assetId, { idempotencyKey: "dup-key" }), /UNIQUE/);
+    });
+  });
+
+  it("rejects a status outside 'reserved'/'confirmed' (CHECK)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { assetId } = await seedAsset(db);
+      assert.throws(() => insertOutboxRow(db, assetId, { status: "failed" }), /CHECK/);
+    });
+  });
+
+  it("rejects a platform outside KNOWN_PLATFORMS (CHECK)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { assetId } = await seedAsset(db);
+      assert.throws(() => insertOutboxRow(db, assetId, { platform: "myspace" }), /CHECK/);
     });
   });
 });

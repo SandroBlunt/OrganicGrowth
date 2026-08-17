@@ -60,4 +60,42 @@ describe("FakeZohoSchedulePort — THIS IS THE ZOHO MCP FAKE (issue #163)", () =
     const custom = await customPort.createSchedule(request("linkedin"));
     assert.equal(custom.reference, "linkedin-1");
   });
+
+  it("listSchedules returns every schedule actually created for the given target, and none for another (issue #209)", async () => {
+    const port = new FakeZohoSchedulePort();
+    await port.createSchedule(request("facebook"));
+    await port.createSchedule(request("linkedin"));
+
+    const facebookSchedules = await port.listSchedules({
+      zohoBrandName: "Straw Motion",
+      platform: "facebook",
+      label: "facebook",
+    });
+    assert.equal(facebookSchedules.length, 1);
+    assert.equal(facebookSchedules[0]?.reference, "fake-ref-1");
+    assert.equal(facebookSchedules[0]?.content, "caption\n\n#AInews");
+
+    const instagramSchedules = await port.listSchedules({
+      zohoBrandName: "Straw Motion",
+      platform: "instagram",
+      label: "instagram",
+    });
+    assert.deepEqual(instagramSchedules, []);
+  });
+
+  it("listSchedules also reports a schedule seeded directly onto `created` (never went through createSchedule)", async () => {
+    const port = new FakeZohoSchedulePort();
+    const target = { zohoBrandName: "Straw Motion", platform: "facebook", label: "facebook" };
+    port.created.push({ target, reference: "pre-existing-ref", content: "seeded caption", scheduledAtLocal: "08/11/2026 15:06" });
+
+    const schedules = await port.listSchedules(target);
+    assert.deepEqual(schedules, [{ reference: "pre-existing-ref", content: "seeded caption", scheduledAtLocal: "08/11/2026 15:06" }]);
+  });
+
+  it("listSchedules is recorded on `calls`", async () => {
+    const port = new FakeZohoSchedulePort();
+    const target = { zohoBrandName: "Straw Motion", platform: "facebook", label: "facebook" };
+    await port.listSchedules(target);
+    assert.deepEqual(port.calls, [{ kind: "list", target }]);
+  });
 });
