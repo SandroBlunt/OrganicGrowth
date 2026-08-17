@@ -32,7 +32,18 @@
  * runs (rule 7, `.claude/rules/always/organicgrowth-rules.md`).
  */
 
-export { listTrends, type ListTrendsOptions } from "./trends.ts";
+export { listTrends, createTrend, type ListTrendsOptions, type TrendInput } from "./trends.ts";
+export {
+  createBrand,
+  createFormat,
+  createRun,
+  type BrandInput,
+  type BrandRecord,
+  type FormatDbInput,
+  type FormatDbRecord,
+  type RunInput,
+  type RunRecord,
+} from "./tenancy.ts";
 export {
   createIdea,
   recordReviewDecision,
