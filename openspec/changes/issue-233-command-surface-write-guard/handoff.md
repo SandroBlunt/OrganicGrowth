@@ -160,3 +160,266 @@ pending change either way.
   even though its sibling writes do — a pre-existing #205 gap, not introduced or hidden by this guard; a
   future caller of it would need either a new command-surface wrapper or an allow-list entry, and the
   guard will force that choice to be visible.
+
+---
+
+## QA Verdict — Round 1: PASS
+
+Verified inside `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-233-command-surface-write-guard`,
+branch `issue-233-command-surface-write-guard`, HEAD `f61d42d`. Read-run-report only; no product code,
+test, spec, or ledger file was edited. All probe files I added during verification were deleted before
+finishing (`git status` clean throughout, confirmed below).
+
+### Suite result
+
+- `npm test` → **3122 tests / 806 suites / 0 fail**, run to completion, exact command
+  `cd .../issue-233-command-surface-write-guard && npm test` (runs `tsc -p tsconfig.json --noEmit` then
+  `node --import tsx --test "src/**/*.test.ts" "src/**/*.docs-test.ts"`). Matches the Build Report's
+  reported number exactly — **PASS**, real green, not assumed.
+- `npm run test:docs` → **295 tests / 80 suites / 0 fail**, run separately as instructed — **PASS**.
+- `npx openspec validate issue-233-command-surface-write-guard --strict` → "Change
+  'issue-233-command-surface-write-guard' is valid" — **PASS**.
+- `npx openspec validate --all --strict` → **59/59** (`openspec/specs/` = 58 items + 1 pending change).
+  I independently confirmed `ls openspec/specs | wc -l` = 58 and `ls openspec/changes` = 2 entries
+  (`archive/`, `issue-233-command-surface-write-guard/`, the latter being the one pending item). **The
+  developer's re-measured 58 is correct; the task brief's "57" is stale/wrong** — confirmed independently,
+  not just re-trusted.
+- Isolated new-suite run, `node --import tsx --test src/store-write-boundary/*.test.ts` →
+  **21 tests / 5 suites / 0 fail**; combined with the 1 new `describe` block in `src/db/adr.docs-test.ts`
+  = 22 tests / 6 suites — matches the reported "+22 tests, +6 suites" delta over the 3100/800 branch
+  baseline exactly.
+- `git diff --stat 8507bf1 f61d42d` confirms `src/db/schema.ts` (where `MIGRATION_1`/`MIGRATION_2` live)
+  does not appear in the changed-file list at all — **`MIGRATION_1`/`MIGRATION_2` are byte-for-byte
+  frozen**, confirmed structurally (no diff), not just by inspection.
+
+### Per-criterion results (issue #233 acceptance criteria)
+
+| # | Criterion | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Automated check, mirroring `fs-boundary`'s ratchet shape, fails when a module outside `command-surface/` imports a store's write function directly | PASS | `src/store-write-boundary/{scan,allow-list,store-write-guard}.ts` — same file split as `fs-boundary` (confirmed: both dirs hold `scan.ts` + `allow-list.ts` + a disk-walking `*guard*.test.ts`, plus a `scan.test.ts`). Independently reproduced the fail (see "Must-fail reproduction," below). |
+| 2 | Runs as part of `npm test`, like the `node:fs` guard and the credential scanner | PASS | `store-write-guard.test.ts` matched by `npm test`'s `"src/**/*.test.ts"` glob — confirmed by my own full-suite run showing the guard's suite present in output (`ok - store-write boundary guard (issue #233)`) with no separate CI wiring. |
+| 3 | Ships with an explicit, individually-reasoned allow-list | PASS | `allow-list.ts`'s 10 entries, each with a store/function/reason. I independently re-derived the "found" set with my own grep sweep across all 27 write-function names (see "Allow-list audit," below) and it matches the 10 entries exactly, no more, no fewer. |
+| 4 | A test proves the guard FAILS on a violating module | PASS | Reproduced independently, see below — the guard failed and named the violation precisely. |
+| 5 | Reads considered separately, decision recorded | PASS | `proposal.md`'s "Reads vs writes," spec's dedicated Requirement, `scan.test.ts`'s read-ignored test, and `store-write-guard.test.ts`'s own green run against the real `src/idea/store.ts` → `getTrend` cross-store read (verified: `grep -n getTrend src/idea/store.ts` shows a real import + call at lines 51/125). See "Scope decision 1," below, for my ruling on whether I *agree*. |
+
+### Per-scenario results (spec deltas, `specs/store-write-boundary-guard/spec.md`)
+
+| Scenario | Verdict | Covering test |
+|---|---|---|
+| A real import site is detected regardless of how the store module is reached | PASS | `scan.test.ts` "matches a real named-import site of a store write function, resolved to its store module" (seed-chain → `createBrand`) |
+| A bare name collision across two unrelated modules is not mistaken for a store import | PASS | `scan.test.ts` "does NOT match a bare-name collision" (`listBrands` from `brand/resolver.ts`) |
+| A doc-comment mention of a write function's name is not a match | PASS | `scan.test.ts` "does NOT match a bare doc-comment mention" |
+| A direct import of a store's read function is not flagged | PASS | `scan.test.ts` "ignores a read-function import from a store that also has write functions"; confirmed live against the real `getTrend` cross-store read (see above) |
+| A brand-new, un-audited direct store-write import fails the guard | PASS | `store-write-guard.test.ts`, reproduced independently (below) |
+| An allow-list entry that no longer imports that write function fails the guard | PASS | Traced through the code: `store-write-guard.test.ts`'s `staleEntries` branch (`allowed.filter((key) => !found.includes(key))`) is symmetric with `newViolations` and asserted identically; not separately hand-reproduced (would require temporarily editing the checked-in allow-list, which is out of my read-run-report remit), but the assertion logic is unambiguous and directly inspected. |
+| The command surface itself is never flagged | PASS | `scan.test.ts` "excludes a file under src/command-surface/..." |
+| A documented, allow-listed fixture is never flagged | PASS | `store-write-guard.test.ts`'s real green run includes `claim-worker.ts`/`claimJob` passing without complaint |
+| The guard is green at the real starting state before any future sweep | PASS | `store-write-guard.test.ts` passed on first real run, no sweep commit needed (confirmed: this branch has exactly one commit touching `src/store-write-boundary/`, `102a434`, no follow-up shrink commit) |
+
+### Always-rules + Magnific-fake checks
+
+- **Generate-never-publish**: PASS. This slice touches no rendering or publication code path at all.
+- **Public-metrics-only**: PASS. No Apify/Insights code touched; `recordChannelBaseline`/etc. are only
+  named as strings in `scan.ts`, never called.
+- **Relative-not-absolute**: PASS (not applicable — no scoring logic in this slice).
+- **Explicit-attribution**: PASS (not applicable — `src/asset/attribution.ts` is only named as an
+  allow-list *path string*, its logic is untouched).
+- **Ledger-as-source-of-truth**: PASS, and reinforced. The guard's own allow-list correctly recognizes
+  that the 5 `writeAsset({ ledgerPath })` callers ARE the mechanism that upholds this rule (ledger.json
+  is still the canonical file per `CONTEXT.md` and always-rule 7; the SQL stores are additive, per
+  ADR-0029's own words: "does NOT swap" the file-based ledger out). Allow-listing them is not tolerating
+  a bypass of the rule — it is correctly recognizing they implement it.
+- **Magnific fake / hermetic check**: PASS. Grepped every new file's imports —
+  `grep -n "^import" src/store-write-boundary/*.ts` shows only `node:path`, `node:fs/promises`,
+  `node:test`, `node:assert/strict`, `node:url`, and this module's own sibling files. No
+  `spaces_*`/`creations_*` MCP call, no `space-driver`/`apify`/`media-host live adapter`/Zoho import
+  anywhere in this slice's new code. Hermetic, confirmed by direct inspection, not by trusting the
+  handoff's claim.
+
+### Scope decision 1 — writes only, not reads: I AGREE
+
+The reasoning holds up on independent scrutiny: a write bypass creates a real risk (two paths racing to
+mutate the same row, ledger-as-source-of-truth losing its one writer); a read bypass returns
+stale-relative-to-a-transaction data at worst. Issue #233's own title ("nothing above it may write
+through a store directly") and #205's AC2 ("the command surface is the only thing that writes") are both
+about writes specifically. I independently confirmed the one real cross-store read this decision waves
+through (`src/idea/store.ts` importing `getTrend` from `src/trend/store.ts`) is genuine, and that folding
+it in would force exactly one allow-list entry for zero safety gain while diluting the guard's signal for
+every future read composition #208/#210/#211 will legitimately write. Agree with the decision and the
+way it was recorded (a named spec Requirement, not just a proposal paragraph).
+
+### Scope decision 2 — file-backed store writes excluded: A REAL GAP, worth stating plainly, not a blocker
+
+This is the one I scrutinized hardest, per the brief. My independent finding: **yes, a real hole exists,
+and it survives the combination of both guards** — this is not resolved by "`fs-boundary` catches
+`node:fs` use."
+
+Concretely: `src/production-spec/store.ts` exports **two** differently-named functions —
+`saveSpec` (async, file-backed, writes the Production Spec JSON beside its Brief via
+`writeFileAtomic`/`mkdir`) and `saveProductionSpec` (sync, SQL-backed, `UPDATE asset SET spec_json = ...`).
+Only `saveProductionSpec` is in `STORE_WRITE_FUNCTIONS` (correctly, by this guard's stated SQL-only
+scope). `saveSpec` is not, and cannot be, by design. Now trace what happens if a future module (e.g.
+part of #211's agent rewrite) imports `saveSpec` directly, outside `src/command-surface/`:
+
+- **`store-write-boundary` guard**: silent. `saveSpec` is not a name in `STORE_WRITE_FUNCTIONS` at all.
+- **`fs-boundary` guard**: also silent. The *caller* of `saveSpec` never itself imports `node:fs` — only
+  `production-spec/store.ts` does that, and `production-spec/store.ts` is itself already sitting in
+  `fs-boundary/allow-list.ts` under the "already-the-store: the file-backed half of a store that ALSO
+  exists" category (I read this entry directly, `src/fs-boundary/allow-list.ts:29`). A caller reaching
+  through an already-allow-listed store file's own file-backed write function is invisible to the
+  `node:fs` ratchet by construction — it never touches `node:fs` itself.
+
+So a bypass of exactly the shape the two guards are supposed to jointly close — "nothing above the store
+layer writes outside `command-surface/`" — remains fully available via this route, undetected by either
+check. I confirmed this is not merely hypothetical: `src/production-spec/compose.ts` already calls
+`saveSpec` directly today, outside `command-surface/` (it has no importer among production modules right
+now — `grep -rn "from.*production-spec/compose" src --include='*.ts'` outside tests returns nothing — so
+it is currently a dormant, not an active, bypass, but the *pattern* is already live code, not a
+hypothetical).
+
+**Verdict on the developer's framing**: their claim that "this guard's scope matches
+`src/command-surface/`'s own scope exactly" is accurate and consistent — `command-surface/` genuinely
+never claimed the file-backed world, so this is not a misread of #205 or a spec that quietly narrows the
+issue below what #205 promised. But it IS narrower than issue #233's own literal words ("a store's write
+function," not "a SQL-backed store's write function"), and it does leave the combination of the two
+existing guards incomplete for the class of risk #233 exists to close. This is exactly the kind of gap
+the developer's own "Known gaps"/"Known limits" sections in `proposal.md`/`handoff.md` already name
+honestly — it is disclosed, not hidden, which is why I am not failing the slice over it. But per
+instruction, stating it plainly: **the gap is real.**
+
+**What would close it**: extend `store-write-boundary`'s `STORE_WRITE_FUNCTIONS` to also name file-backed
+write-function exports (distinct names, like `saveSpec`, pose none of `writeAsset`'s overload-ambiguity
+problem) on stores that have one, OR give `production-spec` (and any future file-backed writer) its own
+`src/command-surface/` wrapper so `isCommandSurfacePath` legitimately covers it. Either is a small,
+well-scoped follow-up, not a redesign. I recommend filing it as a fast-follow ticket rather than silently
+carrying it forward.
+
+### Allow-list audit — 10 entries, 5 individually scrutinized
+
+I independently re-derived the "found" set with my own regex grep across every one of the 27
+write-function names in `STORE_WRITE_FUNCTIONS`, excluding `command-surface/` and test paths. Result:
+exactly the same 10 entries the allow-list carries (4 from `seed-chain.ts`, 1 from `claim-worker.ts`, 5
+`writeAsset` callers) — zero extra, zero missing. The two pre-existing test fixtures check out (both
+genuinely not `*.test.ts`-named, both genuinely needed by multiple stores' own suites, both traced by
+name to #205's own handoff).
+
+The 5 `writeAsset` grandfathered entries, checked one at a time by reading the actual call site (not the
+allow-list's claim about it):
+
+| File | Call site confirms | Predates #205? | Verdict |
+|---|---|---|---|
+| `src/asset/attribution.ts` | `{ ledgerPath: options.ledgerPath }` (line 59) | Yes — created 2026-08-10, #205 landed 2026-08-17 | Genuine, not a live bypass |
+| `src/commands/export-schedule.ts` | `{ ledgerPath }` (line 332) | Yes — created 2026-08-04 | Genuine |
+| `src/commands/schedule-via-zoho-mcp.ts` | `{ ledgerPath }` (line 255) | Yes — created 2026-08-10 | Genuine |
+| `src/commands/track-performance.ts` | `{ ledgerPath }` (confirmed at call site) | Yes — created 2026-07-17 | Genuine |
+| `src/commands/upload-camera-hub-scripts.ts` | `{ ledgerPath }` (line 158) | Yes — created 2026-08-13 | Genuine |
+
+None of the five is "a live bypass blessed permanently" dressed up as legacy: they are the current,
+still-canonical `ledger.json` write path (always-rule 7), not a superseded mechanism awaiting a known
+migration ticket — `docs/adr/0029-local-sqlite-behind-the-store-boundary.md` states explicitly the SQL
+stores are additive and this ticket "does NOT swap" the file ledger out, and `CONTEXT.md` still names
+`ledger.json` as canonical. The allow-list is as short as the truth allows: my independent sweep found
+no 11th entry it should have carried and no entry that should have been dropped.
+
+### Must-fail proof — reproduced independently
+
+Added my own throwaway module (different name/store than the developer's, to make this a genuinely
+independent check, not a re-run of theirs):
+
+```ts
+// src/qa-verify-demo/bypass.ts
+import { createIdea } from "../idea/store.ts";
+export function doBypass() { return createIdea; }
+```
+
+Ran `node --import tsx --test src/store-write-boundary/store-write-guard.test.ts` — **failed**, with:
+
+```
+New, un-audited direct store-write import(s):
+["src/qa-verify-demo/bypass.ts::src/idea/store.ts::createIdea"]. Every module outside
+src/command-surface/ that imports a SQL-backed store's write function directly must either move onto
+src/command-surface/, or be added to src/store-write-boundary/allow-list.ts with a stated reason
+(issue #233).
+```
+
+The message names the exact violating file, the store, and the function — genuinely useful for a
+developer to act on, not a generic "something's wrong." Deleted the probe file; `git status --short`
+returned nothing, tree confirmed clean.
+
+I additionally probed the disclosed namespace-import limitation directly (not just trusted the doc
+comment): replaced the probe with
+`import * as ideaStore from "../idea/store.ts"; ideaStore.createIdea;` and reran the same guard — it
+passed (no violation reported), confirming the "Known limits" claim precisely: a namespace-import bypass
+is genuinely invisible to this detector today. This is disclosed honestly in both `proposal.md`'s "Known
+gaps" and `handoff.md`'s "Known limits," and I independently confirmed no file in the repo uses that
+syntax against any of the 13 target stores today (`grep -rn "import \* as" src --include='*.ts' | grep -v
+test` → only one unrelated hit, `node:readline` in `run-pipeline.ts`). Not a hidden defect, but a real,
+narrow residual gap worth naming alongside the file-backed one above — both are honestly disclosed, both
+remain real.
+
+I also confirmed the detector resolves real import sites, not bare-name/substring matches, directly from
+`scan.test.ts`'s "does NOT match a bare-name collision" and "does NOT match a bare doc-comment mention"
+cases, both of which I read in full and consider a correct, non-trivial test of exactly the failure mode
+the brief warned about.
+
+### Also verified
+
+- **Runs inside `npm test` automatically**: confirmed by the full-suite run itself (no separate
+  invocation needed).
+- **Mirrors `fs-boundary`'s three/four-file shape**: confirmed — both directories hold `scan.ts`,
+  `allow-list.ts`, `scan.test.ts`, and a disk-walking guard test (`node-fs-guard.test.ts` /
+  `store-write-guard.test.ts`).
+- **`src/qa-demo/bypass-write.ts` never committed**: confirmed by
+  `git log --all --diff-filter=A --name-only | grep -i "bypass-write\|qa-demo"` (no output, across all
+  refs) and `find . -iname '*qa-demo*'`/`*bypass-write*'` on the working tree (no output). Genuinely gone,
+  never landed.
+- **No sibling-slice files pre-emptively allow-listed**: confirmed — grepped `allow-list.ts`/`scan.ts`/
+  `proposal.md` for any reference to `issue-204`/`issue-209`/`importer`/`viewer` beyond the issue's own
+  prose about #208/#210/#211's future role; none found. Checked (read-only, `git status --short`) both
+  sibling worktrees (`issue-204-importer-and-rehearsals`, `issue-209-scheduling-outbox-sips-port`) —
+  neither was touched by this branch, and neither's in-flight files (e.g. `src/importer/load-brief.ts`)
+  appear anywhere in this slice's allow-list.
+- **`MIGRATION_1`/`MIGRATION_2` byte-for-byte frozen**: confirmed structurally, see "Suite result," above.
+- **openspec archive risk**: this change's spec delta (`specs/store-write-boundary-guard/spec.md`) is
+  **entirely `## ADDED Requirements`** — no `## MODIFIED Requirements` section anywhere in it (confirmed:
+  `grep -c "^## ADDED\|^## MODIFIED\|^## REMOVED\|^## RENAMED"` → 1 hit, the ADDED header). The
+  previously-hit MODIFIED-header archive trap does not apply here structurally; I did not run
+  `openspec archive` myself (out of scope per standing rules), but there is nothing in this change's
+  header shape that matches the known failure pattern.
+
+### Defect list
+
+None blocking. One disclosed-but-worth-escalating finding, not scored as a defect against this slice
+(it does what it says, honestly, and matches `command-surface/`'s own existing scope) but flagged forward:
+
+- **Severity: low-medium, informational for #208/#210/#211, not a defect in #233's own delivered scope.**
+  File-backed store writes (e.g. `production-spec/store.ts`'s `saveSpec`) are invisible to both the new
+  `store-write-boundary` guard and the existing `fs-boundary` guard, for the reasons detailed under
+  "Scope decision 2," above. Repro: add a module outside `src/command-surface/` importing `saveSpec` from
+  `src/production-spec/store.ts` and calling it — `npm test` stays green. Recommend a fast-follow ticket
+  extending `STORE_WRITE_FUNCTIONS` (or adding a `command-surface/` wrapper) to close it before #211
+  specifically, since #211 is the ticket most likely to touch Production Spec writes.
+- **Severity: low, informational, already disclosed.** The namespace-import (`import * as store from
+  "..."`) evasion applies to both guards equally and remains open; independently confirmed exploitable
+  and confirmed absent from the repo today. No action required now; worth a one-line mention if either
+  guard's own doc comment is ever revisited.
+
+### Can #208, #210, #211 now safely assume the seam is guarded?
+
+**Yes, for the exact shape of bypass #205's QA round demonstrated** (a direct named import of a
+SQL-backed store's write function, bypassing `command-surface/`) — independently reproduced, fails
+loudly, names the violation, wired into `npm test` with no extra setup required from any of the three.
+#210 is read-only per its own issue text, so this guard's write-only scope does not affect it. #208 (the
+worker, draining the queue — `job-store.ts`'s `createJob`/`claimJob`/`releaseJob`/`requeueJob`, all
+tracked) and #211 (the agent rewrite, touching most of the 13 tracked stores) are both fully covered for
+SQL-backed writes.
+
+**Not fully, for a file-backed store write** (see "Scope decision 2") — if #211 in particular ends up
+writing a Production Spec (or any other file-backed store artifact) directly rather than through
+whatever surface eventually wraps it, neither this guard nor `fs-boundary` will catch it. This should be
+communicated to whoever picks up #211, not assumed away.
+
+**PASS** stands: the slice delivers exactly what issue #233 asked for, proven by a real, independently-
+reproduced failing test, a verified-accurate allow-list, and honest, spec-recorded scope decisions — one
+of which (reads) I agree with outright, and one of which (file-backed writes) I've confirmed is a real,
+disclosed, non-blocking residual gap rather than a silent one.
