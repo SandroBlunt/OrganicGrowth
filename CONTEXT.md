@@ -80,7 +80,7 @@ The one storytelling technique an Idea's Hook concept uses to earn the first thr
 by idea-strategist when the Brief is written, alongside **Theme** below (`docs/adr/0029`'s schema:
 `idea.hook_type`). **Closed**, not free text — an open field would reproduce today's problem (hook type
 living only as prose inside a Brief markdown heading, spelled two different ways across the two Brands)
-in a new location. The ten values:
+in a new location. The eleven values:
 
 - `counter_intuitive` — The outcome runs against what you'd expect, and that gap is the hook.
 - `surprising_number` — One stark figure — a price, a count, a stat — carries the whole open.
@@ -92,6 +92,14 @@ in a new location. The ten values:
 - `collision` — Two unrelated events landing in the same moment force a comparison.
 - `oddity` — One specific strange detail, out of pattern, demands an explanation.
 - `irony` — An actor's own action undercuts the thing they claim to stand for.
+- `unclassified` — No classifiable Hook concept exists to categorize — the importer's honest default,
+  never a guessed technique.
+
+`unclassified` (issue #219, Operator decision 2026-08-17) is the value the **importer** (issue #204)
+assigns when a Brief carries no classifiable Hook concept at all (today: 10 of the 61 existing Briefs,
+which have neither a `Hook concept`/`Hook Concept` heading nor a `format` field). It keeps `idea.hook_type`
+`NOT NULL` — never nullable — while staying **distinguishable, in any query, from every real, classified
+value**: nullable would have conflated "not yet classified" with "has no hook to classify."
 
 _Avoid_: free-text hook description (the Brief's prose Hook concept stays free text; Hook Type is its
 closed *category*, a separate field), sub-hook, angle (that's the Idea's own, broader term).
@@ -100,7 +108,7 @@ closed *category*, a separate field), sub-hook, angle (that's the Idea's own, br
 The subject category an Idea's story falls under — filled in alongside **Hook Type**, above
 (`idea.theme`). Spans every Brand's Format (a household-tips Idea and an AI-news Idea both pick from
 this SAME closed set, at this more abstract level) so the vocabulary stays useful across Formats rather
-than needing a new list per Format. The nine values:
+than needing a new list per Format. The ten values:
 
 - `product_or_tool` — A new or updated product, model, app, or device is the subject.
 - `pricing_or_cost` — Money is the throughline: a price, a discount, a valuation, or a spend.
@@ -111,6 +119,13 @@ than needing a new list per Format. The nine values:
 - `comparison_or_benchmark` — Two or more things are measured or ranked against each other.
 - `lifestyle_or_wellbeing` — A daily-life habit, a routine, or personal wellbeing.
 - `culture_or_reaction` — Public sentiment, controversy, irony, or reaction to an event.
+- `unclassified` — No classifiable subject exists to categorize — the importer's honest default, never
+  a guessed category.
+
+`unclassified` (issue #219, Operator decision 2026-08-17) is the value the **importer** (issue #204)
+assigns when a Brief carries no classifiable subject at all — the same 10 headingless Briefs the Hook
+Type entry above describes. It keeps `idea.theme` `NOT NULL` while staying **distinguishable, in any
+query, from every real, classified value**, for the identical reason given above.
 
 _Avoid_: topic (too vague — Theme is the CLOSED category, not an open label), niche (that's the Brand's
 own vertical, e.g. "Life hacks, household tips & tricks" — Theme is per-Idea, not per-Brand).

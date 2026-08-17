@@ -1,8 +1,13 @@
-# domain-vocabulary Specification
+## RENAMED Requirements
 
-## Purpose
-TBD - created by archiving change issue-201-adrs-vocabularies-sqlite-foundation. Update Purpose after archive.
-## Requirements
+- FROM: `### Requirement: HOOK_TYPES is a closed, ten-value vocabulary with a one-line meaning per value`
+- TO: `### Requirement: HOOK_TYPES is a closed, eleven-value vocabulary with a one-line meaning per value`
+
+- FROM: `### Requirement: THEMES is a closed, nine-value vocabulary with a one-line meaning per value`
+- TO: `### Requirement: THEMES is a closed, ten-value vocabulary with a one-line meaning per value`
+
+## MODIFIED Requirements
+
 ### Requirement: HOOK_TYPES is a closed, eleven-value vocabulary with a one-line meaning per value
 
 `src/vocabulary/hook-type.ts`'s `HOOK_TYPES` SHALL be a fixed array of exactly eleven `{ value, meaning }`
@@ -72,4 +77,3 @@ any query, from every one of the other nine real categories.
 - **GIVEN** `src/vocabulary/theme.ts`'s exported `UNCLASSIFIED_THEME`
 - **WHEN** it is read
 - **THEN** it equals `"unclassified"`, and `THEMES` contains an entry whose `value` is that same string
-

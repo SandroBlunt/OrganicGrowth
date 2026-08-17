@@ -6,8 +6,11 @@
  * Straw Motion's "Unhypped News" AI/tech coverage — each Brand's own `brand-profile.yaml`) so the SAME
  * closed set answers "show me every Idea about X" across every Format and every Brand, rather than
  * needing a fresh vocabulary per Format. Calibrated against a sample of both Brands' real Briefs (under
- * each Brand's own `ideas/` tree) at authoring time — every sampled Hook concept maps onto one of these
- * nine.
+ * each Brand's own `ideas/` tree) at authoring time — every sampled Hook concept maps onto one of the
+ * original nine. A tenth value, `unclassified`, was added afterwards (issue #219, Operator decision
+ * 2026-08-17) — not a calibration target, but the honest, queryable default `idea.theme` gets when a
+ * Brief carries no classifiable subject at all, keeping the column `NOT NULL` without conflating "not
+ * yet classified" with "has nothing to classify" (`docs/adr/0029`).
  *
  * Mirrors `hook-type.ts`'s shape and single-source-of-truth role: `CONTEXT.md`'s glossary entry and
  * `src/db/schema.ts`'s seeded `theme_vocabulary` reference table are both DERIVED from `THEMES`, never
@@ -21,7 +24,8 @@ import type { VocabularyTerm } from "./hook-type.ts";
 /**
  * The closed set of Themes, in a fixed, deliberate order. Widening this set is a real product
  * decision (touches `CONTEXT.md` and a NEW schema migration), not a data fix — see `hook-type.ts`'s
- * `HOOK_TYPES` doc comment for the identical reasoning.
+ * `HOOK_TYPES` doc comment for the identical reasoning. The original nine's rows are written by
+ * migration 1; `unclassified` — the tenth — was added by migration 2 (issue #219).
  */
 export const THEMES = [
   {
@@ -60,6 +64,10 @@ export const THEMES = [
     value: "culture_or_reaction",
     meaning: "Public sentiment, controversy, irony, or reaction to an event.",
   },
+  {
+    value: "unclassified",
+    meaning: "No classifiable subject exists to categorize — the importer's honest default, never a guessed category.",
+  },
 ] as const satisfies readonly VocabularyTerm[];
 
 /** The stored-value literal union, derived from `THEMES` (never hand-duplicated). */
@@ -71,3 +79,11 @@ const THEME_VALUES: ReadonlySet<string> = new Set(THEMES.map((t) => t.value));
 export function isTheme(value: string): value is Theme {
   return THEME_VALUES.has(value);
 }
+
+/**
+ * The sentinel Theme value the importer (issue #204) assigns to a Brief with no classifiable subject —
+ * an explicit, `NOT NULL`-friendly "not applicable" (never a guess standing in for one of the other nine
+ * real categories, and never conflated with "not yet classified"). Exported as its own named constant,
+ * mirroring `hook-type.ts`'s `UNCLASSIFIED_HOOK_TYPE` (issue #219, Operator decision 2026-08-17).
+ */
+export const UNCLASSIFIED_THEME: Theme = "unclassified";

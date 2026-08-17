@@ -17,7 +17,13 @@
  * `created_at`, `updated_at` (ISO-8601 strings) and `schema_version` (an INTEGER, defaulting to this
  * migration's own version — the version stamp no file in this repo has ever carried, and could never be
  * backfilled onto: "No file carries a version stamp, `updated_at`, or an etag" — epic #195's problem
- * statement).
+ * statement). Read literally: an entity table's `schema_version` DEFAULT is baked into the `CREATE
+ * TABLE` statement of whichever migration actually defined that table's shape — NOT necessarily
+ * `CURRENT_SCHEMA_VERSION` (the highest version among ALL `MIGRATIONS`, structural or not). SQLite has
+ * no `ALTER COLUMN ... SET DEFAULT`, so a later migration that never touches a given entity table's DDL
+ * (like migration 2, issue #219, which only seeds `hook_type_vocabulary`/`theme_vocabulary`) leaves that
+ * table's own DEFAULT exactly as its defining migration set it. The two numbers happened to be equal
+ * while only one migration existed; migration 2 is the first case where they diverge.
  *
  * ## Closed vocabularies are REFERENCE TABLES, not just CHECK constraints
  *
@@ -29,7 +35,9 @@
  * source. `recipe_vocabulary` does the identical thing for `src/recipe/registry.ts`'s
  * `listWiredRecipeSlugs()` (AC7: "trust the registry, not CONTEXT.md's count of two" — the registry IS
  * the seed source, so there is nothing left to trust separately). Widening any of these three sets is a
- * NEW migration (an `INSERT` for the new row(s)), never an edit to this migration's already-shipped SQL.
+ * NEW migration (an `INSERT` for the new row(s)), never an edit to this migration's already-shipped SQL
+ * — proven out by migration 2 (issue #219), which adds ONLY the `unclassified` row to
+ * `hook_type_vocabulary`/`theme_vocabulary`, on top of migration 1's already-shipped ten/nine.
  *
  * `channel.platform` / `trend.platform` use a plain CHECK against `KNOWN_PLATFORMS`
  * (`src/copy/platform-shape.ts`) — that list is already a live, tested constant elsewhere in this
@@ -47,8 +55,8 @@
  * addition without a table rebuild). See `docs/adr/0029` for the full reasoning.
  */
 
-import { HOOK_TYPES } from "../vocabulary/hook-type.ts";
-import { THEMES } from "../vocabulary/theme.ts";
+import { HOOK_TYPES, UNCLASSIFIED_HOOK_TYPE } from "../vocabulary/hook-type.ts";
+import { THEMES, UNCLASSIFIED_THEME } from "../vocabulary/theme.ts";
 import { listWiredRecipeSlugs, getRecipe } from "../recipe/registry.ts";
 import { KNOWN_PLATFORMS } from "../copy/platform-shape.ts";
 
@@ -101,6 +109,17 @@ function sqlList(values: readonly string[]): string {
 }
 
 const PLATFORM_CHECK = sqlList([...KNOWN_PLATFORMS]);
+
+/**
+ * Migration 1's own seed rows for `hook_type_vocabulary`/`theme_vocabulary` — the original ten Hook
+ * Types and nine Themes issue #201 shipped, EXCLUDING `unclassified` (issue #219's addition). Filtering
+ * the live `HOOK_TYPES`/`THEMES` arrays down to this snapshot (rather than mapping them in full) is what
+ * keeps migration 1's generated SQL identical to what it already shipped, even though `unclassified` is
+ * now a permanent member of those same arrays — still derived from the one TypeScript source, never a
+ * second hand-copied list, just partitioned by which migration introduced each row.
+ */
+const MIGRATION_1_HOOK_TYPES = HOOK_TYPES.filter((t) => t.value !== UNCLASSIFIED_HOOK_TYPE);
+const MIGRATION_1_THEMES = THEMES.filter((t) => t.value !== UNCLASSIFIED_THEME);
 
 /** Migration 1: the whole initial schema — every entity table, the three seeded vocabulary tables, and
  *  their seed data, built fresh from `src/vocabulary/*` and `src/recipe/registry.ts` so nothing here is
@@ -406,9 +425,9 @@ CREATE TABLE performance_score (
 
 -- Seed data: the three closed vocabularies, sourced from TypeScript, never hand-duplicated -------
 
-${HOOK_TYPES.map((t) => `INSERT INTO hook_type_vocabulary (value, meaning) VALUES (${sqlString(t.value)}, ${sqlString(t.meaning)});`).join("\n")}
+${MIGRATION_1_HOOK_TYPES.map((t) => `INSERT INTO hook_type_vocabulary (value, meaning) VALUES (${sqlString(t.value)}, ${sqlString(t.meaning)});`).join("\n")}
 
-${THEMES.map((t) => `INSERT INTO theme_vocabulary (value, meaning) VALUES (${sqlString(t.value)}, ${sqlString(t.meaning)});`).join("\n")}
+${MIGRATION_1_THEMES.map((t) => `INSERT INTO theme_vocabulary (value, meaning) VALUES (${sqlString(t.value)}, ${sqlString(t.meaning)});`).join("\n")}
 
 ${listWiredRecipeSlugs()
   .map((slug) => {
@@ -420,10 +439,35 @@ ${listWiredRecipeSlugs()
 `,
 };
 
-/** Every migration, in ascending version order. Only one exists today; a future schema change (a new
- *  table, a widened vocabulary, a relaxed constraint) is a NEW entry appended here, never an edit to
- *  `MIGRATION_1`'s already-shipped SQL. */
-export const MIGRATIONS: readonly Migration[] = [MIGRATION_1];
+/**
+ * Migration 2's own seed rows — just the `unclassified` entries, the complement of
+ * `MIGRATION_1_HOOK_TYPES`/`MIGRATION_1_THEMES` above (still derived from the one `HOOK_TYPES`/`THEMES`
+ * source, never a hand-typed literal).
+ */
+const MIGRATION_2_HOOK_TYPES = HOOK_TYPES.filter((t) => t.value === UNCLASSIFIED_HOOK_TYPE);
+const MIGRATION_2_THEMES = THEMES.filter((t) => t.value === UNCLASSIFIED_THEME);
+
+/**
+ * Migration 2 (issue #219, Operator decision 2026-08-17): adds the explicit `unclassified` member to
+ * `hook_type_vocabulary` and `theme_vocabulary` — an honest, `NOT NULL`-compatible default for a Brief
+ * with no classifiable Hook concept or subject, rather than making `idea.hook_type`/`idea.theme`
+ * nullable (which would have conflated "not yet classified" with "has nothing to classify"). Adds ONLY
+ * these two rows; every other table and constraint from migration 1 is untouched.
+ */
+const MIGRATION_2: Migration = {
+  version: 2,
+  description: "Adds the explicit 'unclassified' member to hook_type_vocabulary and theme_vocabulary.",
+  sql: `
+${MIGRATION_2_HOOK_TYPES.map((t) => `INSERT INTO hook_type_vocabulary (value, meaning) VALUES (${sqlString(t.value)}, ${sqlString(t.meaning)});`).join("\n")}
+
+${MIGRATION_2_THEMES.map((t) => `INSERT INTO theme_vocabulary (value, meaning) VALUES (${sqlString(t.value)}, ${sqlString(t.meaning)});`).join("\n")}
+`,
+};
+
+/** Every migration, in ascending version order. A future schema change (a new table, a widened
+ *  vocabulary, a relaxed constraint) is a NEW entry appended here, never an edit to an already-shipped
+ *  migration's SQL — migration 2 (issue #219) is the first case of this rule actually being exercised. */
+export const MIGRATIONS: readonly Migration[] = [MIGRATION_1, MIGRATION_2];
 
 /** The schema version a freshly migrated database ends up at — the highest version in `MIGRATIONS`. */
 export const CURRENT_SCHEMA_VERSION: number = Math.max(...MIGRATIONS.map((m) => m.version));
