@@ -71,7 +71,12 @@ human does that. If asked to "just write it," decline and explain.
    Run was rejected exactly for this): paywalled feed items (FT, NYT — the Format file marks them)
    are fitness signals, but the brief MUST carry at least one openly readable link — the original or
    alternative open coverage, from the Trend's `evidence` — or the story is skipped and the next
-   trend takes its slot. Peer-scrape mode's
+   trend takes its slot. This is no longer prose you alone must remember: once an Idea reaches
+   `IdeaStore` (`src/idea/store.ts`, issue #228), `createIdea` enforces the SAME rule at the store
+   boundary — an Idea whose `trendId` points at a paywalled Trend and carries no `sourceUrls` of its
+   own is rejected with `IdeaValidationError`, never merely because the linked Trend is paywalled (an
+   Idea citing a paywalled Trend as a momentum signal while carrying its own openly readable
+   `sourceUrls` is accepted). Peer-scrape mode's
    evidence (`{page, url, overperformance}`) is
    competitive intelligence, not a citation — leave it out of the brief.
 7. **Tag every Idea with its Format.** Each brief's front-matter carries `format: <format>` (the

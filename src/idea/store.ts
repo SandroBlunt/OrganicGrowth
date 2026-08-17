@@ -9,10 +9,29 @@
  * `createIdea` is where two closed vocabularies (`hook_type`/`theme`, issue #201/#219) are validated at
  * the STORE boundary, not merely relied on via the schema's own FOREIGN KEY into
  * `hook_type_vocabulary`/`theme_vocabulary` — a bad value here throws a named, actionable
- * `IdeaValidationError` before any SQL runs, rather than a raw SQLite FK error. `unclassified` passes
- * this check exactly like the ten/nine real values: this store only ever asks "is this ONE OF the
+ * `IdeaValidationError` before the row is written, rather than a raw SQLite FK error. `unclassified`
+ * passes this check exactly like the ten/nine real values: this store only ever asks "is this ONE OF the
  * closed set", never "is this a REAL, classified value" — that stronger judgment is the classifier's
  * job (issue #206), never this store's.
+ *
+ * `createIdea` also enforces the openly-readable-source rule (issue #228, `.claude/agents/
+ * idea-strategist.md` lines 69-74, Operator rule 2026-08-11 — idea-03 of the first daily Run was
+ * rejected exactly for this): a Trend's `is_paywalled` flag is a momentum signal, never a citation on
+ * its own, so an Idea whose `trendId` points at a paywalled Trend AND carries no `sourceUrls` of its
+ * own is rejected, raising the SAME `IdeaValidationError` — never a new error type. This is deliberately
+ * NOT "reject when trendId is paywalled": an Idea legitimately citing a paywalled Trend as a momentum
+ * signal while carrying at least one openly readable `sourceUrls` entry of its own is accepted — #223
+ * made the paywalled fact queryable (`TrendStore.listBriefableTrends`) but enforced nothing; this is the
+ * actual store-boundary gate #223's AC4 asked for. Checking this needs one read (`getTrend`) — the ONE
+ * exception to "before any SQL": what stays true, matching hookType/theme, is that no WRITE (`INSERT`)
+ * ever runs before every validation (including this one) has passed.
+ *
+ * The rule is "there is a source a human could actually open", not merely "the array is non-empty"
+ * (QA round-1 finding, issue #228): a blank (`""`) or whitespace-only (`"   "`) `sourceUrls` entry is
+ * treated as ABSENT, never as satisfying the rule, so `sourceUrls: [""]` is rejected exactly like
+ * `sourceUrls: []`. This does NOT extend to requiring the entry be URL-shaped — see
+ * `assertOpenlyReadableSource`'s own doc comment for why (real Brief data reviewed, finding recorded
+ * there and in this issue's `handoff.md`).
  *
  * `acceptIdea`/`rejectIdea` are the two Review outcomes (CONTEXT.md "Review": "the gate between a
  * `suggested` and an `accepted` Idea"); `selectIdeaRecipes` is Review's Recipe-selection half, recording
@@ -29,6 +48,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import { withTransaction } from "../db/transaction.ts";
+import { getTrend } from "../trend/store.ts";
 import { isHookType, HOOK_TYPES, type HookType } from "../vocabulary/hook-type.ts";
 import { isTheme, THEMES, type Theme } from "../vocabulary/theme.ts";
 
@@ -58,6 +78,58 @@ function assertValidTheme(value: string): asserts value is Theme {
   if (!isTheme(value)) {
     throw new IdeaValidationError(
       `Unknown theme ${JSON.stringify(value)}. Must be one of: ${THEMES.map((t) => t.value).join(", ")}.`,
+    );
+  }
+}
+
+/**
+ * `true` when `sourceUrls` holds at least one entry that is not blank/whitespace-only after trimming —
+ * "there is a source a human could actually open", not merely "the array is non-empty" (issue #228, QA
+ * round-1 finding: `sourceUrls: [""]`/`["   "]` was accepted as if it were a real source). Deliberately
+ * does NOT also require the entry look URL-shaped (e.g. `new URL(...)` parsing or an `https?://` prefix
+ * check): a survey of the real Briefs under every Brand's `ideas` directory (recursively, every Brief
+ * markdown file — the only real-world evidence available, since no Idea row anywhere yet carries a
+ * populated `sourceUrls`; #204's importer is the only thing that will ever populate it from real data,
+ * and it has not run) found the "## Source(s)" section is mostly clean `https://` links but ALSO
+ * legitimately carries non-URL editorial/verification notes as their own bullets (e.g. "(No distinct
+ * official X corporate blog post was found for this specific feature.)", "Verification note
+ * (2026-08-11): sanders.senate.gov returns 403 to automated fetchers...")
+ * — commentary ABOUT sourcing, not itself a citation. #204's importer, not this store, is the thing that
+ * will decide how to parse that prose into clean `sourceUrls` entries; inventing a URL-shape check here,
+ * ahead of that importer and not asked for by any acceptance criterion, risks rejecting legitimate
+ * imported data in a way nobody has designed for yet (see this issue's `handoff.md` Round-2 Build for
+ * the full finding). No other `{ db }` store in this codebase validates URL format/content either.
+ */
+function hasAtLeastOneReadableSource(sourceUrls: readonly string[] | undefined): boolean {
+  if (sourceUrls === undefined) return false;
+  return sourceUrls.some((url) => url.trim().length > 0);
+}
+
+/**
+ * The openly-readable-source rule (issue #228, `.claude/agents/idea-strategist.md` lines 69-74): a
+ * paywalled Trend is a momentum signal, not a citation — an Idea that points at one via `trendId` needs
+ * at least one openly readable `sourceUrls` entry of its own (blank/whitespace-only entries do not
+ * count — `hasAtLeastOneReadableSource` above) before it can be briefed. Deliberately does NOT reject
+ * merely because `trendId` is paywalled: an Idea carrying its own non-blank `sourceUrls` entry is
+ * accepted regardless. An unset `trendId`, or a `trendId` the caller passed but this database has no
+ * committed Trend row for, is never blocked by this rule — an unknown `trendId` is left for the
+ * schema's own FOREIGN KEY to reject on `INSERT`, mirroring `createIdea`'s existing not-pre-validated
+ * convention for `runId`/`brandId`/`formatId`.
+ */
+function assertOpenlyReadableSource(
+  db: DatabaseSync,
+  trendId: string | undefined,
+  sourceUrls: readonly string[] | undefined,
+): void {
+  if (trendId === undefined) return;
+  const trend = getTrend(db, trendId);
+  if (trend === null) return;
+  if (trend.isPaywalled && !hasAtLeastOneReadableSource(sourceUrls)) {
+    throw new IdeaValidationError(
+      `trendId ${JSON.stringify(trendId)} points at a paywalled Trend, and this Idea carries no ` +
+        `non-blank sourceUrls of its own. A paywalled Trend is a momentum signal, not a citation — the ` +
+        `Idea needs at least one openly readable sourceUrl (not blank/whitespace-only) before it can be ` +
+        `briefed (see .claude/agents/idea-strategist.md's openly-readable-source rule, issue #228).`,
     );
   }
 }
@@ -161,8 +233,9 @@ function toIdeaRecord(row: IdeaRow): IdeaRecord {
 
 /**
  * Inserts one `idea` row, always at `status: 'suggested'`, and returns its generated id. Validates
- * `hookType`/`theme` against the closed vocabularies BEFORE issuing any SQL (`IdeaValidationError`).
- * Throws (SQLite FOREIGN KEY error) for an unknown `runId`/`brandId`/`formatId`/`trendId`.
+ * `hookType`/`theme` against the closed vocabularies, and the openly-readable-source rule (issue #228)
+ * against the pointed-at Trend's `is_paywalled` flag, BEFORE any write (`IdeaValidationError`). Throws
+ * (SQLite FOREIGN KEY error) for an unknown `runId`/`brandId`/`formatId`/`trendId`.
  */
 export function createIdea(
   db: DatabaseSync,
@@ -171,6 +244,7 @@ export function createIdea(
 ): string {
   assertValidHookType(input.hookType);
   assertValidTheme(input.theme);
+  assertOpenlyReadableSource(db, input.trendId, input.sourceUrls);
 
   const id = randomUUID();
   const timestamp = now();
