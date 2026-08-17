@@ -22,7 +22,8 @@
     "cleanup-schedule-media": "tsx src/commands/cleanup-schedule-media.ts",
     "backup-media": "tsx src/commands/backup-media.ts",
     "media-host-smoke": "tsx src/media-host/live/smoke.ts",
-    "space-driver-smoke": "tsx src/space-driver/live/smoke.ts"
+    "space-driver-smoke": "tsx src/space-driver/live/smoke.ts",
+    "apify-smoke": "tsx src/apify/live/smoke.ts"
   },
   "dependencies": {
     "yaml": "^2.9.0"

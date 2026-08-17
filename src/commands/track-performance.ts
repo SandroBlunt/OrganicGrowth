@@ -11,7 +11,8 @@
  *      Asset, never per Idea.
  *   2. For each, detect its platform from its OWN `post_url` (`src/apify/platform.ts`), resolve that
  *      platform's `post_actor` from the Brand's `seeds.yaml`, and scrape it via the injected
- *      `PerformanceScrapePort` (fake in tests — never live Apify, no credits, hermetic build).
+ *      `PerformanceScrapePort` (a FAKE in every test — never live Apify, no credits, hermetic build;
+ *      see below for the real runtime adapter).
  *   3. Normalize the raw item (`src/apify/normalize-metrics.ts`) and compute the Performance Score
  *      relative to the Brand's ONE Channel baseline (`src/performance/score.ts`).
  *   4. Decide `tracking` vs `scored` from THAT Asset's OWN `posted_at` age (`src/performance/maturity.ts`).
@@ -25,13 +26,13 @@
  *      `scored` Asset's `metrics` across the WHOLE ledger (falling back to whatever `metrics` exist at
  *      all, when nothing has matured yet — the "seed the baseline from this batch" case).
  *
- * The actual live Apify HTTP call is DEFERRED (mirrors `run-pipeline-ports.ts`'s
- * `DEFAULT_APIFY_PORT`/`DEFAULT_MAGNIFIC_PORT` placeholders): `DEFAULT_PERFORMANCE_SCRAPE_PORT` always
- * returns `null` and is never exercised in tests. Until a live adapter is wired, the
- * `performance-tracker` agent's own Bash-tool-driven Apify calls
- * (`.claude/agents/performance-tracker.md`) remain the sanctioned way to pull real metrics — this
- * module is the canonical, tested reference for the SELECTION/SCORING/STATUS/LEDGER-WRITE logic that
- * process must match.
+ * The default runtime port is now a REAL live Apify client (`src/apify/live/client.ts`, issue #200) —
+ * `DEFAULT_PERFORMANCE_SCRAPE_PORT` sends an actual HTTP request per selected Asset, with the Apify
+ * token in an `Authorization` header (never a URL query string — the leak
+ * `.claude/agents/performance-tracker.md`'s prior hand-driven `curl` calls carried). It is STILL never
+ * exercised by a test: every test injects an explicit fake `PerformanceScrapePort` via `options.apify`
+ * instead (hermetic build, no credits — `src/apify/live/client.test.ts` proves the live client's own
+ * request-building against an injected FAKE `fetchImpl`, never a real network call either).
  *
  * Brand is always explicit: `<brand>` is a required first argument, resolved via `resolveBrand`.
  */
@@ -58,18 +59,21 @@ import { writeAsset } from "../asset/store.ts";
 import { refreshPostJson } from "../asset/output-bundle.ts";
 import type { AssetMetrics, LedgerAssetRecord } from "../asset/asset.ts";
 import type { PerformanceScrapePort } from "./track-performance-port.ts";
+import { LiveApifyClient } from "../apify/live/client.ts";
 
 // ---------------------------------------------------------------------------
-// Default port (deferred live adapter — see module docstring)
+// Default port — the REAL live Apify client (issue #200)
 // ---------------------------------------------------------------------------
 
-const DEFAULT_PERFORMANCE_SCRAPE_PORT: PerformanceScrapePort = {
-  async scrapePost() {
-    // Runtime placeholder: the live Apify HTTP adapter is deferred. This path is NEVER exercised in
-    // tests (tests always inject a fake). If called for real, report "no data" rather than fabricate.
-    return null;
-  },
-};
+/**
+ * The real live Apify client (`src/apify/live/client.ts`), replacing the always-`null` deferred stub
+ * this module shipped with (issue #84). NEVER exercised by a test — every test in
+ * `src/commands/track-performance*.test.ts` and `src/producer/two-recipes-end-to-end.test.ts` injects
+ * an explicit fake `PerformanceScrapePort` via `options.apify` instead (hermetic build; no test spends
+ * an Apify credit). At runtime this resolves `APIFY_API_TOKEN` from `.env`/the shell lazily, on first
+ * use, and sends it ONLY in an `Authorization` header — never a URL query string (issue #200).
+ */
+const DEFAULT_PERFORMANCE_SCRAPE_PORT: PerformanceScrapePort = new LiveApifyClient();
 
 // ---------------------------------------------------------------------------
 // Options
