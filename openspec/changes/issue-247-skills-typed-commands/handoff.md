@@ -318,3 +318,48 @@ never a live service.
   design (the coordinator's own stated caution: "Do not pin free prose... a test pinned to a sentence
   rots the first time someone rewords it"). A future doc edit that keeps every command name and module
   citation intact while rewording the surrounding sentence will not trip this suite, and should not.
+
+## QA Verdict — Round 2: PASS
+
+### Suite result
+
+- `npx openspec validate issue-247-skills-typed-commands --strict` → `Change 'issue-247-skills-typed-commands' is valid`.
+- `npx openspec validate --all --strict` → **64 passed, 0 failed** — unchanged from Round 1 (this round edits the same change's own spec delta, adds no new capability).
+- `npm run test:docs` → **347 tests / 91 suites, 0 failing**.
+- `npm test` → **3421 tests / 900 suites, 0 failing**.
+
+All four commands run live in the same worktree, branch `issue-247-skills-typed-commands`, HEAD `ffb2edf`. `git diff f59bcab ffb2edf --stat` confirms exactly the 6 files the Round-2 Build Report claims changed (`log-post.md`, the new docs-test, `handoff.md`, and the 3 OpenSpec change files) — nothing else moved.
+
+**Deltas confirmed exact, nothing else moved.** `npm test` 3401→3421 (+20), `npm run test:docs` 327→347 (+20); suites 893→900 (+7), 84→91 (+7). Both match the new test file's own count precisely (`node --import tsx --test src/claude-commands/command-surface-citations.docs-test.ts` → 20/20, 7 `describe` blocks) — 20 `it` blocks counted directly in the file (3+4+4+3+2+2+2 = 20 across `run-trends`/`review-ideas`/`pick`+`pick-cast`/`log-post`/`track-performance`/`export-schedule`/`queue`). No other test count moved anywhere in the suite.
+
+### Defect 1 (medium, Round 1) — FIXED, verified independently
+
+**Static verification (all 8 files, all 11 revert-guard regexes, not just the one the developer walked through).** I wrote my own scratch script (`verify.mjs`, scratchpad-only) that ran every negative (`doesNotMatch`) regex in the new test file against BOTH the real pre-#247 text (`git show 4d023e9:.claude/commands/<file>.md`) and the current text, collapsing whitespace the same way the real test does. Result: **all 11 guards match the old text and do NOT match the current text** — every guard is genuinely non-vacuous, not just the `run-trends.md` one the developer already demonstrated live.
+
+**Independent live reproduction — a DIFFERENT file than the developer's own repro, done in a scratch copy, zero real files touched.** Per the coordinator's specific ask, I did not touch any file under `.claude/commands/` in the real worktree (my only write grant is `handoff.md`). Instead:
+1. Copied all 13 real `.claude/commands/*.md` files into a scratchpad directory (`.../scratchpad/commands-repro/`).
+2. Overwrote only `export-schedule.md` in that scratch copy with its exact `git show 4d023e9:.claude/commands/export-schedule.md` text (byte-diffed to confirm — `diff` reported no difference).
+3. Copied the real test file into the scratchpad and repointed its `COMMANDS_DIR` constant at the scratch directory (the only edit made, and only to the scratch copy).
+4. Ran it: `node --import tsx --test <scratch-test-file>` → **18 pass / 2 fail** — the 2 failures were exactly `export-schedule.md`'s own describe block (`names saveAsset...` and `never reverts the Idea-load step...`); all other 6 describe blocks (18 assertions, covering `run-trends.md`, `review-ideas.md`, `pick.md`/`pick-cast.md`, `log-post.md`, `track-performance.md`, `queue.md`) stayed green, confirming the failure was scoped precisely to the reverted file, for the right reason (old text has no `saveAsset`/`assets.ts` citation and does contain the raw `data/brands/<slug>/ledger.json` path the guard checks for).
+5. Restored the scratch file to the current text and re-ran → **20/20 green**, confirming the harness itself (not a broken scratch setup) was the cause of the 2 failures above.
+6. `git status --short` in the real worktree, both before and after this reproduction, showed **no changes** — the real repo was never touched.
+
+This reproduces the developer's own claimed discipline on a file they didn't demonstrate (`export-schedule.md` vs their `run-trends.md`), confirming it wasn't cherry-picked.
+
+**Anchoring check — command names and path shapes, not free prose.** Read every assertion in the file. Every *positive* assertion (`assert.match`) targets a bare command name (`createTrend`, `resolveGate`, `getAssetByRecipe`, …) or a bare module path (`src/command-surface/trends.ts`, …) — none pins a sentence. The *negative* (revert-guard) assertions are anchored on the raw path shape (`data/brands/<slug>/ledger.json`) plus, in a few cases, a short proximity anchor using literal ledger-status tokens (`status: accepted`/`status: rejected` — schema vocabulary, not prose) to distinguish the accept vs. reject write sites; a guard's failure mode from prose rewording is the opposite of a positive assertion's (it would silently stop firing, not falsely break a legitimate rewording), so this does not reproduce the coordinator's named risk. No assertion in the file pins a full sentence as its match target.
+
+### Defect 2 (low, Round 1) — FIXED
+
+`git diff f59bcab ffb2edf -- .claude/commands/log-post.md` shows exactly one hunk: the Asset-lookup bullet now also names `getAssetByRecipe` (`src/command-surface/assets.ts`) as the sanctioned future read, alongside the existing `src/ledger/ledger.ts` citation, with the honest "today's operative read is the ledger itself (rule 7)" clause — the same additive shape used for every write-shaped citation elsewhere in this slice. I independently confirmed `getAssetByRecipe`'s own doc comment ("Looks up one Idea's Asset for a given Recipe") is a precise structural match for what this step describes ("finds the Asset whose `recipe` matches `<recipe>` EXACTLY"). No other line in `log-post.md` changed — this is a pure, additive, honest fix, not a reasoned-around dismissal.
+
+### Craft rules — reconfirmed untouched this round
+
+`git diff f59bcab ffb2edf --stat` touches exactly one prose file, `log-post.md` (+3/-1 lines), and `log-post.md` carries no craft rule (writing rules, dash bans, placeholder-frame phrasing, real-source-imagery rule) — it is a mechanical command doc, not a Recipe Skill. No Skill file changed in Round 2 (`git diff f59bcab ffb2edf --stat -- .claude/skills/` is empty). The always-rules files and `CLAUDE.md` are also untouched in Round 2. Craft-rule preservation stands exactly as certified in the Round-1 Verdict, with nothing this round to re-litigate.
+
+### New defects found this round
+
+None. Both Round-1 defects are genuinely fixed, not reasoned around; the new test's guards are proven non-vacuous by both static cross-check (all 11 guards, all 8 files) and an independent live reproduction on a file the developer had not themselves demonstrated; no craft rule, always-rule, or acceptance criterion regressed.
+
+### Ruling on #211
+
+Unchanged from Round 1: #211 can close on its achievable half. Round 2 removes both advisory gaps QA raised — every new command-surface citation this slice introduces is now regression-guarded, and the one asymmetric read (`log-post.md`'s Asset lookup) now names its command-surface equivalent for symmetry with every write-shaped citation elsewhere in the sweep. Issue #238 continues to track the deferred remainder (the file-backed stores getting their own surface). **Ready to merge.**
