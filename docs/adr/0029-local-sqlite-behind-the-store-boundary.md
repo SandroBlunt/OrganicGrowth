@@ -33,7 +33,18 @@ spread across two Brands, three Idea shapes, three ID schemes, and four folder l
   is only the ONE option every store already takes: `{ ledgerPath }` becomes `{ db }`. Store names,
   operation names, and return shapes are UNCHANGED (issue #202, not this ticket).
 - **Documents a human authors or reads directly stay files** — Brand Profile YAML, Format YAML, the
-  markdown Briefs, the Baseline Prompt documents. This ADR governs the **relational/canonical state**
+  markdown Briefs, the Baseline Prompt documents, **and the Mention Handle Registry**
+  (`data/mention-handles.yaml`, `src/mention-handle/store.ts`) — a small, hand-maintained, global
+  mapping of company/product names to platform handles that the Operator adds and edits directly and
+  changes rarely, matching this carve-out's shape exactly. This is recorded explicitly, not left
+  implicit, because issue #202 named Mention Handle among the stores moving to SQL while #201's own
+  schema AC never did — issue #222 (2026-08-17) correctly declined to invent a `mention_handle` table
+  outside its own spec rather than silently dropping the store from its list, and issue #226
+  (2026-08-17) is the Operator decision settling it here: it stays a file. **This carve-out is not
+  permanent** — the one thing that would reopen it is issue #210's read-only Library: if handles need to
+  appear there, `mention_handle` becomes a legitimate table (an additive migration, following
+  `MIGRATION_2`'s own pattern). Until then, nothing else in the schema foreign-keys into it, so there is
+  no structural need for it to be relational. This ADR governs the **relational/canonical state**
   ADR-0014 already scoped to the store boundary (the ledger, the queue), never every file under `data/`.
 - **Every table carries a stable `id`, `created_at`, `updated_at`, and a `schema_version`** — the version
   stamp the file era never had and could never be backfilled onto.
