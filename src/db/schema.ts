@@ -424,7 +424,6 @@ CREATE TABLE performance_score (
 );
 
 -- Seed data: the three closed vocabularies, sourced from TypeScript, never hand-duplicated -------
--- (the original ten Hook Types / nine Themes only — 'unclassified' is migration 2's seed row, below)
 
 ${MIGRATION_1_HOOK_TYPES.map((t) => `INSERT INTO hook_type_vocabulary (value, meaning) VALUES (${sqlString(t.value)}, ${sqlString(t.meaning)});`).join("\n")}
 

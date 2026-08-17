@@ -49,6 +49,12 @@ transaction — rolled back cleanly, and NOT recorded as applied, if any stateme
 applied). `runMigrations` SHALL be idempotent: calling it again against an already-current database SHALL
 neither re-apply nor re-record any migration.
 
+`CURRENT_SCHEMA_VERSION` SHALL equal the highest version among ALL `MIGRATIONS`, whether or not a given
+migration alters any entity table's own DDL — a migration that only seeds reference-table rows (e.g.
+migration 2, issue #219) still advances it. This is DISTINCT from any one entity table's own
+`schema_version` DEFAULT, which SQLite bakes into that table's `CREATE TABLE` statement and cannot be
+retroactively changed (`ALTER COLUMN ... SET DEFAULT` does not exist in SQLite) — see the next Scenario.
+
 #### Scenario: A fresh database starts at schema version 0 and reaches CURRENT_SCHEMA_VERSION after migrating
 
 - **GIVEN** a freshly opened, empty database file
@@ -70,11 +76,14 @@ neither re-apply nor re-record any migration.
 - **THEN** it throws, `getSchemaVersion` still reports the pre-migration version, and no table the failed
   migration would have created later in its own script exists
 
-#### Scenario: A freshly-written row's schema_version defaults to CURRENT_SCHEMA_VERSION
+#### Scenario: A freshly-written entity-table row's schema_version defaults to the version of the migration that defined that table's DDL
 
-- **GIVEN** a freshly migrated database
-- **WHEN** a row is inserted into an entity table without the caller specifying `schema_version`
-- **THEN** the stored `schema_version` equals `CURRENT_SCHEMA_VERSION`
+- **GIVEN** a freshly migrated database, where `CURRENT_SCHEMA_VERSION` is `2` (migration 1 plus
+  migration 2, issue #219) but `brand`'s own `CREATE TABLE` statement was written by migration 1 and has
+  not been altered since
+- **WHEN** a row is inserted into `brand` without the caller specifying `schema_version`
+- **THEN** the stored `schema_version` equals `1` — the version of the migration that actually defined
+  `brand`'s DDL — NOT `CURRENT_SCHEMA_VERSION`, because migration 2 never touches `brand`'s shape
 
 ### Requirement: The three closed vocabularies are seeded reference tables with real foreign-key enforcement
 
@@ -87,6 +96,12 @@ lookup tables, and SHALL seed them AT MIGRATION TIME directly from `src/vocabula
 `baseline_prompt.recipe_slug` SHALL be foreign keys into `recipe_vocabulary(slug)`. A value outside the
 seeded set SHALL be rejected by the foreign-key constraint (with `PRAGMA foreign_keys = ON` enabled),
 never merely discouraged.
+
+Widening `HOOK_TYPES`/`THEMES` with a new member SHALL be seeded by a NEW migration, never an edit to an
+already-applied migration's SQL. Issue #219 (Operator decision 2026-08-17) is the first case: migration 1
+seeds the original ten Hook Types / nine Themes; migration 2 seeds ONLY the explicit sentinel
+`unclassified` for each — a real, `NOT NULL`-compatible member of both closed vocabularies (never a
+nullable escape hatch), distinguishable in any query from every classified value.
 
 #### Scenario: hook_type_vocabulary is seeded verbatim from HOOK_TYPES
 
@@ -119,6 +134,23 @@ never merely discouraged.
 - **WHEN** an `idea_recipe` row is inserted with a `recipe_slug` not present in `recipe_vocabulary`
 - **THEN** the insert throws a foreign-key constraint error, and every one of the registry's REAL wired
   slugs is accepted without error
+
+#### Scenario: An Idea can be inserted with 'unclassified' for both hook_type and theme, distinguishable in a query (issue #219)
+
+- **GIVEN** a freshly migrated database with a valid Idea fixture chain, one Idea inserted with
+  `unclassified` for both `hook_type` and `theme`, and another inserted with real classified values
+- **WHEN** the `unclassified` Idea is inserted
+- **THEN** the insert succeeds, and a query excluding `hook_type = 'unclassified'` returns only the
+  classified Idea — `unclassified` is never indistinguishable from a real classified value
+
+#### Scenario: Migration 2 adds only 'unclassified' to each vocabulary table, without re-seeding or duplicating migration 1's rows (issue #219)
+
+- **GIVEN** a database already upgraded to schema version 1 only (migration 1 applied, migration 2 not
+  yet — simulating a database created before issue #219 landed)
+- **WHEN** `runMigrations` is called again
+- **THEN** it reaches `CURRENT_SCHEMA_VERSION`, and `hook_type_vocabulary`/`theme_vocabulary` each gain
+  EXACTLY one new row (`unclassified`) — the original ten/nine rows are untouched, never re-seeded or
+  duplicated
 
 ### Requirement: Exactly one primary Channel per Brand
 
