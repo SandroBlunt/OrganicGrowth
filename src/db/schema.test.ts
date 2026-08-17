@@ -151,6 +151,26 @@ describe("idea.hook_type and idea.theme are FOREIGN KEYS into the seeded closed-
   });
 });
 
+describe("idea.hook_type and idea.theme accept the explicit 'unclassified' member, against a real migrated database (issue #219)", () => {
+  it("an Idea row can be inserted with 'unclassified' for BOTH hook_type and theme", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      assert.doesNotThrow(() => insertIdea(db, { hookType: "unclassified", theme: "unclassified" }));
+    });
+  });
+
+  it("'unclassified' is distinguishable, in a query, from every real classified value", async () => {
+    await withTempDb((db) => {
+      runMigrations(db);
+      insertIdea(db, { hookType: "unclassified", theme: "unclassified" });
+      insertIdea(db, { hookType: VALID_HOOK_TYPE, theme: VALID_THEME });
+      const rows = db.prepare(`SELECT hook_type, theme FROM idea WHERE hook_type != 'unclassified'`).all();
+      assert.equal(rows.length, 1, "an 'unclassified' Idea must not be indistinguishable from a classified one");
+      assert.equal(rows[0]?.hook_type, VALID_HOOK_TYPE);
+    });
+  });
+});
+
 describe("asset.recipe_slug trusts the registry (AC7): all THREE wired Recipe slugs are accepted, an unwired one is not", () => {
   it("accepts each of the registry's real wired slugs, including news-short-script", async () => {
     await withTempDb((db) => {

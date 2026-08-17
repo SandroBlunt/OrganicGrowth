@@ -69,6 +69,30 @@ describe("CONTEXT.md defines Hook Type as a closed vocabulary (issue #201 AC3)",
   });
 });
 
+describe("CONTEXT.md documents 'unclassified' as the importer's honest default, distinguishable from a real classified value (issue #219)", () => {
+  it("the Hook Type entry explains 'unclassified' beyond just listing it in the closed set", async () => {
+    const doc = await readFile(CONTEXT_MD, "utf8");
+    const section = collapseWhitespace(extractGlossaryEntry(doc, "Hook Type"));
+    assert.match(section, /importer/i, "must explain 'unclassified' is the importer's default");
+    assert.match(
+      section,
+      /distinguishable/i,
+      "must state 'unclassified' is distinguishable, in a query, from a real classified value",
+    );
+  });
+
+  it("the Theme entry explains 'unclassified' beyond just listing it in the closed set", async () => {
+    const doc = await readFile(CONTEXT_MD, "utf8");
+    const section = collapseWhitespace(extractGlossaryEntry(doc, "Theme"));
+    assert.match(section, /importer/i, "must explain 'unclassified' is the importer's default");
+    assert.match(
+      section,
+      /distinguishable/i,
+      "must state 'unclassified' is distinguishable, in a query, from a real classified value",
+    );
+  });
+});
+
 describe("CONTEXT.md defines Theme as a closed vocabulary (issue #201 AC3)", () => {
   it("carries a 'Theme' glossary heading, framed as closed (not free text)", async () => {
     const doc = await readFile(CONTEXT_MD, "utf8");

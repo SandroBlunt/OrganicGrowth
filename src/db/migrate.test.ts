@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { CURRENT_SCHEMA_VERSION, ENTITY_TABLES, VOCABULARY_TABLES } from "./schema.ts";
+import { CURRENT_SCHEMA_VERSION, ENTITY_TABLES, VOCABULARY_TABLES, MIGRATIONS } from "./schema.ts";
 import { getSchemaVersion, runMigrations } from "./migrate.ts";
 import { withTempDb } from "./test-support.ts";
 import { HOOK_TYPES } from "../vocabulary/hook-type.ts";
@@ -74,15 +74,22 @@ describe("runMigrations — creates and upgrades the schema, and records the ver
     });
   });
 
-  it("a freshly-written row's schema_version defaults to CURRENT_SCHEMA_VERSION without the caller specifying it", async () => {
+  it("a freshly-written row's schema_version defaults to the version of the migration that defined that table's DDL, without the caller specifying it", async () => {
+    // NOT necessarily CURRENT_SCHEMA_VERSION (schema.ts's own doc comment on `schema_version`, and its
+    // note on migration 2 / issue #219): `brand`'s DDL was written by migration 1 and untouched since —
+    // migration 2 (issue #219) only seeds `hook_type_vocabulary`/`theme_vocabulary`, two tables that
+    // carry no `schema_version` column at all (they are lookup data, not per-Brand records —
+    // `VOCABULARY_TABLES`'s own doc comment). SQLite cannot re-point an existing column's DEFAULT
+    // without a full table rebuild, so `brand`'s baked-in default honestly stays `1`.
     await withTempDb((db) => {
       runMigrations(db);
+      assert.equal(CURRENT_SCHEMA_VERSION, 2, "this assertion assumes migration 2 (issue #219) exists");
       const now = new Date().toISOString();
       db.prepare(
         `INSERT INTO brand (id, slug, name, timezone, media_root, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       ).run("b1", "test-brand", "Test Brand", "UTC", "data/brands/test-brand", now, now);
       const row = db.prepare("SELECT schema_version FROM brand WHERE id = ?").get("b1");
-      assert.equal(row?.schema_version, CURRENT_SCHEMA_VERSION);
+      assert.equal(row?.schema_version, 1, "brand's own DDL has not changed since migration 1");
     });
   });
 
@@ -123,6 +130,40 @@ describe("runMigrations — creates and upgrades the schema, and records the ver
         assert.ok(slugs.has(slug), `${slug} must be seeded`);
       }
       assert.ok(slugs.has("news-short-script"), "the third wired Recipe (AC7) must be seeded, not just the first two");
+    });
+  });
+
+  it("migration 2 adds ONLY the 'unclassified' row to each vocabulary table, on top of an already-applied migration 1, never re-seeding or duplicating the original rows (issue #219)", async () => {
+    await withTempDb((db) => {
+      // Simulate a database created BEFORE issue #219 landed: only migration 1 has been applied.
+      const migration1 = MIGRATIONS.find((m) => m.version === 1);
+      assert.ok(migration1, "migration 1 must exist");
+      db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
+      db.exec("BEGIN");
+      db.exec(migration1.sql);
+      db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)").run(new Date().toISOString());
+      db.exec("COMMIT");
+      assert.equal(getSchemaVersion(db), 1);
+      assert.equal(
+        db.prepare("SELECT COUNT(*) AS n FROM hook_type_vocabulary").get()?.n,
+        HOOK_TYPES.length - 1,
+        "a pre-#219 database must have only the original ten Hook Types seeded, not 'unclassified'",
+      );
+      assert.equal(
+        db.prepare("SELECT COUNT(*) AS n FROM theme_vocabulary").get()?.n,
+        THEMES.length - 1,
+        "a pre-#219 database must have only the original nine Themes seeded, not 'unclassified'",
+      );
+
+      const result = runMigrations(db);
+
+      assert.equal(result, CURRENT_SCHEMA_VERSION);
+      const hookValues = db.prepare("SELECT value FROM hook_type_vocabulary").all().map((r) => r.value);
+      assert.equal(hookValues.length, HOOK_TYPES.length, "exactly one new row must be added, not a re-seed");
+      assert.ok(hookValues.includes("unclassified"));
+      const themeValues = db.prepare("SELECT value FROM theme_vocabulary").all().map((r) => r.value);
+      assert.equal(themeValues.length, THEMES.length, "exactly one new row must be added, not a re-seed");
+      assert.ok(themeValues.includes("unclassified"));
     });
   });
 
