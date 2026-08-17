@@ -42,7 +42,10 @@ globs: *
    the worker, the viewer, and every agent (issues #208/#210/#211) call it instead of touching a store or
    a file directly; no production caller is wired onto it yet either, for the same reason. An automated
    guard (`src/fs-boundary/`) fails the build when a new, un-audited production module imports `node:fs`
-   outside its own reviewed allow-list.
+   outside its own reviewed allow-list. Since issue #233, a second guard (`src/store-write-boundary/`)
+   fails the build when a new, un-audited production module imports a SQL-backed store's write function
+   directly, outside `src/command-surface/` and its own reviewed allow-list — the same ratchet shape, a
+   different target, closing the gap #205's own QA verdict demonstrated live.
 8. **Never fabricate.** If Apify returns nothing or errors, say so and stop — don't invent trends,
    ideas, or metrics.
 9. **Respect the brand profile.** Banned words and brand-safety rules in `brand-profile.yaml` are hard
