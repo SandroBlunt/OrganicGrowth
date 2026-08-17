@@ -52,7 +52,14 @@ export {
   type ReviewDecision,
 } from "./ideas.ts";
 export { enqueueJob, claimJob, releaseJob, type JobInput, type JobRecord, type ReleaseStatus } from "./jobs.ts";
-export { saveAsset, attachAssetMedia, type DbAssetPatch, type AssetMediaItem } from "./assets.ts";
+export {
+  saveAsset,
+  attachAssetMedia,
+  getAssetByRecipe,
+  type DbAssetPatch,
+  type AssetMediaItem,
+  type DbAssetRecord,
+} from "./assets.ts";
 export { logPost, type PostInput } from "./posts.ts";
 export {
   readPerformance,

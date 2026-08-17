@@ -12,13 +12,26 @@
  * "Asset" definition is "the media ... plus its tailored Copy" — a command surface that could save an
  * Asset's status/spec but never record the media rows it produced would leave half of what "saving an
  * Asset" means with no legal write path (AC2).
+ *
+ * `getAssetByRecipe` (issue #204) is a read, added for the SAME reason `trends.ts`'s `listTrends` was —
+ * "a future caller reaches every pipeline operation, read or write, through ONE surface rather than
+ * importing a store directly". The one-shot importer needs it: `saveAsset` returns `void`, so after
+ * saving a new Asset the importer needs its generated id before it can call `attachAssetMedia`.
  */
 
 import type { DatabaseSync } from "node:sqlite";
 
-import { writeAsset, addAssetMediaBatch, type DbAssetPatch, type AssetMediaItem } from "../asset/store.ts";
+import { writeAsset, addAssetMediaBatch, loadIdeaAssets, type DbAssetPatch, type AssetMediaItem, type DbAssetRecord } from "../asset/store.ts";
 
-export type { DbAssetPatch, AssetMediaItem };
+export type { DbAssetPatch, AssetMediaItem, DbAssetRecord };
+
+/** Looks up one Idea's Asset for a given Recipe. Returns `null` when the Idea is unknown, or has no
+ *  Asset for that Recipe yet. */
+export async function getAssetByRecipe(db: DatabaseSync, ideaId: string, recipe: string): Promise<DbAssetRecord | null> {
+  const assets = (await loadIdeaAssets(ideaId, { db })) as readonly DbAssetRecord[] | null;
+  if (assets === null) return null;
+  return assets.find((a) => a.recipe === recipe) ?? null;
+}
 
 /** Upserts one Asset for `(ideaId, recipe)` — insert if the Idea has no Asset for that Recipe yet,
  *  merge-update if it does. An unknown `ideaId` (no `idea` row) leaves the database untouched. See

@@ -14,7 +14,7 @@ import { seedAsset, FIXTURE_RECIPE } from "../db/fixtures/seed-chain.ts";
 import { loadIdeaAssets, type DbAssetRecord } from "../asset/store.ts";
 import { listAssetMedia } from "../asset/store.ts";
 
-import { saveAsset, attachAssetMedia } from "./assets.ts";
+import { saveAsset, attachAssetMedia, getAssetByRecipe } from "./assets.ts";
 
 describe("saveAsset — the command surface's write over AssetStore's SQL branch (issue #205)", () => {
   it("updates the Asset's status and spec, readable back through loadIdeaAssets", async () => {
@@ -49,6 +49,35 @@ describe("saveAsset — the command surface's write over AssetStore's SQL branch
         assets.map((a) => a.recipe).sort(),
         [FIXTURE_RECIPE, "news-carousel"].sort(),
       );
+    });
+  });
+});
+
+describe("getAssetByRecipe — the command surface's read to resolve an Asset's id after saveAsset (issue #204)", () => {
+  it("finds the Asset saveAsset just created, by Recipe", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { ideaId } = await seedAsset(db);
+      await saveAsset(db, ideaId, "news-carousel", { status: "queued" });
+      const asset = await getAssetByRecipe(db, ideaId, "news-carousel");
+      assert.ok(asset);
+      assert.equal(asset.recipe, "news-carousel");
+      assert.equal(asset.status, "queued");
+    });
+  });
+
+  it("returns null for a Recipe the Idea has no Asset for", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { ideaId } = await seedAsset(db);
+      assert.equal(await getAssetByRecipe(db, ideaId, "does-not-exist"), null);
+    });
+  });
+
+  it("returns null for an unknown ideaId", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      assert.equal(await getAssetByRecipe(db, "does-not-exist", "news-carousel"), null);
     });
   });
 });
