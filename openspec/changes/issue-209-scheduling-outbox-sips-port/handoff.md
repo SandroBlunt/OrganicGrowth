@@ -616,3 +616,207 @@ verified independently (the PNG decoder, the `jpeg-js` justification, the crash-
 correctness, every AC, every always-rule) is untouched by this round's changes and should not need
 re-verification from scratch — only the guard registration and the `run.ts` -> command-surface move are
 new since Round 1.
+
+---
+
+## QA Verdict — Round 2: PASS
+
+Verified in `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-209-scheduling-outbox-sips-port`, branch
+`issue-209-scheduling-outbox-sips-port`, HEAD `bcdd7b6`. Scope: Defect 1's fix and everything the diff
+between `3b65ac7` (Round 1 HEAD) and `bcdd7b6` actually touches, plus a full, real suite run. Round 1's
+independently-verified findings (the PNG decoder against Pillow, `jpeg-js` as a dependency-free BSD-3
+leaf, the crash-recovery proof's underlying correctness, all 7 acceptance criteria, all always-rules)
+were re-confirmed to be untouched by this round's diff (`git diff 3b65ac7...bcdd7b6 -- openspec/specs/`
+and every media-host/schema/mcp-schedule-port file: empty) rather than re-derived from scratch, per the
+coordinator's own scoping. No product code, test, spec, or OpenSpec-change file was edited by me —
+every falsification/reproduction below was done in disposable scratchpad copies outside this worktree,
+deleted after use; `git status` in the worktree was clean before, during, and after (confirmed at each
+step).
+
+### Suite result
+
+- `npx tsc -p tsconfig.json --noEmit` — clean.
+- `npm test` — **3176 / 820 / 0 fail**, matching the Round-2 Build Report exactly.
+- `npm run test:docs` — **295 / 80 / 0 fail**, unchanged from Round 1.
+- `npx openspec validate issue-209-scheduling-outbox-sips-port --strict` — valid.
+- `npx openspec validate --all --strict` — **60 passed, 0 failed** (60 items).
+- `node --import tsx --test "src/store-write-boundary/**/*.test.ts"` — 21/5/0 fail.
+- `node --import tsx --test "src/command-surface/schedule-outbox.test.ts"` — 7/4/0 fail.
+- `git diff 3b65ac7...bcdd7b6 -- openspec/specs/` — empty (no live spec touched, as expected — only the
+  change's own spec deltas moved).
+
+### Defect 1 — fixed. Ruling: FIXED, verified independently, guard now covers the store for the right
+reason.
+
+- **Registration confirmed:** `src/store-write-boundary/scan.ts`'s `STORE_WRITE_FUNCTIONS` now includes
+  `"src/schedule-outbox/store.ts": ["reserveScheduleOutboxEntry", "confirmScheduleOutboxEntry"]`.
+- **Both break-it directions reproduced independently, in a fresh disposable copy of the FINAL
+  (post-collapse) code:**
+  - Removed ONLY the `STORE_WRITE_FUNCTIONS` registration → the guard fails, but as a **1-item "stale
+    allow-list entry"** violation (`crash-schedule-worker.ts`'s entry no longer matches anything the
+    scanner can see), **not** the "3 violations reappear" the Round-2 Build Report's Verification
+    section describes. This is explained below (Note on Verification accuracy) — it does not change the
+    PASS ruling.
+  - Removed ONLY the `crash-schedule-worker.ts` allow-list entry (registration intact) → the guard fails
+    with a **"New, un-audited direct store-write import(s)"** error naming exactly
+    `src/schedule-outbox/fixtures/crash-schedule-worker.ts::src/schedule-outbox/store.ts::reserveScheduleOutboxEntry`
+    — matches the Build Report's claim exactly, word for word.
+  - Both copies deleted afterward; `git status` in the real worktree confirmed clean before/after each.
+- **Allow-list scoping is tight and the `claim-worker.ts` mirror is real:** the new entry lists only
+  `["reserveScheduleOutboxEntry"]` (not `confirmScheduleOutboxEntry`, which `crash-schedule-worker.ts`
+  never calls — grepped its own source: `confirmScheduleOutboxEntry` appears only in two doc-comment
+  sentences, never a real import, exactly matching the allow-list entry's inline reason). Compared
+  directly against `src/production-queue/fixtures/claim-worker.ts`'s own entry: same shape (a
+  crash-simulation fixture, spawned as its own OS process, one write function imported directly, one
+  allow-list line with an inline justification). The mirror holds.
+
+**Note on Verification accuracy (low severity, not blocking):** the Round-2 Build Report's "Guard
+genuinely catches it, twice" bullet states that removing the `STORE_WRITE_FUNCTIONS` registration makes
+"3 violations reappear (qa's exact repro)". Reproduced against the actual, final (post-`run.ts`-deletion)
+code, this does not hold — only 1 stale-entry failure appears, because `run.ts` (the source of 2 of the
+original 3 violations) no longer exists to contribute them. The "3 violations" figure is accurate for
+`tasks.md` §5.1's own step (registering the store BEFORE deleting `run.ts` — I can see this matches my
+own Round-1 finding exactly), but the Verification section restates it as if freshly re-checked against
+the shipped code, which it evidently was not, or was mis-transcribed. This does not undermine the fix:
+the guard demonstrably still fails when unregistered (just with a different, and honestly weaker,
+diagnostic — "stale entry" rather than "3 new violations"), and the OTHER break-it direction (allow-list
+removal) is exactly as claimed. Flagging for accuracy, not blocking the merge.
+
+### The collapse-versus-allow-list decision — ruling: sound, and safe precedent for #208
+
+**"Verbatim" claim: confirmed true by direct diff, not just trusted.** Diffed Round 1's
+`src/schedule-outbox/run.ts` (`git show 3b65ac7:...`) against Round 2's
+`src/command-surface/schedule-outbox.ts` (`git show bcdd7b6:...`) directly. The ONLY differences across
+the entire file: (1) doc-comment prose explaining the Round-2 restructuring, (2) import paths adjusted
+for the new directory (`./store.ts` -> `../schedule-outbox/store.ts`), (3) mechanical renames
+(`runScheduleOutboxEntry` -> `scheduleViaOutbox`, `reconcileScheduleOutboxEntry` ->
+`reconcileScheduleOutbox`, and their two type names). Every conditional branch, every function-call
+sequence, every line of actual control flow is byte-for-byte identical. No crash-safety behavior shifted
+during the move.
+
+**Test coverage: nothing unique lost — confirmed by a real diff of both test files, not just the
+developer's own accounting.** Round 1's `run.test.ts` had 7 tests across 4 `describe` blocks; Round 1's
+`command-surface/schedule-outbox.test.ts` had 2 tests across 2 `describe` blocks, and — checked
+directly — those 2 were substantively identical to 2 of `run.test.ts`'s 7 (same setup, same assertions,
+proven through a function that was, in Round 1, a one-line forward to the `run.ts` equivalent). Round 2's
+`command-surface/schedule-outbox.test.ts` now carries all 7 of `run.test.ts`'s tests (4 `describe`
+blocks), diffed line-by-line against the Round-1 `run.test.ts`: identical bodies and assertions, only
+names/import paths changed, plus one merged test description
+(`"returns 'unknown-key'..."` gained the Round-1 command-surface test's `", touching Zoho zero times"`
+clause). Round 1 total for this behavior: 7 + 2 = 9 tests / 6 suites across the two files. Round 2 total:
+7 / 4 in the one file. Delta: exactly 2 tests / 2 suites — matches the reported 3178→3176 / 822→820 drop
+precisely, and the explanation (genuine duplicate coverage consolidated, not coverage lost) holds up
+under direct inspection, not merely the developer's own arithmetic.
+
+**Is `recordReviewDecision` a fair precedent?** Partially, and honestly stated as such here: it is
+solid, on-point precedent for the SPECIFIC claim the developer uses it for — that a command-surface
+function composing more than one store call behind real conditional branching is an established,
+accepted shape in this codebase (`recordReviewDecision` calls `acceptIdea`/`rejectIdea` and,
+conditionally, `selectIdeaRecipes`, all three from `src/idea/store.ts`, with a real `if` on
+`decision.outcome` — read directly, confirmed). It is a weaker precedent for the FULL shape
+`scheduleViaOutbox`/`reconcileScheduleOutbox` now take: checked every other command-surface module
+(`assets.ts`, `jobs.ts`, `performance.ts`, `posts.ts`, `trends.ts`) — `schedule-outbox.ts` is the ONLY
+one that takes an injected external `Port` as a parameter, and the only one with `await`ed calls
+interleaved with multi-way branching across two functions (a 4-way status switch in
+`reconcileScheduleOutbox`, plus the `alreadyReserved` check and a 3-way outcome switch in
+`scheduleViaOutbox`). This IS materially more complex than any sibling, `recordReviewDecision` included.
+That said: (a) a command-surface function taking an injected `ZohoSchedulePort` was ALREADY the shape in
+Round 1's own thin-forwarding version, unchallenged by this review then or now — Round 2 did not
+introduce port-injection as a new pattern, it only moved WHERE the logic behind it lives; (b) the
+complexity itself is inherent to what issue #209 asks for (a crash-safe reserve/reconcile/confirm
+sequence needs this exact shape no matter which file it lives in) — collapsing did not add complexity,
+it only relocated existing complexity to close the guard gap; (c) the composition rule the guard and the
+command-surface Requirement actually care about — no store bypassed, no logic duplicated outside the
+store/pure-module it belongs to — is respected: `scheduleViaOutbox` calls `store.ts` and `reconcile.ts`
+directly and introduces no new business rule that doesn't already live in one of those two modules.
+
+**Safe precedent for #208?** Yes. The worker (#208) is a higher-level orchestration process that will
+CALL INTO `scheduleViaOutbox` (the same way it will call into `claimJob`/`releaseJob`/etc. from
+`jobs.ts`) — it is not itself a command-surface function and does not need to replicate this shape. The
+precedent this collapse sets is narrower and more defensible than "command-surface functions can be
+arbitrarily complex": it is "the crash-safety logic FOR one atomic write capability belongs directly in
+the command-surface module that exposes it, not in an intermediate deep module the guard cannot see" —
+which is exactly the fix the guard's own doc comment already recommends as its first-listed remedy
+("must either move onto `src/command-surface/`, or be added to the allow-list"). This does not force
+#208 into an awkward shape; it just means #208 imports `scheduleViaOutbox` as one call among several,
+same as every other command-surface function it will use.
+
+### Falsification, reproduced at the new location
+
+Reproduced independently, in a fresh disposable copy of `bcdd7b6`. Reintroduced the exact original bug
+(unconditional reserve -> `createSchedule` -> confirm, no `alreadyReserved` check) inside
+`src/command-surface/schedule-outbox.ts`'s `scheduleViaOutbox`, ran
+`node --import tsx --test src/schedule-outbox/crash-recovery.test.ts`:
+
+```
+not ok 1 - A crash AFTER Zoho already accepted the schedule, ... cannot cause a re-run to double-post
+  must NOT call createSchedule again — that would double-post
+ok 2 - A crash BEFORE Zoho was ever called ... schedules exactly once
+# pass 1
+# fail 1
+```
+
+Identical assertion, identical 1-pass/1-fail split, matching the Build Report's claim exactly. The test
+genuinely still has teeth at its new address. Deleted the scratch copy; `git status` in the real worktree
+confirmed clean before and after.
+
+### Per-criterion / per-scenario / always-rules — unchanged from Round 1
+
+None of these were touched by this round's diff (`run.ts`/`run.test.ts` deletion and the
+store/command-surface move do not change any acceptance-criterion behavior, any spec Scenario's outcome,
+or any always-rule). Re-verified the diff is scoped exactly as claimed
+(`git diff 3b65ac7...bcdd7b6 --stat`: only `command-surface/{index,schedule-outbox,schedule-outbox.test}
+.ts`, `schedule-outbox/{crash-recovery.test,reconcile,run,run.test,store}.ts`,
+`store-write-boundary/{allow-list,scan}.ts`, and the OpenSpec change's own files) — no media-host file,
+no `db/schema.ts`, no `mcp-schedule-port.ts` touched. Round 1's per-criterion table, per-scenario table,
+and always-rules table all stand as written above, unmodified.
+
+**New Requirement added this round** (`command-surface/spec.md`, "schedule_outbox's write functions are
+registered with the store-write boundary guard") — its two new Scenarios checked: the third
+("schedule_outbox's write functions ARE registered, and the guard covers them for real") is proven by
+the existing `store-write-guard.test.ts` operating on the corrected file state (confirmed above via the
+allow-list-removal reproduction). The second ("an un-registered write function is invisible to the guard
+— the failure mode this Requirement exists to prevent") documents a rationale/historical property rather
+than a freshly-asserted behavior of the current (fixed) code, and has no dedicated new unit test of its
+own — it is adequately supported by `scan.test.ts`'s existing general-case tests (e.g. "does NOT match an
+unrelated import from an unrelated module" exercises the identical `if (writeFunctions === undefined)
+continue` code path) plus my own two independent manual confirmations (Round 1's discovery, Round 2's
+re-check). Noting this as a low-severity documentation observation, not a defect — the underlying
+mechanism is genuinely tested, just not via a schedule-outbox-specific unit test for this one scenario.
+
+### Defect list (Round 2)
+
+No new HIGH/CRITICAL defects. Two low-severity notes, neither blocking:
+
+- **LOW** — Round-2 Build Report's "Guard genuinely catches it, twice" Verification bullet mis-describes
+  the `STORE_WRITE_FUNCTIONS`-removal check as producing "3 violations" against the final code; it
+  actually produces 1 (a stale allow-list entry), because `run.ts` no longer exists to contribute the
+  other 2. The "3 violations" figure is real, but for an earlier, intermediate build step (`tasks.md`
+  §5.1, before `run.ts` was deleted), not the shipped code. Does not affect correctness — recommend
+  correcting the Verification section's wording so a future reader isn't misled about what the current
+  code actually does when broken.
+- **LOW** — the new "un-registered write function is invisible to the guard" Scenario
+  (`command-surface/spec.md`) has no dedicated automated test proving it against `schedule_outbox`
+  specifically; it's covered generically by `scan.test.ts`'s existing pattern and by my manual
+  verification. Optional: a small `scan.test.ts` addition constructing an unregistered-store fixture
+  would close this cleanly, but it is not required for correctness today.
+
+### Outstanding Operator hand-actions (unchanged, not blockers)
+
+- **AC7**: run `npm run media-host-smoke` for real and post the result on issue #209 — still not done,
+  issue #209 still has 0 comments.
+- Run `openspec archive issue-209-scheduling-outbox-sips-port` for real once this slice merges.
+
+### Overall
+
+**PASS.** Defect 1 is genuinely fixed — verified independently in both break-it directions (one exactly
+as claimed, one with a corrected but still-failing diagnostic, noted above as a low-severity write-up
+inaccuracy, not a functional gap), the guard now covers `schedule_outbox` through its normal,
+unmodified machinery instead of being blind to it, the "verbatim move" claim holds under a direct byte
+-level diff, no test coverage was lost (confirmed by an independent diff, not just the developer's own
+count), the crash-safety falsification still has teeth at the new location, and the collapse-vs-
+allow-list decision is sound, well-precedented for its narrow claim, and sets a safe, non-binding
+pattern for issue #208's worker. Suite is green across the board (`tsc`, `npm test` 3176/820/0 fail,
+`npm run test:docs` 295/80/0 fail, both `openspec validate` runs). Nothing here should block a merge;
+only the two LOW notes above are worth a quick follow-up (a Verification-section wording fix, optionally
+a `scan.test.ts` addition) whenever convenient — neither needs a Round 3.
