@@ -59,6 +59,17 @@ default) and port `4173` when `--db`/`--port` are omitted.
 - **WHEN** `prepareLibraryViewer` is called
 - **THEN** it resolves with an open, read-only `db` handle and a `server` that serves real GET requests
 
+### Requirement: The viewer binds to the loopback interface only, never every network interface — this is a local HTML viewer, not a web app
+
+`src/commands/run-library-viewer.ts`'s `main()` SHALL bind its HTTP server to `"127.0.0.1"` explicitly on every call to `server.listen()` — never the bare `server.listen(port, callback)` form, whose documented Node.js default binds every available network interface. This holds regardless of the platform's default (loopback IPv4 vs. the unspecified `::`/`0.0.0.0`): the Operator's brand Copy, Production Specs, Post URLs, and media SHALL never be reachable from another device on the same network. A regression test SHALL exercise `main()` itself (not a hand-built server with its own hardcoded host) and assert the bound address.
+
+#### Scenario: main() binds loopback-only, never every interface
+
+- **GIVEN** a real, migrated database and an OS-assigned port (`--port 0`)
+- **WHEN** `main()` is called and starts listening
+- **THEN** `server.address()` reports `"127.0.0.1"` — never `"::"` or `"0.0.0.0"` — and the server still
+  answers a real `GET` request made to `127.0.0.1`
+
 ### Requirement: The server has no write path at all — every non-GET method is refused with 405, for every route, with no exception
 
 `src/library/server.ts`'s `createLibraryServer(db)` SHALL refuse any HTTP request whose method is not
@@ -118,7 +129,11 @@ matching every SET field of a `LibraryFilter` (`hookType`, `theme`, `recipe`, `f
 imposes no constraint. `deriveFilterOptions` SHALL derive the filter controls' offered values from the
 rows actually present, never a fixed static list, so a filter option can never return zero rows by
 construction. The server SHALL expose this as query-string parameters on `GET /`
-(`?hookType=...&theme=...&recipe=...&format=...&sort=...`).
+(`?hookType=...&theme=...&recipe=...&format=...&sort=...`). This screen, and every filter on it, is
+deliberately ASSET-scoped: an Idea that was rejected, or accepted but never produced an Asset for the
+chosen Recipe, never appears here or under any filter — `render/library.ts` SHALL state this limit
+plainly, on every render, so a "0 of N" filtered result is never misread as "no Idea ever used this hook
+type."
 
 #### Scenario: Filtering by hookType answers "every Idea that used a given Hook Type" by clicking
 

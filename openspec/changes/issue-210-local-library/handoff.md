@@ -215,3 +215,411 @@ not ok 1 - a raw SQL write through the SAME handle the server is running against
 ```
 
 Both restored; `npm test` green afterward (3616 / 945 / 0 fail).
+
+---
+
+## QA Verdict — Round 1: FAIL
+
+Verified in worktree `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-210-local-library`, branch
+`issue-210-local-library` at `d3be168`. Every command below was actually run by QA, not read off the
+Build Report.
+
+### Suite result
+
+| Check | Command | Result |
+|---|---|---|
+| Full suite | `npm test` | **3616 / 945 suites, 0 fail** — matches claim exactly; delta from baseline (3488/915) is +128 tests / +30 suites, genuinely new (verified file-by-file against `git diff origin/main...HEAD --stat`, 46 files, all under `src/library/**`, `src/commands/run-library-viewer.*`, plus additive test files on `src/db/connection.ts`, `src/asset/store.ts`, `src/post/store.ts`, `src/production-queue/job-store.ts`) |
+| Docs suite | `npm run test:docs` | **349 / 92 suites, 0 fail** |
+| Build | `npm run build` | Clean, no errors (`tsc -p tsconfig.build.json`) |
+| OpenSpec (change) | `npx openspec validate issue-210-local-library --strict` | `Change 'issue-210-local-library' is valid` |
+| OpenSpec (all) | `npx openspec validate --all --strict` | `Totals: 67 passed, 0 failed (67 items)` — includes `change/issue-210-local-library` |
+
+All green, genuinely, on a fresh run. No leftover processes or repo pollution afterward (`git status
+--short` clean; `data/organicgrowth.db` confirmed git-ignored).
+
+### Per-criterion results (issue #210 acceptance criteria, taken verbatim)
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | A local process renders HTML from the database and never writes to it | **PASS** | Independently reproduced (see "Read-only guarantee" below) — not merely read off the test file |
+| 2 | Library screen lists every Asset, sortable by Performance Score | **PASS** | `buildLibraryIndex` returns 54/54 real Assets (verified by direct query); `sortLibraryRows` tie/missing-last tested and matches real all-`0.5`-or-missing corpus shape |
+| 3 | Filters by hook type, theme, Recipe, Format | **PASS** | `applyLibraryFilter`/`deriveFilterOptions` tests; live `GET /?hookType=irony` on the real corpus narrows correctly |
+| 4 | Asset page shows Spec, media, Copy variants, Post URLs, metric history **together** | **PASS** | `render/asset.ts` puts all five sections on one returned HTML string, no tabs, no secondary fetch; verified live against a real Asset (`5eb7f27e-...`) — Spec + the real logged Post URL rendered on the same page |
+| 5 | Chart plots Fit Score vs Performance Score, wrong prediction visible on sight | **PASS** | `render/chart.ts` labels both axes "(predicted)"/"(measured)" explicitly everywhere; an unscored Idea is listed separately, never plotted at 0; ties-at-identical-coordinates and real-corpus-shape (0 scored, 61 awaiting) both tested |
+| 6 | Run & queue state screen, without reading JSON | **PASS** | `grep` confirms no `node:fs` import anywhere in `src/library/**` except `media.ts` (a pure `readFile`, unrelated to `queue.json`); `queue-classify.ts` is a pure function of Job/Asset status only |
+| 7 | Q1 — top 5 Assets by Performance Score, Specs side by side, by clicking | **PASS** | `GET /top` renders scored Assets in side-by-side `.spec-col` columns with full pretty-printed Specs; states real count when fewer than 5 |
+| 8 | Q2 — every Idea that used a given hook type, by clicking | **PASS, with a caveat worth surfacing** | See "AC8 scope note" below — the Library is Asset-scoped, so an Idea that never produced an Asset never appears under any filter. Directly consistent with epic #195's own User Story 47 ("filter Assets by hook type... so question 1 and question 2 are answered by clicking"), and honestly disclosed in the Build Report's own manual smoke test (the real `irony`-classified Idea that never got an Asset). Not treated as a blocking defect, but flagged for Operator awareness since issue #210's own AC8 text says "every **Idea**," not "every Idea with an Asset." |
+| 9 | Q3 — how well Fit Score predicted Performance, by clicking | **PASS** | `GET /chart` |
+| 10 | No write path at all — not a disabled button, no endpoint | **PASS** | See "Read-only guarantee" below |
+
+### Per-scenario results (spec deltas, `openspec/changes/issue-210-local-library/specs/**`)
+
+All scenarios in `local-library-viewer/spec.md`, `sqlite-foundation/spec.md`, `asset-store/spec.md`,
+`post-store/spec.md`, `job-claim-store/spec.md` were traced to a passing test and, where feasible,
+independently reproduced by QA outside the test file:
+
+- "A raw SQL write through the server's own connection throws" — **PASS**, reproduced live (see below).
+- "A typed store's write function called against the server's own connection throws" — **PASS**,
+  reproduced live: `createBrand(reader, ...)` against the read-only handle threw `attempt to write a
+  readonly database`.
+- "The server still serves real GET requests against the same read-only connection" — **PASS**,
+  reproduced live (`200` from `GET /`).
+- "A missing/unmigrated database file is refused, never created/migrated" — **PASS**,
+  `run-library-viewer.test.ts`.
+- "Every write method on every route is refused with 405" — **PASS**, reproduced live against a running
+  server with `POST`/`PUT`/`PATCH`/`DELETE`/lowercase methods/`OPTIONS`/an `X-HTTP-Method-Override`
+  header — every one 405'd; `TRACE`/`CONNECT` are rejected by Node's own HTTP client before reaching the
+  server at all.
+- "The Library screen's own filter/sort form only ever issues a GET request" — **PASS**,
+  `render/library.test.ts` + visual confirmation (`<form method="get" action="/">`).
+- "Every Asset in the database appears in the index" / sort scenarios — **PASS**, reproduced against the
+  real corpus (54/54).
+- "Filtering by hookType answers 'every Idea that used a given Hook Type' by clicking" — **PASS as
+  specified**, but see AC8 caveat above — the spec's own scenario is itself Asset-scoped, which is
+  faithful to how the developer built it, but is a narrower claim than issue #210's own AC8 prose.
+- "The Asset page shows Spec/media/Copy/Posts/metric history together" — **PASS**, reproduced live.
+- "Media served from local disk... degrades to clean 404" — **PASS**, reproduced live (see path-traversal
+  section below).
+- "Chart labels predicted vs measured, never plots unscored at 0, ties all drawn" — **PASS**.
+- "Run & queue classifies produced/parked/failed/running/queued/done" — **PASS**.
+- "Top-5 shows Specs side by side, states real count when fewer than 5" — **PASS**.
+- `sqlite-foundation`'s `readOnly` scenarios — **PASS**, reproduced live (see below).
+- `asset-store`/`post-store`/`job-claim-store`'s new `listAll*` scenarios — **PASS**, reproduced live
+  against the real corpus (61 Ideas / 54 Assets / 66 Jobs / 7 Posts, matching
+  `docs/import-reconciliation-2026-08-17.md`).
+
+### Read-only guarantee — attacked directly, not read off the test
+
+QA wrote and ran its own script (not the developer's test file) against a fresh temp database, opening
+the connection exactly as `run-library-viewer.ts` does and handing it to the real `createLibraryServer`:
+
+- Raw SQL `INSERT` through the server's own connection → **threw** `Error: attempt to write a readonly
+  database`.
+- The typed store's own `createBrand(reader, ...)` write function against the same connection → **threw**
+  the identical error.
+- Every HTTP method attempted against the running server (`POST`, `PUT`, `PATCH`, `DELETE`, lowercase
+  `post`/`Post`, `OPTIONS`, plus a `GET` with an `X-HTTP-Method-Override: POST` header, plus a `POST` with
+  an `X-HTTP-Method-Override: GET` header) → **all 405**, none slipped through.
+- `TRACE`/`CONNECT` are refused client-side by Node's `fetch` before ever reaching the server.
+
+**The `openDatabase` default is `readOnly: false`** (`src/db/connection.ts`) — a real foot-gun *in
+principle*, but not in practice here: `grep -rn "openDatabase" src/library src/commands/run-library-viewer.ts`
+shows exactly ONE production call site (`run-library-viewer.ts`'s `prepareLibraryViewer`), and it always
+passes `{ readOnly: true }`. Crucially, `run-library-viewer.test.ts`'s third test does not just assert the
+option was passed — it inserts through `prepared.db`, the actual handle `prepareLibraryViewer` built and
+the actual server runs against, and asserts the insert throws `/readonly/i`. That closes the gap a
+weaker "assert the argument was `true`" guard would have left (the exact shape of #212's boolean-not-true
+guard failure this epic has already been burned by). The default itself is honestly documented in the
+`sqlite-foundation` spec delta as intentional, additive backward-compatibility for existing read-write
+callers, not concealed.
+
+### Path traversal (`/media/:id`) — attacked directly
+
+QA wrote a script serving a real `SECRET.txt` one directory above a configured `media_root`, and hit
+`/media/:id` with `../SECRET.txt`, `..%2f..%2fSECRET.txt`, `%2e%2e%2f...`, double-encoded, and
+`%2Fetc%2Fpasswd` variants. **Every attempt returned 404.** Root cause confirmed by reading the code, not
+assumed: `mediaId` is used purely as a `WHERE id = ?` parameterized lookup key against `asset_media`
+(`getAssetMediaById`) — it never touches path construction. The actual filesystem path is built from
+`asset_media.storage_key` (a database column) joined against the owning Brand's `media_root`
+(`resolveMediaAbsolutePath`), and `storage_key` is validated at WRITE time by the pre-existing
+`assertRootRelativeStorageKey` (issue #201) to reject any `..` segment, absolute path, or home-directory
+shorthand. No path traversal is reachable through this route.
+
+### Network binding — **DEFECT, see below**
+
+`src/commands/run-library-viewer.ts`'s `main()` calls `server.listen(port, res)` with **no host
+argument**. QA started the real CLI (`npm run library -- --port 4322`) and confirmed with `lsof` that it
+binds `TCP *:4322 (LISTEN)` — all interfaces, not loopback — and confirmed live that the server answered
+`200` when curled from the machine's own LAN IP (`192.168.18.18`), i.e. from anywhere else on the same
+network. See defect list.
+
+### Real-corpus counts — verified independently, and asked what the test does not count
+
+QA queried the real, git-ignored `data/organicgrowth.db` directly (bypassing both the developer's test
+and the read model) and got: `brand=2, idea=61, asset=54, job=66, post=7, asset_media=0, copy_variant=0` —
+exactly matching the Build Report's claim and `docs/import-reconciliation-2026-08-17.md`. QA then called
+`buildLibraryIndex`/`buildQueueRows`/`getAssetDetail` directly — the SAME functions `server.ts`'s
+`handleGet` calls, not a parallel query — confirming `buildLibraryIndex` returns all 54 real rows and
+`buildQueueRows` returns all 66 real rows.
+
+**What `read-model.test.ts`'s real-corpus test does NOT count:** it asserts `listAllPosts(db).length ===
+7` and `countAllPosts(db) === 7`, but never asserts the *content* of any of those 7 real Post rows (URL,
+channel) survives the join — only a synthetic-fixture test checks `postUrl` field-level correctness. This
+is exactly the shape of blind spot #204's reconciliation was burned by (a balanced count while dropping
+every URL). QA closed this gap by hand: called `getAssetDetail` for all 7 real posted Assets and confirmed
+every one of the 7 real `https://www.facebook.com/...` URLs is present, correctly attributed one-per-Asset,
+through the join. **The underlying behavior is correct** — this is a test-coverage gap, not a live bug —
+but it should be closed with an assertion in the same test, not left to a manual QA check to catch next
+time.
+
+### Always-rules + Magnific-fake + hermeticity checks
+
+| Rule | Result | Evidence |
+|---|---|---|
+| Generate-never-publish | **PASS** | No write path exists at all; nothing publishes |
+| Public-metrics-only | **PASS** | No new metrics source; `grep -rln "apify\|Apify" src/library` hits only a fixture's `source: "apify"` string literal and a doc comment — no network call |
+| Relative-not-absolute | **PASS** | `sortLibraryRows`/`topAssetsByPerformance` rank on `bestPerformanceScore` (already baseline-relative) only; the Asset page's raw reaction/comment/share/view numbers are shown as supporting detail alongside the score, never used for ranking/comparison |
+| Explicit-attribution | **PASS** | Post URLs rendered are read back verbatim from what `/log-post` recorded; never inferred |
+| Ledger-as-source-of-truth | **PASS (not applicable — no writes)** | This viewer performs zero writes of any kind; `ledger.json` remains untouched and unread by this module |
+| Magnific fake / hermeticity | **PASS** | `grep -rln "magnific\|SpaceMcpPort\|spaces_\|creations_" src/library src/commands/run-library-viewer.ts` → no hits; no ledger/queue.json writes (`queue.json`/`ledger.json` mentions are comments stating the module does NOT touch them) |
+| Guards: `src/fs-boundary/` | **PASS** | One new, narrowly-scoped, well-justified allow-list entry: `src/library/media.ts` (a single pure `readFile`) |
+| Guards: `src/store-write-boundary/` | **PASS** | `git diff origin/main...HEAD -- src/store-write-boundary/` is empty — **zero** new allow-list entries, correctly consistent with a read-only viewer (a new entry here would have been a contradiction) |
+| No new runtime dependency | **PASS** | `git diff origin/main...HEAD -- package.json` shows only a new `library` script; no new `dependencies` entry |
+
+### Defect list
+
+1. **[HIGH] The Library server binds to all network interfaces, not loopback-only — a real local-network
+   data exposure, untested by any test in the suite.**
+   - **What's wrong:** `src/commands/run-library-viewer.ts`'s `main()` (`await new Promise<void>((res) =>
+     server.listen(port, res));`) omits the host argument. Node's documented default when no host is
+     given is to accept connections on all available interfaces. Every one of the three test files that
+     exercise `.listen()` (`server.test.ts`, `read-only.test.ts`, `run-library-viewer.test.ts`) explicitly
+     passes `"127.0.0.1"` as the host — so the actual behavior of the shipped `main()` entry point is
+     never exercised by any test. This is the "green and blind" pattern this epic has already been burned
+     by six times, in a new place. It also directly contradicts epic #195's own architecture decision #3,
+     "The UI is a local HTML viewer, **not a web app**" — the current binding makes it reachable from any
+     device on the same network, i.e. functionally a web app on the LAN, exposing the Operator's brand
+     Copy, Production Specs, Post URLs and media to anyone on that network (e.g. shared office wifi, a
+     coffee shop).
+   - **Repro steps:**
+     ```
+     cd /Users/CaxtonTaylor/Developer/.og-worktrees/issue-210-local-library
+     npm run import-data && npm run backfill-hook-theme   # if data/organicgrowth.db doesn't exist yet
+     npm run library -- --port 4322 &
+     lsof -nP -iTCP:4322 -sTCP:LISTEN
+     # → COMMAND PID ... TCP *:4322 (LISTEN)     <- wildcard bind, not 127.0.0.1:4322
+     curl -s -o /dev/null -w "%{http_code}\n" http://$(ipconfig getifaddr en0):4322/
+     # → 200, from the machine's own LAN-facing IP — i.e. reachable from any other device on the network
+     ```
+   - **Suggested fix:** `server.listen(port, "127.0.0.1", res)` (or `"localhost"`), plus a regression
+     test that calls the real `main()`/`prepareLibraryViewer` + `.listen()` path (not a hand-built
+     `createLibraryServer` + manual `"127.0.0.1"` listen) and asserts the bound address is loopback.
+
+2. **[LOW, non-blocking] The real-corpus integration test proves Post *count* survives the join, never
+   Post *content*.**
+   - **What's wrong:** `src/library/read-model.test.ts`'s "against the REAL imported corpus" test asserts
+     `listAllPosts(db).length === 7` / `countAllPosts(db) === 7`, but never asserts that the real 7 Posts'
+     `postUrl`/`channelPlatform` fields survive `getAssetDetail`'s join. This is exactly the shape of blind
+     spot issue #204's own reconciliation was burned by (a balanced count while every URL was silently
+     dropped) — a future regression that dropped every real Post's URL while keeping the count at 7 would
+     pass this test.
+   - **Repro / verification:** QA independently confirmed the underlying behavior IS correct today (see
+     "Real-corpus counts" above) — this is a coverage gap, not a live bug, filed so it doesn't regress
+     silently.
+   - **Suggested fix:** In the same real-corpus test, after asserting the counts, also assert
+     `getAssetDetail(db, <a real posted Asset's id>).posts[0].postUrl` matches a known real URL (or at
+     minimum that every real Post's `postUrl` is a non-empty `https://` string) — closing the gap with an
+     assertion rather than relying on manual QA to catch it.
+
+3. **[LOW, note only, non-blocking] AC8's literal "every Idea" is narrower in practice: Asset-scoped, not
+   Idea-scoped.**
+   - **What's wrong:** issue #210's own AC8 text reads "every **Idea** that used a given hook type."
+     The shipped Library only ever lists Assets — an Idea that was rejected, or accepted but never
+     produced an Asset, never appears anywhere in the Library under any filter. Live-verified: the real
+     corpus's one Idea classified `hookType: irony` is invisible under `GET /?hookType=irony` (`0 of 54`)
+     because it never had a Recipe accepted/an Asset produced.
+   - **Why this is not treated as blocking:** epic #195's own User Story 47 explicitly frames the
+     mechanism the same way the developer built it — "filter Assets by hook type... so question 1 and
+     question 2 are answered by clicking" — and the Build Report's own manual smoke test discloses the
+     `0 of 54` result plainly, unprompted, rather than hiding it.
+   - **Suggested action:** no code change required for this round; worth a one-line disclosure in the
+     Library screen itself ("Assets only — a rejected or not-yet-produced Idea won't appear here") so a
+     future Operator doesn't misread a `0 of 54` result as "no Idea ever used this hook type."
+
+### Overall
+
+**FAIL — Defect 1 (HIGH) is real, live-reproduced, and untested by the suite**, and blocks this round.
+Defects 2 and 3 do not block on their own (both are coverage/disclosure gaps behind correct underlying
+behavior) but should be addressed in the same pass. Everything else — the read-only guarantee, the
+route/method sweep, path-traversal resistance, the real-corpus join, the guard boundaries, hermeticity,
+and nine of the ten acceptance criteria — is genuinely proven, not merely asserted, and passes.
+
+---
+
+## Build Report — Round 2
+
+Fixes all three Round 1 defects. No other part of the slice was touched — QA's Round 1 pass on the
+read-only guarantee, the media path-traversal safety, the 405 sweep, and the real-corpus counts stands
+unchanged and was not re-litigated.
+
+### Defect 1 (HIGH) — network binding — FIXED
+
+**Root cause:** `src/commands/run-library-viewer.ts`'s `main()` called `server.listen(port, res)` with no
+host argument. Node's documented default when no host is given is to bind every available interface.
+
+**Fix:**
+- Added an explicit `const LOOPBACK_HOST = "127.0.0.1"` and changed the real listen call to
+  `server.listen(port, LOOPBACK_HOST, res)`.
+- The deeper ask — a test that exercises the real CLI path, not a re-implementation of it — required a
+  small, honest refactor: `main()` now accepts an optional `argv` (defaulting to the real
+  `process.argv.slice(2)`) and *returns* the `PreparedLibraryViewer` (now listening) instead of `void`.
+  This lets a test call the literal exported `main()` — the exact function the `npm run library` CLI
+  invokes at its entry point below — with a throwaway migrated database and an OS-assigned port, then
+  inspect `server.address()` directly, then close it itself. Nothing about `main()`'s behavior as the CLI
+  entry point changed: the entry-point block at the bottom of the file still calls `main()` with no
+  arguments and ignores its return value.
+- Fixed a latent, adjacent bug this surfaced: `prepareLibraryViewer`'s own port parsing rejected `0`
+  (`parsedPort > 0`), silently falling back to the real default port `4173` — meaning a test passing
+  `--port 0` (the OS "assign a free port" convention) was actually binding the real default port, a
+  collision risk with any concurrently-running viewer. Changed the guard to `parsedPort >= 0` (a real
+  user still can't pass a negative or garbage port; `0` now means what it means everywhere else).
+
+**Files touched:** `src/commands/run-library-viewer.ts` (fix + refactor),
+`src/commands/run-library-viewer.test.ts` (new regression test),
+`openspec/changes/issue-210-local-library/specs/local-library-viewer/spec.md` (new Requirement).
+
+**Red → green transcript** (temporarily reverted the fix — `server.listen(port, res)` with no host — ran
+the new test, restored, ran again):
+
+Red (host argument removed):
+```
+$ node --import tsx --test src/commands/run-library-viewer.test.ts
+not ok 5 - main() — the REAL CLI entry point, not a re-implementation of it — binds loopback-only, never every interface (issue #210 QA round 1, defect 1)
+  error: |-
+    expected main() to bind loopback-only ("127.0.0.1"), got "::" — reachable from every network
+    interface, not just this machine
+
+    '::' !== '127.0.0.1'
+  expected: '127.0.0.1'
+  actual: '::'
+  operator: 'strictEqual'
+# tests 5
+# pass 4
+# fail 1
+```
+This is the exact defect QA reproduced live via `lsof`/`curl` from the LAN IP, now caught by the suite
+itself instead of requiring a human with `lsof`.
+
+Green (fix restored, `server.listen(port, LOOPBACK_HOST, res)`):
+```
+$ node --import tsx --test src/commands/run-library-viewer.test.ts
+ok 5 - main() — the REAL CLI entry point, not a re-implementation of it — binds loopback-only, never every interface (issue #210 QA round 1, defect 1)
+# tests 5
+# pass 5
+# fail 0
+```
+
+The new test calls `main()` itself (not a hand-built server with the test's own hardcoded host), so a
+future edit that drops the host argument from `main()`'s own `server.listen()` call breaks CLI behavior
+and this test in the SAME commit — the "green and blind" pattern QA named cannot recur here undetected.
+
+### Defect 2 (LOW) — real-corpus test counted Posts, never checked their URL content — FIXED
+
+Added, inside the SAME real-corpus test (`src/library/read-model.test.ts`, "against the REAL imported
+corpus"), right after the existing count assertions:
+
+1. **Ground truth pulled from the source of truth, not re-derived.** Read straw-motion's real
+   `ledger.json` via the SAME typed `loadFullIdeas` loader the one-shot importer itself reads through
+   (`src/ledger/ledger.ts` — never hand-parsed JSON), collected the real, non-null `post_url` on every
+   Idea's every Asset, and asserted there are exactly 7 (a sanity check on the ground truth itself).
+2. **Through `buildLibraryIndex`** (what the Library screen, AC2, actually renders) — flattened every
+   row's `posts[].postUrl`, asserted the resulting set has exactly 7 members, and that every one of the 7
+   real ledger URLs is present, verbatim.
+3. **Through `getAssetDetail`** (what the Asset page, AC4, actually renders) — for EVERY one of the 7 real
+   posted Assets (never a single sampled row, since issue #204's own blind spot hid across all 7), called
+   `getAssetDetail` and asserted the resulting Post-URL set is EXACTLY (not a subset/superset of) the real
+   7 from `ledger.json`.
+
+**Proved the new assertions have teeth**, not just that they pass today: temporarily changed
+`read-model.ts`'s `getAssetDetail` to return a hardcoded fake `postUrl` for every Post, re-ran the file —
+**2 tests went red** (the pre-existing fixture-level `getAssetDetail` test AND the new real-corpus
+assertion, both catching it independently), then reverted and confirmed green again (`git diff -- src/
+library/read-model.ts` is empty — the revert is byte-for-byte the original).
+
+**"What else does the real-corpus test count without checking?"** — audited every count in that test:
+
+- **Posts (7) → FIXED above** (URL content).
+- **Specs (`hasSpec`)** — same shape of gap, and directly on-theme with this same epic's own #212 finding
+  ("verified a field was a boolean rather than *true*"): the test never checked that a real Asset's saved
+  `spec_json` carries actual content, only that `hasSpec` is a truthy boolean. **Fixed in the same pass:**
+  for every real Asset where `hasSpec === true` (not just one sample), asserted `getAssetDetail`'s `spec`
+  is non-null AND carries genuinely non-trivial content — checked generically (at least one own key whose
+  value is a non-empty array/string/object), because the three wired Recipes' Specs have three different
+  shapes (News Carousel's own top-level key is `slides`; Character Explainer with Cast's are
+  `character_concepts`/`clips`/`thumbnails`; News Short Script's is `beats`) and a single hardcoded key
+  would only have covered one Recipe.
+- **Ideas (61) / Assets (54) / Jobs (66)** — left as row counts. Reasoned about and decided to leave:
+  Job rows are internal Production Queue bookkeeping, already covered field-by-field at the fixture level
+  by `job-store.test.ts`/`queue-classify.test.ts`, and carry no Operator-facing content whose silent loss
+  would be as consequential as a dropped Post URL or an emptied Spec (the two things an Operator actually
+  reads off these two screens per AC2/AC4/AC7). Idea/Asset row *identity* (id, status) is already
+  exercised structurally by the join succeeding at all (54/54, 61/61) plus the `hookType`/`theme`
+  non-empty-string checks already in the test.
+- **Fit Score** — `hookType`/`theme` non-empty-string presence was already checked against the real
+  corpus; the real `fitScore` *numeric* content is checked at the fixture level
+  (`buildFitPerformanceData` round-trips a real number), but not against the real corpus specifically.
+  Left for a future round: lower risk than the two fixed above (a dropped Fit Score would be visually
+  obvious on the Library screen and the Fit-vs-Performance chart as a missing point, not silently absent
+  the way a URL string can be), and this round is scoped to the three defects QA actually filed.
+- **`mediaCount`/media rows** — already correctly and honestly `0` in this worktree (git-ignored
+  `*.output/` directories don't exist in a fresh checkout) and already disclosed, verified, and accepted
+  by QA in Round 1's "Known limits" — not re-touched.
+
+**Files touched:** `src/library/read-model.test.ts` only (test-only change; no production code changed
+for this defect).
+
+### Defect 3 (LOW) — AC8's "every Idea" vs. the shipped Asset-scoped filter — DECISION: kept Asset-scoped, disclosed plainly, not widened
+
+**Decision:** kept the Library Asset-scoped (matching epic #195's own User Story 47 — "filter *Assets* by
+hook type" — and the shipped `buildLibraryIndex`/`applyLibraryFilter` shape QA already reviewed and
+passed on every other axis). Widening to genuinely "every Idea" would mean a second, Idea-scoped index/
+screen showing rejected and never-produced Ideas — a real scope change to a screen QA already verified
+correct for what it does, not a defect fix, and outside this round's "fix the three filed defects, don't
+redo the slice" instruction.
+
+**What changed instead:** added QA's own suggested action — a plain, always-visible one-line disclosure
+on the Library screen itself, in both the populated and empty-result states, so a `0 of 54` result for a
+Hook Type nobody produced an Asset for is never misread as "no Idea ever used this hook type":
+
+> Asset-scoped: an Idea that was rejected, or accepted but never produced an Asset, will not appear here
+> or under any filter below.
+
+**Files touched:** `src/library/render/library.ts` (the disclosure line, in both branches),
+`src/library/render/library.test.ts` (new test asserting it renders in both the populated and empty-
+result states), `openspec/changes/issue-210-local-library/specs/local-library-viewer/spec.md` (the
+Hook-Type-filter Requirement now states the Asset-scoping and the disclosure explicitly, matching what's
+actually shipped).
+
+This is a disclosure, not a scope widening — issue #210's own AC8 is still met the same way it was in
+Round 1 (by clicking a hook-type filter on the Asset list), now with the limit stated on the page instead
+of only in the Build Report.
+
+### Suite / build / spec results (Round 2, fresh run)
+
+| Check | Command | Result |
+|---|---|---|
+| Full suite | `npm test` | **3618 / 945 suites, 0 fail** (+2 tests vs. Round 1's 3616/945: the new `main()` loopback regression test, and the new AC8-disclosure render test; 0 new suites — both landed inside existing `describe` blocks) |
+| Docs suite | `npm run test:docs` | **349 / 92 suites, 0 fail** — unchanged from Round 1 |
+| Build | `npm run build` | Clean, no errors |
+| OpenSpec (change) | `npx openspec validate issue-210-local-library --strict` | `Change 'issue-210-local-library' is valid` |
+| OpenSpec (all) | `npx openspec validate --all --strict` | `Totals: 67 passed, 0 failed (67 items)` |
+
+`git status --short` shows exactly the 7 files touched this round (6 code/test files + this handoff);
+`src/library/read-model.ts` itself has an EMPTY diff — the temporary break used to prove Defect 2's new
+assertions have teeth was fully reverted, byte-for-byte.
+
+### Files touched this round
+
+- `src/commands/run-library-viewer.ts` — loopback bind fix, `main()` made testable (optional `argv`,
+  returns the prepared+listening viewer), `--port 0` fixed to mean "OS-assigned," not "fall back to
+  4173."
+- `src/commands/run-library-viewer.test.ts` — new regression test calling the real `main()`.
+- `src/library/read-model.test.ts` — real-corpus test now asserts Post URL content (all 7, through both
+  `buildLibraryIndex` and `getAssetDetail`) and real Spec content (every `hasSpec` row, generically across
+  all three wired Recipes' Spec shapes).
+- `src/library/render/library.ts` — AC8 Asset-scoping disclosure line.
+- `src/library/render/library.test.ts` — test for the new disclosure line.
+- `openspec/changes/issue-210-local-library/specs/local-library-viewer/spec.md` — new loopback-binding
+  Requirement; the Hook-Type-filter Requirement amended to state the Asset-scoping and disclosure.
+
+### How to run (unchanged from Round 1)
+
+```bash
+npm test
+npm run test:docs
+npm run build
+npx openspec validate issue-210-local-library --strict
+npx openspec validate --all --strict
+```
+
+Single new test: `node --import tsx --test src/commands/run-library-viewer.test.ts`

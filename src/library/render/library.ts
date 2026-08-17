@@ -90,13 +90,19 @@ export function renderLibraryBody(
     rows.length === totalAssetCount
       ? `<p>${rows.length} Asset(s).</p>`
       : `<p>${rows.length} of ${totalAssetCount} Asset(s) match the current filter. <a href="/">Clear filters</a>.</p>`;
+  // AC8 disclosure (issue #210 QA round 1, defect 3): this list, and every filter below, is
+  // ASSET-scoped — an Idea that was rejected, or accepted but never produced an Asset for the chosen
+  // Recipe, never appears here, even under a hook-type/theme filter that would otherwise match it.
+  // Stated plainly on every render so a "0 of N" result is never misread as "no Idea ever used this
+  // hook type."
+  const scopeNote = `<p class="muted">Asset-scoped: an Idea that was rejected, or accepted but never produced an Asset, will not appear here or under any filter below.</p>`;
 
   if (rows.length === 0) {
-    return `${form}${countLine}<p class="muted">No Assets match this filter.</p>`;
+    return `${form}${scopeNote}${countLine}<p class="muted">No Assets match this filter.</p>`;
   }
 
   const body = rows.map(rowHtml).join("\n");
-  return `${form}${countLine}
+  return `${form}${scopeNote}${countLine}
 <table>
   <thead>
     <tr>

@@ -26,6 +26,12 @@ import { createLibraryServer } from "../library/server.ts";
 const DEFAULT_DB_PATH = "data/organicgrowth.db";
 const DEFAULT_PORT = 4173;
 
+/** Loopback-only, always. This is a LOCAL HTML viewer, never a web app (epic #195's own architecture
+ *  decision #3) — the Operator's brand Copy, Production Specs, Post URLs and media must never be
+ *  reachable from another device on the same network. Passed explicitly to `server.listen()`: Node's
+ *  documented default when no host is given is to bind EVERY interface (`::`/`0.0.0.0`), not loopback. */
+const LOOPBACK_HOST = "127.0.0.1";
+
 function findFlag(args: readonly string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
   return i === -1 || i === args.length - 1 ? undefined : args[i + 1];
@@ -51,7 +57,10 @@ export async function prepareLibraryViewer(args: readonly string[]): Promise<Pre
   const dbPath = findFlag(args, "--db") ?? DEFAULT_DB_PATH;
   const portFlag = findFlag(args, "--port");
   const parsedPort = portFlag !== undefined ? Number(portFlag) : DEFAULT_PORT;
-  const port = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : DEFAULT_PORT;
+  // `>= 0`, not `> 0`: port 0 is the standard OS convention for "assign any free port" (used by tests to
+  // avoid a hardcoded, collision-prone port) — only a negative or non-finite value falls back to the
+  // default.
+  const port = Number.isFinite(parsedPort) && parsedPort >= 0 ? parsedPort : DEFAULT_PORT;
 
   let db: DatabaseSync;
   try {
@@ -74,13 +83,19 @@ export async function prepareLibraryViewer(args: readonly string[]): Promise<Pre
   return { db, server, dbPath, port };
 }
 
-/** Runs the viewer: prepares it, starts listening, prints the URL, and closes cleanly on Ctrl-C
- *  (SIGINT/SIGTERM) — a local process the Operator starts and stops, mirroring `run-worker.ts`'s own
- *  shape (a local process holding its own connection, not a Claude Code agent session). */
-export async function main(): Promise<void> {
-  const { db, server, dbPath, port } = await prepareLibraryViewer(process.argv.slice(2));
+/** Runs the viewer: prepares it, starts listening on {@link LOOPBACK_HOST} ONLY, prints the URL, and
+ *  closes cleanly on Ctrl-C (SIGINT/SIGTERM) — a local process the Operator starts and stops, mirroring
+ *  `run-worker.ts`'s own shape (a local process holding its own connection, not a Claude Code agent
+ *  session). Accepts an explicit `argv` (defaulting to the real `process.argv.slice(2)`) so a test can
+ *  drive this EXACT function — the real CLI path, not a re-implementation of it — with a throwaway
+ *  database and an OS-assigned port, then inspect exactly what address it bound. Returns the prepared
+ *  viewer (now listening) so a caller — test or otherwise — can close it; the CLI entry point below
+ *  ignores the return value and relies on the SIGINT/SIGTERM handler for shutdown instead. */
+export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<PreparedLibraryViewer> {
+  const prepared = await prepareLibraryViewer(argv);
+  const { db, server, dbPath, port } = prepared;
 
-  await new Promise<void>((res) => server.listen(port, res));
+  await new Promise<void>((res) => server.listen(port, LOOPBACK_HOST, res));
   const address = server.address() as AddressInfo;
   process.stdout.write(
     `OrganicGrowth Library (read-only) — serving "${dbPath}" at http://localhost:${address.port} — Ctrl-C to stop.\n`,
@@ -94,6 +109,8 @@ export async function main(): Promise<void> {
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
+
+  return prepared;
 }
 
 const entryPoint = process.argv[1];

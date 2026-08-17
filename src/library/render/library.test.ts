@@ -70,4 +70,13 @@ describe("renderLibraryBody", () => {
     const html = renderLibraryBody(rows, deriveFilterOptions(rows), {}, "performance", 1);
     assert.doesNotMatch(html, /<script>alert/);
   });
+
+  it("discloses the Asset-scoped limit plainly, always — a rejected/not-yet-produced Idea never appears, even filtered (AC8, issue #210 QA round 1, defect 3)", () => {
+    const populatedRows = [row({ assetId: "a1" })];
+    const populatedHtml = renderLibraryBody(populatedRows, deriveFilterOptions(populatedRows), {}, "performance", 1);
+    assert.match(populatedHtml, /Asset-scoped/);
+
+    const emptyHtml = renderLibraryBody([], { hookTypes: [], themes: [], recipes: [], formats: [] }, { hookType: "irony" } as LibraryFilter, "performance", 5);
+    assert.match(emptyHtml, /Asset-scoped/);
+  });
 });

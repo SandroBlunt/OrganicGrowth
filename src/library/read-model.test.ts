@@ -30,6 +30,8 @@ import { listAllIdeas } from "../idea/store.ts";
 import { listAllAssets } from "../asset/store.ts";
 import { listAllJobs } from "../production-queue/job-store.ts";
 import { listAllPosts } from "../post/store.ts";
+import { resolveBrand } from "../brand/resolver.ts";
+import { loadFullIdeas } from "../ledger/ledger.ts";
 
 import { buildLibraryIndex, getAssetDetail, buildQueueRows, buildFitPerformanceData, countAllPosts } from "./read-model.ts";
 import { seedWorld, seedLibraryIdea, seedLibraryAsset, seedLibraryPost, seedLibraryCopyVariant, seedLibraryJob } from "./test-support.ts";
@@ -333,6 +335,72 @@ describe("against the REAL imported corpus — docs/import-reconciliation-2026-0
       // directly against ledger.json: every posted Asset's performance_score is `undefined`). The read
       // model must say so honestly, never fabricate a number.
       assert.equal(libraryRows.filter((r) => r.bestPerformanceScore !== undefined).length, 0);
+
+      // A COUNT surviving the join proves nothing about CONTENT surviving it (issue #204's own lesson —
+      // its reconciliation balanced 61/61, 54/54, 66/66 while silently dropping all 7 real Post URLs,
+      // exactly because URLs were never among the things counted; #240 exists solely to fix that). Read
+      // the real 7 `post_url`s straight from straw-motion's own ledger.json — the source of truth, via
+      // the SAME typed `loadFullIdeas` loader the importer itself reads through, never hand-parsed JSON —
+      // and assert every one of them is still attached, verbatim, on the correct Asset, after the SQL
+      // import AND after the read model's own join.
+      const strawMotionLedgerIdeas = await loadFullIdeas(resolveBrand("straw-motion", join(REPO_ROOT, "data/brands")).ledger);
+      const realPostUrls = new Set<string>();
+      for (const idea of strawMotionLedgerIdeas) {
+        for (const a of idea.assets) {
+          if (a.post_url) realPostUrls.add(a.post_url);
+        }
+      }
+      assert.equal(realPostUrls.size, 7, "sanity check on the ground truth itself: straw-motion's ledger carries exactly 7 real post_urls");
+
+      // 1) Through `buildLibraryIndex` — what the Library screen (AC2) actually renders.
+      const libraryPostUrls = new Set(libraryRows.flatMap((r) => r.posts.map((p) => p.postUrl)));
+      assert.equal(libraryPostUrls.size, 7, "buildLibraryIndex must carry all 7 real Post URLs, not just 7 Post rows");
+      for (const url of realPostUrls) {
+        assert.ok(libraryPostUrls.has(url), `buildLibraryIndex dropped or mangled the real Post URL: ${url}`);
+      }
+
+      // 2) Through `getAssetDetail` — what the Asset page (AC4) actually renders, for every real posted
+      // Asset (never just one sampled row — issue #204's own blind spot hid across every one of these 7).
+      const postedRows = libraryRows.filter((r) => r.posts.length > 0);
+      assert.equal(postedRows.length, 7, "exactly 7 real Assets carry a Post");
+      const detailPostUrls = new Set<string>();
+      for (const row of postedRows) {
+        const detail = getAssetDetail(db, row.assetId)!;
+        assert.ok(detail !== null, `getAssetDetail returned null for a posted Asset (${row.assetId})`);
+        for (const post of detail.posts) {
+          assert.ok(post.postUrl.startsWith("https://"), `getAssetDetail returned a non-URL postUrl: ${JSON.stringify(post.postUrl)}`);
+          detailPostUrls.add(post.postUrl);
+        }
+      }
+      assert.deepEqual(detailPostUrls, realPostUrls, "getAssetDetail's Post URLs must be EXACTLY the real 7 from ledger.json, not a subset/superset");
+
+      // The SAME "count vs content" question, applied to the Production Spec join (AC4/AC7's own
+      // "Specs side by side"): `hasSpec` is a BOOLEAN on the Library row — issue #212's own QA verdict
+      // found this exact epic already burned by "verified a field was a boolean rather than true"
+      // elsewhere. Prove a real Asset's `spec_json` is not just present (`hasSpec === true`) but carries
+      // its actual real content through `getAssetDetail`'s join.
+      // Every wired Recipe's Production Spec has a DIFFERENT shape (News Carousel's own top-level key is
+      // "slides"; Character Explainer with Cast's is "character_concepts"/"clips"/"thumbnails"; News
+      // Short Script's is "beats") — so this checks real, non-trivial content survived generically
+      // (at least one own key, whose value is a non-empty array/string/object), not one hardcoded key
+      // that would only hold for a single Recipe.
+      const specRows = libraryRows.filter((r) => r.hasSpec);
+      assert.ok(specRows.length > 0, "at least one real Asset must carry a saved Production Spec");
+      for (const specRow of specRows) {
+        const specDetail = getAssetDetail(db, specRow.assetId)!;
+        assert.notEqual(specDetail.spec, null, `hasSpec=true for ${specRow.assetId} (${specRow.recipeSlug}) but getAssetDetail returned spec: null`);
+        const spec = specDetail.spec as Record<string, unknown>;
+        const hasRealContent = Object.entries(spec).some(([, value]) => {
+          if (Array.isArray(value)) return value.length > 0;
+          if (typeof value === "string") return value.length > 0;
+          if (value !== null && typeof value === "object") return Object.keys(value).length > 0;
+          return value !== undefined && value !== null;
+        });
+        assert.ok(
+          hasRealContent,
+          `hasSpec=true for ${specRow.assetId} (${specRow.recipeSlug}) but getAssetDetail's spec carries no real content: ${JSON.stringify(spec)}`,
+        );
+      }
     });
   });
 });
