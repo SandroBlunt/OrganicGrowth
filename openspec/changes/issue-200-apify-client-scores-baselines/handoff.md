@@ -240,3 +240,140 @@ deterministic, offline, and spends nothing.
 - **A live `ApifyRequestError`'s exact retry/rate-limit handling is not modelled** — a non-ok response
   (e.g. a transient 429) is reported as a single SKIPPED line by `trackPerformanceCommand`'s existing
   catch, exactly like every other scrape failure; no retry logic was added or requested by this issue.
+
+---
+
+## QA Verdict — Round 1: PASS
+
+Verified in the worktree at
+`/Users/CaxtonTaylor/Developer/.og-worktrees/issue-200-apify-client-scores-baselines`, branch
+`issue-200-apify-client-scores-baselines`, HEAD `9794785` (rebased onto `main` `4dbe8a8`). Working tree
+clean throughout (`git status --porcelain` empty), so the credential scanner's `git ls-files`-based
+self-scan genuinely covered every tracked file this round.
+
+### Suite result (re-run fresh, not trusted from the Build Report)
+
+The Build Report's own numbers (2881/729, 280/75) were pre-rebase and are stale — confirmed stale by
+re-running everything myself:
+
+- `npx tsc -p tsconfig.json --noEmit` → clean, no errors.
+- `npm test` (`tsc --noEmit && node --import tsx --test "src/**/*.test.ts" "src/**/*.docs-test.ts"`) →
+  **2888 tests / 731 suites / 0 fail**. Matches the expected post-rebase branch figure exactly.
+- `npm run test:docs` (`node --import tsx --test "src/**/*.docs-test.ts"`), run separately → **282
+  tests / 76 suites / 0 fail** (2 tests / 1 suite higher than the Build Report's stale 280/75 — `main`
+  gained doc-conformance tests between the Build Report and the rebase; not a regression, just a moved
+  target).
+- `npx openspec validate issue-200-apify-client-scores-baselines --strict` → `Change
+  'issue-200-apify-client-scores-baselines' is valid`.
+- `npx openspec validate --all --strict` → **48/48 pass** (includes `change/issue-200-...` and
+  `spec/apify-platform-integration`, `spec/performance-tracking`, all others green).
+
+All four commands were run for real, in this worktree, and all were genuinely green — no assumed pass.
+
+### Per-criterion results (issue #200 acceptance criteria)
+
+| # | Criterion | Result | Proving test / evidence |
+|---|---|---|---|
+| 1 | Live Apify client implements `PerformanceScrapePort`, used by `npm run track-performance` in place of hand-driven scraping | **PASS** | `src/apify/live/client.ts`: `class LiveApifyClient implements PerformanceScrapePort`. `src/commands/track-performance.ts:76`: `const DEFAULT_PERFORMANCE_SCRAPE_PORT: PerformanceScrapePort = new LiveApifyClient();` (confirmed via `git diff main...HEAD`, replacing the prior always-`null` stub). `src/apify/live/client.test.ts` (9 tests) exercises `scrapePost` end-to-end against a fake transport. |
+| 2 | Token sent in a header, never a URL query string | **PASS** | `src/apify/live/request.ts:79-90` (`buildApifyRunSyncRequest`) puts the token only in `headers.Authorization`; `apifyRunSyncUrl` builds a plain template string with no query component at all. Proven on the concrete request, not merely "a header exists": `request.test.ts`'s "security-critical proof" block (5 tests, lines 73-145) asserts `request.url` contains no `?`, no `token` substring, and not the token value itself; `request.body` doesn't contain the token either. `client.test.ts`'s first test (lines 38-51) proves the same end-to-end through the real client and a captured call. |
+| 3 | Actor chosen per source URL's own platform (issue #48's existing detection) | **PASS** | `src/apify/platform.ts` (`detectPlatformFromUrl`/`resolveApifyActor`) is byte-for-byte unchanged (`git diff main...HEAD -- src/apify/platform.ts` → empty). `track-performance.ts` still calls it before ever calling `apify.scrapePost` (lines 174-198); `LiveApifyClient.scrapePost(url, platform, actorSlug)` only ever receives an already-resolved platform, never re-decides it. |
+| 4 | Facebook mapping verified live, correction applied, verification posted on the issue | **Correctly deferred — Operator action, not a build defect** | Out of scope per the task brief (needs real credits). `src/apify/live/smoke.ts` exists and is a genuinely followable tool (see Runbook judgement below). |
+| 5 | All 7 posted Assets scraped, raw metrics stored | **Correctly deferred — Operator action** | Ledger check: `data/brands/straw-motion/ledger.json` has exactly 7 Assets with a `post_url` (all `news-carousel`, all Facebook, posted 2026-08-04 through 2026-08-10), 0 with a `performance_score` — matches the issue's stated starting state exactly. |
+| 6 | Channel baseline computed, `updated_at` no longer null | **Correctly deferred — Operator action** | Confirmed both `data/brands/straw-motion/ledger.json` and `data/brands/mundotip/ledger.json` still have `baseline.updated_at: null` today — accurate starting state, nothing silently faked as done. |
+| 7 | Each of the 7 Assets carries a Performance Score relative to its Channel baseline | **Correctly deferred — Operator action** | Same reasoning; `src/performance/score.ts` (untouched, `git diff` empty) already implements this relative-to-baseline formula and is unit-tested pre-existing; this slice only wires a real data source into it. |
+| 8 | A Fit/Performance pair quoted on the issue | **Correctly deferred — Operator action** | `src/commands/report.ts` (untouched) already prints `fit_score` next to `best_performance_score` per Idea (lines 58-83). Spot-checked the runbook's own example: `idea-2026-W32-01` really does have `fit_score: 0.72` in the ledger today, and its posted Asset's `post_url` really is the exact URL the runbook's smoke example uses — the runbook picked a real, valid row, not an invented one. |
+| 9 | Client exercised in tests through the port's fake; no test spends Apify credits | **PASS** | See "Gate one" below — verified file-by-file, not by trusting the grep count in the Build Report. |
+
+### Per-scenario results (spec deltas)
+
+**`specs/apify-live-client/spec.md` (ADDED capability) — all Scenarios pass:**
+
+| Requirement | Scenario | Result | Test |
+|---|---|---|---|
+| Token in header, never URL | Token in Authorization header | PASS | `request.test.ts:73-82` |
+| Token in header, never URL | URL never contains token/query string | PASS | `request.test.ts:84-94` |
+| Token in header, never URL | Body never contains token | PASS | `request.test.ts:96-104` |
+| Per-platform request shape | FB/YT build startUrls body | PASS | `request.test.ts:51-55` |
+| Per-platform request shape | IG builds username-named body | PASS | `request.test.ts:57-59` |
+| Per-platform request shape | linkedin throws | PASS | `request.test.ts:61-63` |
+| Per-platform request shape | actor slug's first slash → tilde | PASS | `request.test.ts:18-30,34-39` |
+| Response parsing never fabricates | non-empty array → first item | PASS | `response.test.ts:7-10` |
+| Response parsing never fabricates | empty array → null | PASS | `response.test.ts:12-14` |
+| Response parsing never fabricates | invalid JSON / non-array throws | PASS | `response.test.ts:16-26` |
+| Token resolution, base wins over .env | direct env value resolves, trimmed | PASS | `token.test.ts:26-32` |
+| Token resolution, base wins over .env | missing token → null | PASS | `token.test.ts:22-24` |
+| Token resolution, base wins over .env | base env wins over .env file | PASS | `token.test.ts:49-59` |
+| LiveApifyClient against injectable transport | successful scrape, token in header only | PASS | `client.test.ts:38-51` |
+| LiveApifyClient against injectable transport | no token → zero requests, `ApifyTokenMissingError` | PASS | `client.test.ts:62-71` |
+| LiveApifyClient against injectable transport | empty dataset → null | PASS | `client.test.ts:73-78` |
+| LiveApifyClient against injectable transport | non-ok response → `ApifyRequestError` | PASS | `client.test.ts:80-88` |
+| LiveApifyClient against injectable transport | explicit token wins over env | PASS | `client.test.ts:114-124` |
+
+**`specs/performance-tracking/spec.md` (MODIFIED requirement) — both Scenarios pass:**
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| Full suite passes with zero live Apify calls | PASS | `npm test` green (2888/731/0 fail); every `trackPerformanceCommand` call across `track-performance.test.ts` (24) and `two-recipes-end-to-end.test.ts` (1) injects an explicit fake `apify` option (verified programmatically, not just grepped — see Gate one). |
+| Live client is real but its default fetch transport is unreached by the suite | PASS | `new LiveApifyClient()` at `track-performance.ts:76` runs at module-load time (harmless — object construction only, `fetchImpl` is captured, never invoked), but `scrapePost` on that default instance is never called from any test (confirmed by tracing every caller). |
+
+**MODIFIED-header archive-trap check:** the delta's requirement header —
+`### Requirement: The build is hermetic — every test drives Apify through a fake port, never the live
+API` — is byte-for-byte identical to the live spec's header at `openspec/specs/performance-tracking/spec.md:181`.
+This is exactly the shape that has previously broken `openspec archive` when it drifted; here it matches
+verbatim, so archiving should apply cleanly. I did **not** run `openspec archive` myself, per
+instructions.
+
+### Always-rules + Magnific-fake checks
+
+| Rule | Result | Evidence |
+|---|---|---|
+| Generate-never-publish | PASS (N/A — untouched) | This slice touches no publishing path; `performance-tracker.md`'s own docs-test (`self-review` block, unmodified assertion) still asserts the doc never claims to `publish(es\|ing)`. |
+| Public-metrics-only | PASS | `src/performance/metrics.ts`/`score.ts` unchanged (`git diff` empty); the live client only ever calls the same `post_actor` Apify actors that were already scoped to public post metrics; no private Insights path added. |
+| Relative-not-absolute | PASS | `src/performance/score.ts` (untouched) computes Performance Score relative to `ledger.baseline`, never an absolute count; this slice changes only WHAT feeds it (real vs. fake metrics), never the formula. |
+| Explicit-attribution | PASS | `src/performance/selection.ts`/`src/asset/store.ts` unchanged; writes remain keyed `(Idea, Recipe)` via `AssetStore.writeAsset`, unaffected by this slice. |
+| Ledger-as-source-of-truth | PASS | `src/ledger/ledger.ts` unchanged; `trackPerformanceCommand`'s write path (baseline recompute, per-Asset `writeAsset`) is unmodified — this slice only replaces the scrape source, not the write target. |
+| Magnific fake (N/A) | PASS | `grep -rn "mcp__magnific" src` → zero hits inside this slice's changed files; the only `spaces_*`/`creations_*` hits in the repo are pre-existing, unrelated `src/space-driver/live/smoke.ts` text (confirmed via `git diff main...HEAD --stat`, that file is not in this change). |
+
+### Gate one — no test may spend an Apify credit (verified, not trusted)
+
+- **`smoke.ts` is structurally unmatched by both test globs.** `npm test`'s glob is `"src/**/*.test.ts" "src/**/*.docs-test.ts"` (from `package.json`); `src/apify/live/smoke.ts` matches neither pattern. Confirmed nothing imports it: `grep -rln "smoke.ts" --include="*.ts" src` returns only unrelated `media-host` files (`s3.ts`, `command-runner.ts`, `command-runner.test.ts`, `fixtures/tiny-png.ts`) — none reference `apify/live/smoke.ts`. Ran `npm run apify-smoke` (no URL argument) directly: it printed the usage message and exited without any network call, confirming the script's own guard is real, not just documented.
+- **File-by-file check of the "every test injects its own fake" claim**, not trusted from the Build Report's grep count: wrote a small script that parses every `trackPerformanceCommand(` call site (matching parens, not just presence of the substring "apify" anywhere nearby) across both call sites — `src/commands/track-performance.test.ts` (24 calls) and `src/producer/two-recipes-end-to-end.test.ts` (1 call). All 25 calls pass an explicit `apify:` option bound to a hand-rolled `fakePort`/`fakeApify` object, never `LiveApifyClient`. Additionally traced the ONE other place `trackPerformanceCommand` is called without an explicit `apify` option — `main()`'s CLI entry (`track-performance.ts`, guarded by an entry-point check) — and the one test that imports `main` (`track-performance.test.ts:565-591`) only exercises the "no `<brand>` argument" early-return path, which returns before `trackPerformanceCommand` is ever called. So the live default is never reached by any test, by any path.
+- **`client.test.ts`'s own 9 tests** all construct `LiveApifyClient` with an explicit `fetchImpl: fakeFetch(...)` — verified by reading every constructor call in the file (lines 40, 55, 64, 75, 82, 92, 104, 119). `grep -rn "new LiveApifyClient(" src` shows exactly 2 constructions with no injected `fetchImpl`: `track-performance.ts:76` (module-scope default — object construction only, harmless, `fetchImpl` defaults to a captured-but-never-called reference to `globalThis.fetch`) and `smoke.ts:42` (never run by any test, confirmed above).
+- **Result: Gate one holds.** No test path in this repository can reach a real `fetch` through this slice's code.
+
+### Gate two — the security criterion (verified, not trusted)
+
+- **Assert-on-the-request, not assert-a-header-exists**, confirmed by reading the actual assertions: `request.test.ts:84-94` and `client.test.ts:48-49` both assert `!request.url.includes(FAKE_TOKEN)` AND `!request.url.includes("?")` AND (in `request.test.ts`) `!request.url.includes("token")` — this would catch the exact leak (token ALSO present in the query string) the task asked me to specifically distrust a weaker test for. There is no test in this slice that only checks "a header is present" without also checking the URL/body are clean.
+- **No credential-shaped string reached any tracked file.** `git status --porcelain` is empty (working tree clean) throughout this verification, so `src/secrets-scan/self-scan.test.ts`'s `git ls-files`-based scan (part of `npm test`, which was green) genuinely covered every file this round — no unstaged file was invisible to it. Every fake token literal in the new test files is built by string concatenation (`"test-fake-apify-token-" + "..."`) rather than one contiguous literal, matching the established convention.
+- **`token.ts` reuses `env.ts`'s loader, doesn't duplicate it.** `src/apify/live/token.ts:13`: `import { loadEffectiveEnv } from "../../media-host/live/env.ts";` — confirmed this is a real import and real reuse (not a copy), by reading both files side by side.
+- **Docs genuinely switched from query-string to header auth**, and the docs-tests were strengthened, not weakened. `grep -n "?token="` across both changed docs finds exactly one hit — a guardrail SENTENCE in `performance-tracker.md:27` explicitly telling the reader never to do that (`"...never `?token=` in the URL"`), not a live example. All three curl examples in `performance-tracker.md` (Facebook/Instagram/YouTube) use `-H "Authorization: Bearer ${APIFY_API_TOKEN}"`. `track-performance.docs-test.ts` gained a new assertion (`"documents the Apify token travels in a header, never a URL query string"`, lines 52-56) rather than losing one — confirmed by `git diff main...HEAD -- src/commands/track-performance.docs-test.ts` (10-line diff, additive).
+
+### Other verified items
+
+- **Actor chosen per source URL's platform, not Format's/Channel's**: confirmed `src/apify/platform.ts` is byte-for-byte unchanged since `main`, and its own docstring (unchanged) explicitly states the platform is "never assumed from `brand-profile.yaml`'s `channel` list... not even the primary entry's `platform`."
+- **`response.ts` failure modes, not just the happy path**: read and confirmed 3 distinct outcomes are each tested — non-empty array (first item), empty array (`null`, not an error), and genuinely garbled input (throws) — covering both "a garbled 200" (invalid JSON, or valid JSON that isn't an array, e.g. an Apify error object) and "no data" (empty array) as *distinct*, never-conflated cases. `response.test.ts:24-26` additionally covers a bare JSON scalar (`"42"`), a case not explicitly named in the spec's Scenarios but a reasonable extra edge the "not an array" throw branch already covers.
+- **Runbook followability** (the "judge the runbook" instruction): actually ran the three commands the runbook tells the Operator to run, without any arguments/URL, to confirm each fails safely and informatively rather than silently spending credits by accident: `npm run apify-smoke` (no URL) → prints usage, no call made. `npm run track-performance` (no brand) → prints usage. `npm run report` (no brand) → prints usage. `.env.example` exists and matches the runbook's step 1 instruction exactly. Spot-checked the runbook's own worked example against the real ledger: `idea-2026-W32-01`'s `fit_score` really is `0.72` and its posted `post_url` really is the exact URL used in the smoke-script example — the runbook is grounded in real, current data, not invented placeholder text. Cross-checked the "7 posted Assets, all Facebook/news-carousel, posted 2026-08-04 through 2026-08-10" claim against the ledger directly — exactly 7, exactly as described, and (today being 2026-08-17) all are genuinely 7+ days old, so the runbook's prediction that the batch run lands every one straight at `scored` is correct given `TRACKING_MATURITY_DAYS = 7` (`src/performance/maturity.ts`). The runbook gives exact commands and an explicit, checkable pass/fail signal for each of AC4/5/6/7/8 — it is followable as written. **No runbook defect found.**
+
+### Defect list
+
+None. No defects found in this round.
+
+### Verdict
+
+**PASS.** All in-scope acceptance criteria (1, 2, 3, 9) are proven by tests that actually exercise them,
+not merely claimed. Acceptance criteria 4–8 are correctly, honestly deferred to the Operator with a
+followable, evidence-grounded runbook — this is the issue's own explicit scope split, not a build
+shortfall. Both hard gates (no test can spend an Apify credit; the token never reaches a URL) hold under
+adversarial, file-by-file re-verification rather than trusting the Build Report's grep counts. The
+OpenSpec change faithfully matches the issue: the ADDED `apify-live-client` capability's Scenarios trace
+directly to AC2/AC3/AC9 and the always-rules; the MODIFIED `performance-tracking` requirement's header
+matches the live spec verbatim (the known archive trap does not appear to apply here, though I did not
+run `archive` myself). `npm test` is genuinely green at 2888/731/0 fail, `npm run test:docs` at
+282/76/0 fail, and `openspec validate --all --strict` at 48/48 — all re-run fresh in this session, not
+carried over from the Build Report's stale pre-rebase figures.
+
+**Operator hand-actions still outstanding** (correctly out of scope for this build, not blocking this
+PASS): run the 3-step runbook above (`npm run apify-smoke <url>` → post the raw/normalized pair on
+issue #200 → `npm run track-performance straw-motion` → `npm run report straw-motion` → post one Fit/
+Performance pair on issue #200) to close AC4–AC8. These are real Apify-credit-spending actions only a
+human can authorize and perform.
