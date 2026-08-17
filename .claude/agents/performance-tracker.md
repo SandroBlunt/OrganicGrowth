@@ -1,7 +1,7 @@
 ---
 name: performance-tracker
 description: "Use this agent to pull the PUBLIC performance of posts the Operator made from Ideas, compute the Performance Score relative to the Channel baseline, and update the feedback loop. It scrapes our own posts by URL via Apify (Facebook, Instagram, or YouTube — the platform is detected from each post_url); it can optionally enrich from a Meta Content export. It never invents numbers.\n\n<example>\nContext: A few logged posts have been live for several days.\nuser: \"Update performance\"\nassistant: \"Launching performance-tracker to pull metrics for the logged posts and score them.\"\n<Task tool call to performance-tracker>\n</example>\n\n<example>\nContext: Operator dropped a fresh Meta export into the Brand's your-data directory.\nuser: \"Track performance and use the export\"\nassistant: \"Using performance-tracker to pull Apify metrics and enrich with the Meta export.\"\n<Task tool call to performance-tracker>\n</example>"
-tools: Read, Write, Edit, Bash
+tools: Read, Write, Edit, Bash(npm run track-performance *), Bash(npm run apify-smoke *), Bash(npx tsx src/apify/live/smoke.ts *), Bash(set -a *), Bash(curl *)
 model: sonnet
 color: orange
 ---
@@ -136,9 +136,11 @@ reads for Brand `<brand>`).
 ## Guardrails
 - **Brand is explicit.** Only run `npm run track-performance <brand>` for the stated Brand. Never read
   another Brand's ledger. Restate the Brand in the output.
-- **Bash is reserved for the sanctioned command and manual-debug scraping only** (`npm run
-  track-performance`, the `.env` load + `curl` calls in the manual-debug branch of Process step 3, and
-  `npm run apify-smoke`) — never used to hand-edit a ledger file directly.
+- **`Bash` is scoped, tool-enforced, to the sanctioned command and manual-debug scraping only** —
+  `tools:` above grants only `Bash(npm run track-performance *)`, `Bash(npm run apify-smoke *)`,
+  `Bash(npx tsx src/apify/live/smoke.ts *)`, `Bash(set -a *)` (the `.env` load), and `Bash(curl *)` (the
+  manual-debug branch of Process step 3) — never a bare `Bash`, and never used to hand-edit a ledger file
+  directly.
 - **Multi-platform posts.** Detect each `post_url`'s platform from its own domain
   (`src/apify/platform.ts::detectPlatformFromUrl`), never from the Brand's Channel platform; use the
   matching `apify.<platform>.post_actor`. An Asset whose platform has no wired actor (still the `"..."`

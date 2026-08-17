@@ -83,40 +83,55 @@ docs-conformance scenario to chase a citation rewrite the underlying system is n
 This is the same class of judgment call `.claude/agents/developer.md`'s "Respect the canon" guardrail
 already demands: never invent a fact the code does not yet support.
 
-## What Changes — the Bash boundary
+## What Changes — the Bash boundary (revised in Round 2)
 
-Claude Code cannot scope a tool grant to specific commands or specific files: there is no
-argument-scoped `Bash` and no path-scoped `Write`/`Edit` (confirmed against this repo's own
-`docs/producer-worker-permissions.md`, which records the identical limitation for the
-`mcp__magnific__*` grant — "an allow rule grants the tool regardless of its arguments"). Given that
-constraint, each of the six agents was re-examined for what it genuinely needs:
+**Round 1 got this wrong and Round 2 fixes it.** Round 1 claimed Claude Code has no way to scope `Bash`
+to specific commands, citing `docs/producer-worker-permissions.md`. That document only documents a
+limitation of MCP tool grants (`mcp__magnific__*` cannot be scoped to one Space id) — it says nothing
+about `Bash` and does not generalize to it. QA's Round-1 Verdict independently verified, three ways,
+that Claude Code's permission system genuinely supports `Bash(<pattern>)` scoping — an exact-match form
+(`Bash(npm test)`) and a prefix-wildcard form (`Bash(git *)`) — via the CLI's own `--allowedTools` help
+text, Anthropic's own skill-authoring guidance ("use patterns like `Bash(gh *)` not `Bash`"), and real,
+live `Bash(...)`-scoped rules already present in the Operator's own `~/.claude/settings.json`. Round 1's
+prose-only narrowing was a real improvement over silence, but it was not what AC2 asked for, and AC2 was
+achievable — this is the deciding defect QA's Round-1 Verdict failed the slice over.
+
+Round 2 replaces every bare `Bash` grant with the SAME enumerated command list Round 1 already wrote in
+prose, now expressed as individual `Bash(<pattern>)` entries in each agent's own `tools:` frontmatter —
+a real, tool-enforced boundary, not a documented-discipline one:
 
 - **`idea-strategist`** does no shell-out anywhere in its process (pure Read/Write/Edit of files and
-  LLM authoring) — **`Bash` is removed from its tool list entirely.** This is the one agent where the
-  boundary is now a real, tool-enforced one, not merely a documented one.
-- **`developer`** keeps `Bash` — it is the engineering agent; its whole job is `git`/`gh`/`npm test`/
-  `npx tsx`/`openspec`, for which there is no narrower tool. A new guardrail bullet states this
-  explicitly and bounds its scope (engineering tooling only, never a live Brand/Space/Zoho).
-- **`qa`** keeps `Bash` — job (a) of its own contract ("run the full suite and confirm green") is not
-  achievable without executing `npm test`/`openspec validate --strict`, and no narrower tool exists. Its
-  tool list drops `Write` for `Edit` (an existing-file, diff-based tool, closer to "append" semantics
-  than "recreate the whole file"), and a new paragraph enumerates the EXACT commands it may run
-  (`npm test`, `npm run test:docs`, `openspec validate --strict`, read-only `git`/`gh`), stating plainly
-  that this is a documented-discipline boundary, not a tool-enforced one, given the platform limitation
-  above.
-- **`trend-scout`** keeps `Bash` — Apify peer-scraping is raw `curl` with no typed live-client wrapper
-  built for it yet (unlike performance-tracker's post-scrape, issue #200). A new guardrail bounds it to
-  the Apify calls only.
-- **`performance-tracker`** keeps `Bash` — needed to invoke `npm run track-performance`/
-  `npm run apify-smoke` and the manual-debug `curl` fallback. A new guardrail bounds it to those two
-  uses.
-- **`producer`** keeps `Bash` — needed for exactly two named CLI invocations
-  (`uploadCameraHubScriptsCommand`, `npm run export-schedule`). A new guardrail names both and forbids
-  any other use.
+  LLM authoring) — **`Bash` is removed from its tool list entirely** (unchanged from Round 1).
+- **`developer`** keeps `Bash`, now as `Bash(git status *)`, `Bash(git diff *)`, `Bash(git log *)`,
+  `Bash(git show *)`, `Bash(git add *)`, `Bash(git commit *)`, `Bash(git branch *)` (deliberately no
+  `git push`, mirroring its own "never open the PR yourself" guardrail), `Bash(gh issue view *)`
+  (deliberately no other `gh` subcommand — issue/PR authorship stays `/build-issue`'s job),
+  `Bash(npm test)`, `Bash(npm run build)`, `Bash(npm run test:docs)`, `Bash(npx tsx *)`, and
+  `Bash(node --import tsx --test *)` (this repo's own documented single-file test-run convention), plus
+  `Bash(openspec validate *)`.
+- **`qa`** keeps `Bash`, now as `Bash(npm test)`, `Bash(npm run test:docs)`,
+  `Bash(openspec validate *)`, and read-only `Bash(git status *)`/`Bash(git diff *)`/`Bash(git log *)`/
+  `Bash(git show *)`/`Bash(gh issue view *)` — no write-capable git/gh/npm command is granted at all.
+  Its tool list also still drops `Write` for `Edit` (unchanged from Round 1).
+- **`trend-scout`** keeps `Bash`, now as `Bash(set -a *)` (the `.env` load) and `Bash(curl *)` (the
+  Apify scrape calls) — `curl *` is scoped to the `curl` binary, not further to the Apify domain
+  specifically, since Claude Code's own pattern matching works on command text, not a URL allowlist; this
+  residual breadth is disclosed, not silently assumed away.
+- **`performance-tracker`** keeps `Bash`, now as `Bash(npm run track-performance *)`,
+  `Bash(npm run apify-smoke *)`, `Bash(npx tsx src/apify/live/smoke.ts *)`, `Bash(set -a *)`, and
+  `Bash(curl *)` for the manual-debug fallback.
+- **`producer`** keeps `Bash`, now as exactly `Bash(npx tsx src/commands/upload-camera-hub-scripts.ts *)`
+  and `Bash(npm run export-schedule *)` — no other command is granted.
 
-Every retained `Bash` grant is now accompanied by prose stating exactly what it may run — turning an
-unscoped grant into a **documented allow-list**, even though the platform cannot enforce it
-mechanically. This is stated plainly, per the build brief's own instruction, rather than left unremarked.
+Every agent's Guardrails prose was updated to match: each now states its `Bash` grant is
+**tool-enforced**, not merely documented, and names the still-genuine platform limitation that remains
+true (no path-scoped `Write`/`Edit` — that half of Round 1's claim was correct and is unchanged).
+
+A new docs-test, `src/claude-agents/tool-boundary.docs-test.ts`, pins this Round-2 fix mechanically: no
+`tools:` line contains a bare `Bash` entry, every `Bash`-retaining agent's own documented need is
+matched by a specific `Bash(<pattern>)` entry actually present in its `tools:` line, developer is never
+granted `git push` or any `gh pr` subcommand, and qa is never granted a write-capable git/npm command.
+It also pins the two invariants Round 1 shipped with no test at all (see "Doc-conformance," below).
 
 ## What Changes — descriptions and other light edits
 
@@ -144,10 +159,38 @@ The following were read, confirmed, and left **byte-for-byte unchanged**:
   `src/production-spec/producer-agent-copy-skill.test.ts` (4 assertions), all still green.
 - Every agent's brand-safety / never-fabricate / relative-not-absolute / explicit-attribution language.
 
+**The anti-rhetoric caption rules are not in any of the six `.claude/agents/*.md` files at all.** They
+live in `.claude/skills/write-social-copy/SKILL.md` (confirmed: `grep -n "canned\|Swipe through"
+.claude/skills/write-social-copy/SKILL.md` finds the rule — "Close on a FRESH engagement CTA every
+time — never a canned, repeated line" and the banned boilerplate example, `"Swipe through the 7-slide
+..."` — right there), which this change does not touch — confirmed by an empty
+`git diff main --stat -- .claude/skills/`. Stated explicitly here (QA Round-1 defect 4) so the second
+half of #211, the Recipe Skill prose sweep (#247), knows that file, and this rule's protection, is its
+own responsibility, not something already covered by this slice.
+
 No rule's phrasing was tidied, compressed, or modernized while moving it; where a rule and a citation
 shared one sentence, the sentence was split rather than paraphrased (e.g. idea-strategist's Guardrails
 "Voice comes from the Format, not the Brand" bullet: the citation half was replaced with `loadFormat`,
 the rule half — "never from `brand-profile.yaml`'s legacy copy" — is untouched).
+
+## Doc-conformance stays in lockstep, and Round 2 closes its own coverage gap
+
+All 11 pre-existing tests/docs-tests that pin content in these six files (178 assertions total —
+`mcp-schedule.docs-test.ts`, `openly-readable-source-rule.docs-test.ts`,
+`producer-agent-copy-skill.test.ts`, `idea-strategist-brief-richness.test.ts`,
+`upload-camera-hub-scripts.docs-test.ts`, `format-docs.test.ts`, `apify-docs.test.ts`,
+`report.docs-test.ts`, `track-performance.docs-test.ts`, `approval-gate.docs-test.ts`,
+`producer-agent.docs-test.ts`) remain green, at their original assertion counts, through both rounds.
+
+Round 1 shipped with **zero new tests of its own**, leaving two brand-new invariants it introduced
+completely unguarded (QA Round-1 defect 2): that `idea-strategist.md` never regains a `Bash` grant, and
+that no agent `description:` ever regains the Operator's brand name. Round 2 adds
+`src/claude-agents/tool-boundary.docs-test.ts` (22 assertions), which pins both of those PLUS Round 2's
+own fix: every `Bash`-retaining agent grants only scoped `Bash(<pattern>)` entries (never a bare `Bash`),
+each matching that agent's own documented need, with `developer` explicitly proven to never hold `git
+push` or any `gh pr` subcommand and `qa` explicitly proven to hold no write-capable git/npm command. This
+pushes the floor from 178 to 200 assertions pinning these six files — a genuine increase, not a
+reshuffle.
 
 ## Capabilities
 
@@ -155,21 +198,25 @@ the rule half — "never from `brand-profile.yaml`'s legacy copy" — is untouch
 
 - `agent-command-surface`: the six content/engineering agent definitions under `.claude/agents/` cite
   typed commands/store accessors instead of raw filesystem paths for their pipeline operations, hold no
-  unscoped `Bash` grant without a documented, narrow rationale, and carry no Operator brand name in their
-  indexed `description:` field.
+  unscoped `Bash` grant (every retained `Bash` grant is a scoped `Bash(<pattern>)` entry in `tools:`,
+  tool-enforced), and carry no Operator brand name in their indexed `description:` field.
 
 ## Impact
 
 - **Modified:** `.claude/agents/developer.md`, `.claude/agents/idea-strategist.md`,
   `.claude/agents/performance-tracker.md`, `.claude/agents/producer.md`, `.claude/agents/qa.md`,
   `.claude/agents/trend-scout.md`.
-- **New:** `openspec/changes/issue-246-agents-typed-commands/` (this change).
+- **New:** `openspec/changes/issue-246-agents-typed-commands/` (this change);
+  `src/claude-agents/tool-boundary.docs-test.ts` (Round 2 — the only file this slice adds under `src/`).
 - **Untouched:** every other `.claude/` file (including the Recipe Skill files #211's second half
-  covers), `CONTEXT.md`, every ADR, `.claude/rules/always/organicgrowth-rules.md`, and all product code
-  under `src/`.
-- **Hermetic.** This slice touches no product code and makes no live Magnific/Apify/Zoho call; its own
-  proof is five pre-existing docs-tests (43 assertions across 14 suites) re-run against the edited files,
-  plus the full `npm test` suite for regression.
+  covers — `.claude/skills/write-social-copy/SKILL.md` among them), `CONTEXT.md`, every ADR,
+  `.claude/rules/always/organicgrowth-rules.md`, and every production module under `src/` (the one new
+  `src/` file is a test, exempt from the `node:fs`/store-write boundary guards the same way every sibling
+  `*.docs-test.ts` already is).
+- **Hermetic.** This slice touches no production code and makes no live Magnific/Apify/Zoho call; its
+  proof is the 11 pre-existing pinning suites re-run against the edited files, the new
+  `tool-boundary.docs-test.ts`, and the full `npm test` suite for regression.
 - **Always-rules upheld, deliberately not extended onto SQL.** Ledger-as-source-of-truth is honored by
   *not* rewiring these agents' real writes onto `src/command-surface/` ahead of the actual cutover — see
-  "The one genuine gap" and "What did NOT change" above.
+  "The one genuine gap" and "What did NOT change" above (QA Round-1 independently verified this judgment
+  call sound).

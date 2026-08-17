@@ -39,22 +39,34 @@ Every stateful read or write described in `.claude/agents/{developer,idea-strate
 - **THEN** that bullet still cites `src/production-queue/queue.ts` verbatim, unchanged
 - **AND** it is never rewritten to cite `src/command-surface/jobs.ts`'s SQL-backed `JobRecord`/`ReleaseStatus` shape, which uses a different status vocabulary
 
-### Requirement: No agent definition holds an unscoped Bash grant without an accompanying, documented rationale narrowing its use
+### Requirement: No agent definition holds a bare, unscoped Bash grant — every retained Bash grant is a tool-enforced Bash(<pattern>) scope
 
-Where an agent's `tools:` frontmatter grants `Bash`, its body SHALL state, in a Guardrails bullet or an equivalent prominent paragraph, the specific, enumerated set of commands or invocations that grant is for — never leaving a bare `Bash` entry unremarked. Where an agent's process performs no shell-out at all, `Bash` SHALL be removed from its `tools:` frontmatter entirely.
+Where an agent's `tools:` frontmatter grants shell access, it SHALL do so ONLY as one or more scoped `Bash(<pattern>)` entries (an exact-match form, e.g. `Bash(npm test)`, or a prefix-wildcard form, e.g. `Bash(git status *)`) — never a bare, unscoped `Bash` entry. This is a real, Claude-Code-enforced boundary (verified against the CLI's own `--allowedTools` help text and against live `Bash(...)`-scoped rules already active in the Operator's own settings), not merely a documented convention. Where an agent's process performs no shell-out at all, `Bash` SHALL be removed from its `tools:` frontmatter entirely. Each `Bash(<pattern>)` entry SHALL correspond to a specific, real command or invocation named in that agent's own body prose — no pattern SHALL be granted without a matching, stated purpose.
 
-#### Scenario: idea-strategist's tool list carries no Bash entry
+#### Scenario: idea-strategist's tool list carries no Bash entry, scoped or otherwise
 
 - **GIVEN** `.claude/agents/idea-strategist.md`'s `tools:` frontmatter
 - **WHEN** it is read
-- **THEN** it does not include `Bash`
+- **THEN** it does not include `Bash` or any `Bash(<pattern>)` entry
 
-#### Scenario: every other agent's retained Bash grant is accompanied by an enumerated, narrow rationale
+#### Scenario: every other agent's retained Bash grant is expressed as scoped Bash(<pattern>) entries in tools:, not a bare Bash plus prose
 
-- **GIVEN** `.claude/agents/{developer,performance-tracker,producer,qa,trend-scout}.md`, each of which retains `Bash` in its `tools:` frontmatter
-- **WHEN** each file's body is read
-- **THEN** each names the specific commands/invocations `Bash` is for (e.g. `git`/`gh`/`npm test`/`npx tsx`/`openspec` for developer; `npm run track-performance`/`npm run apify-smoke`/the manual-debug curl calls for performance-tracker; the Apify curl calls for trend-scout; `uploadCameraHubScriptsCommand`/`npm run export-schedule` for producer; `npm test`/`npm run test:docs`/`openspec validate --strict`/read-only `git`/`gh` for qa)
-- **AND** none grants it as an unremarked blanket capability
+- **GIVEN** `.claude/agents/{developer,performance-tracker,producer,qa,trend-scout}.md`, each of which retains shell access
+- **WHEN** each file's `tools:` frontmatter is read
+- **THEN** none contains a bare `Bash` entry
+- **AND** each contains one or more `Bash(<pattern>)` entries matching that agent's own documented need (e.g. `Bash(git status *)`/`Bash(git diff *)`/`Bash(git commit *)`/`Bash(npm test)`/`Bash(npx tsx *)`/`Bash(openspec validate *)` for developer; `Bash(npm run track-performance *)`/`Bash(npm run apify-smoke *)`/`Bash(curl *)` for performance-tracker; `Bash(curl *)`/`Bash(set -a *)` for trend-scout; `Bash(npx tsx src/commands/upload-camera-hub-scripts.ts *)`/`Bash(npm run export-schedule *)` for producer; `Bash(npm test)`/`Bash(npm run test:docs)`/`Bash(openspec validate *)` for qa)
+
+#### Scenario: developer's scoped git/gh grants exclude push and PR/issue authorship
+
+- **GIVEN** `.claude/agents/developer.md`'s `tools:` frontmatter, and its own guardrail that it never pushes or opens a PR itself
+- **WHEN** it is read
+- **THEN** it grants no `Bash(git push...)` entry and no `Bash(gh pr...)` entry of any kind
+
+#### Scenario: qa's scoped git/gh/npm grants exclude every write-capable command
+
+- **GIVEN** `.claude/agents/qa.md`'s `tools:` frontmatter, and its own contract that it never edits product code
+- **WHEN** it is read
+- **THEN** it grants no `Bash(git commit...)`, no `Bash(git push...)`, and no `Bash(npm install...)` entry of any kind
 
 #### Scenario: qa's file-write tool is narrowed from Write to Edit
 
@@ -81,7 +93,14 @@ No `.claude/agents/*.md` file's `description:` frontmatter field SHALL name the 
 
 ### Requirement: The protected editorial rules move through the citation rewrite verbatim
 
-The primary-source discipline, the paywalled-feeds-are-signal-only rule, brand safety, and the anti-rhetoric caption rules SHALL be preserved byte-for-byte across this change — never tidied, compressed, or paraphrased while their surrounding citations are rewritten. Where a protected sentence and a citation share one sentence, the citation half SHALL be rewritten and the rule half left untouched, rather than the whole sentence being paraphrased.
+The primary-source discipline, the paywalled-feeds-are-signal-only rule, brand safety, and the anti-rhetoric caption rules SHALL be preserved byte-for-byte across this change — never tidied, compressed, or paraphrased while their surrounding citations are rewritten. Where a protected sentence and a citation share one sentence, the citation half SHALL be rewritten and the rule half left untouched, rather than the whole sentence being paraphrased. Where a protected rule category does not live in any of the six `.claude/agents/*.md` files this change edits, the proposal SHALL state plainly where it does live and that it is confirmed untouched, rather than silently omitting it from the accounting.
+
+#### Scenario: the anti-rhetoric caption rules' real location is stated explicitly, not silently omitted
+
+- **GIVEN** the anti-rhetoric caption rules live in `.claude/skills/write-social-copy/SKILL.md`, not in any of the six `.claude/agents/*.md` files
+- **WHEN** `proposal.md`'s "What did NOT change — the protected editorial rules, verbatim" section is read
+- **THEN** it names that file as the rules' real location, out of this slice's own scope
+- **AND** it states `.claude/skills/` is confirmed untouched (an empty `git diff main --stat -- .claude/skills/`)
 
 #### Scenario: idea-strategist's openly-readable-source paragraph is untouched
 
@@ -101,12 +120,20 @@ The primary-source discipline, the paywalled-feeds-are-signal-only rule, brand s
 - **WHEN** `src/schedule-batch/mcp-schedule.docs-test.ts`, `src/commands/upload-camera-hub-scripts.docs-test.ts`, and `src/production-spec/producer-agent-copy-skill.test.ts` are run against the edited file
 - **THEN** every one of their assertions still passes
 
-### Requirement: Doc-conformance checks stay in lockstep through the rewrite
+### Requirement: Doc-conformance checks stay in lockstep through the rewrite, and every invariant this change itself introduces is pinned
 
-Every pre-existing test or docs-test that pins content in one of the six agent files SHALL still pass after this change, with the SAME or a greater number of assertions — never fewer, and never weakened to pass by asserting less.
+Every pre-existing test or docs-test that pins content in one of the six agent files SHALL still pass after this change, with the SAME or a greater number of assertions — never fewer, and never weakened to pass by asserting less. Additionally, every NEW, cheaply-checkable invariant this change itself introduces (a file that must never regain a capability it just lost, a field that must never regain content it was just stripped of) SHALL be pinned by a test added in the SAME change — never left to a future edit to silently undo.
 
-#### Scenario: the five pre-existing pinning suites are still fully green, at the same assertion count
+#### Scenario: the eleven pre-existing pinning suites are still fully green, at the same assertion count
 
-- **GIVEN** the five pre-existing suites that pin content in these six files (`mcp-schedule.docs-test.ts`, `openly-readable-source-rule.docs-test.ts`, `producer-agent-copy-skill.test.ts`, `idea-strategist-brief-richness.test.ts`, `upload-camera-hub-scripts.docs-test.ts`), together carrying 43 assertions across 14 suites before this change
+- **GIVEN** the eleven pre-existing suites that pin content in these six files (`mcp-schedule.docs-test.ts`, `openly-readable-source-rule.docs-test.ts`, `producer-agent-copy-skill.test.ts`, `idea-strategist-brief-richness.test.ts`, `upload-camera-hub-scripts.docs-test.ts`, `format-docs.test.ts`, `apify-docs.test.ts`, `report.docs-test.ts`, `track-performance.docs-test.ts`, `approval-gate.docs-test.ts`, `producer-agent.docs-test.ts`), together carrying 178 assertions before this change
 - **WHEN** they are run against the edited agent files
-- **THEN** all 43 assertions across all 14 suites still pass, with none removed or rewritten to assert less
+- **THEN** all 178 assertions still pass, with none removed or rewritten to assert less
+
+#### Scenario: this change's own two Round-1-introduced invariants are pinned, not left silently regressable
+
+- **GIVEN** `src/claude-agents/tool-boundary.docs-test.ts`, added in Round 2 after QA's Round-1 Verdict found neither invariant was pinned by any test
+- **WHEN** it is run
+- **THEN** it fails if `idea-strategist.md`'s `tools:` frontmatter ever regains a `Bash` entry
+- **AND** it fails if any of the six agents' `description:` frontmatter ever regains `mundotip`/`MundoTip`/`Straw Motion`
+- **AND** it fails if any `Bash`-retaining agent's `tools:` frontmatter ever widens back to a bare, unscoped `Bash` entry

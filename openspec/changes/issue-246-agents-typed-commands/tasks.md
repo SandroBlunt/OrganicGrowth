@@ -97,3 +97,37 @@
   no stray markdown heading breaks), confirm every #246 acceptance criterion maps to a concrete,
   checkable proof.
 - [x] 7.4 Write the Build Report into `handoff.md`.
+
+## 8. Round 2 — fix QA's Round-1 defects
+
+- [x] 8.1 Read the full QA Round-1 Verdict in `handoff.md`. Verify, don't assume: read
+  `docs/producer-worker-permissions.md` directly and confirm it only documents an `mcp__magnific__*`
+  limitation, never addressing `Bash` at all — Round 1's citation was a real defect, not a disagreement
+  in judgment.
+- [x] 8.2 Design a `Bash(<pattern>)` scope per Bash-retaining agent from its OWN already-written prose
+  rationale (developer, qa, trend-scout, performance-tracker, producer) — one exact-match or
+  prefix-wildcard entry per named command, deliberately excluding `git push`/any `gh pr` subcommand for
+  developer and every write-capable command for qa.
+- [x] 8.3 Replace every bare `Bash` entry in the five agents' `tools:` frontmatter with its own scoped
+  entries; update each file's Bash-rationale prose to state the boundary is now tool-enforced, keeping
+  only the genuinely-still-true platform limitation (no path-scoped `Write`/`Edit`).
+- [x] 8.4 Fix `developer.md`'s dangling "the OpenSpec change's `handoff.md`" reference — replace with a
+  self-contained statement of the same rationale, inline, that resolves correctly on any future slice.
+- [x] 8.5 Add `.claude/skills/write-social-copy/SKILL.md` as the anti-rhetoric caption rules' real,
+  explicitly-named location to `proposal.md`'s protected-rules accounting, confirming it untouched.
+- [x] 8.6 Write `src/claude-agents/tool-boundary.docs-test.ts` (test-first for the two invariants QA
+  found unpinned): idea-strategist carries no Bash entry; no `Bash`-retaining agent carries a bare
+  `Bash`; each carries its own documented scoped entries; developer never holds `git push`/`gh pr`; qa
+  never holds a write-capable command; no agent description carries the Operator's brand.
+- [x] 8.7 Update the OpenSpec change itself: rewrite `proposal.md`'s Bash section to describe the real
+  fix (not the disproven platform-limitation claim); correct its stale "five suites / 43 assertions"
+  doc-conformance accounting to the real 11-suite/178-assertion count found during Round 1's own build;
+  update the spec delta's Bash Requirement + Scenarios to require tool-enforced scoping and pin the two
+  new invariants; update the protected-editorial-rules Requirement with the anti-rhetoric-rules-location
+  Scenario. Run `openspec validate --strict` until green.
+- [x] 8.8 Re-run all 11 pre-existing pinning suites (178 assertions) plus the new
+  `tool-boundary.docs-test.ts` (22 assertions) — all green, floor now 200.
+- [x] 8.9 Run `npm test`, `npm run test:docs`, and `openspec validate --all --strict` to green; confirm
+  `npm test`'s totals are at/above `main`'s real 3373/890/0-fail floor (the Round-1 number was measured
+  against a stale fork point — the Operator's own correction, not a defect of this build).
+- [x] 8.10 Append a `Round-2 Build` block to `handoff.md`, never overwriting Round 1 or the QA Verdict.
