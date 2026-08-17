@@ -17,6 +17,7 @@ import {
   createGateRequest,
   getGateRequest,
   listGateRequestsForJob,
+  listGateRequestsForAsset,
   recordGateDecision,
   GateRequestNotFoundError,
   type GateRequestRecord,
@@ -117,6 +118,42 @@ describe("recordGateDecision — who decided, when, and the choice", () => {
         () => recordGateDecision(db, "does-not-exist", { decidedBy: "operator", choice: "cast-1" }),
         GateRequestNotFoundError,
       );
+    });
+  });
+});
+
+describe("listGateRequestsForAsset — every gate request across an Asset's jobs, joined through job (issue #208)", () => {
+  it("finds a gate request raised by an EARLIER leg's job from the Asset alone", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, assetId } = await seedAsset(db);
+      const firstJobId = createJob(db, { assetId, brandId, gate: "cast" });
+      const gateRequestId = createGateRequest(db, { jobId: firstJobId, gateName: "cast", candidates: CANDIDATES });
+      recordGateDecision(db, gateRequestId, { decidedBy: "operator", choice: "cast-2" });
+
+      // A second, resumed job for the SAME asset — its own gate requests (none yet) are separate.
+      createJob(db, { assetId, brandId });
+
+      const found = listGateRequestsForAsset(db, assetId);
+      assert.equal(found.length, 1);
+      assert.equal(found[0]!.id, gateRequestId);
+      assert.equal(found[0]!.choice, "cast-2");
+    });
+  });
+
+  it("returns [] for an Asset with no gate requests (a zero-gate Recipe)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, assetId } = await seedAsset(db);
+      createJob(db, { assetId, brandId });
+      assert.deepEqual(listGateRequestsForAsset(db, assetId), []);
+    });
+  });
+
+  it("returns [] for an unknown asset id — never throws", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      assert.deepEqual(listGateRequestsForAsset(db, "does-not-exist"), []);
     });
   });
 });

@@ -112,6 +112,25 @@ export function listGateRequestsForJob(db: DatabaseSync, jobId: string): readonl
 }
 
 /**
+ * Every gate request raised by ANY job belonging to `assetId` (joined through `job`, since a
+ * `gate_request` carries only `job_id`, never `asset_id` directly), oldest first. `[]` for an Asset with
+ * none (or an unknown asset id) — never throws. This is how the worker's `plan-leg.ts` tells a job's
+ * FIRST leg from a RESUMED one: a RESUMED leg exists only once an EARLIER job for the same Asset raised
+ * and had decided a gate request (issue #208).
+ */
+export function listGateRequestsForAsset(db: DatabaseSync, assetId: string): readonly GateRequestRecord[] {
+  const rows = db
+    .prepare(
+      `SELECT gate_request.* FROM gate_request
+       JOIN job ON job.id = gate_request.job_id
+       WHERE job.asset_id = ?
+       ORDER BY gate_request.created_at ASC`,
+    )
+    .all(assetId) as unknown as GateRequestRow[];
+  return rows.map(toGateRequestRecord);
+}
+
+/**
  * Records who decided an already-offered gate, when, and their choice — the resolution half of the
  * gate's own lifecycle (candidates offered → Operator decides). Throws `GateRequestNotFoundError` for
  * an unknown `gateRequestId`, before any write. Idempotent on repeated calls: re-deciding overwrites

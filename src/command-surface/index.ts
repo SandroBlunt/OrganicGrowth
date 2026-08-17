@@ -81,3 +81,20 @@ export {
   type ScheduleViaOutboxInput,
   type ScheduleViaOutboxOutcome,
 } from "./schedule-outbox.ts";
+export {
+  raiseGateRequest,
+  resolveGate,
+  GateRequestNotFoundError,
+  type GateRequestInput,
+  type GateRequestRecord,
+  type GateDecisionInput,
+  type ResolveGateOutcome,
+} from "./gates.ts";
+export { saveCopyVariant, type CopyVariantInput, type CopyVariantRecord } from "./copy.ts";
+export {
+  runOneJob,
+  DEFAULT_LEASE_MS,
+  DEFAULT_MAX_ATTEMPTS,
+  type RunOneJobOptions,
+  type RunOneJobOutcome,
+} from "./worker.ts";

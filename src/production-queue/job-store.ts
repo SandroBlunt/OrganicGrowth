@@ -234,6 +234,23 @@ export function releaseJob(
   return row ? toJobRecord(row) : null;
 }
 
+// ---------------------------------------------------------------------------
+// findNextQueuedJob — the FIFO-oldest-queued read the worker's drain loop uses (issue #208)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the `queued` job with the earliest `enqueued_at`, or `null` when no job is `queued`. A
+ * `running`, `awaiting_pick`, `done`, or `failed` job is never returned — a parked or already-finished
+ * job never blocks the next queued one from being found. This is a plain READ (no claim, no lock); the
+ * caller is expected to `claimJob` the returned id next.
+ */
+export function findNextQueuedJob(db: DatabaseSync): JobRecord | null {
+  const row = db
+    .prepare(`SELECT * FROM job WHERE status = 'queued' ORDER BY enqueued_at ASC LIMIT 1`)
+    .get() as unknown as JobRow | undefined;
+  return row ? toJobRecord(row) : null;
+}
+
 /**
  * Atomically revives a `failed` job back to `queued` (C4's SQL-backed sibling — a transient failure
  * must not permanently strand production), clearing any stale claim. Returns the updated `JobRecord` on
