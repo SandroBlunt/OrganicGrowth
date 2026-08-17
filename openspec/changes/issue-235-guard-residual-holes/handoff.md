@@ -199,3 +199,177 @@ Result at handoff:
 - **Raw SQL and other still-unnamed write paths remain out of scope**, unchanged from #233's own disclosed
   limits (a fixture issuing `db.prepare(...).run(...)` directly is a different, narrower risk this guard
   was never asked to cover).
+
+---
+
+## QA Verdict — Round 1: PASS
+
+Verified in worktree `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-235-guard-residual-holes`, branch
+`issue-235-guard-residual-holes`, HEAD `0b34873` on `main` at `60ecfc7`. Read, ran, and reproduced only —
+no product code, test, spec, or ledger file was edited. Working tree confirmed clean (`git status --short`)
+before and after every reproduction step, and again at the end of this review.
+
+### Suite result — all numbers independently reproduced, exact match to the Build Report
+
+| Check | Command | Reported | My independent result |
+|---|---|---|---|
+| Full suite | `npm test` | 3313 tests / 863 suites / 0 fail | **3313 / 863 / 0 fail — MATCH** |
+| Docs suite | `npm run test:docs` | 297 tests / 81 suites / 0 fail | **297 / 81 / 0 fail — MATCH** |
+| OpenSpec (this change) | `npx openspec validate issue-235-guard-residual-holes --strict` | valid | **"Change 'issue-235-guard-residual-holes' is valid" — MATCH** |
+| OpenSpec (all) | `npx openspec validate --all --strict` | 62/62 | **62 passed, 0 failed (62 items) — MATCH** |
+| Typecheck | `npx tsc -p tsconfig.json --noEmit` | (not separately reported) | **exit 0, no errors** |
+
+`main` baseline stated in the task brief (3303/862/0 fail) is what the Build Report also independently
+re-measured before any code changed and reports as matching exactly. I did not re-checkout `main` to
+re-verify that baseline number myself (would require touching a shared branch outside this worktree's
+scope), but the branch's own delta (+10 tests, +1 suite) is internally consistent with the diff (8 new
+`scan.test.ts` tests inside existing `describe` blocks + 2 new `adr.docs-test.ts` tests in 1 new
+`describe` block).
+
+### Hole 1 — file-backed writes: completeness claim independently verified
+
+I swept all 15 `STORE_WRITE_FUNCTIONS` store modules myself (`trend`, `idea`, `production-queue/job-store`,
+`production-queue/gate-request-store`, `asset`, `post`, `performance`, `brand-asset`, `format`,
+`production-spec`, `channel`, `brand`, `copy`, `schedule-outbox`, `run`), grepping each for `node:fs` /
+`write` and reading every hit:
+
+- **`src/production-spec/store.ts`** — the only one with a second, distinctly-named file-backed write:
+  `saveSpec` (line 73, `writeFileAtomic`) beside SQL-backed `saveProductionSpec` (line 99). Confirmed —
+  line numbers match the issue's own reference exactly.
+- **`src/asset/store.ts`** — imports `writeFileAtomic`, but only through `writeAsset`'s existing, already-
+  tracked, already-allow-list-audited ambiguous-overload shape (file-backed `{ ledgerPath }` vs SQL-backed
+  `{ db }`) — not a second, distinctly-named function. Already correctly out of scope, unaffected by this
+  change.
+- **`src/brand-asset/store.ts`** and **`src/format/store.ts`** — both import `node:fs/promises`
+  (`readdir`/`stat`/`readFile`), but only for reads; both carry an explicit doc comment stating their write
+  path is "intentionally NOT built in this slice." No write function of any kind, file-backed or
+  otherwise, exists in either today.
+- The remaining 11 stores have zero `node:fs`/file-write surface at all.
+
+**My independent sweep confirms the developer's completeness claim exactly: `production-spec/store.ts` is
+the only one of the 15 with an untracked second file-backed write.** No second hole reopens elsewhere.
+
+I also independently confirmed the `command-surface`-routing rejection is real, not convenient: read
+`openspec/specs/command-surface/spec.md`'s own Requirement text — "each taking an already-open,
+already-migrated `node:sqlite` `DatabaseSync` as its first argument" — and `saveSpec`'s actual signature
+(`async function saveSpec(spec, path): Promise<void>` — no `db` parameter at all). Wrapping it there would
+genuinely violate that Requirement's own wording, not just be inconvenient. GitHub issue **#238** exists,
+is open, and describes the real migration options (a parallel file-backed orchestration surface, or
+retiring `saveSpec` in favor of the SQL-backed path) — not a placeholder.
+
+### Hole 2 — namespace imports: both directions checked
+
+- **Under-catch check (does it genuinely catch the evasion?):** independently reproduced (see "Independent
+  reproduction" below) — a real probe file with `import * as store from "../idea/store.ts";
+  store.createIdea;` fails the real disk-walking guard, naming all four of `idea/store.ts`'s write
+  functions. Caught.
+- **Over-catch check (does a read-only namespace import get flagged as a write violation)?** Yes, by
+  design — any namespace import of a tracked store reports every one of that store's write functions,
+  regardless of which properties are actually called. This is **deliberate conservatism, not a defect**:
+  the alternative (a call-site grep for `alias.functionName(`) would itself be evadable by aliasing a
+  function reference first (`const fn = alias.createIdea; fn(...)`), which is exactly the class of evasion
+  this ticket exists to close. I independently confirmed this is currently costing **zero** allow-list
+  noise: `grep -rn "import \* as" src --include='*.ts'` finds exactly one hit repo-wide
+  (`src/commands/run-pipeline.ts`, importing `node:readline`, correctly unflagged since it doesn't resolve
+  to a tracked store) — no legitimate existing code is affected today. If a genuine read-only namespace
+  import of a tracked store appears later, it becomes a one-line, individually-reasoned allow-list entry
+  like any other exception — an acceptable, disclosed future cost, not a present one.
+
+### The proof requirement — reproduced independently
+
+I added my own throwaway probe files (not the developer's, to avoid trusting their claimed transcript) and
+ran the real disk-walking `store-write-guard.test.ts` against the live repo tree:
+
+```
+src/qa-repro-filebacked/bypass.ts:
+  import { saveSpec } from "../production-spec/store.ts";
+  export async function callIt(): Promise<void> { await saveSpec({}, "x.json"); }
+
+src/qa-repro-namespace/bypass.ts:
+  import * as store from "../idea/store.ts";
+  export function callIt(): void { store.createIdea; }
+```
+
+`node --import tsx --test src/store-write-boundary/store-write-guard.test.ts` → **failed**, naming exactly:
+```
+src/qa-repro-filebacked/bypass.ts::src/production-spec/store.ts::saveSpec
+src/qa-repro-namespace/bypass.ts::src/idea/store.ts::acceptIdea
+src/qa-repro-namespace/bypass.ts::src/idea/store.ts::createIdea
+src/qa-repro-namespace/bypass.ts::src/idea/store.ts::rejectIdea
+src/qa-repro-namespace/bypass.ts::src/idea/store.ts::selectIdeaRecipes
+```
+
+Both violations reproduced independently, both named usefully (exact file/store/function triples, not a
+vague failure). Deleted both probe files (`rm -rf`), reran the guard — green
+(`# tests 1 / # pass 1 / # fail 0`). `git status --short` showed nothing before or after. `git log --all
+--diff-filter=A --name-only -- '*bypass.ts' '*qa-repro*' '*qa-verify*'` finds nothing anywhere in branch
+history — the branch has exactly one commit (`0b34873`), and its own diff contains no probe files. No
+probe file survives anywhere in the branch history, confirmed independently, not just in the working tree.
+
+I also independently reproduced one of the developer's own mutation checks: reverted the new Rule 7
+sentence (`Since issue #235, that same` → `REVERTED-TEST that same`), reran `adr.docs-test.ts` — the new
+`describe` block's test failed as expected; restored via `git checkout --`, reran — green again. The
+always-rules pin genuinely catches a reversal, not just free prose.
+
+### Per-criterion results (issue #235 acceptance criteria)
+
+| # | Criterion | Result | Proof |
+|---|---|---|---|
+| 1 | A caller outside `src/command-surface/` writing through a store's file-backed function is caught | **PASS** | `scan.test.ts:98-116` (in-memory) + my independent live reproduction above, naming `saveSpec` exactly |
+| 2 | `compose.ts`'s `saveSpec` call resolved: routed or allow-listed with reason + migration ticket | **PASS** | `allow-list.ts:77-88` entry with full reasoning; issue #238 filed and substantive, confirmed via `gh issue view 238` |
+| 3 | Namespace imports caught or documented as accepted limitation | **PASS (caught)** | `scan.ts` `NAMESPACE_IMPORT_PATTERN`/`findNamespaceImportSites`; `scan.test.ts:118-135` (in-memory) + my independent live reproduction above, naming all four `idea/store.ts` write functions |
+| 4 | A test proves each new detection FAILS on a violating module | **PASS** | `scan.test.ts` in-memory fixtures + independently reproduced disk-level failures (this Verdict, above) |
+| 5 | Allow-list stays as short as the truth allows, each entry reasoned | **PASS** | Exactly one new entry (`compose.ts` → `saveSpec`), fully reasoned; stale "two"→"three" comment fixed; my independent 15-store sweep confirms no other file newly implicated |
+
+### Per-scenario results (spec deltas, `specs/store-write-boundary-guard/spec.md`)
+
+| Requirement / Scenario | Result | Covering test |
+|---|---|---|
+| A store's file-backed write function is tracked alongside its SQL-backed one | PASS | `scan.test.ts:63-66` |
+| A real import site of a store's file-backed write function is detected the same way a SQL-backed one is | PASS | `scan.test.ts:98-116` + my live reproduction |
+| An audited, allow-listed file-backed-write orchestration shell is not flagged | PASS | `store-write-guard.test.ts` real run — `compose.ts`'s entry matches exactly, guard green |
+| A namespace import of a tracked store module, followed by a call through the alias, is caught | PASS | `scan.test.ts:118-135` + my live reproduction |
+| A namespace import of a module that does not resolve to a tracked store is not flagged | PASS | `scan.test.ts:149-157`; independently confirmed only real repo hit (`node:readline`) is unflagged |
+| A bare doc-comment mention describing a namespace-import shape, with no real import statement, is not a match | PASS | `scan.test.ts:181-191`; also self-verified live — `scan.ts`'s own doc comment (which discusses this shape in prose) does not self-flag, since the full suite is green |
+| The command surface and test-path exemptions apply to a namespace-import site the same way they apply to a named-import site | PASS | `scan.test.ts:220-238` |
+
+### Always-rules + Magnific-fake checks
+
+| Rule | Result | Evidence |
+|---|---|---|
+| Generate-never-publish | PASS (unaffected) | Diff touches only `src/store-write-boundary/**`, `src/db/adr.docs-test.ts`, `.claude/rules/always/organicgrowth-rules.md`, and the openspec change dir — no generation or publish code touched |
+| Public-metrics-only | PASS (unaffected) | No `src/performance/**` or Apify code touched |
+| Relative-not-absolute | PASS (unaffected) | No scoring/comparison code touched |
+| Explicit-attribution | PASS (unaffected) | No `src/post/**`/attribution code touched |
+| Ledger-as-source-of-truth | PASS (unaffected) | `src/ledger/ledger.ts` and `src/production-queue/store.ts` untouched, confirmed by `git diff 60ecfc7 HEAD --name-only`; the proposal correctly keeps `ledger.json`/`data/queue.json` out of this guard's scope as a different, already-covered category |
+| No product behaviour changed | PASS | `git diff 60ecfc7 HEAD --name-only` = `.claude/rules/always/organicgrowth-rules.md`, 4 openspec-change files, `src/db/adr.docs-test.ts`, `src/store-write-boundary/{allow-list,scan,scan.test}.ts` only — guard/test/docs, no store, command-surface, or pipeline code |
+| `MIGRATION_1`/`MIGRATION_2` byte-for-byte frozen | PASS | `src/db/schema.ts` does not appear in `git diff 60ecfc7 HEAD --name-only` at all — untouched |
+| Magnific fake / hermetic | PASS | No MCP, `space-driver`, `apify`, `media-host/live`, or Zoho import anywhere in the touched files (confirmed by reading every changed file's imports: `node:path`, `node:fs/promises` (test-only, real disk walk), `node:test`, `node:assert/strict`); my own two probe-file reproductions used only `node:path`-free store imports, no live call of any kind, files deleted before this Verdict |
+
+### OpenSpec archive-trap check (not archived, per instructions)
+
+`specs/store-write-boundary-guard/spec.md` contains only `## ADDED Requirements` — no `## MODIFIED
+Requirements` header anywhere in the file. This deliberately avoids the known MODIFIED-header archive
+trap this repo has hit repeatedly. I did not run `openspec archive` (per standing instructions); based on
+the header shape alone, archiving this change should not hit that trap.
+
+### Defect list
+
+None. No defects found at any severity.
+
+### Answering the parent task's direct question
+
+**Yes — after this change, #208's worker, #210's viewer, and #211's agent rewrite cannot take either of
+the two specifically-named shortcuts past the command surface without the suite going red.** Both holes
+confirmed live by #233's Round-1 QA are now closed and independently re-verified by me: a new caller
+importing `saveSpec` directly (named or namespace import) fails the build with a named violation, and a
+namespace import of any of the 15 tracked stores' write functions fails the build naming every one of that
+store's write functions. The one remaining, disclosed gap is `compose.ts`'s own dormant `saveSpec` call,
+which is intentionally allow-listed (it is the write-gate itself, not a bypass) and tracked for real
+migration under issue #238 — if #211 starts calling `composeSpec` in production, that is exactly the
+intended, audited entry point, not a new hole. Two categories remain genuinely out of scope, disclosed
+and not part of this issue: raw SQL (`db.prepare(...).run(...)`) issued directly, and file-backed writes
+on stores other than `production-spec/store.ts` (none exist today, confirmed by my independent 15-store
+sweep).
+
+**Verdict: PASS.**
