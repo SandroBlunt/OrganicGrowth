@@ -35,7 +35,14 @@ globs: *
    opts into a `{ db }` option (issues #222/#223); no existing production caller has been switched over
    to it yet — that follows once the one-shot importer runs (issue #204). Until then, `ledger.json`
    stays the source of truth the live pipeline actually reads and writes: update the Brand's
-   `ledger.json` on every status change.
+   `ledger.json` on every status change. Issue #203 additionally backs the Job, Gate Request, Post, and
+   Performance time-series (`metric_snapshot`/`channel_baseline`/`performance_score`) stores with a
+   `{ db }` option, the same not-yet-wired way. Since issue #205, a **typed command surface**
+   (`src/command-surface/`) sits above the store layer as the sanctioned way anything above it writes —
+   the worker, the viewer, and every agent (issues #208/#210/#211) call it instead of touching a store or
+   a file directly; no production caller is wired onto it yet either, for the same reason. An automated
+   guard (`src/fs-boundary/`) fails the build when a new, un-audited production module imports `node:fs`
+   outside its own reviewed allow-list.
 8. **Never fabricate.** If Apify returns nothing or errors, say so and stop — don't invent trends,
    ideas, or metrics.
 9. **Respect the brand profile.** Banned words and brand-safety rules in `brand-profile.yaml` are hard
