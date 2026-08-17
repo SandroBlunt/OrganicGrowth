@@ -20,6 +20,14 @@
  *
  * File existence/checksum are injected (`AssetMediaFileOps`), defaulting to real `node:fs` calls —
  * tests can substitute fakes; production always uses the real filesystem.
+ *
+ * TWO distinct roots, never conflated (a rehearsal against a COPY of `data/`, AC3, is exactly the case
+ * that would silently break if they were): `legacyAbsolutePrefix` is the FIXED historical absolute path
+ * baked into old records (`/Users/CaxtonTaylor/Developer/OrganicGrowth`) — used ONLY to recognize/strip
+ * it, never to locate a real file. `checkoutRoot` is where THIS run actually reads files from — the real
+ * checkout in production, or wherever a rehearsal's copy of `data/` happens to live — used to build the
+ * real, absolute path `fileOps.exists`/`fileOps.digest` are called with. In production the two are the
+ * same string; in a rehearsal they are deliberately different.
  */
 
 import { access } from "node:fs/promises";
@@ -78,7 +86,8 @@ export interface PlanAssetMediaResult {
  */
 export async function planAssetMedia(
   assetPaths: readonly string[],
-  repoRoot: string,
+  legacyAbsolutePrefix: string,
+  checkoutRoot: string,
   fileOps: AssetMediaFileOps = REAL_ASSET_MEDIA_FILE_OPS,
 ): Promise<PlanAssetMediaResult> {
   const media: PlannedAssetMediaItem[] = [];
@@ -87,13 +96,13 @@ export async function planAssetMedia(
 
   for (let ordinal = 0; ordinal < assetPaths.length; ordinal++) {
     const rawPath = assetPaths[ordinal]!;
-    const relativized = relativizeLegacyPath(rawPath, repoRoot);
+    const relativized = relativizeLegacyPath(rawPath, legacyAbsolutePrefix);
     if (!relativized.ok) {
       problems.push(`asset_paths[${ordinal}] ("${rawPath}"): ${relativized.reason}`);
       continue;
     }
     const storageKey = relativized.key;
-    const absPath = `${repoRoot}/${storageKey}`;
+    const absPath = `${checkoutRoot}/${storageKey}`;
 
     const fileExists = await fileOps.exists(absPath);
     if (!fileExists) {

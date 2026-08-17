@@ -27,7 +27,7 @@ describe("planAssetMedia — relativize, check existence, classify, checksum-or-
       "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/0-hook.png",
       "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/1-then.jpg",
     ];
-    const result = await planAssetMedia(paths, REPO_ROOT, fakeFileOps(paths));
+    const result = await planAssetMedia(paths, REPO_ROOT, REPO_ROOT, fakeFileOps(paths));
     assert.equal(result.problems.length, 0);
     assert.equal(result.dead.length, 0);
     assert.equal(result.media.length, 2);
@@ -44,7 +44,7 @@ describe("planAssetMedia — relativize, check existence, classify, checksum-or-
 
   it("converts an absolute legacy path to a root-relative storage key", async () => {
     const abs = `${REPO_ROOT}/data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/0-hook.png`;
-    const result = await planAssetMedia([abs], REPO_ROOT, fakeFileOps(["data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/0-hook.png"]));
+    const result = await planAssetMedia([abs], REPO_ROOT, REPO_ROOT, fakeFileOps(["data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/0-hook.png"]));
     assert.equal(result.media.length, 1);
     assert.equal(result.media[0]!.storageKey, "data/brands/straw-motion/ideas/2026-W29/idea-01.news-carousel.assets/0-hook.png");
     assert.ok(!result.media[0]!.storageKey.startsWith("/"));
@@ -52,14 +52,14 @@ describe("planAssetMedia — relativize, check existence, classify, checksum-or-
 
   it("marks a missing file as dead — no media row, no problem", async () => {
     const paths = ["data/brands/straw-motion/ideas/unhypped-daily/2026-W33/friday-14-august/idea-01.news-short-script.output/script.txt"];
-    const result = await planAssetMedia(paths, REPO_ROOT, fakeFileOps([])); // nothing exists
+    const result = await planAssetMedia(paths, REPO_ROOT, REPO_ROOT, fakeFileOps([])); // nothing exists
     assert.equal(result.media.length, 0);
     assert.equal(result.problems.length, 0);
     assert.deepEqual(result.dead, [{ ordinal: 0, storageKey: paths[0] }]);
   });
 
   it("reports a problem for a path it cannot relativize (foreign absolute root)", async () => {
-    const result = await planAssetMedia(["/Users/someone-else/data/x.png"], REPO_ROOT, fakeFileOps([]));
+    const result = await planAssetMedia(["/Users/someone-else/data/x.png"], REPO_ROOT, REPO_ROOT, fakeFileOps([]));
     assert.equal(result.media.length, 0);
     assert.equal(result.dead.length, 0);
     assert.equal(result.problems.length, 1);
@@ -67,14 +67,14 @@ describe("planAssetMedia — relativize, check existence, classify, checksum-or-
 
   it("reports a problem for a present file with an unrecognized extension", async () => {
     const paths = ["data/brands/straw-motion/ideas/2026-W29/idea-01.weird-extension.xyz"];
-    const result = await planAssetMedia(paths, REPO_ROOT, fakeFileOps(paths));
+    const result = await planAssetMedia(paths, REPO_ROOT, REPO_ROOT, fakeFileOps(paths));
     assert.equal(result.media.length, 0);
     assert.equal(result.problems.length, 1);
     assert.match(result.problems[0]!, /xyz|extension/i);
   });
 
   it("returns everything empty for zero asset_paths", async () => {
-    const result = await planAssetMedia([], REPO_ROOT, fakeFileOps([]));
+    const result = await planAssetMedia([], REPO_ROOT, REPO_ROOT, fakeFileOps([]));
     assert.deepEqual(result, { media: [], dead: [], problems: [] });
   });
 });

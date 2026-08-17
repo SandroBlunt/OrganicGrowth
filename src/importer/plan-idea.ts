@@ -43,7 +43,11 @@ export interface PlanIdeaInput {
 }
 
 export interface PlanIdeaDeps {
-  readonly repoRoot: string;
+  /** The FIXED historical absolute path prefix baked into legacy `asset_paths` entries — see
+   *  `plan-asset-media.ts`'s own doc comment for why this is distinct from `checkoutRoot`. */
+  readonly legacyAbsolutePrefix: string;
+  /** Where THIS run actually reads media files from (the real checkout, or a rehearsal's copy). */
+  readonly checkoutRoot: string;
   readonly mediaFileOps: AssetMediaFileOps;
   /** Reads one Asset's Spec file, returning its parsed JSON body, or `null` when the path is missing/
    *  unreadable (never a refusal — see this module's own doc comment). */
@@ -116,7 +120,7 @@ interface PlanOneAssetResult {
 }
 
 async function planOneAsset(asset: LedgerAssetRecord, ideaId: string, deps: PlanIdeaDeps): Promise<PlanOneAssetResult> {
-  const mediaResult = await planAssetMedia(asset.asset_paths ?? [], deps.repoRoot, deps.mediaFileOps);
+  const mediaResult = await planAssetMedia(asset.asset_paths ?? [], deps.legacyAbsolutePrefix, deps.checkoutRoot, deps.mediaFileOps);
   const spec = asset.spec_path !== undefined ? await deps.loadSpec(asset.spec_path) : null;
   const planned: PlannedAsset = {
     recipe: asset.recipe,

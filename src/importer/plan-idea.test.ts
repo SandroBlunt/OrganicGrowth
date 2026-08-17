@@ -18,7 +18,8 @@ const REPO_ROOT = "/Users/CaxtonTaylor/Developer/OrganicGrowth";
 
 function fakeDeps(existingKeys: readonly string[] = [], specs: Readonly<Record<string, Record<string, unknown>>> = {}): PlanIdeaDeps {
   return {
-    repoRoot: REPO_ROOT,
+    legacyAbsolutePrefix: REPO_ROOT,
+    checkoutRoot: REPO_ROOT,
     mediaFileOps: {
       exists: async (absPath) => existingKeys.some((k) => absPath.endsWith(k)),
       digest: async () => ({ sha256: "deadbeef", sizeBytes: 42 }),
