@@ -27,11 +27,16 @@ with no side effect.
 
 `runOneJob` SHALL self-audit a claimed job's FIRST leg against the Recipe's `author` Phase Contract
 (`recipe/phase-contract.ts`'s `auditAuthorPhase`, unchanged) before doing anything else with the Space,
-and SHALL self-audit a leg about to render (`targetGate === null`) against the `bind-media` Phase
-Contract (`auditBindMediaPhase`, unchanged) before driving the Space. A failing audit — a broken
-Production-Spec shape or a banned word, or a missing REQUIRED media slot — SHALL stop the job (routed
-through the retry/terminal-failure path below) WITHOUT any call to the injected `SpaceMcpPort` and
-WITHOUT the job ever reaching a produced Asset.
+SHALL self-audit a leg about to render (`targetGate === null`) against the `bind-media` Phase Contract
+(`auditBindMediaPhase`, unchanged) before driving the Space, and — once a leg FINISHES — SHALL self-audit
+the composed Copy against the `copy` Phase Contract (`auditCopyPhase`, unchanged) BEFORE saving the Asset
+`produced`. A failing audit at ANY of these three phases — a broken Production-Spec shape or a banned
+word, a missing REQUIRED media slot, or an invalid composed Copy — SHALL stop the job (routed through the
+retry/terminal-failure path below); an author or bind-media failure stops WITHOUT any call to the
+injected `SpaceMcpPort`, and a copy-phase failure stops WITHOUT the Asset ever being saved `produced` or
+carrying any media/Copy Variant from that attempt. `gate`/`render`/`save` have no generic mechanical
+auditor in this codebase yet (`recipe/phase-contract.ts`'s own documented, pre-existing limit) — this
+Requirement covers exactly the three phases (`author`, `bind-media`, `copy`) that do.
 
 #### Scenario: A banned word in the Production Spec stops the job before any Space call
 
@@ -45,6 +50,14 @@ WITHOUT the job ever reaching a produced Asset.
 - **GIVEN** a `queued` News Carousel job whose Brand has no `brand-logo` Brand Asset committed
 - **WHEN** `runOneJob` claims and processes it
 - **THEN** the job is released `failed`, and the injected fake Space records ZERO edit/run calls
+
+#### Scenario: An invalid composed Copy stops the job before the Asset is ever saved produced
+
+- **GIVEN** a `queued` News Carousel job that renders successfully, but whose injected drafter returns an
+  empty caption (fails `auditCopyPhase`)
+- **WHEN** `runOneJob` claims and processes it
+- **THEN** the job is released `failed`, and the Asset is never saved `status: 'produced'` and carries no
+  `asset_media` row from this attempt
 
 ### Requirement: A job whose Recipe declares a gate parks at awaiting_pick without holding the Space
 

@@ -123,3 +123,39 @@
   test (no live Space touched), the Operator-gated live-run steps (exact commands, pass/fail signs), and
   every known limit (Space-less Recipes, single-representative-creation download, single-Channel Copy,
   single-gate `planLeg`, organicgrowth-rules.md rule 11's doc lag).
+
+## 8. Round 2 — fix qa Defect 1 (HIGH) and Defect 2 (LOW)
+
+qa Round 1 correctly rejected the plan task 7.4 itself flagged: treating the issue body and a rules-file
+addendum as sufficient authority to reverse an accepted ADR (0008) was wrong. **Only an ADR supersedes an
+ADR** — this repo's own governance, demonstrated twice the same day on ADR-0011→ADR-0028 and
+ADR-0014→ADR-0029.
+
+- [x] 8.1 Read `docs/adr/0008`, `0011`, `0014`, `0028`, `0029` end to end for the exact
+  forward-pointer/superseding-ADR shape and prose style qa's repro pointed at; mirror it, not invent a
+  third convention.
+- [x] 8.2 Write `docs/adr/0030-worker-drains-the-queue-unattended.md`: **supersedes, in part,** ADR-0008.
+  States why the permission-classifier reason ADR-0008 gave does not bind a worker holding its own
+  Magnific credentials (it is not a Claude Code agent session, so the `auto`-mode classifier never
+  applies), why two of the three wired Recipes declaring zero gates means "a human is present partway
+  through every job regardless" no longer holds universally, and that serialization is strictly-sequential
+  processing (not a new cross-process lock) — `drainQueue`'s own loop never starts a second job before the
+  current one settles, so ADR-0004's one-generation-at-a-time constraint holds by construction; the SQL
+  atomic `claimJob` (issue #203) is the arbitration primitive if more than one worker process is ever run.
+  States plainly that the attended `producer` content agent is UNCHANGED — a second, parallel path, not a
+  replacement.
+- [x] 8.3 Add a `> **Partially superseded by ADR-0030**...` forward-pointer blockquote to the top of
+  `docs/adr/0008`, mirroring ADR-0011's/ADR-0014's own blockquote placement and tone exactly.
+- [x] 8.4 Rewrite (not append to) `.claude/rules/always/organicgrowth-rules.md` rule 11 so it states ONE
+  coherent rule — the attended path (unchanged) and the unattended worker (new), each named, neither
+  contradicting the other in the same paragraph. Confirmed no docs-test breaks
+  (`report.docs-test.ts`'s `pick-cast.md`/ADR-0008 checks are scoped to a different file, untouched;
+  `db/adr.docs-test.ts` is scoped to ADR-0028/0029, unaffected by a new ADR-0030).
+- [x] 8.5 Fix Defect 2 (low): widen `specs/worker/spec.md`'s "Each phase is self-audited..." Requirement
+  body to name all three currently-auditable phases (author, bind-media, copy — explicitly noting
+  `gate`/`render`/`save` have no generic mechanical auditor yet), and add the missing third Scenario for
+  the copy-phase stop, matching the real test added in round 1's second commit.
+- [x] 8.6 Re-run `openspec validate issue-208-worker-drains-queue --strict`, `openspec validate --all
+  --strict`, `npm test`, `npm run test:docs` — all green, at/above the round-1 floor (3339/884/0-fail;
+  test:docs 295/80/0-fail).
+- [x] 8.7 Append a `Round-2 Build` block to `handoff.md`, leaving Round 1 and the QA Verdict untouched.

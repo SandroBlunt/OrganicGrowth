@@ -57,21 +57,21 @@ globs: *
 10. **Cadence.** One Run per cadence period per Format — a Format owns its own `cadence`, `weekly`
     (the default) or `daily` (`docs/adr/0022-cadence-is-a-format-property.md`) — unless the Operator
     explicitly asks otherwise.
-11. **Human gates: Review, each Recipe's picks, Publish; the producer drives the Space attended.** The
-    pipeline pauses at **Review** (accept an Idea + choose its **Recipes**, pre-filled from the Format),
-    at **each Recipe's own pick-gate(s)** (zero, one, or several — the wired *Character Explainer with
-    Cast* Recipe's is the **Cast** pick), and at **Publish**. Accepting enqueues **one job per chosen
-    Recipe**; the `producer` works the **Production Queue** **in the Operator's session**, **one
-    generation at a time** (bounded by the single attended Operator, not per-Space capacity), pausing at
-    each gate. There is **no unattended background worker**. The agent never asks the Operator to run a
-    mechanical step, and never renders past a gate before the Operator acts (see `docs/adr/0009`,
-    `docs/adr/0010`, `docs/adr/0008`). **Addendum (issue #208, epic #195):** a code-driven **worker**
-    (`src/commands/run-worker.ts`'s `drainQueue`, composing `src/command-surface/worker.ts`'s
-    `runOneJob`) now also exists — a local process the Operator starts, holding its own Magnific
-    credentials, that drains the Production Queue **unattended**, self-auditing each phase and pausing
-    at gates without holding the Space. This is a NEW, separate path alongside the attended `producer`
-    content agent described above (unchanged, still real) — not a replacement for it. The stated reason
-    attended mode existed here — a permission classifier re-blocking allow-listed Magnific calls even
-    when the tool is allow-listed — does not apply to a worker holding its own credentials (epic #195's
-    own recorded review). A superseding ADR for this specific decision is a known doc-gap this ticket
-    flags rather than closes — see its `handoff.md`.
+11. **Human gates: Review, each Recipe's picks, Publish — driven either by the attended `producer` content
+    agent, or by the unattended code-driven worker (issue #208, `docs/adr/0030`, partially superseding
+    `docs/adr/0008`).** The pipeline pauses at **Review** (accept an Idea + choose its **Recipes**,
+    pre-filled from the Format), at **each Recipe's own pick-gate(s)** (zero, one, or several — the wired
+    *Character Explainer with Cast* Recipe's is the **Cast** pick), and at **Publish**. Accepting enqueues
+    **one job per chosen Recipe**. Two paths now drive that job to a produced Asset, never conflated:
+    - The **attended `producer` content agent** works the Production Queue **in the Operator's session**,
+      **one generation at a time** (bounded by the single attended Operator, not per-Space capacity),
+      pausing at each gate (`docs/adr/0008`, unchanged).
+    - The **unattended worker** (`src/commands/run-worker.ts`'s `drainQueue`, composing
+      `src/command-surface/worker.ts`'s `runOneJob`) is a local process the Operator starts, holding its
+      own Magnific credentials — not a Claude Code agent session, so the `auto`-mode permission classifier
+      `docs/adr/0008` cited never applies to it. It drains the Production Queue with **no human present**,
+      for the wired Recipes that declare zero or one gate, self-auditing each phase, and parks at a gate
+      without holding the Space (`docs/adr/0030`).
+
+    Neither path ever asks the Operator to run a mechanical step, and neither renders past a gate before
+    the Operator acts (see `docs/adr/0009`, `docs/adr/0010`, `docs/adr/0008`, `docs/adr/0030`).
