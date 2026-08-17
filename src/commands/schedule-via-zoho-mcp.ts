@@ -197,7 +197,19 @@ export async function scheduleViaZohoMcpCommand(
       // default. In practice Zoho's own `uploadMediaFromUrl` fetches this SAME link moments later, in
       // this same call (`runMcpSchedule`, step 6 below) — but the expiry still tracks `scheduledAtUtc`
       // exactly like the CSV/S3 fallback path, so both paths derive expiry the same way.
-      const { expiresInSeconds } = computeMediaExpiry(planned.scheduledAtUtc, now);
+      const { expiresInSeconds, cappedByAwsLimit, expiresAt } = computeMediaExpiry(planned.scheduledAtUtc, now);
+      // Unreachable in practice — `buildMcpSchedulePlan`'s own presign-window preflight (`mcp-plan.ts`,
+      // issue #198 QA Round 1 Defect #1) already refused the WHOLE plan if any Asset's link would land
+      // before its own scheduled time, so `plan.assets` never carries one that would trip this. Kept as
+      // an explicit, named internal-error guard (never a silent drift) rather than trusting that check
+      // blindly, mirroring `buildSchedulePlan`'s own "no Copy variant" contract-violation throw.
+      if (cappedByAwsLimit && Date.parse(expiresAt) < Date.parse(planned.scheduledAtUtc)) {
+        throw new Error(
+          `schedule-via-zoho-mcp: internal error — "${planned.ideaId}" produced a media link (expiring ` +
+            `${expiresAt}) that cannot reach its own scheduled time (${planned.scheduledAtUtc}) despite ` +
+            "already passing buildMcpSchedulePlan's presign-window preflight — this should be unreachable.",
+        );
+      }
       const urls: string[] = [];
       for (const slidePath of source.asset.asset_paths ?? []) {
         const base = slideBaseName(slidePath);

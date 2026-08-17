@@ -10,6 +10,7 @@ import { FakeMediaHost } from "../media-host/fixtures/fake-media-host.ts";
 import { FakeZohoSchedulePort } from "../schedule-batch/fixtures/fake-zoho-schedule-port.ts";
 import { deriveScheduleSlots } from "../schedule-batch/schedule.ts";
 import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
+import { MAX_PRESIGN_SECONDS } from "../media-host/aws-presign-limit.ts";
 
 const BRAND = "straw-motion";
 const FORMAT = "unhypped-news";
@@ -340,6 +341,60 @@ describe("scheduleViaZohoMcpCommand — happy path (issue #163)", () => {
 
       assert.match(output, /lead-window|1 hour/i);
       assert.equal(port.calls.length, 0);
+    });
+  });
+
+  describe("the far-future case (issue #198 QA Round 1 Defect #1 — a signed link must never be silently doomed)", () => {
+    it("refuses a schedule time just OUTSIDE AWS's ~7-day signed-link ceiling, zero port/Media Host calls", async () => {
+      await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+        await seedOneEligibleIdea(fx);
+        const port = new FakeZohoSchedulePort();
+        const mediaHost = new FakeMediaHost();
+        const { utcMs } = deriveScheduleSlots(START_DATE, 1)[0]!;
+        const justOutsideNow = () => new Date(utcMs - MAX_PRESIGN_SECONDS * 1000 - 1).toISOString();
+
+        const output = await scheduleViaZohoMcpCommand(BRAND, FORMAT, RUN, START_DATE, {
+          ledgerPath: fx.ledgerPath,
+          brandProfilePath: fx.brandProfilePath,
+          now: justOutsideNow,
+          mediaHost,
+          port,
+          approved: true,
+        });
+
+        assert.match(output, /presign-window|7-day signed-link/i);
+        assert.match(output, new RegExp(IDEA));
+        assert.equal(port.calls.length, 0);
+        assert.equal(mediaHost.convertCalls.length, 0);
+        assert.equal(mediaHost.uploadCalls.length, 0);
+        const assets = await loadIdeaAssets(IDEA, fx.ledgerPath);
+        assert.equal(assets![0]!.scheduled_at, undefined);
+      });
+    });
+
+    it("proceeds normally for a schedule time just INSIDE (exactly at) AWS's ~7-day signed-link ceiling", async () => {
+      await withFixture(ZOHO_PROFILE_YAML, async (fx) => {
+        await seedOneEligibleIdea(fx);
+        const port = new FakeZohoSchedulePort();
+        const mediaHost = new FakeMediaHost();
+        const { utcMs } = deriveScheduleSlots(START_DATE, 1)[0]!;
+        const justInsideNow = () => new Date(utcMs - MAX_PRESIGN_SECONDS * 1000).toISOString();
+
+        const output = await scheduleViaZohoMcpCommand(BRAND, FORMAT, RUN, START_DATE, {
+          ledgerPath: fx.ledgerPath,
+          brandProfilePath: fx.brandProfilePath,
+          now: justInsideNow,
+          mediaHost,
+          port,
+          approved: true,
+        });
+
+        assert.match(output, /Scheduled:/);
+        assert.doesNotMatch(output, /presign-window/);
+        assert.ok(mediaHost.uploadCalls.length > 0);
+        const assets = await loadIdeaAssets(IDEA, fx.ledgerPath);
+        assert.ok(assets![0]!.scheduled_at !== undefined);
+      });
     });
   });
 

@@ -29,11 +29,18 @@
  * scheduled. The Character Explainer Recipe's possible future ride on this path is explicitly out of
  * scope here (flagged in ADR-0020 for a later conversation).
  *
- * Pure throughout: `nowMs` (the 1-hour-lead check) is always the caller's explicit argument — this
- * module never reads the system clock, performs no I/O, and makes no live Zoho/Magnific call of any
- * kind. Every business-rule refusal (an empty run, a Brand with no usable Zoho configuration, a slot
- * inside the lead window) is a RETURNED, clearly-worded discriminated result — never a throw, mirroring
- * `src/commands/export-schedule.ts`'s own refusal style.
+ * Also derives, from those SAME slots, whether every Asset's signed media link could survive to reach
+ * its own scheduled post time (`./media-expiry.ts`'s `validateWithinPresignWindow`, issue #198 QA Round
+ * 1 Defect #1) — the SYMMETRIC upper-bound guard to the 1-hour lead-time check: a schedule sitting
+ * beyond AWS's own ~7-day presign ceiling refuses the WHOLE plan loudly, naming every offending Asset,
+ * rather than silently handing `schedule-via-zoho-mcp.ts` a doomed link.
+ *
+ * Pure throughout: `nowMs` (the 1-hour-lead AND the presign-window checks) is always the caller's
+ * explicit argument — this module never reads the system clock, performs no I/O, and makes no live
+ * Zoho/Magnific call of any kind. Every business-rule refusal (an empty run, a Brand with no usable Zoho
+ * configuration, a slot inside the lead window, a slot beyond the presign window) is a RETURNED,
+ * clearly-worded discriminated result — never a throw, mirroring `src/commands/export-schedule.ts`'s own
+ * refusal style.
  */
 
 import type { EligibleAsset } from "./eligibility.ts";
@@ -43,6 +50,7 @@ import { deriveScheduleSlots, validateSlotsFuture } from "./schedule.ts";
 import { formatZohoScheduleTime } from "./timezone.ts";
 import { sortEligible } from "./order.ts";
 import { X_PLATFORM } from "./plan.ts";
+import { validateWithinPresignWindow, formatOverageDuration } from "./media-expiry.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,8 +87,15 @@ export interface McpAssetSchedule {
  *  becomes empty once non-`news-carousel` entries are excluded — the SAME "nothing to schedule" outcome
  *  either way. `"zoho-not-configured"` covers BOTH of `ZohoConfigLookup`'s own `"not_configured"` and
  *  `"malformed"` reasons — either way, there is no usable Zoho configuration to plan against.
- *  `"lead-window"` is the load-bearing `>= 1 hour in the future` guard, mirroring the CSV export's own. */
-export type McpSchedulePlanRefusalReason = "empty-run" | "zoho-not-configured" | "lead-window";
+ *  `"lead-window"` is the load-bearing `>= 1 hour in the future` guard, mirroring the CSV export's own.
+ *  `"presign-window"` is the SYMMETRIC upper-bound guard (issue #198 QA Round 1 Defect #1): a schedule
+ *  time whose signed media link cannot survive to reach its own post time, beyond AWS's own ~7-day
+ *  presign ceiling — mirrors `"lead-window"`'s own refusal treatment exactly. */
+export type McpSchedulePlanRefusalReason =
+  | "empty-run"
+  | "zoho-not-configured"
+  | "lead-window"
+  | "presign-window";
 
 export type McpSchedulePlanResult =
   | { readonly ok: true; readonly assets: readonly McpAssetSchedule[] }
@@ -173,6 +188,31 @@ export function buildMcpSchedulePlan(input: BuildMcpSchedulePlanInput): McpSched
       message:
         "MCP schedule plan refused — every schedule time must be at least 1 hour in the future " +
         `(nothing planned):\n${lines.join("\n")}`,
+    };
+  }
+
+  // Refuse loudly if any row's media link cannot survive to reach its own scheduled time — mirrors the
+  // near-future check immediately above (issue #198 QA Round 1 Defect #1). A link capped by AWS's own
+  // ~7-day presign ceiling must never ship silently.
+  const uploadedAtIso = new Date(nowMs).toISOString();
+  const scheduledAtIsos = slots.map((slot) => new Date(slot.utcMs).toISOString());
+  const expiryWindowCheck = validateWithinPresignWindow(scheduledAtIsos, uploadedAtIso);
+  if (!expiryWindowCheck.ok) {
+    const lines = expiryWindowCheck.violations.map((v) => {
+      const target = sorted[v.index]!;
+      return (
+        `  - ${target.ideaId}: scheduled ${v.scheduledAtIso} sits ${formatOverageDuration(v.overageMs)} ` +
+        "beyond AWS's own ~7-day signed-link ceiling from now — its hosted media link would already " +
+        `be expired (at ${v.expiresAt}) before Zoho could ever fetch it at post time. Reschedule this ` +
+        "Asset within 7 days of export, or re-export closer to its scheduled time."
+      );
+    });
+    return {
+      ok: false,
+      reason: "presign-window",
+      message:
+        "MCP schedule plan refused — every schedule time must sit within AWS's ~7-day signed-link " +
+        `window from export (nothing planned):\n${lines.join("\n")}`,
     };
   }
 

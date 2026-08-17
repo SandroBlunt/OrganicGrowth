@@ -103,6 +103,64 @@ each get a DIFFERENT token.
 - **AND** every recorded `uploadCalls` entry's `expiresInSeconds` equals
   `computeMediaExpiry(planned.scheduledAtUtc, now).expiresInSeconds`
 
+### Requirement: A schedule whose signed link cannot reach its own post time refuses the WHOLE export loudly, before any I/O
+
+`validateWithinPresignWindow` SHALL be a PURE function (`src/schedule-batch/media-expiry.ts`,
+`validateWithinPresignWindow(scheduledAtIsos, uploadedAtIso)`) and SHALL return `{ ok: true }` when
+EVERY given scheduled time's signed link (per
+`computeMediaExpiry`) reaches at least as far as that scheduled time itself, or `{ ok: false, violations
+}` naming EVERY offending index (never stopping at the first) otherwise — mirroring `schedule.ts`'s
+`validateSlotsFuture` exactly (issue #198 QA Round 1 Defect #1: a capped expiry must never ship
+silently, extending that SAME loud-refusal treatment to the far-future case rather than a second,
+independent mechanism). A schedule that is merely `cappedByAwsLimit` (its ideal 1-hour post-scheduled
+buffer trimmed away) but whose link STILL reaches the scheduled time itself SHALL NOT be a violation —
+only `expiresAt < scheduledAtIso` (the link is provably dead before the post is even due) counts.
+
+Both orchestration shells SHALL call this validation, from the SAME derived slots their own near-future
+`validateSlotsFuture` check already runs against, BEFORE any file is written, any media hosted, or any
+Zoho call made: `src/commands/export-schedule.ts` calls it directly, refusing with an `EXPORT REFUSED`
+message naming every violating Idea's own scheduled time, how far past AWS's ~7-day ceiling it sits
+(`formatOverageDuration`), and that rescheduling within the window or re-exporting closer to the event
+is the fix; `src/schedule-batch/mcp-plan.ts`'s `buildMcpSchedulePlan` calls it the SAME way, returning
+`{ ok: false, reason: "presign-window", message }` with the SAME naming/guidance shape, which
+`src/commands/schedule-via-zoho-mcp.ts` forwards verbatim (mirroring how it already forwards that
+module's `"lead-window"` refusal). Both shells' own per-slide hosting loop additionally asserts, as an
+explicit internal-error guard (never a silent drift), that the Asset it is about to host was never
+capable of tripping this condition in the first place.
+
+#### Scenario: validateWithinPresignWindow: ok: true for a schedule sitting exactly at the 7-day ceiling, even though it is capped
+
+- **GIVEN** a `scheduledAtIso` exactly `MAX_PRESIGN_SECONDS` after `uploadedAtIso`
+- **WHEN** `validateWithinPresignWindow` is called
+- **THEN** the result is `{ ok: true }`, even though that same scheduled time's `computeMediaExpiry`
+  reports `cappedByAwsLimit: true`
+
+#### Scenario: validateWithinPresignWindow: ok: false one millisecond past that same ceiling, naming the violation
+
+- **GIVEN** a `scheduledAtIso` one millisecond past `uploadedAtIso + MAX_PRESIGN_SECONDS`
+- **WHEN** `validateWithinPresignWindow` is called
+- **THEN** the result is `{ ok: false }` with exactly one violation naming that index, its
+  `scheduledAtIso`, the actual (earlier) `expiresAt`, and a positive `overageMs`
+
+#### Scenario: export-schedule.ts refuses the WHOLE export loudly, writing and hosting nothing, for a far-future schedule
+
+- **GIVEN** an eligible Asset whose derived schedule slot sits beyond AWS's ~7-day signed-link ceiling
+  from "now"
+- **WHEN** `/export-schedule` runs
+- **THEN** it returns an `EXPORT REFUSED` message naming that Asset's Idea id and the ~7-day ceiling
+- **AND** no file is written, no `convertToJpg`/`upload` call is made, and no `scheduled_at` is stamped
+
+#### Scenario: buildMcpSchedulePlan refuses with reason "presign-window", and schedule-via-zoho-mcp.ts forwards it, hosting nothing
+
+- **GIVEN** an eligible Asset whose derived schedule slot sits beyond AWS's ~7-day signed-link ceiling
+  from "now"
+- **WHEN** `buildMcpSchedulePlan` is called directly, and separately when `scheduleViaZohoMcpCommand`
+  runs the same scenario end to end
+- **THEN** `buildMcpSchedulePlan` returns `{ ok: false, reason: "presign-window" }` naming that Asset's
+  Idea id
+- **AND** `scheduleViaZohoMcpCommand` forwards that message, making zero `ZohoSchedulePort` calls and
+  zero `MediaHostPort.upload` calls, and stamps no `scheduled_at`
+
 ### Requirement: The existing cleanup routine needs no change to keep deleting hosted media correctly
 
 `runScheduleCleanup` (`src/schedule-batch/cleanup-runner.ts`) SHALL continue to delete a due Asset

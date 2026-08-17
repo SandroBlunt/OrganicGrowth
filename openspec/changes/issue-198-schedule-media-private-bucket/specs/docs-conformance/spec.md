@@ -17,10 +17,12 @@ SHALL name the real mechanism by which media becomes readable — `presignViaAws
 `randomMediaKeyToken` (`src/media-host/token.ts`) — and SHALL document the exact IAM permissions the
 running AWS CLI credentials need (`s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, never
 `s3:ListBucket` or a wildcard). It SHALL document AWS's own SigV4 presign ceiling
-(`MAX_PRESIGN_SECONDS`, 604,800 seconds / 7 days) and state plainly what happens when a link expires
-before Zoho fetches the media (the fetch fails). It SHALL document the concrete, one-time migration
-steps for an already-public bucket (`aws s3api delete-bucket-policy`, confirming
-`get-public-access-block` is still fully ON, confirming `get-bucket-policy` now returns
+(`MAX_PRESIGN_SECONDS`, 604,800 seconds / 7 days, `cappedByAwsLimit`) and — since issue #198's QA Round
+1 Defect #1 — SHALL state that a schedule whose signed link cannot reach its own post time is REFUSED
+LOUDLY, NEVER SHIPPED (`validateWithinPresignWindow`, `EXPORT REFUSED`, `buildMcpSchedulePlan`'s
+`presign-window` reason), never merely documented as an after-the-fact failure mode. It SHALL document
+the concrete, one-time migration steps for an already-public bucket (`aws s3api delete-bucket-policy`,
+confirming `get-public-access-block` is still fully ON, confirming `get-bucket-policy` now returns
 `NoSuchBucketPolicy`, and granting the three needed IAM actions).
 
 #### Scenario: CONTEXT.md defines Schedule Batch, cross-referencing the conversational approval and ADR-0002
@@ -59,13 +61,15 @@ steps for an already-public bucket (`aws s3api delete-bucket-policy`, confirming
   needed permissions
 - **AND** it does NOT document `"s3:ListBucket"` or a wildcard `"s3:*"` action anywhere
 
-#### Scenario: The setup doc states AWS's own presign ceiling and what happens when a link expires before Zoho fetches
+#### Scenario: The setup doc states AWS's own presign ceiling AND that a doomed link is refused loudly, never shipped (issue #198 QA Round 1 Defect #1)
 
 - **GIVEN** `docs/schedule-batch-s3-setup.md` as shipped in this repository
 - **WHEN** it is read
 - **THEN** it names `MAX_PRESIGN_SECONDS`, states the ceiling is 604,800 seconds / 7 days, and names
   `cappedByAwsLimit`
-- **AND** it states plainly that the fetch fails when a link has expired before Zoho fetches it
+- **AND** it names `validateWithinPresignWindow`, states the export is refused with `EXPORT REFUSED`,
+  and names the MCP path's `presign-window` refusal reason — never merely a documented after-the-fact
+  failure mode
 
 #### Scenario: The setup doc documents the concrete migration steps for an already-public bucket
 

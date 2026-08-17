@@ -1,7 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { computeMediaExpiry, EXPIRY_BUFFER_AFTER_SCHEDULED_MS } from "./media-expiry.ts";
+import {
+  computeMediaExpiry,
+  validateWithinPresignWindow,
+  formatOverageDuration,
+  EXPIRY_BUFFER_AFTER_SCHEDULED_MS,
+} from "./media-expiry.ts";
 import { CLEANUP_AFTER_MS } from "./cleanup.ts";
 import { MAX_PRESIGN_SECONDS } from "../media-host/aws-presign-limit.ts";
 
@@ -76,5 +81,81 @@ describe("no race between a link's expiry and the cleanup routine's earliest pos
     const earliestCleanupEligibleMs = Date.parse(scheduledAt) + CLEANUP_AFTER_MS + 1;
 
     assert.ok(Date.parse(expiresAt) < earliestCleanupEligibleMs);
+  });
+});
+
+describe("validateWithinPresignWindow (issue #198 QA Round 1 Defect #1 — a link that cannot survive to its own post time must refuse loudly, never ship silently)", () => {
+  /** The TRUE boundary: a signed link is minted for at most `MAX_PRESIGN_SECONDS` from `uploadedAt`, so
+   *  a scheduled time exactly `MAX_PRESIGN_SECONDS` after `uploadedAt` is the LAST instant a link can
+   *  still just barely reach (even though it is already `cappedByAwsLimit` — the ideal extra 1-hour
+   *  post-scheduled buffer is gone, but the link still covers the post time itself). One millisecond
+   *  later, it can't. */
+  const BOUNDARY_SCHEDULED_AT = new Date(Date.parse(UPLOADED_AT) + MAX_PRESIGN_SECONDS * 1000).toISOString();
+
+  it("ok: true when every scheduled time is well within the AWS window", () => {
+    const result = validateWithinPresignWindow(
+      ["2026-08-05T09:06:00.000Z", "2026-08-06T13:23:00.000Z"],
+      UPLOADED_AT,
+    );
+    assert.deepEqual(result, { ok: true });
+  });
+
+  it("just INSIDE the 7-day ceiling (exactly at the boundary): ok: true, even though cappedByAwsLimit is true", () => {
+    // Sanity-check the premise: this scheduled time IS capped (its ideal buffer is trimmed away)...
+    assert.equal(computeMediaExpiry(BOUNDARY_SCHEDULED_AT, UPLOADED_AT).cappedByAwsLimit, true);
+    // ...but the link still reaches the post's own scheduled time exactly, so this is NOT a violation.
+    const result = validateWithinPresignWindow([BOUNDARY_SCHEDULED_AT], UPLOADED_AT);
+    assert.deepEqual(result, { ok: true });
+  });
+
+  it("just OUTSIDE the 7-day ceiling (1 millisecond past the boundary): ok: false, naming the violation", () => {
+    const justOutside = new Date(Date.parse(BOUNDARY_SCHEDULED_AT) + 1).toISOString();
+    const result = validateWithinPresignWindow([justOutside], UPLOADED_AT);
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.violations.length, 1);
+    assert.equal(result.violations[0]!.index, 0);
+    assert.equal(result.violations[0]!.scheduledAtIso, justOutside);
+    assert.equal(result.violations[0]!.overageMs, 1);
+    assert.ok(Date.parse(result.violations[0]!.expiresAt) < Date.parse(justOutside));
+  });
+
+  it("returns EVERY violating index, never stopping at the first, and leaves compliant rows out", () => {
+    const wellWithin = "2026-08-05T09:06:00.000Z";
+    const farOut = "2026-08-25T00:00:00.000Z"; // ~21 days after uploadedAt
+    const alsoFarOut = "2026-09-01T00:00:00.000Z";
+    const result = validateWithinPresignWindow([wellWithin, farOut, alsoFarOut], UPLOADED_AT);
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.deepEqual(
+      result.violations.map((v) => v.index),
+      [1, 2],
+    );
+  });
+
+  it("an empty list is trivially ok: true", () => {
+    assert.deepEqual(validateWithinPresignWindow([], UPLOADED_AT), { ok: true });
+  });
+
+  it("is pure — the same inputs always produce the same output", () => {
+    const scheduledAtIsos = ["2026-08-05T09:06:00.000Z", "2026-08-25T00:00:00.000Z"];
+    const a = validateWithinPresignWindow(scheduledAtIsos, UPLOADED_AT);
+    const b = validateWithinPresignWindow(scheduledAtIsos, UPLOADED_AT);
+    assert.deepEqual(a, b);
+  });
+});
+
+describe("formatOverageDuration", () => {
+  it("rounds up to whole days, minimum 1 day", () => {
+    assert.equal(formatOverageDuration(1), "1 day");
+    assert.equal(formatOverageDuration(60 * 60 * 1000), "1 day"); // 1 hour rounds up to 1 day
+    assert.equal(formatOverageDuration(24 * 60 * 60 * 1000), "1 day"); // exactly 1 day
+  });
+
+  it("pluralizes for more than 1 day, rounding up a partial day", () => {
+    assert.equal(formatOverageDuration(24 * 60 * 60 * 1000 + 1), "2 days");
+    assert.equal(formatOverageDuration(3 * 24 * 60 * 60 * 1000), "3 days");
   });
 });

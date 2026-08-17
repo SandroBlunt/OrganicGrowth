@@ -219,13 +219,16 @@ describe("the one-time S3 setup is documented, not code (issue #148 AC4; re-shap
     assert.doesNotMatch(doc, /"s3:\*"|"s3:ListBucket"/);
   });
 
-  it("documents the AWS 7-day SigV4 presign ceiling (MAX_PRESIGN_SECONDS) and what happens when a link expires before Zoho fetches", async () => {
+  it("documents the AWS 7-day SigV4 presign ceiling (MAX_PRESIGN_SECONDS) and that a link beyond it is refused loudly, never shipped (issue #198 QA Round 1 Defect #1)", async () => {
     const doc = await readFile(S3_SETUP_DOC, "utf8");
     assert.match(doc, /MAX_PRESIGN_SECONDS/);
     assert.match(doc, /604,800|604800/);
     assert.match(doc, /7 days/);
     assert.match(doc, /cappedByAwsLimit/);
-    assert.match(doc, /the fetch fails/);
+    assert.match(doc, /validateWithinPresignWindow/);
+    assert.match(doc, /EXPORT REFUSED/);
+    assert.match(doc, /presign-window/);
+    assert.match(doc, /refused loudly, never shipped/);
   });
 
   it("documents the concrete migration steps for an already-public bucket (delete-bucket-policy, get-public-access-block)", async () => {

@@ -109,7 +109,7 @@ straw-motion's own private bucket exactly — never automated by this repo:
    groupings/channel labels/clock — `src/production-spec/brand-profile.ts`'s `loadZohoConfig`, issue
    #143) so `/export-schedule` can host that Brand's media there.
 
-## Signed link expiry — the chosen lifetime, and what happens if it expires before Zoho fetches
+## Signed link expiry — the chosen lifetime, and what happens if it would expire before Zoho fetches
 
 `computeMediaExpiry` (`src/schedule-batch/media-expiry.ts`) targets `scheduled_at +
 EXPIRY_BUFFER_AFTER_SCHEDULED_MS` (1 hour) — comfortably past the moment Zoho is expected to actually
@@ -127,13 +127,25 @@ longer than 7 days from the moment it is minted, full stop, regardless of creden
 schedule sitting within that window from export time (every Format built so far), the 1-hour-past-
 scheduled-time target above is reached exactly. For a batch whose last Asset is scheduled MORE than
 roughly 7 days past its own export/upload time, the returned expiry is CAPPED at that 7-day ceiling
-instead — `computeMediaExpiry`'s own `cappedByAwsLimit` flag reports this — and the resulting link
-expires BEFORE that Asset's own scheduled time. If Zoho then tries to fetch the media after that point,
-the fetch fails (an expired-signature error, not a "file not found" — the object itself is still
-present, only the one link pointing at it has gone stale). This is a genuine, documented limitation:
-today's mitigation is exporting (or re-hosting) closer to the event so no Asset in a batch sits more
-than ~7 days out at upload time; a future slice could add re-presigning closer to post time if a batch
-that long-tailed ever becomes routine.
+instead — `computeMediaExpiry`'s own `cappedByAwsLimit` flag reports this. Being capped alone is NOT
+necessarily broken: as long as `scheduled_at` itself is still within 7 days of upload time, the capped
+link still reaches the scheduled time, just with less than the ideal extra hour of slack.
+
+**Only when `scheduled_at` itself sits beyond that 7-day ceiling does the link actually become
+undeliverable — and that case is refused loudly, never shipped (issue #198 QA Round 1 Defect #1).**
+`validateWithinPresignWindow` (`src/schedule-batch/media-expiry.ts`) checks every Asset's own scheduled
+time BEFORE any file is written, any media hosted, or any Zoho call made — both `/export-schedule`
+(`EXPORT REFUSED`) and the Zoho MCP path (`buildMcpSchedulePlan`'s `reason: "presign-window"`, forwarded
+by `scheduleViaZohoMcpCommand`) refuse the WHOLE export/plan, naming every offending Asset, its scheduled
+time, and how far past the ~7-day ceiling it sits, with the fix stated directly: reschedule that Asset
+within 7 days of export, or re-export closer to its scheduled time. Nothing is left half-written. Before
+this fix, an export would complete looking healthy and the fetch would fail later with no warning
+anywhere (an expired-signature error, not a "file not found" — the object itself would still be
+present, only the one link pointing at it would have gone stale); that silent-failure shape is exactly
+what this repository has already been bitten by once and is why refusal, not a warning, is the answer
+here. Today's mitigation for a genuinely long-tailed batch is exporting (or re-hosting) closer to the
+event so no Asset in a batch sits more than ~7 days out at upload time; a future slice could add
+re-presigning closer to post time if a batch that long-tailed ever becomes routine.
 
 ## Credentials
 

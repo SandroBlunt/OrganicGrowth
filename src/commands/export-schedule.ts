@@ -18,10 +18,13 @@
  * `"produced"` (ADR-0011's lifecycle is unchanged; `/log-post` is still what moves it to `posted`).
  *
  * Every business-rule refusal (an empty run, a Brand not configured for Schedule Batch, a preflight
- * problem, a schedule time inside the 1-hour lead window) is a RETURNED, clearly-worded string — never
- * a throw — mirroring every other granular command's refusal style (`/log-post`'s `unknown-recipe`,
- * `/track-performance`'s `SKIPPED` lines). A genuine runtime failure (a broken ledger file, a Media Host
- * error) still propagates as a throw, exactly like every other command's underlying I/O.
+ * problem, a schedule time inside the 1-hour lead window, or — issue #198 QA Round 1 Defect #1 — a
+ * schedule time whose signed media link cannot survive to reach its own post time, beyond AWS's own
+ * ~7-day presign ceiling, `src/schedule-batch/media-expiry.ts`'s `validateWithinPresignWindow`) is a
+ * RETURNED, clearly-worded string — never a throw — mirroring every other granular command's refusal
+ * style (`/log-post`'s `unknown-recipe`, `/track-performance`'s `SKIPPED` lines). A genuine runtime
+ * failure (a broken ledger file, a Media Host error) still propagates as a throw, exactly like every
+ * other command's underlying I/O.
  *
  * **Runs the Brand's manifest-driven S3 cleanup FIRST, automatically** (issue #147, parent #140): before
  * loading this run's Ideas at all, `runScheduleCleanup` (`src/schedule-batch/cleanup-runner.ts`) scans
@@ -59,7 +62,7 @@ import { sortEligible } from "../schedule-batch/order.ts";
 import { deriveScheduleSlots, validateSlotsFuture } from "../schedule-batch/schedule.ts";
 import { validateAssetsForExport, buildSchedulePlan, type AssetHostedMedia } from "../schedule-batch/plan.ts";
 import { slideBaseName, scheduleMediaKey } from "../schedule-batch/media-key.ts";
-import { computeMediaExpiry } from "../schedule-batch/media-expiry.ts";
+import { computeMediaExpiry, validateWithinPresignWindow, formatOverageDuration } from "../schedule-batch/media-expiry.ts";
 import { runScheduleCleanup, type CleanupResult } from "../schedule-batch/cleanup-runner.ts";
 import type { MediaHostPort } from "../media-host/port.ts";
 import { randomMediaKeyToken } from "../media-host/token.ts";
@@ -231,6 +234,28 @@ export async function exportScheduleCommand(
     );
   }
 
+  // --- 4.5. Refuse loudly if any row's media link cannot survive to reach its own scheduled time -----
+  //     Mirrors the near-future check immediately above (issue #198 QA Round 1 Defect #1) — a link
+  //     capped by AWS's own ~7-day presign ceiling must never ship silently.
+
+  const scheduledAtIsos = slots.map((slot) => new Date(slot.utcMs).toISOString());
+  const expiryWindowCheck = validateWithinPresignWindow(scheduledAtIsos, now);
+  if (!expiryWindowCheck.ok) {
+    const lines = expiryWindowCheck.violations.map((v) => {
+      const target = sorted[v.index]!;
+      return (
+        `  - ${target.ideaId}: scheduled ${v.scheduledAtIso} sits ${formatOverageDuration(v.overageMs)} ` +
+        "beyond AWS's own ~7-day signed-link ceiling from now — its hosted media link would already " +
+        `be expired (at ${v.expiresAt}) before Zoho could ever fetch it at post time. Reschedule this ` +
+        "Asset within 7 days of export, or re-export closer to its scheduled time."
+      );
+    });
+    return (
+      `${header}\nEXPORT REFUSED — every schedule time must sit within AWS's ~7-day signed-link window ` +
+      `from export (nothing was written):\n${lines.join("\n")}`
+    );
+  }
+
   // --- 5. Host every eligible Asset's slides once, sharing the links across its rows ----------------
 
   const ownsTempDir = options.tempDir === undefined;
@@ -245,7 +270,18 @@ export async function exportScheduleCommand(
       // default. `slots[i]` is the SAME slot `buildSchedulePlan` (step 6, below) stamps onto this exact
       // Asset's manifest entry and ledger `scheduled_at`.
       const scheduledAtIso = new Date(slots[i]!.utcMs).toISOString();
-      const { expiresInSeconds } = computeMediaExpiry(scheduledAtIso, now);
+      const { expiresInSeconds, cappedByAwsLimit, expiresAt } = computeMediaExpiry(scheduledAtIso, now);
+      // Unreachable in practice — the presign-window preflight (step 4.5, above) already refused the
+      // WHOLE export if any row's link would land before its own scheduled time. Kept as an explicit,
+      // named internal-error guard (never a silent drift) rather than trusting that check blindly,
+      // mirroring `buildSchedulePlan`'s own "no Copy variant" contract-violation throw.
+      if (cappedByAwsLimit && Date.parse(expiresAt) < Date.parse(scheduledAtIso)) {
+        throw new Error(
+          `export-schedule: internal error — "${ideaId}" produced a media link (expiring ${expiresAt}) ` +
+            `that cannot reach its own scheduled time (${scheduledAtIso}) AFTER already passing the ` +
+            "presign-window preflight check — this should be unreachable.",
+        );
+      }
       const keys: string[] = [];
       const urls: string[] = [];
       for (const slidePath of asset.asset_paths ?? []) {
