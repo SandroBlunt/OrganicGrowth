@@ -17,6 +17,15 @@ data/your-data/
 data/brands/*/ideas/**/*.output/
 data/brands/*/ideas/**/*.assets/
 
+# The local SQLite core (ADR-0029) and its write-ahead-log siblings. The database is
+# BUILT from the files beside it by the one-shot importer (issue #204), so it is derived
+# state, not source — and a binary that every run rewrites is the worst possible thing to
+# track: unmergeable between the concurrent sessions this repo is worked in, and large.
+# The reconciliation report is what gets committed, never the database itself.
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
 # Node / TypeScript build
 # No trailing slash. `node_modules/` matches a directory only, so a `node_modules`
 # SYMLINK — the usual way to share one install across git worktrees — slips past it
