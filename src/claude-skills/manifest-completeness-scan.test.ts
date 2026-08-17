@@ -67,6 +67,8 @@ outputs:
 scripts:
   - path: scripts/build-prompt.py
     purpose: Assemble and validate a Fixture Model prompt.
+  - path: scripts/test_build_prompt.py
+    purpose: Unit tests for build-prompt.py (TDD-first).
 references:
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
@@ -218,6 +220,12 @@ describe("checkManifestCompleteness — one missing/invalid field at a time", ()
     assert.ok(defects.some((d) => d.field === "tools[0].kind"), JSON.stringify(defects));
   });
 
+  it("catches a tools entry with an out-of-enum kind (present, well-typed, wrong value — issue #212 Round 2)", () => {
+    const yaml = COMPLETE_METADATA_YAML.replace("kind: runtime-interpreter", "kind: cli-tool");
+    const defects = checkManifestCompleteness(withMetadata(yaml), OPTIONS);
+    assert.ok(defects.some((d) => d.field === "tools[0].kind"), JSON.stringify(defects));
+  });
+
   it("catches a missing target_model.vendor", () => {
     const yaml = COMPLETE_METADATA_YAML.replace("  vendor: fixture-vendor\n", "");
     const defects = checkManifestCompleteness(withMetadata(yaml), OPTIONS);
@@ -277,6 +285,15 @@ describe("checkManifestCompleteness — one missing/invalid field at a time", ()
     assert.ok(defects.some((d) => d.field === "evals"), JSON.stringify(defects));
   });
 
+  it("catches an evals path that names no real scripts: entry (present, well-typed, wrong value — issue #212 Round 2)", () => {
+    const yaml = COMPLETE_METADATA_YAML.replace(
+      "evals:\n  - path: scripts/test_build_prompt.py",
+      "evals:\n  - path: scripts/does-not-exist.py",
+    );
+    const defects = checkManifestCompleteness(withMetadata(yaml), OPTIONS);
+    assert.ok(defects.some((d) => d.field === "evals[0].path"), JSON.stringify(defects));
+  });
+
   it("catches a missing shared_references.path", () => {
     const yaml = COMPLETE_METADATA_YAML.replace("  path: ../../references/\n  required: true", "  required: true");
     const defects = checkManifestCompleteness(withMetadata(yaml), OPTIONS);
@@ -287,6 +304,15 @@ describe("checkManifestCompleteness — one missing/invalid field at a time", ()
     const yaml = COMPLETE_METADATA_YAML.replace(
       "  path: ../../references/\n  required: true\n  install: copy-alongside",
       "  path: ../../references/\n  install: copy-alongside",
+    );
+    const defects = checkManifestCompleteness(withMetadata(yaml), OPTIONS);
+    assert.ok(defects.some((d) => d.field === "shared_references.required"), JSON.stringify(defects));
+  });
+
+  it("catches shared_references.required: false — present, a genuine boolean, but the wrong value (issue #212 Round 2, Defect 1)", () => {
+    const yaml = COMPLETE_METADATA_YAML.replace(
+      "  path: ../../references/\n  required: true\n  install: copy-alongside",
+      "  path: ../../references/\n  required: false\n  install: copy-alongside",
     );
     const defects = checkManifestCompleteness(withMetadata(yaml), OPTIONS);
     assert.ok(defects.some((d) => d.field === "shared_references.required"), JSON.stringify(defects));

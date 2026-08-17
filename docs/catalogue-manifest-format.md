@@ -187,14 +187,45 @@ change's `handoff.md` for the red/green transcripts):**
 - `owner` (non-empty, equal to `LICENSE`'s copyright holder)
 - `purpose` — `SKILL.md`'s frontmatter `description`, at least 100 characters (justified below)
 - `entities.reads` (non-empty array) and `entities.writes` (present, may be empty)
-- `tools` (present; each item, if any, has non-empty `name` and `kind`)
+- `tools` (present; each item, if any, has non-empty `name` and `kind` — `kind` is a closed enum, today
+  `runtime-interpreter` only; an unrecognised `kind` fails, not merely a missing one)
 - `target_model.vendor` (non-empty), `target_model.model_id` or `target_model.model` (at least one
   non-empty — `grok-imagine` alone uses `model:` rather than `model_id:`), `target_model.modalities`
   (non-empty array), `target_model.fallbacks` (present array, may be empty)
 - `inputs` (non-empty array) and `outputs` (non-empty array)
-- `evals` (non-empty array, each item naming a non-empty `path`)
-- `shared_references.path` (non-empty), `shared_references.required` (boolean), `shared_references.install`
+- `evals` (non-empty array, each item naming a non-empty `path` that also names one of this same entry's
+  own `scripts:` entries — a path to a script this entry doesn't declare fails, per "evals ... points at
+  an existing scripts: test entry" above)
+- `shared_references.path` (non-empty), `shared_references.required` (must equal `true` — every entry
+  with a `shared_references` block genuinely depends on it, per its own `entities.reads`; a present but
+  `false` value is caught, not merely a missing one — issue #212 Round 2, Defect 1), `shared_references.install`
   (non-empty, one of `copy-alongside` / `vendored` / `refuse-without`)
+
+**Fields deliberately left to type/presence checks only, not value-checked, with the reason (issue #212
+Round 2's field-by-field sweep):**
+
+- `version` — semver-shaped only. There is no single "correct" version across 11 independently-versioned
+  entries to check against; a real, repository-derived oracle (like `LICENSE` for `licence`/`owner`)
+  doesn't exist for this field.
+- `entities.reads` / `entities.writes` content (beyond non-empty/present) — verifying a specific cited
+  path actually resolves is the dangling-citation guard's job (#252), which already resolves the
+  `(../)+references/(<name>.md)?`-shaped entries of `entities.reads` against real files; duplicating that
+  resolution here would be the second-guard the issue's own brief forbids. `entities.writes`'s emptiness
+  has no oracle beyond "every real entry today writes nothing."
+- `tools[].name` — no closed set; a future entry's script could legitimately need a different runtime
+  (e.g. `node`) under a name this repository can't enumerate in advance.
+- `target_model.vendor` / `model_id` / `model` / `modalities` — free-text, per-model vocabulary (6 real
+  vendors, 20+ distinct modality names across 11 entries today); there is no in-repo catalogue of "valid"
+  model names or modalities to check against.
+- `target_model.fallbacks` content (beyond present-array) — no fallback entry's shape has been decided
+  yet (see above: this is a Producer/Recipe-level runtime decision, not this Skill layer's own); every
+  real entry declares `[]` today, so there is nothing yet to value-check.
+- `inputs` / `outputs` item shape (beyond non-empty array) — a deeper per-item schema (name/type/required
+  well-formedness) is a separate, larger config-validation design question this ticket's own field list
+  never promised to cover.
+- `shared_references.path` value (beyond non-empty) — again the dangling-citation guard's job (#252):
+  it resolves this exact field's value against the real `.claude/references/` folder already (a corrupted
+  path is caught there, proven in this change's `handoff.md`'s Round-1 Mutation 6 transcript).
 
 **Threshold justification (the brief's own demand — never leave a number unjustified).** The `purpose`
 length floor is 100 characters. Measured directly against the real corpus at authoring time, the

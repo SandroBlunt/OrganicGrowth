@@ -42,6 +42,12 @@ export interface ManifestCheckOptions {
 
 const ALLOWED_INSTALL_STRATEGIES = new Set(["copy-alongside", "vendored", "refuse-without"]);
 
+/** The only `tools[].kind` value any real entry uses today (a `python3` runtime interpreter). A closed
+ *  enum, not merely "must be a non-empty string" — an unrecognised kind is exactly the kind of
+ *  well-typed-but-wrong value this module exists to catch (issue #212 Round 2, Defect 1's sibling
+ *  sweep). Widen this set, with a reason, the day a real entry legitimately needs a second kind. */
+const ALLOWED_TOOL_KINDS = new Set(["runtime-interpreter"]);
+
 /** Extracts and parses a `SKILL.md`'s leading `---\n...\n---` YAML frontmatter block. Returns
  *  `undefined` when no frontmatter block is found or it fails to parse as an object — never throws. */
 export function parseSkillFrontmatter(skillMdContent: string): Record<string, unknown> | undefined {
@@ -187,6 +193,11 @@ export function checkManifestCompleteness(
       }
       if (!isPlainObject(tool) || typeof tool["kind"] !== "string" || tool["kind"].trim().length === 0) {
         fail(`tools[${index}].kind`, `expected a non-empty string, found ${JSON.stringify(isPlainObject(tool) ? tool["kind"] : tool)}`);
+      } else if (!ALLOWED_TOOL_KINDS.has(tool["kind"])) {
+        fail(
+          `tools[${index}].kind`,
+          `expected one of ${JSON.stringify([...ALLOWED_TOOL_KINDS])}, found ${JSON.stringify(tool["kind"])}`,
+        );
       }
     });
   }
@@ -212,21 +223,48 @@ export function checkManifestCompleteness(
   requireArray("inputs", metadata["inputs"], 1);
   requireArray("outputs", metadata["outputs"], 1);
 
-  // evals
+  // evals — each entry's path must be more than well-formed: it must actually name one of this entry's
+  // own declared scripts:, per docs/catalogue-manifest-format.md ("evals ... points at an existing
+  // scripts: test entry"). A path that is merely a non-empty string but names no real script would
+  // otherwise pass silently (issue #212 Round 2, Defect 1's sibling sweep).
+  const scriptsField = metadata["scripts"];
+  const declaredScriptPaths = new Set(
+    Array.isArray(scriptsField)
+      ? scriptsField
+          .filter(isPlainObject)
+          .map((s) => s["path"])
+          .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+      : [],
+  );
   const evals = requireArray("evals", metadata["evals"], 1);
   if (evals !== undefined) {
     evals.forEach((entry, index) => {
-      if (!isPlainObject(entry) || typeof entry["path"] !== "string" || entry["path"].trim().length === 0) {
-        fail(`evals[${index}].path`, `expected a non-empty string, found ${JSON.stringify(isPlainObject(entry) ? entry["path"] : entry)}`);
+      const path = isPlainObject(entry) ? entry["path"] : undefined;
+      if (typeof path !== "string" || path.trim().length === 0) {
+        fail(`evals[${index}].path`, `expected a non-empty string, found ${JSON.stringify(path)}`);
+      } else if (!declaredScriptPaths.has(path)) {
+        fail(
+          `evals[${index}].path`,
+          `expected a path present in this entry's own scripts: list, found ${JSON.stringify(path)} ` +
+            `(scripts: ${JSON.stringify([...declaredScriptPaths])})`,
+        );
       }
     });
   }
 
   // shared_references.*
   requireNonEmptyString("shared_references.path", getIn(metadata, "shared_references.path"));
+  // Every entry with a shared_references block genuinely depends on the shared references (its own
+  // entities.reads always cites them) — required is not merely "a boolean," it must be true. A
+  // present-but-false value is a well-typed lie about a real structural dependency (issue #212 Round 2,
+  // Defect 1): it would leave install-time (vendored/refuse-without) callers believing the dependency is
+  // optional when every real entry's citations say otherwise.
   const required = getIn(metadata, "shared_references.required");
-  if (typeof required !== "boolean") {
-    fail("shared_references.required", `expected a boolean, found ${JSON.stringify(required)}`);
+  if (required !== true) {
+    fail(
+      "shared_references.required",
+      `expected true (this entry's own entities.reads cites the shared references), found ${JSON.stringify(required)}`,
+    );
   }
   const install = getIn(metadata, "shared_references.install");
   if (typeof install !== "string" || install.trim().length === 0) {
