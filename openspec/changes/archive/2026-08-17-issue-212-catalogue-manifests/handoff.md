@@ -809,3 +809,214 @@ correct — see "Spec reconciliation" above).
   quick tightening, and out of this defect-fix round's scope).
 
 Ready for qa — Round 2.
+
+## QA Verdict — Round 2: PASS
+
+### Scope discipline
+
+Re-ran `git diff 5f40206..7506488 --stat`: exactly `docs/catalogue-manifest-format.md`,
+`manifest-completeness-scan.ts`, `manifest-completeness-scan.test.ts`, and `handoff.md` — no
+`.claude/skills/**` file, no other production module. Round 1's PASS items were not re-litigated in
+depth; spot-checked that they still hold (see "Suite result" and "Always-rules" below) and that nothing
+outside the claimed diff moved.
+
+### Suite result
+
+All commands run from `/Users/CaxtonTaylor/Developer/.og-worktrees/issue-212-catalogue-manifests`
+(branch `issue-212-catalogue-manifests` @ `7506488`, built off `origin/main` @ `8d8112a`):
+
+| Command | Result |
+|---|---|
+| `npm test` | **3532 tests / 923 suites / 0 fail** — matches the Build Report exactly (+3 over Round 1's 3529) |
+| `npm run test:docs` | **351 tests / 94 suites / 0 fail** — unchanged from Round 1, as claimed |
+| `npm run build` | clean, no errors |
+| `openspec validate issue-212-catalogue-manifests --strict` | `Change 'issue-212-catalogue-manifests' is valid` |
+| `openspec validate --all --strict` | **67 passed, 0 failed** |
+
+**+3 delta confirmed genuinely new, not a fluke.** Ran `manifest-completeness-scan.test.ts` alone: 36
+tests (was 33 in Round 1) — the exact +3. `git diff 5f40206..7506488` on that test file shows exactly
+three new `it(...)` blocks (`shared_references.required: false`, an out-of-enum `tools[].kind`, an
+`evals[].path` naming no real `scripts:` entry) plus one fixture fix — no other test files changed, no
+test removed. `reference-citation-guard.docs-test.ts` untouched by this round's diff (confirmed by
+`git diff --stat`), consistent with `test:docs` staying flat at 351/94.
+
+### Per-criterion results
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | Manifest format defined and documented | **PASS (reconfirmed)** | Unchanged from Round 1 except the field-list wording fixes this round required |
+| 2 | All 11 model-prompting Skills carry a complete manifest | **PASS (reconfirmed)** | No `.claude/skills/**` file touched this round; real-tree guard green; all 11 independently confirmed to satisfy every tightened check (below) |
+| 3 | Automated check fails when a catalogue entry has an incomplete manifest | **PASS** | Defect 1 (Round 1) fixed and independently reproduced on qa's own untouched Skill (`seedream-5-0-pro`, not `veo-3-1` or `grok-imagine-1-5`); the two sibling tightenings (`tools[].kind`, `evals[].path`) independently reproduced on qa's own inputs (`nano-banana-2`, `chatgpt-image-2`) — see "qa's own independent verification" below |
+| 4 | Installing one entry into a clean checkout, verified end to end | **PASS (reconfirmed)** | Untouched by this round's diff; `install-catalogue-entry.ts`/`.test.ts` unaffected; re-verified `planInstall`'s test file genuinely covers all 3 strategies (`copy-alongside`/`vendored`/`refuse-without`), not just claims to |
+
+### Per-scenario results (`specs/skill-catalogue-manifest/spec.md` — unchanged this round, confirmed by diff)
+
+| Requirement / Scenario | Result | Note |
+|---|---|---|
+| Req 1 / both Scenarios | PASS | doc re-read in full; field-list wording updates this round don't change what it names |
+| Req 2 / "every one of the 11 ... carries every new field" | PASS | Requirement 2's own prose already said `shared_references.required` **(`true`)** and `evals` naming "at least one existing test script already declared under `scripts:`** at `5f40206` — the spec text was correct at Round 1; the CODE was what disagreed, on both fields, confirmed directly by reading `spec.md` at HEAD (untouched this round) |
+| Req 2 / "no .py/SKILL.md prose touched" | PASS | reconfirmed, `git diff 5f40206..7506488 --name-only` has no `.py`/`SKILL.md` match |
+| Req 3 / "guard passes against the real tree" | PASS | reproduced, 3/3 green |
+| Req 3 / "guard is proven non-vacuous" | **PASS — Defect 1 closed** | `shared_references.required: false` now fails (Round 1's exact gap); independently reproduced on a different Skill (`seedream-5-0-pro`) and different value (my own byte-for-byte mutation) |
+| Req 3 / "pure scanner is unit-tested with zero disk access" | PASS | 36 tests, zero `node:fs` in the test file (confirmed via grep); the 3 new tests are in-memory fixtures like the rest |
+| Req 4 / both Scenarios | PASS (reconfirmed) | unaffected by this round's diff |
+
+### qa's own independent verification (Round 2)
+
+**1. Reproduced the Defect-1 fix on my own input, not the developer's or my own Round-1 fields.**
+`veo-3-1` (developer's Round 1), `grok-imagine-1-5` (developer's Round 2) were both already used for this
+exact mutation. I used `seedream-5-0-pro` — untouched by either round of anyone's transcripts — set
+`shared_references.required: true → false`, confirmed red (`{"skillName":"seedream-5-0-pro","field":
+"shared_references.required","reason":"expected true (this entry's own entities.reads cites the shared
+references), found false"}`), restored, `md5` matched
+(`2b332d1bd541294fa11978fe394c4e03`), `git status --porcelain` empty, re-ran green.
+
+**2. Built my own field-by-field table directly from the code (`manifest-completeness-scan.ts`), not
+from the developer's table, then compared.** Walked every `fail(...)` call site in the module (23 total,
+2 of which are the top-level parse-failure guards for a malformed `SKILL.md`/`metadata.yaml`, correctly
+outside the 19/20-field count). My independently-derived table **agrees with the developer's on every
+row's presence/type/value classification and on which 3 fields were tightened this round**
+(`shared_references.required`, `tools[].kind`, `evals[].path`). Two discrepancies found, both minor and
+not functional gaps:
+
+- **The developer's own arithmetic (`3 tightened + 11 left loose + 5 already value-checked = 19`) does
+  not reconcile with their own displayed 20-row table**, nor cleanly with the doc's own "Required for
+  completeness" bullet list (which reads as 18 or 19 distinct fields depending on how `name`'s
+  SKILL.md-equality sub-clause and `tools`'s container-vs-per-item shape are split). This is an
+  unreconciled headline number, not a missing check — every field named in either the table or the doc is
+  genuinely checked in code (confirmed by walking every line). **Severity: low, cosmetic.**
+- **The code contains a `SKILL.md#name` field check (line 141 — the frontmatter's own `name` being
+  non-empty, distinct from the equality check) and a bare `tools` container-presence check (line 186)
+  that are both real, both fire correctly, but neither has its own dedicated unit test, and `SKILL.md#name`
+  isn't broken out as its own row in the sweep table** (folded into row 1's "name (+ SKILL.md
+  cross-check)", and "tools (array)" row 8 lacks its own red→green transcript in either round). I
+  independently mutated both live — `seedream-5-0-pro/SKILL.md`'s frontmatter `name:` line removed →
+  `not ok`, field `SKILL.md#name`; and `kling-3-0/metadata.yaml`'s entire `tools:` block removed →
+  `not ok`, field `tools`, `"expected an array (may be empty), found undefined"` — both fire correctly,
+  named the file and field, restored byte-identical (`md5` matched both times), `git status` clean after
+  both. **Not a functional defect** — both checks genuinely work; this is a test-coverage/table-
+  completeness nit only. **Severity: low.**
+
+**3. Interrogated the two hardest "left loose" fields per the brief's own instruction.**
+
+- **`entities.reads` / `shared_references.path` — does the sibling dangling-citation guard actually cover
+  it, or is this a seam gap?** Read `reference-citation-scan.ts`'s regex
+  (`(?:\.\./)+(?:[a-zA-Z0-9_.-]+\/)*references\/(?:[a-z-]+\.md)?`) and the guard's file-collection logic
+  (`collectCitingFiles` walks every `.md`/`.yaml` under `.claude/skills/`, including `metadata.yaml`
+  itself — so the citation guard genuinely re-scans `metadata.yaml`'s raw text, not just `SKILL.md`).
+  Live-tested on `happy-horse` (untouched-for-this-check): corrupted `entities.reads`'s own
+  `../../references/*.md` line specifically (not `shared_references.path`) to
+  `../../wrong-place/references/*.md` — **the citation guard fired** (`not ok 1 - dangling
+  reference-citation guard`), confirming this field's shared-path entry genuinely IS resolved
+  independently of `shared_references.path`, not merely coincidentally by virtue of being the same
+  literal string. Restored, `md5` matched, clean.
+  Then tested the ACKNOWLEDGED gap directly: corrupted the LOCAL `entities.reads` entry (`references/*.md`
+  → `refernces/*.md`, no leading `../`, so it never matches the citation-pattern's required `(../)+`
+  prefix) — **both guards stayed green.** This confirms a real, silent-if-undocumented gap — but the
+  developer's own Round 2 Known Limits already states exactly this ("not for the local `references/*.md`
+  entry (a glob, not a literal path — nothing resolves globs)") **before I found it**. This is the correct
+  outcome per the standing lesson: the gap is real, but it is disclosed, not hidden behind an
+  overclaiming guard. **Not a defect** — an honestly-labeled limit, verified accurate.
+- **`target_model.vendor`/`modalities` — is there really no fixed vocabulary anywhere in the repo?**
+  Grepped all 11 real entries: 6 distinct vendors (`openai`, `alibaba`, `xai`×2, `kuaishou`×2, `google`×2,
+  `bytedance`×3) and ~27 distinct modality strings — both matching the doc's claimed counts. Searched
+  `src/**/*.ts` outside `src/claude-skills/` for any existing vendor or modality enum/catalogue: **zero
+  hits** (`grep -rn "openai\|xai\|kuaishou\|bytedance\|alibaba"` and `grep -rln "modalities\b"` both
+  empty outside the Skills themselves). Confirms the "no in-repo oracle" reasoning is accurate, not a
+  convenient excuse. **Not a defect.**
+
+**4. Verified the `evals[].path` doc-claimed-but-unenforced finding independently, at the exact `5f40206`
+commit (not from the developer's say-so).** `git show 5f40206:docs/catalogue-manifest-format.md` — line
+30 ("points at an existing `scripts:` test entry") and line 108 ("Points at the entry's own existing
+`scripts/test_build_prompt.py` (already declared under `scripts:`)") both make the claim; the "Required
+for completeness" list at that commit (line 195) says only "each item naming a non-empty `path`" — no
+cross-check language. `git show 5f40206:src/claude-skills/manifest-completeness-scan.ts` confirms the
+code at that commit only checked non-empty-string, never cross-referenced `scripts:`. **The finding is
+real and independently confirmed** — additionally, `openspec/.../spec.md`'s own Requirement 2 (unchanged
+since `5f40206`, still the same text today) *also* already said "evals (non-empty, naming at least one
+existing test script already declared under `scripts:`)" — meaning this was a **spec-vs-code** gap, not
+merely a doc-vs-code one, sitting alongside Defect 1's `shared_references.required` gap in the exact same
+Requirement 2 sentence. (This is new context, not a new defect — both halves of that one sentence are now
+correctly enforced as of this round.)
+
+**Swept the rest of the doc for other unverified claims**, spot-checking every factual assertion against
+the real corpus directly (not trusting the doc's own numbers): all 11 `target_model.fallbacks` are
+genuinely `[]` (confirmed); `grok-imagine` genuinely uses `model:` not `model_id:` (confirmed);
+`install-catalogue-entry.test.ts` genuinely covers all three `install` strategies with distinct assertions
+per strategy, not merely claims to (confirmed — `copy-alongside`/`vendored`/`refuse-without` each has its
+own `it(...)` with a distinct expected `plan`); the `purpose` threshold's stated corpus range (359–817
+characters, shortest `chatgpt-image-2` at 359) reproduced exactly via a live script re-parsing all 11
+`SKILL.md` frontmatters. **No further undisclosed doc/code mismatches found.**
+
+**5. Verified the two new tightenings fire on qa's own inputs, distinct from the developer's transcripts.**
+`nano-banana-2`'s `tools[0].kind: runtime-interpreter → shell-script` and `chatgpt-image-2`'s
+`evals[0].path` repointed at `scripts/bogus_nonexistent.py` — both fired in the same run, named file and
+field correctly (`"tools[0].kind", "expected one of [\"runtime-interpreter\"], found \"shell-script\""`;
+`"evals[0].path", "expected a path present in this entry's own scripts: list, found
+\"scripts/bogus_nonexistent.py\" (scripts: [...])"`), both restored byte-identical (`md5` matched both),
+`git status` clean, suite green after.
+
+**6. Checked whether the `tools[].kind` closed enum (one permitted value) could reject a legitimate
+future entry.** Confirmed all 11 real entries genuinely satisfy it (`grep -c "kind: runtime-interpreter"`
+= 1 per file, `runtime-interpreter` is the only distinct value across all 11). The enum is scoped at the
+semantic-category level (`runtime-interpreter`), not tied to a specific technology (`python3` stays in
+`tools[].name`, deliberately left loose, per the doc's own stated reasoning "a future entry's script
+could legitimately need a different runtime... under a name this repository can't enumerate in advance")
+— so a future Node-based script would still satisfy `kind: runtime-interpreter`, only `name` would change.
+Risk is real only for a genuinely novel tool *category* (e.g. a CLI binary, not an interpreter) — the code
+comment (`ALLOWED_TOOL_KINDS`) gives clear widen-with-a-reason guidance for that case, but this specific
+future-rejection risk is **not called out in the handoff's Known Limits section or the doc's own field
+list**, unlike the analogous, already-documented `entities.reads`-local-glob gap above. **Severity: low —
+recommend adding one line to Known Limits; does not block this round**, since the enum is well-reasoned,
+verified correct against all 11 real entries today, and the code comment already signals the widen path.
+
+### Always-rules + Magnific-fake checks (Round 2 diff)
+
+| Check | Result | Evidence |
+|---|---|---|
+| Generate-never-publish | PASS (n/a) | this slice touches no production/content-pipeline path |
+| Public-metrics-only | PASS (n/a) | same |
+| Relative-not-absolute | PASS (n/a) | same |
+| Explicit-attribution | PASS (n/a) | same |
+| Ledger-as-source-of-truth | PASS (n/a) | `grep -rn "ledger.json\|queue.json\|AssetStore\|command-surface"` across the two modified `src/claude-skills/*.ts` files: zero hits |
+| No live-Magnific calls | PASS | `grep -rniE "spaces_\|creations_\|magnific\|apify"` across `manifest-completeness-scan.ts`, `manifest-completeness-scan.test.ts`, `docs/catalogue-manifest-format.md`: zero hits |
+| Hermetic (no new runtime dep) | PASS | `git diff 5f40206..7506488 -- package.json package-lock.json`: empty |
+
+### Append-only rule
+
+`git diff 5f40206..7506488 -- .../handoff.md` shows **408 insertions, 0 deletions** in real content (the
+one `-` line in the raw diff is the diff-header artifact `--- a/...`, not a content removal). Round 1's
+Build Report and my own Round 1 Verdict are present verbatim, byte-for-byte, above this block.
+
+### Defect list
+
+None blocking. Two low-severity, non-functional accounting/coverage nits (both described in full under
+"qa's own independent verification," items 2 and 6 above) — recommended, not required, for the developer
+to fold into a future pass if this ticket is touched again:
+
+- **LOW — the Round 2 sweep table's own "19 required-field checks" total doesn't reconcile with its own
+  20-row table**, and the code additionally contains two real, correctly-firing checks
+  (`SKILL.md#name`, bare `tools` container-presence) that aren't broken out as their own rows and lack
+  dedicated unit tests. No functional gap — both independently reproduced live and confirmed correct.
+- **LOW — `tools[].kind`'s closed single-value enum's future-rejection risk (a legitimate new tool
+  *category*, not just a new runtime name) isn't named in Known Limits**, unlike the structurally
+  identical `entities.reads`-local-glob gap, which is. The enum itself is verified correct against all 11
+  real entries and well-reasoned (scoped at category level, with a clear widen-path code comment).
+
+### Overall
+
+**PASS.** All four suite/build/openspec commands reproduced exactly as claimed, with the +3 test delta
+independently confirmed as three genuinely new tests. Defect 1 from Round 1 is fixed and independently
+reproduced on qa's own untouched input (`seedream-5-0-pro`), restored byte-identical. The sweep's two new
+tightenings (`tools[].kind`, `evals[].path`) both independently reproduced on qa's own inputs
+(`nano-banana-2`, `chatgpt-image-2`), fire correctly, and do not over-fire against any of the 11 real
+entries. The `evals[].path` doc-claimed-but-unenforced finding is independently confirmed real at the
+exact pre-fix commit, and is in fact a spec-vs-code gap (not just doc-vs-code) that this round also
+closes. The hardest two "left loose" fields were interrogated directly: `entities.reads`'s shared-path
+entry is genuinely, independently resolved by the sibling citation guard (not a seam gap); the one real
+gap that does exist (the local `references/*.md` glob entry) was already honestly disclosed by the
+developer before I found it, which is the correct behavior this epic's standing lesson asks for.
+`target_model.vendor`/`modalities`'s "no oracle exists" claim is independently confirmed by grepping the
+whole repo, not merely trusted. Append-only rule held exactly; hermeticity and always-rules checks all
+pass, trivially, since this slice touches no content-pipeline path. Two low-severity documentation/
+accounting nits noted above, neither blocking.
