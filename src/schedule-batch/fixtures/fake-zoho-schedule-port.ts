@@ -6,11 +6,17 @@
  * (`src/space-driver/fixtures/fake-space.ts`): entirely in-memory, deterministic, and it records every
  * call it receives, IN ORDER, so a downstream test can assert on exactly what it asked Zoho to do —
  * without touching the network, a real Zoho account, or credits. No real MCP call happens here.
+ *
+ * `listSchedules` (issue #209) reads from `created` — every schedule THIS fake has actually created,
+ * either via `createSchedule` or seeded directly by a test — modeling Zoho as the durable, independent
+ * system of record it really is.
  */
 
 import type {
   ZohoCreateScheduleResult,
   ZohoPostRequest,
+  ZohoScheduleRecord,
+  ZohoScheduleTarget,
   ZohoSchedulePort,
   ZohoUploadedMedia,
   ZohoValidateResult,
@@ -21,7 +27,13 @@ import type {
 export type FakeZohoScheduleCall =
   | { readonly kind: "upload"; readonly url: string }
   | { readonly kind: "validate"; readonly request: ZohoPostRequest }
-  | { readonly kind: "schedule"; readonly request: ZohoPostRequest };
+  | { readonly kind: "schedule"; readonly request: ZohoPostRequest }
+  | { readonly kind: "list"; readonly target: ZohoScheduleTarget };
+
+/** True when two `ZohoScheduleTarget`s name the SAME Channel — every field equal. */
+function sameTarget(a: ZohoScheduleTarget, b: ZohoScheduleTarget): boolean {
+  return a.zohoBrandName === b.zohoBrandName && a.platform === b.platform && a.label === b.label;
+}
 
 export interface FakeZohoSchedulePortOptions {
   /** Called for every `validatePost`; return `{ ok: false }` to model Zoho refusing THIS ONE request.
@@ -33,8 +45,14 @@ export interface FakeZohoSchedulePortOptions {
 }
 
 export class FakeZohoSchedulePort implements ZohoSchedulePort {
-  /** Every call, in order — upload, validate, and schedule calls interleaved exactly as they happened. */
+  /** Every call, in order — upload, validate, schedule, and list calls interleaved exactly as they
+   *  happened. */
   public readonly calls: FakeZohoScheduleCall[] = [];
+
+  /** Every schedule this fake has ever actually created — what `listSchedules` reads from (issue #209).
+   *  Public so a test can seed "Zoho already has this" WITHOUT going through `createSchedule` (proving
+   *  reconciliation finds a pre-existing schedule it did not itself just create). */
+  public readonly created: (ZohoScheduleRecord & { readonly target: ZohoScheduleTarget })[] = [];
 
   private uploadCount = 0;
   private scheduleCount = 0;
@@ -59,6 +77,19 @@ export class FakeZohoSchedulePort implements ZohoSchedulePort {
     this.calls.push({ kind: "schedule", request });
     this.scheduleCount += 1;
     const reference = this.options.reference?.(request, this.scheduleCount) ?? `fake-ref-${this.scheduleCount}`;
+    this.created.push({
+      target: request.target,
+      reference,
+      content: request.content,
+      scheduledAtLocal: request.scheduledAtLocal,
+    });
     return { reference };
+  }
+
+  async listSchedules(target: ZohoScheduleTarget): Promise<readonly ZohoScheduleRecord[]> {
+    this.calls.push({ kind: "list", target });
+    return this.created
+      .filter((c) => sameTarget(c.target, target))
+      .map(({ reference, content, scheduledAtLocal }) => ({ reference, content, scheduledAtLocal }));
   }
 }

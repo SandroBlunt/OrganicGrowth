@@ -22,6 +22,9 @@ export const NODE_FS_ALLOW_LIST: readonly string[] = [
   "src/asset/news-short-script-output.ts",
   "src/asset/output-bundle.ts",
   "src/asset/shot-list-media.ts",
+  // reads a slide's source PNG, writes the converted JPG — the cross-platform sips replacement
+  // (issue #209); the same media-staging category as the five entries above, not a store or a port.
+  "src/media-host/live/png-to-jpg.ts",
 
   // --- Already-the-store: the file-backed half of a store that ALSO exists (ADR-0029 carve-out) -----
   "src/brand-asset/store.ts",

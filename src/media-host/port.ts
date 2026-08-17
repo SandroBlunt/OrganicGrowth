@@ -4,9 +4,10 @@
  * The narrow seam the Schedule Batch export drives to prepare Zoho-ready media, mirroring TWO existing
  * seams so the build stays hermetic: `src/space-driver/port.ts` (the Magnific seam, `SpaceMcpPort`) and
  * `src/commands/track-performance-port.ts` (the Apify scrape seam, `PerformanceScrapePort`). Tests
- * ALWAYS inject a fake (`fixtures/fake-media-host.ts`); the REAL adapter (`live/adapter.ts`) shells out
- * to macOS's `sips` and the AWS CLI and is never exercised by `npm test` — exactly like the
- * deferred/never-tested live adapters those two ports document.
+ * ALWAYS inject a fake (`fixtures/fake-media-host.ts`); the REAL adapter (`live/adapter.ts`) converts via
+ * a pure-JS PNG->JPG converter (`live/png-to-jpg.ts`, issue #209 — no shell-out of any kind, cross-
+ * platform by construction) and uploads/deletes via the AWS CLI; the AWS CLI half is never exercised by
+ * `npm test` — exactly like the deferred/never-tested live adapters those two ports document.
  *
  * Three operations — exactly what PRD #140's user stories 4–5 need:
  *

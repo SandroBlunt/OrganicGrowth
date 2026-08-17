@@ -19,7 +19,9 @@
  * own doc comment justifies individually (`releaseJob`, `attachAssetMedia`,
  * `recordPerformanceSnapshot`/`recordPerformanceScore`): operations no future caller could complete a
  * real pipeline turn without, which a command surface claiming to be "the only thing permitted to
- * write" cannot simply omit.
+ * write" cannot simply omit. `scheduleViaOutbox`/`reconcileScheduleOutbox` (issue #209) are a NEW
+ * capability beyond that original eight, not a companion to them — the Schedule Outbox's own
+ * reserve/call/confirm write path.
  *
  * **No production caller is wired onto this surface by this ticket.** The worker (#208), the viewer
  * (#210), and every agent (#211) are later slices; today, nothing above the store layer imports the SQL
@@ -50,3 +52,10 @@ export {
   type PerformanceScoreInput,
   type PerformanceScoreRecord,
 } from "./performance.ts";
+export {
+  scheduleViaOutbox,
+  reconcileScheduleOutbox,
+  type ReconcileScheduleOutboxOutcome,
+  type RunScheduleOutboxEntryInput,
+  type RunScheduleOutboxOutcome,
+} from "./schedule-outbox.ts";

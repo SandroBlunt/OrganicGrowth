@@ -16,14 +16,22 @@
  * same relationship `src/space-driver/driver.ts`'s Fallback Protocol has to the live Space: a documented
  * procedure the agent follows, never a literal subprocess call from this codebase.
  *
- * Deliberately narrow — three operations, matching ADR-0020's own ordered sequence (upload from the
- * already-S3-hosted URL, validate, THEN schedule — never a different order) and nothing else:
+ * Four operations, matching ADR-0020's own ordered sequence (upload from the already-S3-hosted URL,
+ * validate, THEN schedule — never a different order) plus one read-only reconciliation operation (issue
+ * #209):
  *
  *   - `uploadMediaFromUrl` — upload one already-hosted (S3) media URL into Zoho's own media library,
  *     returning the media id `validatePost`/`createSchedule` reference.
  *   - `validatePost` — Zoho's own pre-flight check for one platform/channel's post content + media,
  *     BEFORE anything is actually scheduled.
  *   - `createSchedule` — schedule the already-validated post.
+ *   - `listSchedules` — read-only: every schedule Zoho currently holds for one Channel target. This is
+ *     the reconciliation seam the Schedule Outbox (`src/schedule-outbox/`, issue #209) drives when it
+ *     resumes a `'reserved'`-but-unconfirmed entry after a crash — it asks Zoho what actually happened
+ *     rather than guessing (never "assume it failed and retry", which double-posts; never "assume it
+ *     succeeded", which silently drops a post). Maps to the real, already-granted
+ *     `ZohoSocial_listSocialSchedules` MCP tool (`.claude/agents/producer.md`'s own tool list;
+ *     `docs/zoho-mcp-server-setup.md`) — granted from the start, simply unused by this port until now.
  *
  * `ZohoPostRequest` carries NO `isApprovalNeeded` field, and this module has no method resembling
  * `ZohoSocial_updateSocialPostApprovalStatus` — ADR-0020: Zoho's own Approval workflow is never used, on
@@ -82,6 +90,17 @@ export interface ZohoCreateScheduleResult {
   readonly reference: ZohoScheduleReference;
 }
 
+/** One schedule Zoho currently reports for a given Channel target (issue #209's reconciliation seam) —
+ *  just enough to match it back against a `ZohoPostRequest` this codebase itself generated
+ *  (`src/schedule-outbox/reconcile.ts`'s `matchesRequest`): its own reference, the exact post content,
+ *  and the exact local schedule time. Never more than this port's own `ZohoPostRequest` already carries
+ *  — reconciliation compares like against like. */
+export interface ZohoScheduleRecord {
+  readonly reference: ZohoScheduleReference;
+  readonly content: string;
+  readonly scheduledAtLocal: string;
+}
+
 /**
  * The narrow port the MCP scheduling orchestration (`src/schedule-batch/mcp-schedule.ts`) drives. A
  * FAKE implements this in tests (`fixtures/fake-zoho-schedule-port.ts`); at runtime, the attended
@@ -92,4 +111,6 @@ export interface ZohoSchedulePort {
   uploadMediaFromUrl(url: string): Promise<ZohoUploadedMedia>;
   validatePost(request: ZohoPostRequest): Promise<ZohoValidateResult>;
   createSchedule(request: ZohoPostRequest): Promise<ZohoCreateScheduleResult>;
+  /** Read-only: every schedule Zoho currently holds for `target` (issue #209's reconciliation seam). */
+  listSchedules(target: ZohoScheduleTarget): Promise<readonly ZohoScheduleRecord[]>;
 }

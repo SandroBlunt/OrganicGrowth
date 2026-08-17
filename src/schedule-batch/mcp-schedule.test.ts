@@ -204,7 +204,7 @@ describe("runMcpSchedule — AC3: Zoho's Approval workflow is never used (issue 
     await runMcpSchedule({ assets: [asset()], approved: true, port });
 
     for (const call of port.calls) {
-      if (call.kind === "upload") continue;
+      if (call.kind === "upload" || call.kind === "list") continue;
       const keys = Object.keys(call.request);
       assert.deepEqual(keys.sort(), ["content", "mediaIds", "scheduledAtLocal", "target"]);
       assert.doesNotMatch(JSON.stringify(call.request), /approval/i);
@@ -224,7 +224,7 @@ describe("runMcpSchedule — X is defensively excluded even if present in the in
     assert.equal(result.ok, true);
     if (!result.ok) return;
     for (const call of port.calls) {
-      if (call.kind === "upload") continue;
+      if (call.kind === "upload" || call.kind === "list") continue;
       assert.notEqual(call.request.target.platform, "x");
     }
     assert.deepEqual(result.scheduled[0]!.scheduledPlatforms, ["linkedin"]);

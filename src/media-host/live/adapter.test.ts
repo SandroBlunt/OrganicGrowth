@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,6 +8,7 @@ import { LiveMediaHost } from "./adapter.ts";
 import type { CommandRunner } from "./command-runner.ts";
 import type { S3Config } from "./s3.ts";
 import type { MediaHostPort } from "../port.ts";
+import { writeTinyPng } from "../fixtures/tiny-png.ts";
 
 interface RecordedCall {
   readonly command: string;
@@ -29,31 +30,59 @@ function stubRunner(): { runner: CommandRunner; calls: RecordedCall[] } {
 
 const CONFIG: S3Config = { bucket: "strawmotion-schedule-media", region: "us-east-1" };
 
-describe("LiveMediaHost (issue #144) — composes sips + the AWS CLI behind MediaHostPort", () => {
+describe("LiveMediaHost (issue #144) — composes the pure-JS PNG->JPG converter (issue #209) + the AWS CLI behind MediaHostPort", () => {
   it("implements MediaHostPort (type-level, plus a smoke call of every method)", async () => {
-    const { runner } = stubRunner();
-    const host: MediaHostPort = new LiveMediaHost({ config: CONFIG, runner, env: {} });
-    await host.convertToJpg("/tmp/a.png", "/tmp/a.jpg");
-    const result = await host.upload("/tmp/a.jpg", "a.jpg", { expiresInSeconds: 3600 });
-    assert.match(result.url, /^https:\/\/example-signed\.invalid/);
-    await host.delete("a.jpg");
+    const dir = await mkdtemp(join(tmpdir(), "og-live-media-host-smoke-"));
+    try {
+      const pngPath = join(dir, "a.png");
+      const jpgPath = join(dir, "a.jpg");
+      await writeTinyPng(pngPath);
+      const { runner } = stubRunner();
+      const host: MediaHostPort = new LiveMediaHost({ config: CONFIG, runner, env: {} });
+      await host.convertToJpg(pngPath, jpgPath);
+      const result = await host.upload(jpgPath, "a.jpg", { expiresInSeconds: 3600 });
+      assert.match(result.url, /^https:\/\/example-signed\.invalid/);
+      await host.delete("a.jpg");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
-  it("convertToJpg delegates to sips with the given sourcePath/destPath", async () => {
-    const { runner, calls } = stubRunner();
-    const host = new LiveMediaHost({ config: CONFIG, runner, sipsCommand: "sips", env: {} });
-    await host.convertToJpg("/tmp/slide-0.png", "/tmp/slide-0.jpg");
+  it("convertToJpg is pure JS — it converts a real PNG to a real JPG WITHOUT ever calling the CommandRunner (issue #209)", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-live-media-host-convert-"));
+    try {
+      const pngPath = join(dir, "slide-0.png");
+      const jpgPath = join(dir, "slide-0.jpg");
+      await writeTinyPng(pngPath);
+      const { runner, calls } = stubRunner();
+      const host = new LiveMediaHost({ config: CONFIG, runner, env: {} });
+      await host.convertToJpg(pngPath, jpgPath);
 
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0]?.command, "sips");
-    assert.deepEqual(calls[0]?.args, [
-      "-s",
-      "format",
-      "jpeg",
-      "/tmp/slide-0.png",
-      "--out",
-      "/tmp/slide-0.jpg",
-    ]);
+      assert.equal(calls.length, 0, "convertToJpg must not shell out to anything — no macOS-only sips call, no CommandRunner call at all");
+      const jpgBytes = await readFile(jpgPath);
+      assert.deepEqual(jpgBytes.subarray(0, 3), Buffer.from([0xff, 0xd8, 0xff]));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("honors a jpegQuality override", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "og-live-media-host-quality-"));
+    try {
+      const pngPath = join(dir, "slide-0.png");
+      const lowPath = join(dir, "low.jpg");
+      const highPath = join(dir, "high.jpg");
+      await writeTinyPng(pngPath);
+      const { runner: lowRunner } = stubRunner();
+      const { runner: highRunner } = stubRunner();
+      await new LiveMediaHost({ config: CONFIG, runner: lowRunner, env: {}, jpegQuality: 10 }).convertToJpg(pngPath, lowPath);
+      await new LiveMediaHost({ config: CONFIG, runner: highRunner, env: {}, jpegQuality: 95 }).convertToJpg(pngPath, highPath);
+      const low = await readFile(lowPath);
+      const high = await readFile(highPath);
+      assert.notDeepEqual(low, high);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("upload delegates to the AWS CLI (cp then presign), using the PRESET env verbatim (no .env load)", async () => {
