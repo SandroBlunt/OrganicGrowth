@@ -106,6 +106,23 @@ NEVER `block`, on any phase. Three reasons:
 An advisory that names the exact dead slug and where it is configured — surfacing on every launch,
 never gating anything — is the actionable, non-destructive design this ticket asks for.
 
+**Round 2 addendum — the delivery path (QA Round 1 Defect 1):** computing the Finding correctly was not
+enough. `runPipelineCommand`'s existing print gate only surfaces readiness output when a `block`-severity
+Finding is ALSO present that run (`docs`/`run-pipeline-conductor`'s own "silent when all findings are
+advisory-only" Requirement) — so in the exact healthy-Brand-plus-one-dead-slug scenario this ticket
+exists to fix, the advisory was computed and then never shown to the Operator, reproducing "and nothing
+notices" one layer down. The fix is a narrow, named carve-out: `isActorExistenceFinding`
+(`run-pipeline-readiness.ts`) identifies this ONE finding class, and `run-pipeline.ts` prints it
+unconditionally — whether or not a block finding co-occurs — while every other advisory-only finding
+(`null_baseline`, `empty_banned_words`, `off_niche_seed`, `config_todo`, `niche_unset`, `voice_unset`,
+`space_inaccessible_advisory`, `credits_low_advisory`) keeps the pre-existing silent default,
+completely untouched by this change. This is deliberately scoped to just the actor-existence finding
+class this ticket is about, not a general "always print every advisory" rewrite — see the Build Report's
+"Other swallowed advisories" note in `handoff.md` for the wider gap this does NOT close (out of scope
+here). The "surfacing on every launch" sentence above is now literally true for this finding class,
+proven by `run-pipeline.test.ts`'s new `runPipelineCommand`-level tests (not just `runReadiness`-level
+ones) and by a live, hermetic transcript in `handoff.md`'s Round 2 Build Report.
+
 ## Spec delta scope
 
 Three ADDED Requirements (no MODIFIED headers — this change deliberately never touches an existing

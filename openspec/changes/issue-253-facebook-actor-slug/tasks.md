@@ -121,3 +121,29 @@
   specific test (see `handoff.md`'s self-assessment table).
 - [x] 7.6 Write the Build Report into `handoff.md`, explicitly flagging every fake used and confirming
   no live Apify/Magnific call was made.
+
+## 8. Round 2 — close the delivery gap (QA Round 1 Defect 1: HIGH)
+
+- [x] 8.1 Reproduce QA's own repro script against the pre-fix code — confirmed the advisory is computed
+  but never printed for a healthy Brand with one dead actor slug and no co-occurring block finding.
+- [x] 8.2 Add `isActorExistenceFinding` (`src/commands/run-pipeline-readiness.ts`) — a named predicate
+  identifying the two actor-existence Finding codes, exported for the conductor to single out.
+- [x] 8.3 `src/commands/run-pipeline.ts`: print actor-existence advisories unconditionally (narrow
+  carve-out from the general silent-when-advisory-only default), leaving every other advisory-only
+  finding's behavior untouched.
+- [x] 8.4 Write 4 new `runPipelineCommand`-level tests (not `runReadiness`-level) in `run-pipeline.test.ts`:
+  dead-slug-only prints `[WARN]` and doesn't block; unreachable-only prints `[WARN]` and doesn't block;
+  fully-healthy prints nothing; a co-occurring block still surfaces the advisory alongside it (the
+  pre-existing path, unchanged).
+- [x] 8.5 Mutation-test proof: temporarily short-circuited the new print branch to `if (false && ...)`,
+  ran `run-pipeline.test.ts` — exactly the 2 tests that assert the advisory prints with NO co-occurring
+  block went red (2/56 fail); the "fully-healthy" and "co-occurring block" tests correctly stayed green.
+  Restored → 56/56 green. `git diff` on `run-pipeline.ts` confirmed clean (no leftover mutation).
+- [x] 8.6 Re-ran QA's own hermetic repro script against the fixed code — the `[WARN]` line naming the
+  dead slug now appears, and the run still proceeds to Gate 1 (never blocked). Transcript in `handoff.md`.
+- [x] 8.7 Updated `proposal.md`'s "Decision" section with a Round 2 addendum documenting the delivery-path
+  fix and naming the other pre-existing advisory findings this does NOT fix (out of scope).
+- [x] 8.8 Added a new ADDED Requirement + 3 Scenarios to this change's `run-pipeline-conductor` spec delta
+  proving the conductor-level (not just `runReadiness`-level) behavior.
+- [x] 8.9 Full suite + `openspec validate --strict` (both this change and `--all`) green; appended
+  `Build Report — Round 2` to `handoff.md`.

@@ -47,3 +47,32 @@
 - **THEN** the injected `ApifyReadinessPort`'s `probeActorExists` is invoked exactly once for that slug
 - **AND** if that probe returns `"not_found"`, the resulting Finding's `message` names both
   `youtube.trends_actor` and `youtube.post_actor`
+
+### Requirement: The conductor prints an actor-existence advisory to the Operator even when it is the only finding present
+
+`runPipelineCommand` (`src/commands/run-pipeline.ts`) SHALL print every actor-existence Finding produced by `probeConfiguredActors` (a `code` starting with `apify_actor_not_found:` or `apify_actor_unreachable:`, identified by `run-pipeline-readiness.ts`'s `isActorExistenceFinding`) regardless of whether a `block`-severity Finding also exists that run — a narrow, named carve-out from the base "Readiness runs every launch, is silent when healthy, and surfaces gaps with phase-scoped blocking" Requirement's general default, applying only to this one finding class, because a computed-but-never-printed advisory is indistinguishable from no advisory at all, which is the exact "and nothing notices" failure issue #253 exists to close. Printing this advisory SHALL NEVER stop or block any phase — the run proceeds exactly as it would if no finding existed at all.
+
+#### Scenario: A dead actor slug's advisory reaches the Operator even when it is the ONLY finding that run
+
+- **GIVEN** a Brand whose config is otherwise entirely healthy (valid Apify token, accessible Space,
+  sufficient credits, a clean `checkConfig` result) except that one configured Apify actor slug is
+  reported `"not_found"` by `probeActorExists`
+- **WHEN** `runPipelineCommand` runs
+- **THEN** the printed output contains a `[WARN]` line naming the dead slug
+- **AND** the conductor is NOT stopped by it — it proceeds past readiness to the `/rename` hint and Gate 1
+
+#### Scenario: An unreachable actor-existence probe's advisory also reaches the Operator when it is the only finding
+
+- **GIVEN** a Brand whose config is otherwise entirely healthy except that `probeActorExists` throws for
+  one configured slug
+- **WHEN** `runPipelineCommand` runs
+- **THEN** the printed output contains a `[WARN]` line
+- **AND** the conductor is NOT stopped by it — it proceeds past readiness to the `/rename` hint
+
+#### Scenario: A co-occurring block finding still surfaces the actor advisory alongside it
+
+- **GIVEN** a Brand whose Apify token is invalid (forcing an unrelated research block) AND one configured
+  Apify actor slug is reported `"not_found"`
+- **WHEN** `runPipelineCommand` runs
+- **THEN** the printed output contains both a `[BLOCK]` line for the invalid token and a `[WARN]` line
+  naming the dead slug

@@ -847,6 +847,122 @@ apify:
   });
 });
 
+// ===========================================================================
+// runPipelineCommand — the actor-existence advisory reaches the OPERATOR (issue #253, Round 2)
+// ===========================================================================
+//
+// Round 1's 5 tests above all asserted on `runReadiness`'s returned Finding[] — never on what
+// `runPipelineCommand` actually PRINTS. QA's Round 1 defect: the advisory was computed correctly and
+// then silently dropped by the conductor's "silent when advisory-only" print gate in the exact scenario
+// issue #253 exists to fix (a healthy Brand, one dead actor slug, no co-occurring block finding). These
+// tests drive `runPipelineCommand` end to end and assert on its printed `turns`, closing that gap.
+
+describe("runPipelineCommand — actor-existence advisory reaches the Operator even with no block finding (issue #253, Round 2)", () => {
+  const DEAD_SLUG = "apify/facebook-post-scraper";
+
+  it("prints a [WARN] line naming a dead actor slug when it is the ONLY finding present", async () => {
+    const seedsWithDeadActor = `
+seed_pages:
+  - "https://www.facebook.com/seed1"
+apify:
+  facebook:
+    post_actor: "${DEAD_SLUG}"
+`.trim();
+
+    await withBrandFixture({ seedsYaml: seedsWithDeadActor }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        apify: {
+          async probeToken() {
+            return true;
+          },
+          async probeActorExists(slug) {
+            return slug === DEAD_SLUG ? "not_found" : "ok";
+          },
+        },
+      });
+      const out = allMessages(turns);
+      assert.doesNotMatch(out, /\[BLOCK\]/, "this fixture is otherwise entirely healthy — no block finding should appear");
+      assert.match(out, /\[WARN\]/, "the actor-existence advisory MUST reach the Operator even with no block finding present");
+      assert.match(out, new RegExp(DEAD_SLUG), "the printed advisory must name the dead slug itself");
+      assert.match(out, /\/rename testbrand/, "an advisory-only actor-existence finding must never block the run — it must proceed to the rename hint");
+    });
+  });
+
+  it("prints a [WARN] line for an unreachable actor-existence probe when it is the ONLY finding present", async () => {
+    const seedsWithActor = `
+seed_pages:
+  - "https://www.facebook.com/seed1"
+apify:
+  facebook:
+    post_actor: "apify/facebook-posts-scraper"
+`.trim();
+
+    await withBrandFixture({ seedsYaml: seedsWithActor }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        apify: {
+          async probeToken() {
+            return true;
+          },
+          async probeActorExists() {
+            throw new Error("ETIMEDOUT — simulated network blip");
+          },
+        },
+      });
+      const out = allMessages(turns);
+      assert.doesNotMatch(out, /\[BLOCK\]/, "an unreachable actor probe must never surface as a block finding");
+      assert.match(out, /\[WARN\]/, "the unreachable-probe advisory MUST reach the Operator even with no block finding present");
+      assert.match(out, /\/rename testbrand/, "an advisory-only actor-existence finding must never block the run");
+    });
+  });
+
+  it("prints no readiness output at all when every configured actor probes OK and nothing else is wrong", async () => {
+    const seedsHealthyActor = `
+seed_pages:
+  - "https://www.facebook.com/seed1"
+apify:
+  facebook:
+    post_actor: "apify/facebook-posts-scraper"
+`.trim();
+
+    await withBrandFixture({ seedsYaml: seedsHealthyActor }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
+      const out = allMessages(turns);
+      assert.doesNotMatch(out, /\[WARN\]/, "no advisory should print when every configured actor probes OK");
+      assert.doesNotMatch(out, /\[BLOCK\]/);
+    });
+  });
+
+  it("a co-occurring block finding still prints the actor advisory alongside it (pre-existing path, unchanged)", async () => {
+    const seedsWithDeadActor = `
+seed_pages:
+  - "https://www.facebook.com/seed1"
+apify:
+  facebook:
+    post_actor: "${DEAD_SLUG}"
+`.trim();
+
+    await withBrandFixture({ seedsYaml: seedsWithDeadActor }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        apify: {
+          async probeToken() {
+            return false; // forces a research block, unrelated to the actor probe
+          },
+          async probeActorExists(slug) {
+            return slug === DEAD_SLUG ? "not_found" : "ok";
+          },
+        },
+      });
+      const out = allMessages(turns);
+      assert.match(out, /\[BLOCK\]/, "the forced token-invalid block must still be surfaced");
+      assert.match(out, /\[WARN\]/, "the actor advisory must still be printed alongside the block finding");
+      assert.match(out, new RegExp(DEAD_SLUG), "the printed advisory must still name the dead slug");
+    });
+  });
+});
+
 describe("runReadiness — readiness probe orchestrator", () => {
   it("returns empty findings for a healthy Brand config + healthy probes", async () => {
     await withBrandFixture({}, async (paths) => {
