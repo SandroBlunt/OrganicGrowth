@@ -15,10 +15,18 @@
  * orchestration shell that takes an already-validated plan and calls the command surface.
  *
  * A `problems`-worthy condition (AC2 — "anything it cannot parse causes a refusal... never a silent
- * drop") is distinct from the two REPORT-ONLY categories this ticket names explicitly: dead media paths
- * (AC6 — "reported... never silently nulled") and duplicate job identity keys (AC5 — "reported...
- * not resolved by the importer") are collected onto the PLAN itself, not the problem list, and do NOT
- * block a successful plan — they are Operator decisions, not import failures.
+ * drop") is distinct from the THREE REPORT-ONLY categories this ticket names explicitly: dead media
+ * paths (AC6 — "reported... never silently nulled"), duplicate job identity keys (AC5 — "reported...
+ * not resolved by the importer"), and — since issue #243 round 2 (QA round 1's Defect 1) — unresolved
+ * Posts (a `post_url` that cannot be resolved to a SPECIFIC Channel, `src/importer/resolve-post-channel.ts`)
+ * are collected onto the PLAN itself, not the problem list, and do NOT block a successful plan — they
+ * are Operator decisions, not import failures. Unlike dead media/duplicate jobs, an unresolved Post has
+ * a concrete Operator-facing recovery route that needs no ledger edit: add the Channel's own
+ * `alternate_urls` entry in `brand-profile.yaml` (see `resolve-post-channel.ts`'s own doc comment) and
+ * re-run. Treating it as report-only rather than a whole-plan-blocking refusal matters specifically
+ * because this is a ONE-SHOT migration: one ambiguous Post among possibly hundreds of records must not
+ * hold the entire import hostage — "name the record and refuse" (this module's own long-standing rule)
+ * and "abort the whole import" are deliberately NOT the same decision here.
  */
 
 import { join } from "node:path";
@@ -59,11 +67,15 @@ export interface RunPlanItem {
 /** One entry on the Brand's `channel` list (`brand-profile.yaml`, ADR-0019), planned as a `channel` row
  *  (issue #240 — the importer never created any before this). `platform` is already validated against
  *  `KNOWN_PLATFORMS` at plan time (a `platform` outside that closed vocabulary is a problem, not a
- *  silently-skipped Channel). */
+ *  silently-skipped Channel). `alternateUrls` (issue #243 round 2) — OPTIONAL, omitted when a Channel
+ *  configures none — carries `brand-profile.yaml`'s `alternate_urls` straight through unchanged; only
+ *  `resolve-post-channel.ts`'s `resolvePostChannel` ever reads it, and only in the ambiguous (2+
+ *  Channels on one platform) case. */
 export interface ChannelPlanItem {
   readonly platform: KnownPlatform;
   readonly url: string;
   readonly isPrimary: boolean;
+  readonly alternateUrls?: readonly string[];
 }
 
 export interface FormatPlanItem {
@@ -120,10 +132,23 @@ export interface DeadMediaPathReport {
   readonly storageKey: string;
 }
 
+/** One Asset whose `post_url` could not be resolved to a SPECIFIC Channel (issue #243 round 2 — QA
+ *  round 1's Defect 1). Report-only, like `DeadMediaPathReport`/`DuplicateJobKeyReport`: named here so
+ *  it is never silently dropped, but does NOT block the plan — see `plan.ts`'s own top-of-file doc
+ *  comment for why. `reason` is `resolvePostChannel`'s own refusal message, verbatim. */
+export interface UnresolvedPostReport {
+  readonly brand: string;
+  readonly ideaLegacyId: string;
+  readonly recipe: string;
+  readonly postUrl: string;
+  readonly reason: string;
+}
+
 export interface ImportPlan {
   readonly brands: readonly BrandPlanItem[];
   readonly jobs: readonly JobPlanItem[];
   readonly deadMediaPaths: readonly DeadMediaPathReport[];
+  readonly unresolvedPosts: readonly UnresolvedPostReport[];
   readonly duplicateJobKeys: readonly DuplicateJobKeyReport[];
 }
 
@@ -231,9 +256,16 @@ interface PlanBrandOptions {
 async function planBrand(
   slug: string,
   options: PlanBrandOptions,
-): Promise<{ readonly brand?: BrandPlanItem; readonly deadMediaPaths: DeadMediaPathReport[]; readonly problems: string[]; readonly assetIndex: Set<string> }> {
+): Promise<{
+  readonly brand?: BrandPlanItem;
+  readonly deadMediaPaths: DeadMediaPathReport[];
+  readonly unresolvedPosts: UnresolvedPostReport[];
+  readonly problems: string[];
+  readonly assetIndex: Set<string>;
+}> {
   const problems: string[] = [];
   const deadMediaPaths: DeadMediaPathReport[] = [];
+  const unresolvedPosts: UnresolvedPostReport[] = [];
   const assetIndex = new Set<string>(); // "<legacyIdeaId>::<recipe>" for jobs to resolve against
 
   const paths = resolveBrand(slug, options.brandsRoot);
@@ -259,7 +291,7 @@ async function planBrand(
       continue;
     }
     const platform = channel.platform as KnownPlatform;
-    channelPlans.push({ platform, url: channel.url, isPrimary: channel.primary });
+    channelPlans.push({ platform, url: channel.url, isPrimary: channel.primary, ...(channel.alternateUrls !== undefined ? { alternateUrls: channel.alternateUrls } : {}) });
   }
 
   const formatSlugs = await listFormatSlugs(slug, options.brandsRoot);
@@ -359,6 +391,9 @@ async function planBrand(
           for (const dead of asset.deadMedia as readonly DeadAssetMediaPath[]) {
             deadMediaPaths.push({ brand: slug, ideaLegacyId: idea.id, recipe: asset.recipe, ordinal: dead.ordinal, storageKey: dead.storageKey });
           }
+          if (asset.unresolvedPost !== undefined) {
+            unresolvedPosts.push({ brand: slug, ideaLegacyId: idea.id, recipe: asset.recipe, postUrl: asset.unresolvedPost.postUrl, reason: asset.unresolvedPost.reason });
+          }
         }
         ideaPlans.push(result.idea);
       }
@@ -392,7 +427,7 @@ async function planBrand(
     formats: formatPlans,
   };
 
-  return { brand, deadMediaPaths, problems, assetIndex };
+  return { brand, deadMediaPaths, unresolvedPosts, problems, assetIndex };
 }
 
 // ---------------------------------------------------------------------------
@@ -453,6 +488,7 @@ export async function planImport(options: PlanImportOptions): Promise<PlanResult
   const problems: string[] = [];
   const brands: BrandPlanItem[] = [];
   const deadMediaPaths: DeadMediaPathReport[] = [];
+  const unresolvedPosts: UnresolvedPostReport[] = [];
   const assetIndexByBrand = new Map<string, Set<string>>();
 
   for (const slug of options.brandSlugs) {
@@ -466,6 +502,7 @@ export async function planImport(options: PlanImportOptions): Promise<PlanResult
     });
     problems.push(...result.problems);
     deadMediaPaths.push(...result.deadMediaPaths);
+    unresolvedPosts.push(...result.unresolvedPosts);
     assetIndexByBrand.set(slug, result.assetIndex);
     if (result.brand !== undefined) brands.push(result.brand);
   }
@@ -482,5 +519,5 @@ export async function planImport(options: PlanImportOptions): Promise<PlanResult
     return { ok: false, problems };
   }
 
-  return { ok: true, plan: { brands, jobs, deadMediaPaths, duplicateJobKeys } };
+  return { ok: true, plan: { brands, jobs, deadMediaPaths, unresolvedPosts, duplicateJobKeys } };
 }

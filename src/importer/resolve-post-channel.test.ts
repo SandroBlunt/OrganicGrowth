@@ -36,6 +36,9 @@ describe("resolvePostChannel — a single configured Channel for the platform is
     if (result.ok) return;
     assert.match(result.reason, /instagram/);
     assert.match(result.reason, /no configured Channel/);
+    // issue #243 round 2 — this `kind` is what keeps this a BLOCKING problem (never softened to a
+    // report-only "unresolved" the way the ambiguous 2+-Channel case is; see plan-idea.ts).
+    assert.equal(result.kind, "no-configured-channel");
   });
 
   it("refuses when the URL does not resolve to any known platform at all", () => {
@@ -43,6 +46,7 @@ describe("resolvePostChannel — a single configured Channel for the platform is
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.match(result.reason, /example\.com/);
+    assert.equal(result.kind, "unknown-platform");
   });
 });
 
@@ -68,6 +72,9 @@ describe("resolvePostChannel — TWO Channels on the SAME platform: the ambiguou
     if (result.ok) return;
     assert.match(result.reason, /matches none/);
     assert.match(result.reason, /2 configured "facebook" Channels/);
+    // issue #243 round 2 — the ambiguous `kind` is what `plan-idea.ts` reports (never blocking), unlike
+    // "unknown-platform"/"no-configured-channel" above.
+    assert.equal(result.kind, "ambiguous");
   });
 
   it("refuses — never picks one — when the post_url carries no extractable identifier at all", () => {
@@ -108,6 +115,71 @@ describe("resolvePostChannel — TWO Channels on the SAME platform: the ambiguou
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.match(result.reason, /ambiguous/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `alternateUrls` — the Operator's escape hatch for the ambiguous case
+// (issue #243 round 2 — QA round 1's Defect 1)
+// ---------------------------------------------------------------------------
+
+describe("resolvePostChannel — alternateUrls give the Operator a configurable recovery route once a SECOND Channel exists", () => {
+  it("resolves the real idea-2026-W32-10 Post via a Channel's alternate_urls, once a SECOND facebook Channel makes it genuinely ambiguous", () => {
+    // The exact scenario QA round 1's Defect 1 traced: Straw Motion's real single-Channel fast path
+    // (see the first describe block above) stops protecting this Post the day a second facebook Channel
+    // is configured. Without `alternateUrls`, this would now REFUSE (proven by the next test). With the
+    // Channel's own real alternate id declared, it resolves specifically, exactly as it did before.
+    const channels: ChannelIdentity[] = [
+      {
+        platform: "facebook",
+        url: "https://www.facebook.com/profile.php?id=61591885769033",
+        alternateUrls: ["https://www.facebook.com/122096865609396192"],
+      },
+      { platform: "facebook", url: "https://www.facebook.com/profile.php?id=88888888888888" },
+    ];
+    const result = resolvePostChannel("https://www.facebook.com/122096865609396192/posts/122114019723396192", channels);
+    assert.deepEqual(result, { ok: true, platform: "facebook", channelIndex: 0 });
+  });
+
+  it("WITHOUT the alternate_urls entry, the same second-Channel scenario refuses (ambiguous) — proving the fix is the alternate_urls, not a general softening", () => {
+    const channels: ChannelIdentity[] = [
+      { platform: "facebook", url: "https://www.facebook.com/profile.php?id=61591885769033" }, // no alternateUrls
+      { platform: "facebook", url: "https://www.facebook.com/profile.php?id=88888888888888" },
+    ];
+    const result = resolvePostChannel("https://www.facebook.com/122096865609396192/posts/122114019723396192", channels);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.kind, "ambiguous");
+    assert.match(result.reason, /matches none/);
+  });
+
+  it("resolves via the SECOND Channel's alternate_urls just as readily as the first's", () => {
+    const channels: ChannelIdentity[] = [
+      { platform: "facebook", url: "https://www.facebook.com/profile.php?id=61591885769033" },
+      { platform: "facebook", url: "https://www.facebook.com/profile.php?id=88888888888888", alternateUrls: ["https://www.facebook.com/70000000000000"] },
+    ];
+    const result = resolvePostChannel("https://www.facebook.com/permalink.php?story_fbid=x&id=70000000000000", channels);
+    assert.deepEqual(result, { ok: true, platform: "facebook", channelIndex: 1 });
+  });
+
+  it("still refuses (ambiguous) when the SAME alternate id is misconfigured on BOTH Channels", () => {
+    const channels: ChannelIdentity[] = [
+      { platform: "facebook", url: "https://www.facebook.com/profile.php?id=61591885769033", alternateUrls: ["https://www.facebook.com/999"] },
+      { platform: "facebook", url: "https://www.facebook.com/profile.php?id=88888888888888", alternateUrls: ["https://www.facebook.com/999"] },
+    ];
+    const result = resolvePostChannel("https://www.facebook.com/999/posts/1", channels);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.kind, "ambiguous");
+    assert.match(result.reason, /ambiguous/);
+  });
+
+  it("alternateUrls are never consulted in the single-Channel fast path — irrelevant, since nothing needs disambiguating", () => {
+    const channels: ChannelIdentity[] = [
+      { platform: "facebook", url: "https://www.facebook.com/profile.php?id=61591885769033", alternateUrls: ["https://www.facebook.com/should-be-irrelevant"] },
+    ];
+    const result = resolvePostChannel("https://www.facebook.com/totally-unrelated-vanity-name", channels);
+    assert.deepEqual(result, { ok: true, platform: "facebook", channelIndex: 0 });
   });
 });
 

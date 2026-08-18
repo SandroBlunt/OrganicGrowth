@@ -188,6 +188,54 @@ describe("channelsFrom (defensive) — ADR-0019: channel is now a LIST of Channe
     assert.deepEqual(channelsFrom({ channel: "facebook" }), []);
     assert.deepEqual(channelsFrom({ channel: 7 }), []);
   });
+
+  // issue #243 round 2 (QA round 1's Defect 1): `alternate_urls` — the Operator's configurable recovery
+  // route for a Channel that legitimately answers to more than one real URL/id.
+  describe("alternate_urls (issue #243 round 2)", () => {
+    it("reads a configured alternate_urls list onto its Channel entry, trimmed", () => {
+      const channels = channelsFrom({
+        channel: [
+          {
+            platform: "facebook",
+            url: "https://www.facebook.com/profile.php?id=61591885769033",
+            primary: true,
+            alternate_urls: ["  https://www.facebook.com/122096865609396192  "],
+          },
+        ],
+      });
+      assert.deepEqual(channels, [
+        {
+          platform: "facebook",
+          url: "https://www.facebook.com/profile.php?id=61591885769033",
+          primary: true,
+          alternateUrls: ["https://www.facebook.com/122096865609396192"],
+        },
+      ]);
+    });
+
+    it("omits alternateUrls entirely (never []) when a Channel configures none — existing callers see no new key", () => {
+      const channels = channelsFrom({ channel: [{ platform: "facebook", url: "https://x.test", primary: true }] });
+      assert.deepEqual(channels, [{ platform: "facebook", url: "https://x.test", primary: true }]);
+      assert.ok(!("alternateUrls" in channels[0]!));
+    });
+
+    it("drops non-string/blank alternate_urls entries defensively, still omitting the key if nothing survives", () => {
+      const withJunkOnly = channelsFrom({
+        channel: [{ platform: "facebook", url: "https://x.test", alternate_urls: [7, "", "   ", null] }],
+      });
+      assert.ok(!("alternateUrls" in withJunkOnly[0]!));
+
+      const withMixed = channelsFrom({
+        channel: [{ platform: "facebook", url: "https://x.test", alternate_urls: ["https://a.test", 7, "https://b.test"] }],
+      });
+      assert.deepEqual(withMixed[0]!.alternateUrls, ["https://a.test", "https://b.test"]);
+    });
+
+    it("a non-array alternate_urls (e.g. a bare string) yields no alternateUrls key, never a crash", () => {
+      const channels = channelsFrom({ channel: [{ platform: "facebook", url: "https://x.test", alternate_urls: "not-an-array" }] });
+      assert.ok(!("alternateUrls" in channels[0]!));
+    });
+  });
 });
 
 describe("primaryChannelFrom (defensive) — ADR-0019: the ONE Channel readiness/baseline/ledger key off", () => {

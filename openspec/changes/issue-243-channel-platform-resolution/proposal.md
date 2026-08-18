@@ -101,27 +101,121 @@ actually exists to close: 2+ Channels on the same platform.
 - **No new migration.** `src/db/schema.ts`/`src/db/migrate.ts` are untouched — this ticket's decision is
   resolution logic, not schema.
 
+## Round 2 (QA round 1 FAIL — two defects fixed)
+
+QA round 1 found the design above real but incomplete: **Defect 1 [HIGH]** — the single-Channel fast
+path's protection for `idea-2026-W32-10` is a *deferral*, not a fix, and reverts to a hard refusal the
+day a second Facebook Channel is configured, with no documented (or existing) recovery route, and
+`planImport` fails the ENTIRE plan on any one such refusal. **Defect 2 [MEDIUM]** — no test proved the
+2-Channel `postChannelIndex` survived `executeChannels`'s array-index lookup to a real, non-zero,
+persisted `post.channel_id` row; only manual tracing had confirmed it.
+
+### Defect 1 fix — the recovery route: a Channel declares `alternate_urls`
+
+**Decided: a Channel entry may carry an OPTIONAL `alternate_urls: string[]` list** (`brand-profile.yaml`,
+alongside its existing `url`/`primary`) — additional URLs that SAME real account is also known to answer
+to. `resolvePostChannel`'s ambiguous (2+ Channels) branch now matches a Post's identifier against a
+candidate Channel's `url` **OR any of its `alternate_urls`**, using the exact same `extractChannelIdentifier`
+rule for both. This directly closes the gap: the Operator can now describe Straw Motion's real Facebook
+quirk (`idea-2026-W32-10`'s Post carries a DIFFERENT valid numeric Page id than the Channel's own `url`)
+by adding that id as an `alternate_urls` entry — **before** a second Facebook Channel is ever configured,
+so the protection never actually lapses in practice, and again **after**, as an explicit repair.
+
+Why this shape, not something else:
+- It is **configurable without editing ledger data** — the Post's own logged `post_url` (the Operator's
+  attribution record) is never touched; only `brand-profile.yaml` changes (explicit-attribution).
+- It **never softens a refusal into a guess** — `alternate_urls` is exercised through the SAME identifier
+  match every other Channel goes through; an unconfigured id still refuses exactly as before. A Post whose
+  identifier still matches nothing (or matches 2+ Channels, e.g. a misconfigured duplicate
+  `alternate_urls` entry) still refuses to resolve to a specific Channel — proven by
+  `resolve-post-channel.test.ts`'s "still refuses (ambiguous) when the SAME alternate id is misconfigured
+  on BOTH Channels" test.
+- It needs **no schema change** — `alternate_urls` lives entirely in `brand-profile.yaml` and the derived
+  `ChannelPlanItem`/`ChannelIdentity` in-memory shapes; `src/db/schema.ts`/`src/db/migrate.ts` are
+  untouched, migrations 1–4 stay byte-for-byte frozen (confirmed: `git diff` against both files is empty).
+  `resolvePostChannel` is only ever called from the one-shot importer's planning phase today (never from
+  the live `/log-post` path, which stays file-ledger-only) — so this is genuinely additive, not a
+  retrofit onto a path that would need a persisted column.
+
+### Should one unresolvable Post fail the entire plan? Decided: NO
+
+This ticket's own `#204`-inherited rule — "name the record and refuse, never a silent drop" — is right and
+stays. But it does not follow that the whole plan must abort. **Decided: an unresolvable Post (the
+`kind: "ambiguous"` refusal only — see below) is now a THIRD report-only category**, `ImportPlan.unresolvedPosts`,
+mirroring the two categories this ticket's own module doc comment already names as deliberately
+non-blocking: `deadMediaPaths` (AC6) and `duplicateJobKeys` (AC5). The Idea/Asset itself still imports
+normally; only that one `post` row is skipped, named by Brand/Idea/Recipe/URL/reason on the plan itself
+and on the final reconciliation's new "Unresolved Posts" section — never silently dropped, never blocking.
+
+Why: this is a **one-shot migration** importing potentially hundreds of records across two Brands. One
+ambiguous Post — a genuinely Operator-fixable configuration gap, not a corrupt record — holding the ENTIRE
+import hostage is disproportionate, and defeats the very purpose a fast path like the single-Channel case
+exists to serve (see Defect 1's own framing: the "protection" is meaningless if the day it's actually
+needed, it takes down everything else with it). The precedent for exactly this shape of decision
+(non-blocking, but never silently dropped) already exists in this same module for two adjacent problems;
+extending it a third time is the more consistent design, not a new one.
+
+**This is deliberately SCOPED, not a blanket softening.** `resolvePostChannel`'s failure result now
+carries a `kind: "unknown-platform" | "no-configured-channel" | "ambiguous"` discriminant. Only
+`"ambiguous"` (the genuine 2+ Channel disambiguation gap this ticket exists to fix) is routed to the
+non-blocking `unresolvedPosts` report. `"unknown-platform"` (the URL doesn't name any known platform at
+all — no Channel configuration could ever fix that) and `"no-configured-channel"` (the Brand has literally
+no Channel for that platform) STAY hard-blocking `problems`, unchanged from #240's original behavior —
+these are not what `alternate_urls` exists to solve, and softening them too would be exactly the kind of
+un-argued scope creep this ticket must not commit.
+
+### Residual case (Known Limits)
+
+If a Post's identifier genuinely matches none of a Brand's configured Channels' `url`/`alternate_urls` —
+because the Post really does belong to an account the Brand hasn't configured at all, or because the
+Operator hasn't yet added the right `alternate_urls` entry — it stays unresolved: reported, not refused,
+and not attributed to any Channel until the Operator fixes the Brand's `brand-profile.yaml` (add the
+missing `alternate_urls` entry) and the record is re-imported. See `handoff.md`'s "Known limits" for the
+concrete mechanics of that recovery path, since the one-shot importer itself is not re-runnable against an
+already-populated database (a distinct, pre-existing constraint this change does not attempt to lift).
+
+### Defect 2 fix — a real, load-bearing test for the 2-Channel wiring
+
+`execute.test.ts` gained a dedicated test writing a 2-Channel plan through the REAL `executeImport` path
+against a real, throwaway SQLite file, resolving `postChannelIndex: 1` (deliberately non-zero), and
+asserting `post.channel_id` equals the SECOND Channel's own real row id — fetched independently by each
+Channel's distinct `url`, never assumed — while also asserting it does NOT equal the first Channel's row
+id. Proven red→green: swapping `postChannelIndex` to `0` fails the assertion (captured in `handoff.md`'s
+transcript), confirming the assertion is genuinely load-bearing, not a tautology a bug could still pass.
+
 ## Impact
 
 - **New code:** `src/importer/resolve-post-channel.ts` (+`.test.ts`).
-- **Modified code:** `src/importer/plan-idea.ts` (`PlanIdeaDeps`, `PlannedAsset`, `planAssetPost`),
+- **Modified code (round 1):** `src/importer/plan-idea.ts` (`PlanIdeaDeps`, `PlannedAsset`, `planAssetPost`),
   `src/importer/plan.ts` (drops the derived Set, threads the ordered Channel list), `src/importer/execute.ts`
   (`executeChannels` returns an ordered array; the Asset loop resolves by index), plus each touched
   module's own test file (`plan-idea.test.ts`, `plan.test.ts`, `execute.test.ts`, `reconcile.test.ts` —
   the latter two only for the new `postChannelIndex` field on their hand-built `ImportPlan` fixtures).
-- **Untouched (deliberately):** `src/db/schema.ts`/`src/db/migrate.ts` (no new migration —
-  specific resolution needs no schema change), `src/importer/resolve-post-platform.ts` (still
-  hostname-only platform resolution, unchanged), `src/importer/reconcile.ts` (no new counted entity),
-  `src/channel/store.ts` (used exactly as built), `data/brands/*/ledger.json` and `data/queue.json`
-  (read-only throughout).
+- **Modified code (round 2 — the two QA defects):** `src/production-spec/brand-profile.ts`
+  (`Channel.alternateUrls`, `channelsFrom`'s new `alternateUrlsFrom`), `src/importer/resolve-post-channel.ts`
+  (`ChannelIdentity.alternateUrls`, `channelIdentifiers`, `ResolvePostChannelResult`'s new `kind`
+  discriminant), `src/importer/plan.ts` (`ChannelPlanItem.alternateUrls`, the new `UnresolvedPostReport`
+  type, `ImportPlan.unresolvedPosts`), `src/importer/plan-idea.ts` (`PlannedAsset.unresolvedPost`,
+  `planAssetPost` branches on `kind`), `src/importer/reconcile.ts` (`ReconciliationReport.unresolvedPosts`,
+  a new "Unresolved Posts" Markdown section, updated coverage prose) — plus each touched module's own test
+  file, and a genuinely NEW `execute.test.ts` case proving the 2-Channel wiring (Defect 2).
+- **Untouched (deliberately, both rounds):** `src/db/schema.ts`/`src/db/migrate.ts` (no new migration,
+  both rounds — specific resolution AND its `alternate_urls` recovery route need no schema change; every
+  migration 1–4 stays byte-for-byte identical, confirmed by `git diff`), `src/importer/resolve-post-platform.ts`
+  (still hostname-only platform resolution, unchanged), `src/channel/store.ts` (used exactly as built),
+  `data/brands/*/ledger.json`, `data/brands/*/brand-profile.yaml`, and `data/queue.json` (read-only
+  throughout — the real Brands' own configuration is never edited by this change; only the CODE that
+  would let an Operator configure `alternate_urls` is built).
 - **Hermetic.** No `magnific`/Zoho MCP tool is imported or called anywhere in this change. Every test is
   either a pure unit test or opens a real, throwaway SQLite file (`withTempDb`, never `:memory:`) / a
   mkdtemp'd mini-repo copy — never the live checkout.
 - **Always-rules upheld:** `relative-not-absolute` is what this change directly protects — a Performance
   Score's Channel baseline can no longer silently pool two real audiences into one. `explicit-attribution`
   is strengthened: a Post now names the SPECIFIC Channel it belongs to, never "a" Channel for its
-  platform. `ledger-as-source-of-truth`/`generate-never-publish`/`public-metrics-only` are untouched by
-  construction (no content-generation, publication, or metrics code in this change).
+  platform, and round 2's `alternate_urls` recovery route is deliberately a `brand-profile.yaml`
+  configuration change, never an edit to the Post's own logged `post_url` (the Operator's attribution
+  record stays untouched). `ledger-as-source-of-truth`/`generate-never-publish`/`public-metrics-only` are
+  untouched by construction (no content-generation, publication, or metrics code in this change).
 
 ## Capabilities
 
@@ -132,3 +226,8 @@ actually exists to close: 2+ Channels on the same platform.
   silent-collapse gap #243 exists to fix, while keeping every real Post (including the one whose URL
   carries a different numeric Facebook id than its own Channel's configured `url`) importing exactly as
   it does today.
+- `importer` (round 2): a Channel may declare `alternate_urls`, giving the Operator a configurable route
+  to disambiguate a real account that legitimately answers to more than one URL/id, WITHOUT editing ledger
+  data; and a Post that still cannot be resolved to a specific Channel (the genuinely ambiguous case only)
+  is reported on the plan's own `unresolvedPosts` and the reconciliation's new "Unresolved Posts" section
+  — never silently dropped, but also never blocking the rest of the plan the way it did before.

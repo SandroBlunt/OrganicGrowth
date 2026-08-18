@@ -86,6 +86,7 @@ function onePlan(overrides: Partial<ImportPlan> = {}): ImportPlan {
     ],
     jobs: [{ brand: "acme", ideaLegacyId: "idea-01", recipe: "news-carousel", gate: null, status: "done", enqueuedAt: "2026-01-02T00:00:00Z" }],
     deadMediaPaths: [],
+    unresolvedPosts: [],
     duplicateJobKeys: [],
     ...overrides,
   };
@@ -242,6 +243,84 @@ describe("executeImport — writes an ImportPlan through the command surface, in
 
       const channelRow = db.prepare(`SELECT * FROM channel WHERE brand_id = ? AND platform = 'facebook'`).get(brandRow.id) as unknown as { id: string };
       assert.equal(post!.channel_id, channelRow.id);
+    });
+  });
+
+  it("wires a 2-Channel Brand's postChannelIndex to the SPECIFIC (non-zero) Channel row — issue #243 round 2's Defect 2 fix (QA round 1)", async () => {
+    // QA round 1's Defect 2: no test previously proved the 2-Channel `postChannelIndex` survives
+    // `executeChannels`'s array-index lookup all the way to the real, persisted `post.channel_id` row —
+    // only manual code-tracing did. This writes through the REAL path (executeImport against a real,
+    // throwaway SQLite file) and asserts identity against the SECOND Channel's own row id, deliberately
+    // non-zero so a zero default could never pass this test by accident.
+    await withTempDb(async (db: DatabaseSync) => {
+      runMigrations(db);
+      const plan = onePlan();
+      const brand = plan.brands[0]!;
+      const run = brand.formats[0]!.runs[0]!;
+      const idea = run.ideas[0]!;
+      const mutatedPlan: ImportPlan = {
+        ...plan,
+        brands: [
+          {
+            ...brand,
+            channels: [
+              { platform: "facebook", url: "https://www.facebook.com/acme-first", isPrimary: true },
+              { platform: "facebook", url: "https://www.facebook.com/acme-second", isPrimary: false },
+            ],
+            formats: [
+              {
+                ...brand.formats[0]!,
+                runs: [
+                  {
+                    ...run,
+                    ideas: [
+                      {
+                        ...idea,
+                        assets: [
+                          {
+                            ...idea.assets[0]!,
+                            status: "posted",
+                            postUrl: "https://www.facebook.com/122096865609396192/posts/1",
+                            postedAt: "2026-01-03T00:00:00Z",
+                            postPlatform: "facebook",
+                            postChannelIndex: 1, // the SECOND Channel — deliberately non-zero
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const counts = await executeImport(db, mutatedPlan);
+      assert.equal(counts.channels, 2);
+      assert.equal(counts.posts, 1);
+
+      const brandRow = getBrandBySlug(db, "acme")!;
+      const formatRow = getFormatBySlug(db, brandRow.id, "news")!;
+      const runRow = db.prepare(`SELECT id FROM run WHERE format_id = ?`).get(formatRow.id) as unknown as { id: string };
+      const ideaRow = listIdeasForRun(db, runRow.id)[0]!;
+      const asset = (await getAssetByRecipe(db, ideaRow.id, "news-carousel"))!;
+      const post = db.prepare(`SELECT * FROM post WHERE asset_id = ?`).get(asset.id) as unknown as { channel_id: string } | undefined;
+      assert.ok(post, "expected exactly one post row for the Asset");
+
+      const firstChannelRow = db.prepare(`SELECT * FROM channel WHERE brand_id = ? AND url = ?`).get(brandRow.id, "https://www.facebook.com/acme-first") as unknown as
+        | { id: string }
+        | undefined;
+      const secondChannelRow = db.prepare(`SELECT * FROM channel WHERE brand_id = ? AND url = ?`).get(brandRow.id, "https://www.facebook.com/acme-second") as unknown as
+        | { id: string }
+        | undefined;
+      assert.ok(firstChannelRow, "expected the first Channel row to exist");
+      assert.ok(secondChannelRow, "expected the second Channel row to exist");
+      assert.notEqual(secondChannelRow!.id, firstChannelRow!.id, "sanity: two genuinely distinct Channel rows exist");
+
+      // The load-bearing assertion (Defect 2): the Post lands on the SECOND Channel's row — never the
+      // first, and never a bare truthy/zero-passes-by-accident check.
+      assert.equal(post!.channel_id, secondChannelRow!.id);
+      assert.notEqual(post!.channel_id, firstChannelRow!.id);
     });
   });
 

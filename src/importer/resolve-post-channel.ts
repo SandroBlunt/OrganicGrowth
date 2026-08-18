@@ -48,6 +48,23 @@
  * canonical share link) — those cases are handled by refusing to disambiguate, never by falling back to
  * hostname/insertion-order.
  *
+ * ## The ambiguous case's escape hatch: `alternateUrls` (QA round 1's Defect 1 fix)
+ *
+ * The single-Channel fast path above protects `idea-2026-W32-10` only until a SECOND Facebook Channel is
+ * configured — the day that happens, its Post genuinely becomes ambiguous, and `url` alone cannot
+ * describe a Page that legitimately answers to more than one valid id. `ChannelIdentity.alternateUrls`
+ * (`brand-profile.yaml`'s per-Channel `alternate_urls` list) is the Operator's configurable way to say
+ * "this Channel ALSO answers to that id" — checked identically to `url` itself (same
+ * `extractChannelIdentifier` rule), but ONLY inside the ambiguous (2+ Channels) branch, never in the
+ * single-Channel fast path (nothing needs disambiguating there). This is what makes a Brand with two
+ * Channels on one platform, where a real Post carries an alternate id, CONFIGURABLE into a working state
+ * — via `brand-profile.yaml`, never by editing the Post's own logged `post_url` (explicit-attribution).
+ * A Post whose identifier still matches nothing (or matches more than one Channel, e.g. a misconfigured
+ * duplicate `alternate_urls` entry) still refuses to resolve to a SPECIFIC Channel — this module never
+ * softens that into a guess; see `plan-idea.ts`'s `planAssetPost` for what happens next (issue #243
+ * round 2: an unresolvable Post is reported, not silently dropped, but does NOT block the rest of the
+ * plan the way it did before).
+ *
  * Pure: no I/O, no network, deterministic.
  */
 
@@ -59,15 +76,41 @@ import type { KnownPlatform } from "../copy/platform-shape.ts";
  *  in THIS module, not imported from `plan.ts`, so `plan.ts` (which imports `planIdea` from
  *  `plan-idea.ts`, which imports this module) never becomes part of a runtime import cycle — `plan.ts`'s
  *  `ChannelPlanItem[]` is structurally assignable here without either module importing the other's
- *  value exports. */
+ *  value exports.
+ *
+ *  `alternateUrls` (issue #243's Defect 1 fix) — OPTIONAL, omitted when a Channel configures none — is
+ *  this Channel's list of OTHER URLs it is also known to answer to (`brand-profile.yaml`'s per-Channel
+ *  `alternate_urls`). Checked identically to `url` itself, but ONLY in the ambiguous (2+ Channels on one
+ *  platform) case below — never in the unambiguous single-Channel case, where nothing is checked at all.
+ *  It exists because a Channel's `url` alone cannot always describe a real account: Straw Motion's own
+ *  real, already-imported Post `idea-2026-W32-10` carries a DIFFERENT valid Facebook Page id than its
+ *  Channel's configured `url` (see this module's own doc comment above) — harmless today because a
+ *  single configured Channel needs no identifier match at all, but the day a SECOND Facebook Channel is
+ *  configured, that same Post becomes genuinely ambiguous and `url` alone can no longer describe it.
+ *  `alternateUrls` is the Operator's way to say "this Channel also answers to that id" WITHOUT editing
+ *  ledger data — the Post's own logged `post_url` stays untouched (explicit-attribution). */
 export interface ChannelIdentity {
   readonly platform: KnownPlatform;
   readonly url: string;
+  readonly alternateUrls?: readonly string[];
 }
+
+/**
+ * `kind` (issue #243 round 2 — QA round 1's Defect 1) distinguishes WHY a resolution refused, so a
+ * caller can decide how serious that refusal is:
+ *   - `"unknown-platform"` / `"no-configured-channel"` — the Post's platform itself is wrong or
+ *     unconfigured; NOT what a Channel's `alternate_urls` can ever fix. `plan-idea.ts`'s `planAssetPost`
+ *     keeps these as BLOCKING problems, unchanged from #240's original behavior.
+ *   - `"ambiguous"` — 2+ Channels exist for the resolved platform and identifier-matching could not pick
+ *     exactly one. This IS the Operator-configurable gap `alternate_urls` exists to close, and
+ *     `planAssetPost` reports it (never blocks the rest of the plan) rather than refusing outright — see
+ *     `plan.ts`'s own top-of-file doc comment for the full "report vs refuse" argument.
+ */
+export type ResolvePostChannelRefusalKind = "unknown-platform" | "no-configured-channel" | "ambiguous";
 
 export type ResolvePostChannelResult =
   | { readonly ok: true; readonly platform: KnownPlatform; readonly channelIndex: number }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: string; readonly kind: ResolvePostChannelRefusalKind };
 
 function firstPathSegment(pathname: string): string | null {
   const segment = pathname.split("/").find((s) => s.length > 0);
@@ -163,6 +206,23 @@ export function extractChannelIdentifier(platform: KnownPlatform, rawUrl: string
 }
 
 /**
+ * Every identifier `channel` is known to answer to — its own `url`, plus each of its (optional)
+ * `alternateUrls` (issue #243's Defect 1 fix) — run through the SAME per-platform extraction rule. A
+ * blank/unparseable URL (its own or an alternate) contributes nothing (never a guess); duplicates are
+ * harmless since callers only ever check `.includes(...)`.
+ */
+function channelIdentifiers(platform: KnownPlatform, channel: ChannelIdentity): readonly string[] {
+  const ids: string[] = [];
+  const own = extractChannelIdentifier(platform, channel.url);
+  if (own !== null) ids.push(own);
+  for (const alt of channel.alternateUrls ?? []) {
+    const id = extractChannelIdentifier(platform, alt);
+    if (id !== null) ids.push(id);
+  }
+  return ids;
+}
+
+/**
  * Resolves `postUrl` to a specific Channel among `channels` (a Brand's FULL Channel list, in the SAME
  * order it is/will be created in — a returned `channelIndex` is that array's index, not a database id).
  * Refuses — never defaults to the first/last/any candidate — when `postUrl`'s platform matches none of
@@ -171,12 +231,16 @@ export function extractChannelIdentifier(platform: KnownPlatform, rawUrl: string
 export function resolvePostChannel(postUrl: string, channels: readonly ChannelIdentity[]): ResolvePostChannelResult {
   const platform = resolvePostPlatform(postUrl);
   if (platform === null) {
-    return { ok: false, reason: `post_url "${postUrl}" does not resolve to any known platform` };
+    return { ok: false, kind: "unknown-platform", reason: `post_url "${postUrl}" does not resolve to any known platform` };
   }
 
   const candidates = channels.map((channel, index) => ({ channel, index })).filter((c) => c.channel.platform === platform);
   if (candidates.length === 0) {
-    return { ok: false, reason: `post_url "${postUrl}" resolves to platform "${platform}", which this Brand has no configured Channel for` };
+    return {
+      ok: false,
+      kind: "no-configured-channel",
+      reason: `post_url "${postUrl}" resolves to platform "${platform}", which this Brand has no configured Channel for`,
+    };
   }
   if (candidates.length === 1) {
     // Unambiguous: nothing to disambiguate — see this module's own doc comment for why identifier
@@ -189,20 +253,23 @@ export function resolvePostChannel(postUrl: string, channels: readonly ChannelId
   if (postIdentifier === null) {
     return {
       ok: false,
+      kind: "ambiguous",
       reason: `post_url "${postUrl}" carries no extractable ${platform} identifier, and this Brand has ${candidates.length} configured "${platform}" Channels — cannot disambiguate`,
     };
   }
 
-  const matches = candidates.filter((c) => extractChannelIdentifier(platform, c.channel.url) === postIdentifier);
+  const matches = candidates.filter((c) => channelIdentifiers(platform, c.channel).includes(postIdentifier));
   if (matches.length === 0) {
     return {
       ok: false,
+      kind: "ambiguous",
       reason: `post_url "${postUrl}" identifier "${postIdentifier}" matches none of this Brand's ${candidates.length} configured "${platform}" Channels`,
     };
   }
   if (matches.length > 1) {
     return {
       ok: false,
+      kind: "ambiguous",
       reason: `post_url "${postUrl}" identifier "${postIdentifier}" matches ${matches.length} of this Brand's configured "${platform}" Channels — ambiguous`,
     };
   }

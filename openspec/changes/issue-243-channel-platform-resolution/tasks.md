@@ -70,3 +70,44 @@
   any dead code/unused exports/imports.
 - [x] 5.5 Write the Build Report into `handoff.md`, including the required transcripts (resolve, then
   break on purpose and confirm refusal).
+
+## 6. Round 2 — fix QA round 1's two defects
+
+- [x] 6.1 [HIGH] Give the Operator a documented, configurable recovery route for the day a second
+  same-platform Channel is configured and the single-Channel fast path stops protecting a real Post whose
+  URL carries an alternate valid id: `Channel.alternateUrls` (`brand-profile.yaml`'s `alternate_urls`),
+  threaded through `ChannelPlanItem`/`ChannelIdentity`, checked by `resolvePostChannel`'s ambiguous-case
+  identifier match alongside a Channel's own `url`. Additive only — `src/db/schema.ts`/`src/db/migrate.ts`
+  untouched, migrations 1–4 stay byte-for-byte frozen.
+- [x] 6.2 [HIGH] Decide and implement whether one unresolvable Post should fail the entire plan: NO —
+  scoped EXACTLY to the genuine `kind: "ambiguous"` refusal (never `"unknown-platform"`/
+  `"no-configured-channel"`, which stay blocking). `resolvePostChannel` gains a `kind` discriminant;
+  `plan-idea.ts`'s `planAssetPost` routes `"ambiguous"` to a new NON-blocking `unresolvedPost` report
+  instead of a blocking `problem`; `plan.ts` surfaces it as a third report-only category,
+  `ImportPlan.unresolvedPosts`, alongside `deadMediaPaths`/`duplicateJobKeys`; `reconcile.ts` carries it
+  through to a new "Unresolved Posts" Markdown section and updates its "Posts in/out" coverage prose to
+  state the exclusion explicitly (never silently re-creating issue #240's own "uncounted category" gap).
+- [x] 6.3 Tests: `resolve-post-channel.test.ts` gains an `alternateUrls` describe block (resolves via a
+  first/second Channel's alternate, still refuses on a misconfigured duplicate alternate, alternates are
+  irrelevant in the single-Channel fast path) plus `kind` assertions on every refusal-shape test.
+  `plan-idea.test.ts`'s and `plan.test.ts`'s prior "refuses" tests for the ambiguous case are rewritten to
+  prove the new non-blocking-report behavior instead (never simply relaxed/deleted); `plan.test.ts` gains
+  a dedicated "one unresolved Post does not block a second, resolvable Idea in the same Brand" test and an
+  `alternate_urls` end-to-end success test; the real-corpus smoke test gains a `plan.unresolvedPosts.length
+  === 0` regression assertion. `brand-profile.test.ts` gains a dedicated `alternate_urls` describe block.
+- [x] 6.4 [MEDIUM] Defect 2: `execute.test.ts` gains a dedicated 2-Channel test writing through the REAL
+  `executeImport` path against a real, throwaway SQLite file, asserting `post.channel_id` equals the
+  SECOND Channel's own real row id (deliberately non-zero `postChannelIndex: 1`) — fetched independently
+  by each Channel's distinct `url`, never assumed. Proven red→green by temporarily swapping
+  `postChannelIndex` to `0`, confirming the assertion fails, then restoring it — transcript in
+  `handoff.md`'s Round 2 Build Report.
+- [x] 6.5 Update `proposal.md`'s "Round 2" section (both decisions argued explicitly, including the
+  whole-plan-vs-per-record question), `specs/importer/spec.md` (the MODIFIED post_url Requirement extended
+  for `alternate_urls` + the non-blocking ambiguous case; a NEW Requirement for the Unresolved Posts
+  report, mirroring Dead-media-paths/Duplicate-job-keys; the per-entity-reconciliation Requirement
+  MODIFIED for the new Posts-in/out exclusion). Run `openspec validate --strict` until green.
+- [x] 6.6 Re-run `npx tsc -p tsconfig.json --noEmit`, `npm test`, `npm run build`, `npm run test:docs` —
+  green, at/above the Round 1 baseline (3694/958/0).
+- [x] 6.7 Append a `Round 2 Build` block to `handoff.md` (never overwrite Round 1's Build Report or QA
+  Verdict) covering both defects, the recovery-route argument, the whole-plan decision, both red→green
+  transcripts, and updated suite numbers.

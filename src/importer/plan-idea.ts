@@ -15,6 +15,17 @@
  * nothing structurally invalid about an Asset whose Spec was never saved, e.g. one still `queued`), so
  * this module never blocks an otherwise-good Idea over a Recipe leg that never got that far.
  *
+ * An Asset whose `post_url` cannot be resolved to a SPECIFIC Channel (issue #243's `resolvePostChannel`
+ * refusing) is ALSO not a refusal, as of issue #243 round 2 (QA round 1's Defect 1): it is reported on
+ * `PlannedAsset.unresolvedPost`, surfaced up onto the plan's own `unresolvedPosts` report (see
+ * `plan.ts`), and named on the final reconciliation — never silently dropped — but the Idea, its other
+ * Assets, and the rest of the plan still import normally, just without that one `post` row. This mirrors
+ * `planAssetMedia`'s own dead-media-path discipline exactly: "name the record and defer" is not the same
+ * as "abort the whole import" over one ambiguous Post (see this ticket's own `handoff.md` for the
+ * reasoning). A missing `posted_at` on an Asset that DOES carry a `post_url`, by contrast, stays a
+ * blocking `problem` — that is a genuine source-ledger data-quality defect (a Post state that should
+ * never exist), not a Channel-configuration ambiguity the Operator can fix without touching the ledger.
+ *
  * Neither I/O dependency is hardcoded: `mediaFileOps`/`loadSpec` are both injected (`PlanIdeaDeps`),
  * defaulting to real `node:fs` behaviour in `src/importer/plan.ts`, the orchestrator — this module
  * itself never imports `node:fs` directly, keeping it fast and deterministic to test.
@@ -82,16 +93,24 @@ export interface PlannedAsset {
   readonly scheduledAt?: string;
   readonly cameraHubUploadedAt?: string;
   readonly zohoScheduleReference?: ZohoScheduleReference;
-  /** The four fields present ONLY when the source Asset carried a `post_url` (issue #240, extended by
-   *  issue #243) — an Asset with none of them produces no `post` row at execute time (AC3). `postPlatform`
-   *  is the platform `postUrl` resolved to; `postChannelIndex` is the SPECIFIC Channel it resolved to —
-   *  an index into `PlanIdeaDeps.brandChannels` / `BrandPlanItem.channels` (the SAME order Channel rows
-   *  are created in), never merely "a Channel for that platform". Both are already resolved+validated by
+  /** The four fields present ONLY when the source Asset carried a `post_url` AND it resolved to a
+   *  SPECIFIC Channel (issue #240, extended by issue #243) — an Asset with none of them produces no
+   *  `post` row at execute time (AC3), whether because it never carried a `post_url` at all, OR because
+   *  it did but could not be resolved (see `unresolvedPost` below). `postPlatform` is the platform
+   *  `postUrl` resolved to; `postChannelIndex` is the SPECIFIC Channel it resolved to — an index into
+   *  `PlanIdeaDeps.brandChannels` / `BrandPlanItem.channels` (the SAME order Channel rows are created
+   *  in), never merely "a Channel for that platform". Both are already resolved+validated by
    *  `resolvePostChannel` — `executeImport` trusts them rather than re-resolving. */
   readonly postUrl?: string;
   readonly postedAt?: string;
   readonly postPlatform?: KnownPlatform;
   readonly postChannelIndex?: number;
+  /** Present ONLY when the source Asset carried a `post_url` that `resolvePostChannel` refused to
+   *  resolve to a SPECIFIC Channel (issue #243 round 2 — QA round 1's Defect 1). This does NOT block the
+   *  Idea/plan (see this module's own top-of-file doc comment) — it is instead reported, by name, on the
+   *  plan's own `unresolvedPosts` (`plan.ts`) and on the final reconciliation, so it is never silently
+   *  dropped even though it is also never blocking. */
+  readonly unresolvedPost?: { readonly postUrl: string; readonly reason: string };
   readonly media: readonly PlannedAssetMediaItem[];
   readonly deadMedia: readonly DeadAssetMediaPath[];
 }
@@ -140,15 +159,33 @@ interface PlanOneAssetResult {
 
 /**
  * Resolves an Asset's `post_url`/`posted_at` into the four `PlannedAsset` Post fields (issue #240,
- * extended by issue #243's SPECIFIC Channel resolution), or a named problem — never a silent drop,
- * mirroring `planAssetMedia`'s own refusal discipline. Returns `{}` (no problem) for an Asset carrying no
- * `post_url` at all — AC3's "no Post row" case.
+ * extended by issue #243's SPECIFIC Channel resolution), a named BLOCKING problem, or a named
+ * NON-blocking `unresolved` report — never a silent drop either way. Returns `{}` (no problem, no
+ * unresolved report) for an Asset carrying no `post_url` at all — AC3's "no Post row" case.
+ *
+ * THREE distinct failure shapes, deliberately not all the same (issue #243 round 2 — QA round 1's
+ * Defect 1):
+ *   - No `posted_at` on an Asset that DOES carry a `post_url` is a BLOCKING `problem` — a genuine
+ *     source-ledger data-quality defect (never invent a timestamp), not something `brand-profile.yaml`
+ *     configuration can fix.
+ *   - `resolvePostChannel` refusing with `kind: "unknown-platform"` or `"no-configured-channel"` STAYS a
+ *     BLOCKING `problem`, unchanged from #240's original behavior — a post_url naming no known platform
+ *     at all, or a platform the Brand has literally no Channel for, is not the ambiguity this ticket's
+ *     `alternate_urls` escape hatch exists to fix.
+ *   - `resolvePostChannel` refusing with `kind: "ambiguous"` (2+ Channels on one platform, cannot pick a
+ *     specific one) is a NON-blocking `unresolved` report — an Operator-fixable configuration gap (add
+ *     `alternate_urls`, or accept the Post stays unattributed for now), never a reason to abort importing
+ *     everything else this plan would otherwise write.
  */
 function planAssetPost(
   asset: LedgerAssetRecord,
   ideaId: string,
   brandChannels: readonly ChannelIdentity[],
-): { readonly fields: Pick<PlannedAsset, "postUrl" | "postedAt" | "postPlatform" | "postChannelIndex">; readonly problem?: string } {
+): {
+  readonly fields: Pick<PlannedAsset, "postUrl" | "postedAt" | "postPlatform" | "postChannelIndex">;
+  readonly problem?: string;
+  readonly unresolved?: { readonly postUrl: string; readonly reason: string };
+} {
   if (asset.post_url === undefined) return { fields: {} };
 
   const label = `Idea "${ideaId}" Asset "${asset.recipe}"`;
@@ -158,6 +195,9 @@ function planAssetPost(
 
   const resolved = resolvePostChannel(asset.post_url, brandChannels);
   if (!resolved.ok) {
+    if (resolved.kind === "ambiguous") {
+      return { fields: {}, unresolved: { postUrl: asset.post_url, reason: resolved.reason } };
+    }
     return { fields: {}, problem: `${label}: ${resolved.reason}` };
   }
 
@@ -180,6 +220,7 @@ async function planOneAsset(asset: LedgerAssetRecord, ideaId: string, deps: Plan
     ...(asset.camera_hub_uploaded_at !== undefined ? { cameraHubUploadedAt: asset.camera_hub_uploaded_at } : {}),
     ...(asset.zoho_schedule_reference !== undefined ? { zohoScheduleReference: asset.zoho_schedule_reference } : {}),
     ...postResult.fields,
+    ...(postResult.unresolved !== undefined ? { unresolvedPost: postResult.unresolved } : {}),
     media: mediaResult.media,
     deadMedia: mediaResult.dead,
   };
