@@ -680,3 +680,198 @@ helper. The QA-repro transcript above and the break-it-on-purpose mutation test 
 fakes / a `mkdtemp` temp directory — no live Apify or Magnific call, no credits, no board mutation, no
 tracked file ever written to. **FLAGGED: the Magnific fake** — `makeMagniticFake`/the inline
 `probeSpace` fake are reused unmodified; no Magnific behavior was added or changed this round either.
+
+---
+
+## QA Verdict — Round 2: PASS
+
+### Suite result
+
+All commands run for real from the worktree
+(`/Users/CaxtonTaylor/Developer/.og-worktrees/issue-253-facebook-actor-slug`, branch
+`issue-253-facebook-actor-slug` at `5a0b700`), not assumed:
+
+- `npm test` -> **3681 tests / 957 suites / 0 fail** - confirmed against Round 1 (3677/956/0): +4 tests,
+  +1 suite, exactly the one new `describe` block the Build Report claims.
+- `npm run test:docs` -> **351 / 94 / 0**, green, unchanged from Round 1.
+- `npm run build` (`tsc -p tsconfig.build.json`) -> clean, no output.
+- `openspec validate issue-253-facebook-actor-slug --strict` -> `Change 'issue-253-facebook-actor-slug' is valid`.
+- `openspec validate --all --strict` -> `Totals: 69 passed, 0 failed (69 items)`.
+- Independently re-ran `src/commands/run-pipeline.test.ts` alone -> 56/56 pass (52 Round 1 + 4 new,
+  matching exactly).
+- `git diff b04e4eb..5a0b700 --stat` confirms only 7 files changed: `handoff.md`, `proposal.md`,
+  `specs/run-pipeline-conductor/spec.md`, `tasks.md`, `run-pipeline-readiness.ts`,
+  `run-pipeline.test.ts`, `run-pipeline.ts` - none of Round 1's substantive fixes (slug corrections,
+  `smoke.ts`, `actor-config.ts`, `smoke-diagnose.ts`, the scaffolder, the OpenSpec spec-file
+  corrections) were touched. Round 1's verified findings stand undisturbed.
+
+### Defect 1 (Round 1, HIGH) - re-verified FIXED
+
+Re-ran my own Round-1-style repro, but with a dead slug **of my own choosing**
+(`apify/round2-qa-own-dead-slug-xyz`), hermetically (inline fakes, `mkdtemp` temp dir, no live
+Apify/Magnific call):
+
+```
+Readiness check:
+  [WARN] (research) The configured Apify actor "apify/round2-qa-own-dead-slug-xyz" (used for
+  facebook.post_actor) was confirmed NOT to exist (a 404 from Apify's own actor lookup)...
+---
+/rename qabrand . 2026-W23
+---
+Gate 1 - Review. Brand: qabrand
+...
+```
+
+Both halves confirmed independently: the Operator now **sees** the warning (names the exact slug and
+where it's configured), and the run is **not blocked** - it proceeds through `/rename` straight to Gate
+1, exactly as a purely-advisory finding should. Neither swallowed, nor escalated to a block.
+
+### The carve-out - judged honestly
+
+Read `isActorExistenceFinding` (`src/commands/run-pipeline-readiness.ts`) and its call site in
+`conductorTurns` (`src/commands/run-pipeline.ts`) directly. It is a genuinely narrow, correctly-scoped
+carve-out:
+
+- `probeConfiguredActors` only ever emits two `code`s (`apify_actor_not_found:<slug>` /
+  `apify_actor_unreachable:<slug>`), one per non-`"ok"` value of the closed `ActorProbeResult` union
+  (`"ok" | "not_found" | "unreachable"`, `run-pipeline-ports.ts`). `isActorExistenceFinding`'s two
+  `startsWith` checks are exhaustive over that union **today**.
+- Confirmed by direct construction that the carve-out does not leak into other advisory codes: fed the
+  conductor a fixture with **both** a dead actor slug **and** a `null_baseline` advisory, no co-occurring
+  block. Only the actor `[WARN]` printed; the baseline text never appeared. This is real proof the fix is
+  additive to one finding class, not an accidental general widening.
+- **Maintenance hazard, honestly flagged (informational, not a defect):** the mapping from
+  `ActorProbeResult` to `Finding.code` to `isActorExistenceFinding`'s string-prefix check is three
+  separate, manually-kept-in-sync places, none compiler-enforced. If a future ticket adds a third
+  `ActorProbeResult` value (e.g. `"rate_limited"`) with a new code prefix, nothing forces the developer
+  to also extend `isActorExistenceFinding` - it would silently fall back to the pre-existing swallow
+  behavior for that new code, reproducing this exact bug one layer down. This is a real, if currently
+  dormant, rot risk in a hand-maintained carve-out list. It does not block this round - the list is
+  correct and complete for the two codes that exist today, and a general fix was explicitly and
+  correctly ruled out of scope for this slice - but it is worth naming precisely for the follow-up issue
+  the Build Report itself recommends filing, e.g. as a suggestion that the follow-up prefer a mechanism
+  that can't drift silently (deriving the predicate from `ActorProbeResult`'s own literal members, or a
+  single source-of-truth constant array) over another hand-maintained string-prefix list.
+
+### "Everything else untouched" - verified, not just relayed
+
+Confirmed directly, by reading the diff and by independent construction:
+
+- The pre-existing `blockFindings.length > 0` branch (prints **every** finding, including any advisory,
+  when a block co-occurs) is byte-for-byte unchanged - only a new `else` branch was added alongside it.
+- Independently confirmed two of the seven named "still silent" advisory codes stay silent with **no**
+  co-occurring block, using my own hermetic fixtures (not the developer's): `null_baseline` (empty
+  ledger `baseline.updated_at: null`, otherwise healthy) and `empty_banned_words`
+  (`banned_words: []`, otherwise healthy) - neither produced a `[WARN]` line; both runs proceeded
+  silently straight to `/rename`/Gate 1.
+
+### The wider finding - verified independently, not relayed
+
+Confirmed both parts of the claim:
+
+1. **At least two of the seven named codes really are silent when no block co-occurs** - proven above
+   (`null_baseline`, `empty_banned_words`), using my own constructed fixtures, not a re-run of the
+   developer's tests.
+2. **The pre-existing test that forces an unrelated block to make an advisory printable is real.**
+   Read `src/commands/run-pipeline.test.ts:1209` (`"still shows the no-baseline advisory when the ledger
+   baseline has no updated_at"`) directly: it passes `apify: makeApifyFake({ tokenValid: false })` -
+   which forces an invalid-token research **block** - specifically so the `null_baseline` advisory has
+   a block to ride alongside. Without that forced block, per my own independent repro above, the
+   advisory would not print at all. This is precise, first-hand confirmation, not a relay of the Build
+   Report's claim - it belongs in the record exactly as worded: the gap was known (a working test had to
+   route around it) well before this slice, and issue #253's fix only closes it for the actor-existence
+   codes. A follow-up issue to decide the conductor's advisory-print policy generally, as the Build
+   Report recommends, is warranted.
+
+### My own red->green reproduction (independent of the developer's)
+
+Used a **different** mutation from the developer's `if (false && actorAdvisories.length > 0)`: recorded
+the original file's md5 (`4a8400bfb581dc0433e1a1bb0bae21a1`), then changed the filter call itself -
+`findings.filter(isActorExistenceFinding)` -> `findings.filter(() => false)` - via `sed`, backing up to
+the scratchpad first (never `git checkout`/`stash`).
+
+```
+$ node --import tsx --test src/commands/run-pipeline.test.ts
+not ok 1 - prints a [WARN] line naming a dead actor slug when it is the ONLY finding present
+not ok 2 - prints a [WARN] line for an unreachable actor-existence probe when it is the ONLY finding present
+# tests 56
+# pass 54
+# fail 2
+```
+
+Exactly the same two standalone-advisory tests went red as the developer's own break-it-on-purpose
+proof - via an independently-chosen mutation point, confirming the tests genuinely depend on the carve-out
+being active, not on some other incidental code path. Restored from the scratchpad backup:
+`md5 src/commands/run-pipeline.ts` -> `4a8400bfb581dc0433e1a1bb0bae21a1`, byte-identical to the original.
+Re-ran -> **56/56 pass, 0 fail.** `git status --porcelain` empty before and after; no tracked file left
+modified.
+
+### Always-rules + Magnific-fake checks (Round 2 delta only - Round 1's checks already confirmed and undisturbed)
+
+- **Generate-never-publish** - PASS. Unaffected; no publish logic touched.
+- **Public-metrics-only** - PASS. Unaffected; this round only changes which findings the conductor
+  prints, not what data is fetched.
+- **Relative-not-absolute** - PASS. Unaffected; no scoring/baseline logic touched.
+- **Explicit-attribution** - PASS. Unaffected; no Post/Idea/Recipe linkage touched.
+- **Ledger-as-source-of-truth** - PASS. `git diff b04e4eb..5a0b700 --stat` confirms zero ledger/asset/
+  production-queue files touched.
+- **Magnific fake / hermeticity** - PASS. `git grep -n "spaces_\|creations_"` across the Round-2-touched
+  files returns only a pre-existing test title string (`"uses a fake Magnific port - no live spaces_*
+  calls are made"`); the 4 new tests use `healthyOptions`/`makeMagniticFake()`/inline
+  `probeSpace` fakes, same pattern as every existing test. No `APIFY_API_TOKEN`/`fetch(`/
+  `https://api.apify.com` reference anywhere in the touched files.
+- **No live Apify calls in my own verification** - PASS. Every repro script I ran used inline fake
+  `probeToken`/`probeActorExists`/`probeSpace` implementations and `mkdtemp` temp directories; zero
+  network calls, zero credits spent, confirmed by reading each script before execution.
+- **No new runtime dependency** - PASS (no `package.json`/`package-lock.json` change in the Round-2 diff).
+
+### Per-criterion results (issue #253's "What to build" checklist - Round 2 delta)
+
+Criteria 1-4 and 6 were already PASS in Round 1 and are undisturbed by this round (confirmed above via
+the diff-stat scope check); not re-litigated here.
+
+| # | Acceptance criterion | Round 2 status | Proof |
+|---|---|---|---|
+| 5 | Decide + record whether actor-slug existence is verified, and where - **and the check must actually reach the Operator, not just be computed** (the issue's own framing: "nothing notices," "do not ship a fifth" green-and-blind guard) | **PASS** | `isActorExistenceFinding` + the `conductorTurns` carve-out make the advisory Operator-visible unconditionally; proven by my own independent repro (dead slug of my own choosing -> `[WARN]` shown, run proceeds unblocked to Gate 1) and by my own red->green mutation proof (56/56 -> 54/56 -> 56/56, byte-identical restore) |
+
+### Per-scenario results (Round 2 spec delta - `run-pipeline-conductor`)
+
+- **"A dead actor slug's advisory reaches the Operator even when it is the ONLY finding that run"** -
+  PASS, covered by `run-pipeline.test.ts`'s "prints a [WARN] line naming a dead actor slug..." test
+  (green in the full suite; went red under both the developer's and my own independent mutation).
+- **"An unreachable actor-existence probe's advisory also reaches the Operator when it is the only
+  finding"** - PASS, covered by the corresponding "unreachable...ONLY finding present" test (same
+  red->green evidence).
+- **"A co-occurring block finding still surfaces the actor advisory alongside it"** - PASS, covered by
+  the "co-occurring block finding still prints the actor advisory alongside it" test; independently
+  re-confirmed by my own combined fixture (dead slug + invalid token) showing both a `[BLOCK]` and a
+  `[WARN]` line together.
+- (The 4th new test, "prints no readiness output at all when every configured actor probes OK," is not a
+  new Requirement Scenario - it reconfirms the pre-existing "silent when healthy" default still holds
+  after the carve-out was added, which is exactly the "everything else untouched" claim; correctly not
+  written as its own spec Scenario since it doesn't describe new behavior.)
+
+### Defect list
+
+None. No open defects this round.
+
+**Informational note (not a defect, does not block PASS):** the actor-existence carve-out is a
+hand-maintained, string-prefix list of two `Finding.code`s, exhaustive today but not compiler-enforced
+against `ActorProbeResult`'s closed union - see "The carve-out - judged honestly" above for the precise
+mechanism and why it is a real (if currently dormant) rot risk worth naming in the follow-up ticket the
+Build Report already recommends filing (deciding the conductor's advisory-print policy generally across
+all seven other silent codes).
+
+### Overall
+
+**PASS - Round 2.** Defect 1 is genuinely fixed: the actor-existence advisory now reaches the Operator
+unconditionally, proven by my own independent repro (a dead slug of my own choosing) and my own
+independent red->green mutation (a different suppression point than the developer's, byte-identical
+restore confirmed by md5, `git status` clean). The carve-out is genuinely narrow and correct for the two
+codes that exist today - confirmed by direct construction that it does not leak into other advisory
+codes - with one honestly-flagged, non-blocking maintenance hazard for the follow-up ticket. The wider
+finding (seven other advisory codes share the same "silent unless a block co-occurs" gap, and one
+pre-existing test already had to force a block to work around it) was independently verified, not
+relayed: confirmed for two of the seven codes directly, and confirmed the cited pre-existing test's
+`tokenValid: false` forcing at `run-pipeline.test.ts:1209` word-for-word. This slice is ready to proceed
+to a PR.
