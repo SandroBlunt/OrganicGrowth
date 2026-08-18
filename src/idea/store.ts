@@ -181,6 +181,11 @@ export interface IdeaInput {
   readonly relevance?: number;
   readonly momentum?: number;
   readonly brandFit?: number;
+  /** The file ledger's own Idea id (e.g. `"idea-05"`), when this Idea correlates to one (migration 5,
+   *  issue #254) — the real, per-Brand-unique identity `getIdeaByLegacyRef` looks up by. Omitted for an
+   *  Idea created with no ledger correlate. Enforced UNIQUE per `brandId` by the schema itself (a partial
+   *  index — `NULL` values are never compared), so two DIFFERENT `idea` rows can never silently share one. */
+  readonly legacyRef?: string;
 }
 
 /** One `idea` row, fully typed. */
@@ -207,6 +212,9 @@ export interface IdeaRecord {
   readonly hookTypeSource?: ClassificationSource;
   /** The `theme` sibling of `hookTypeSource` above — independently present/absent. */
   readonly themeSource?: ClassificationSource;
+  /** The file ledger's own Idea id this row correlates to (migration 5, issue #254) — absent (never a
+   *  fabricated value) for an Idea created with no ledger correlate. */
+  readonly legacyRef?: string;
   readonly sourceUrls: readonly string[];
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -230,6 +238,7 @@ interface IdeaRow {
   readonly theme: string;
   readonly hook_type_source: string | null;
   readonly theme_source: string | null;
+  readonly legacy_ref: string | null;
   readonly source_urls_json: string;
   readonly created_at: string;
   readonly updated_at: string;
@@ -254,6 +263,7 @@ function toIdeaRecord(row: IdeaRow): IdeaRecord {
     theme: row.theme as Theme,
     ...(row.hook_type_source !== null ? { hookTypeSource: row.hook_type_source as ClassificationSource } : {}),
     ...(row.theme_source !== null ? { themeSource: row.theme_source as ClassificationSource } : {}),
+    ...(row.legacy_ref !== null ? { legacyRef: row.legacy_ref } : {}),
     sourceUrls: JSON.parse(row.source_urls_json) as string[],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -284,8 +294,8 @@ export function createIdea(
   db.prepare(
     `INSERT INTO idea
        (id, run_id, brand_id, format_id, trend_id, title, brief, status, fit_score, relevance, momentum,
-        brand_fit, hook_type, theme, source_urls_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'suggested', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        brand_fit, hook_type, theme, legacy_ref, source_urls_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'suggested', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.runId,
@@ -300,6 +310,7 @@ export function createIdea(
     input.brandFit ?? null,
     input.hookType,
     input.theme,
+    input.legacyRef ?? null,
     JSON.stringify(input.sourceUrls ?? []),
     timestamp,
     timestamp,
@@ -323,6 +334,21 @@ export function listIdeasForRun(db: DatabaseSync, runId: string): readonly IdeaR
     .prepare(`SELECT * FROM idea WHERE run_id = ? ORDER BY created_at ASC`)
     .all(runId) as unknown as IdeaRow[];
   return rows.map(toIdeaRecord);
+}
+
+/**
+ * Looks up an Idea by its real, per-Brand-unique identity (migration 5, issue #254): the file ledger's
+ * own Idea id, scoped to `brandId` (never globally — two DIFFERENT Brands may legitimately reuse the
+ * same ledger-style id, e.g. both minting `"idea-01"` for their own first Run). Returns `null` when no
+ * Idea in this Brand carries `legacyRef` — never throws. This is the SAME correlating key
+ * `src/production-queue/sql-sync.ts`'s accept-flow sync now resolves identity by, replacing the earlier
+ * `(run_id, title)` natural key that silently merged two genuinely distinct Ideas sharing one title.
+ */
+export function getIdeaByLegacyRef(db: DatabaseSync, brandId: string, legacyRef: string): IdeaRecord | null {
+  const row = db
+    .prepare(`SELECT * FROM idea WHERE brand_id = ? AND legacy_ref = ?`)
+    .get(brandId, legacyRef) as unknown as IdeaRow | undefined;
+  return row ? toIdeaRecord(row) : null;
 }
 
 /** Every Idea in the database, across EVERY Run/Brand/Format, in creation order — `[]` for an empty

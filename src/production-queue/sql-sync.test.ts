@@ -88,6 +88,43 @@ function seedBrandAndFormat(db: DatabaseSync): { readonly brandId: string; reado
   return { brandId, formatId };
 }
 
+interface TwoIdeaFixture {
+  readonly dir: string;
+  readonly ledgerPath: string;
+}
+
+/** Writes a temp ledger.json holding TWO genuinely distinct accepted Ideas — same Run, IDENTICAL title,
+ *  DIFFERENT ids and DIFFERENT Briefs (real, different underlying stories, not a duplicate accept of one
+ *  story) — the exact QA round-1 Defect 1 repro shape: "two Ideas in the same Run sharing a title". */
+async function withCollisionFixture<T>(fn: (fixture: TwoIdeaFixture) => Promise<T>): Promise<T> {
+  const dir = await mkdtemp(join(tmpdir(), "og-sql-sync-collision-"));
+  const ledgerPath = join(dir, "ledger.json");
+  const brief1Path = join(dir, "idea-01.md");
+  const brief2Path = join(dir, "idea-02.md");
+  await writeFile(
+    brief1Path,
+    ["# Same Headline Twice", "", "## Hook concept", "The FIRST real story.", "", "## Source(s)", "- https://example.com/story-one"].join("\n"),
+    "utf8",
+  );
+  await writeFile(
+    brief2Path,
+    ["# Same Headline Twice", "", "## Hook concept", "A SECOND, DIFFERENT real story.", "", "## Source(s)", "- https://example.com/story-two"].join(
+      "\n",
+    ),
+    "utf8",
+  );
+  const ideas = [
+    { id: "idea-01", status: "accepted", run: RUN_KEY, format: FORMAT_SLUG, title: "Same Headline Twice", brief_path: brief1Path },
+    { id: "idea-02", status: "accepted", run: RUN_KEY, format: FORMAT_SLUG, title: "Same Headline Twice", brief_path: brief2Path },
+  ];
+  await writeFile(ledgerPath, JSON.stringify({ ideas }), "utf8");
+  try {
+    return await fn({ dir, ledgerPath });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 describe("syncAcceptToSql — creates the Idea/Asset/Job rows a brand-new accept needs", () => {
   it("creates the Idea row, one Asset per Recipe, and one queued job per Recipe (AC1)", async () => {
     await withTempDb(async (db) => {
@@ -108,6 +145,7 @@ describe("syncAcceptToSql — creates the Idea/Asset/Job rows a brand-new accept
           [CHARACTER_RECIPE, NEWS_CAROUSEL].sort(),
         );
         assert.ok(outcome.jobs.every((j) => j.synced === true));
+        assert.ok(outcome.jobs.every((j) => j.reason === "created"), "a brand-new job's reason is 'created' (issue #254 Defect 1)");
 
         const idea = getIdea(db, outcome.ideaId)!;
         assert.equal(idea.status, "accepted");
@@ -116,6 +154,7 @@ describe("syncAcceptToSql — creates the Idea/Asset/Job rows a brand-new accept
         assert.equal(idea.hookType, UNCLASSIFIED_HOOK_TYPE);
         assert.equal(idea.theme, UNCLASSIFIED_THEME);
         assert.equal(idea.fitScore, 0.82);
+        assert.equal(idea.legacyRef, "idea-01", "the real, per-Brand-unique identity is stamped (migration 5, issue #254)");
         assert.deepEqual([...idea.sourceUrls], ["https://example.com/real-source"]);
 
         const carouselAsset = await getAssetByRecipe(db, outcome.ideaId, NEWS_CAROUSEL);
@@ -148,6 +187,7 @@ describe("syncAcceptToSql — creates the Idea/Asset/Job rows a brand-new accept
         assert.equal(second.ideaId, first.ideaId, "the SAME Idea row is reused, never a duplicate");
         assert.equal(second.ideaCreated, false);
         assert.equal(second.jobs[0]!.synced, false, "no second job for an already-synced Recipe");
+        assert.equal(second.jobs[0]!.reason, "already-queued");
 
         const brandId = getBrandBySlug(db, BRAND_SLUG)!.id;
         assert.equal(listIdeasForRun(db, getIdea(db, first.ideaId)!.runId).length, 1, "exactly one Idea row exists");
@@ -163,9 +203,10 @@ describe("syncAcceptToSql — creates the Idea/Asset/Job rows a brand-new accept
 
       await withFixture(async ({ ledgerPath }) => {
         // Mimic what the one-shot importer (or an earlier real accept) already committed: an Idea row
-        // with the EXACT SAME (run, title) the ledger fixture above describes, already `accepted`, with
-        // its Asset + job already `queued` — entirely through the command surface, exactly like the real
-        // importer (`src/importer/execute.ts`) does.
+        // carrying the SAME legacyRef ("idea-01") the ledger fixture above describes — the real,
+        // per-Brand-unique identity (migration 5, issue #254) `src/importer/execute.ts` stamps via its
+        // own `ideaPlan.legacyId` — already `accepted`, with its Asset + job already `queued`, entirely
+        // through the command surface, exactly like the real importer does.
         const runId = createRun(db, { brandId, formatId, runKey: RUN_KEY, cadence: "weekly", startedAt: NOW }, () => NOW);
         const priorIdeaId = createIdea(
           db,
@@ -177,6 +218,7 @@ describe("syncAcceptToSql — creates the Idea/Asset/Job rows a brand-new accept
             brief: "Whatever the importer originally carried.",
             hookType: UNCLASSIFIED_HOOK_TYPE,
             theme: UNCLASSIFIED_THEME,
+            legacyRef: "idea-01",
           },
           () => NOW,
         );
@@ -192,8 +234,119 @@ describe("syncAcceptToSql — creates the Idea/Asset/Job rows a brand-new accept
         assert.equal(outcome.ideaId, priorIdeaId, "the pre-existing (importer-style) Idea row is reused");
         assert.equal(outcome.ideaCreated, false);
         assert.equal(outcome.jobs[0]!.synced, false, "the pre-existing job is not duplicated");
+        assert.equal(outcome.jobs[0]!.reason, "already-queued");
         assert.equal(listIdeasForRun(db, runId).length, 1, "still exactly one Idea row");
         assert.equal(listJobsForComposite(db, brandId, priorIdeaId, NEWS_CAROUSEL).length, 1, "still exactly one job");
+      });
+    });
+  });
+});
+
+describe("syncAcceptToSql — QA round-1 Defect 1: identity is the ledger's own id, never title", () => {
+  it("TWO DIFFERENT accepted Ideas sharing an IDENTICAL title each get their OWN Idea/Asset/Job row — never silently merged", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      seedBrandAndFormat(db);
+
+      await withCollisionFixture(async ({ ledgerPath }) => {
+        const first = await syncAcceptToSql("idea-01", [NEWS_CAROUSEL], { db, brand: BRAND_SLUG, ledgerPath, now: () => NOW });
+        const second = await syncAcceptToSql("idea-02", [NEWS_CAROUSEL], {
+          db,
+          brand: BRAND_SLUG,
+          ledgerPath,
+          now: () => "2026-08-18T10:00:00.000Z",
+        });
+
+        // The bug this repairs: round-1 code resolved identity by (run_id, title), so `second` would
+        // resolve to the SAME sqlIdeaId as `first`, `second.ideaCreated` would be `false`, and
+        // `second.jobs[0].synced` would be `false` — indistinguishable from a legitimate re-accept.
+        assert.notEqual(second.ideaId, first.ideaId, "two DIFFERENT ledger Ideas must NEVER resolve to the same SQL row");
+        assert.equal(first.ideaCreated, true);
+        assert.equal(second.ideaCreated, true, "the second Idea gets its OWN new row — never a silent merge into the first");
+        assert.equal(first.jobs[0]!.synced, true);
+        assert.equal(first.jobs[0]!.reason, "created");
+        assert.equal(second.jobs[0]!.synced, true, "the second Idea's job is genuinely created, never silently dropped");
+        assert.equal(second.jobs[0]!.reason, "created");
+
+        const brandId = getBrandBySlug(db, BRAND_SLUG)!.id;
+        const runId = getIdea(db, first.ideaId)!.runId;
+        assert.equal(listIdeasForRun(db, runId).length, 2, "BOTH Ideas keep their own row — none is dropped");
+        assert.equal(listJobsForComposite(db, brandId, first.ideaId, NEWS_CAROUSEL).length, 1);
+        assert.equal(listJobsForComposite(db, brandId, second.ideaId, NEWS_CAROUSEL).length, 1);
+
+        const firstIdea = getIdea(db, first.ideaId)!;
+        const secondIdea = getIdea(db, second.ideaId)!;
+        assert.equal(firstIdea.title, "Same Headline Twice");
+        assert.equal(secondIdea.title, "Same Headline Twice");
+        assert.equal(firstIdea.legacyRef, "idea-01");
+        assert.equal(secondIdea.legacyRef, "idea-02");
+        assert.match(firstIdea.brief, /FIRST real story/);
+        assert.match(secondIdea.brief, /SECOND, DIFFERENT real story/);
+      });
+    });
+  });
+
+  it("re-syncing idea-02 again (after the collision above) reuses ONLY idea-02's own row, never idea-01's", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      seedBrandAndFormat(db);
+
+      await withCollisionFixture(async ({ ledgerPath }) => {
+        const first = await syncAcceptToSql("idea-01", [NEWS_CAROUSEL], { db, brand: BRAND_SLUG, ledgerPath, now: () => NOW });
+        const second = await syncAcceptToSql("idea-02", [NEWS_CAROUSEL], { db, brand: BRAND_SLUG, ledgerPath, now: () => "2026-08-18T10:00:00.000Z" });
+        const secondAgain = await syncAcceptToSql("idea-02", [NEWS_CAROUSEL], {
+          db,
+          brand: BRAND_SLUG,
+          ledgerPath,
+          now: () => "2026-08-18T11:00:00.000Z",
+        });
+
+        assert.equal(secondAgain.ideaId, second.ideaId, "re-syncing idea-02 reuses idea-02's OWN row");
+        assert.notEqual(secondAgain.ideaId, first.ideaId, "never idea-01's row, even though they share a title");
+        assert.equal(secondAgain.ideaCreated, false);
+        assert.equal(secondAgain.jobs[0]!.synced, false, "no second job for idea-02's already-synced Recipe");
+        assert.equal(secondAgain.jobs[0]!.reason, "already-queued");
+
+        const runId = getIdea(db, first.ideaId)!.runId;
+        assert.equal(listIdeasForRun(db, runId).length, 2, "still exactly two Idea rows — the re-sync created no third");
+      });
+    });
+  });
+
+  it("KNOWN LIMIT: an importer-carried row from BEFORE migration 5 (no legacy_ref recorded) is not found by a later re-sync — a fresh Idea row is created instead, never a silent merge", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, formatId } = seedBrandAndFormat(db);
+
+      await withFixture(async ({ ledgerPath }) => {
+        // A row exactly as it would look if it were imported by the ORIGINAL one-shot importer run
+        // (issue #204, 2026-08-17) — BEFORE this migration existed, so it carries no legacyRef at all.
+        const runId = createRun(db, { brandId, formatId, runKey: RUN_KEY, cadence: "weekly", startedAt: NOW }, () => NOW);
+        const preMigrationIdeaId = createIdea(
+          db,
+          {
+            runId,
+            brandId,
+            formatId,
+            title: "A brand new headline", // matches the ledger fixture's own title
+            brief: "Whatever the original 2026-08-17 import carried.",
+            hookType: UNCLASSIFIED_HOOK_TYPE,
+            theme: UNCLASSIFIED_THEME,
+            // Deliberately NO legacyRef — this is what every row imported before migration 5 looks like.
+          },
+          () => NOW,
+        );
+
+        const outcome = await syncAcceptToSql("idea-01", [NEWS_CAROUSEL], { db, brand: BRAND_SLUG, ledgerPath, now: () => "2026-08-18T11:00:00.000Z" });
+
+        // Honest, documented residual limit (see handoff.md Known Limits): identity is now legacy_ref,
+        // so a pre-migration-5 row (legacy_ref IS NULL) is never found by this lookup. This creates a
+        // SECOND row rather than reusing the pre-migration one — never a silent merge (this ticket's own
+        // bar), but a real duplicate an Operator would need to reconcile by hand for any Idea that was
+        // BOTH imported before this migration AND later re-synced through this path.
+        assert.notEqual(outcome.ideaId, preMigrationIdeaId, "the pre-migration-5 row (no legacy_ref) is not matched");
+        assert.equal(outcome.ideaCreated, true);
+        assert.equal(listIdeasForRun(db, runId).length, 2, "two rows now exist for what a human would call ONE real Idea");
       });
     });
   });

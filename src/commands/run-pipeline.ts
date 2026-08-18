@@ -60,13 +60,22 @@ import { loadIdeas, findIdea, loadBaseline } from "../ledger/ledger.ts";
 import { ideaAtGate, ideaHasAssetStatus } from "../asset/asset.ts";
 import { DEFAULT_ASSET_RECIPE } from "../asset/migrate.ts";
 import { loadQueue } from "../production-queue/store.ts";
-import { enqueueOnAccept } from "../production-queue/enqueue-on-accept.ts";
+import { enqueueOnAccept, type EnqueueOnAcceptOptions } from "../production-queue/enqueue-on-accept.ts";
 import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
 import { reportCommand } from "./report.ts";
 import { isoWeek } from "../format/run-id.ts";
+import { openDatabase } from "../db/connection.ts";
+import { runMigrations } from "../db/migrate.ts";
+import type { DatabaseSync } from "node:sqlite";
 import type { Finding } from "../readiness/types.ts";
 import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
 import type { BrandInterviewAnswers } from "../brand/scaffolder.ts";
+
+/** The SAME default `data/organicgrowth.db` path every other command uses (`src/importer/cli.ts`,
+ *  `src/commands/backfill-hook-theme.ts`) — the local SQLite database the unattended worker's
+ *  `findNextQueuedJob`/`drainQueue` (issue #208) actually reads. Overridden by `options.dbPath` in
+ *  every test (a throwaway temp file), so no test ever opens or migrates the real committed database. */
+const DEFAULT_DB_PATH = "data/organicgrowth.db";
 
 // ---------------------------------------------------------------------------
 // ISO week helper
@@ -112,6 +121,7 @@ export interface ConductorTurn {
  *   - `magnific` / `apify` — fake probe ports (no live Magnific/Apify calls in tests).
  *   - `brandsRoot` — temp dir to avoid touching real state.
  *   - `queuePath` — temp queue file.
+ *   - `dbPath` — temp SQLite file (issue #254) — see its own doc comment below.
  *   - `templatePath` — path to the brand-skeleton template (injected so tests use the real one).
  *   - `now` — injected clock for deterministic timestamps.
  *   - `getInput` — injected stdin so tests can feed "resume"/"fresh" without subprocess.
@@ -119,6 +129,17 @@ export interface ConductorTurn {
 export interface RunPipelineOptions {
   readonly brandsRoot?: string;
   readonly queuePath?: string;
+  /**
+   * Path to the local SQLite database (issue #254, QA round-1 Defect 2: "the production path must pass
+   * `db` by default rather than depending on a paragraph being followed"). Defaults to
+   * `data/organicgrowth.db` at runtime — the SAME file every other command opens
+   * (`src/importer/cli.ts`, `src/commands/backfill-hook-theme.ts`). The conductor's stranded-idea
+   * re-enqueue step (the ONE real, compiled TypeScript caller of `enqueueOnAccept`) opens and migrates
+   * this file, then passes it through, so a resumed accept reaches SQL WITHOUT depending on any agent
+   * reading a markdown instruction. Every test injects a throwaway temp path here — never the real,
+   * committed database.
+   */
+  readonly dbPath?: string;
   /**
    * Path to the brand-skeleton template directory. Defaults to `"templates/brand-skeleton"`.
    * Injected in tests to point at the real template at an absolute path or a temp copy.
@@ -439,6 +460,7 @@ export async function* conductorTurns(
 ): AsyncGenerator<ConductorTurn, void, string | undefined> {
   const brandsRoot = options.brandsRoot;
   const queuePath = options.queuePath;
+  const dbPath = options.dbPath ?? DEFAULT_DB_PATH;
   const templatePath = options.templatePath ?? "templates/brand-skeleton";
   const nowFn = options.now ?? (() => new Date().toISOString());
   const nowDateFn = options.nowDate ?? (() => new Date());
@@ -670,22 +692,53 @@ export async function* conductorTurns(
       // Re-enqueue stranded Ideas
       if (phaseResult.strandedIdeas.length > 0) {
         const lines: string[] = [`Resuming: re-enqueueing ${phaseResult.strandedIdeas.length} stranded Idea(s)...`];
-        for (const ideaId of phaseResult.strandedIdeas) {
-          // Re-enqueue the SAME Recipes the Idea was originally accepted with (issue #54's recorded
-          // `recipes`, issue #56). An Idea accepted before Recipe selection existed (every real Idea
-          // today) carries no `recipes` — fall back to the one wired Recipe so today's single-recipe
-          // path keeps working unchanged.
-          const strandedIdea = findIdea(ideas, ideaId);
-          const recipes = strandedIdea?.recipes && strandedIdea.recipes.length > 0
-            ? strandedIdea.recipes
-            : [DEFAULT_ASSET_RECIPE];
-          await enqueueOnAccept(ideaId, brand, recipes, {
-            ledgerPath: brandPaths.ledger,
-            queuePath: resolvedQueuePath,
-            now: nowFn,
-          });
-          lines.push(`  Enqueued: ${ideaId}`);
+
+        // Open + migrate the SAME SQLite database `/run-worker` drains, BY DEFAULT — never depending on
+        // a markdown instruction being followed (issue #254, QA round-1 Defect 2). Migrating an
+        // already-current database is a safe no-op (`runMigrations`'s own contract). If even OPENING the
+        // database fails (e.g. an unwritable path), the re-enqueue loop below still runs against the
+        // file queue alone — a database problem never blocks the attended, file-based pipeline.
+        let db: DatabaseSync | undefined;
+        try {
+          db = await openDatabase(dbPath);
+          runMigrations(db);
+        } catch (err) {
+          lines.push(`  SQL sync unavailable: could not open/migrate "${dbPath}" (${err instanceof Error ? err.message : String(err)}). Continuing with the file queue only.`);
+          db = undefined;
         }
+
+        try {
+          for (const ideaId of phaseResult.strandedIdeas) {
+            // Re-enqueue the SAME Recipes the Idea was originally accepted with (issue #54's recorded
+            // `recipes`, issue #56). An Idea accepted before Recipe selection existed (every real Idea
+            // today) carries no `recipes` — fall back to the one wired Recipe so today's single-recipe
+            // path keeps working unchanged.
+            const strandedIdea = findIdea(ideas, ideaId);
+            const recipes = strandedIdea?.recipes && strandedIdea.recipes.length > 0
+              ? strandedIdea.recipes
+              : [DEFAULT_ASSET_RECIPE];
+            const enqueueOptions: EnqueueOnAcceptOptions = {
+              ledgerPath: brandPaths.ledger,
+              queuePath: resolvedQueuePath,
+              now: nowFn,
+              ...(db !== undefined ? { db } : {}),
+              ...(brandsRoot !== undefined ? { brandsRoot } : {}),
+            };
+            try {
+              await enqueueOnAccept(ideaId, brand, recipes, enqueueOptions);
+              lines.push(`  Enqueued: ${ideaId}`);
+            } catch (err) {
+              // `enqueueOnAccept` always writes the file queue BEFORE attempting the SQL sync
+              // (`enqueue-on-accept.ts`'s own contract), so a thrown error here means ONLY the SQL sync
+              // failed — surface it plainly (never silently), never retry, and keep processing the
+              // remaining stranded Ideas rather than aborting the whole resume.
+              lines.push(`  Enqueued (file queue only — SQL sync failed): ${ideaId}: ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+        } finally {
+          db?.close();
+        }
+
         yield { message: lines.join("\n") };
       } else {
         yield { message: `Resuming from phase: ${phaseResult.phase}` };

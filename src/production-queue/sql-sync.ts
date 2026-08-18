@@ -10,36 +10,44 @@
  *
  * `createIdea` / `recordReviewDecision` / `saveAsset` / `enqueueJob` / `createRun` are all command-surface
  * exports. This module also does plain READS directly against the SQL stores (`getBrandBySlug`,
- * `getFormatBySlug`, `getRunByKey`, `getIdea`, `listIdeasForRun`, `listJobsForComposite`) — reads are
+ * `getFormatBySlug`, `getRunByKey`, `getIdea`, `getIdeaByLegacyRef`, `listJobsForComposite`) — reads are
  * outside the store-write boundary guard's scope by design (`src/store-write-boundary/scan.ts`'s own doc
  * comment: "Scope: writes only, never reads"), the SAME convention `command-surface/worker.ts` already
  * uses for `getAssetById`/`getBrandById`/`getIdea`.
  *
- * --- No legacy-id column: Idea identity is resolved by (run, title) ------------------------------------
+ * --- Idea identity is the file ledger's own id — `idea.legacy_ref` (migration 5, issue #254) ----------
  *
- * The `idea` table carries no column correlating a SQL row back to the file ledger's own `id` (e.g.
- * `"idea-05"`) — schema.ts's four frozen migrations never added one, and this ticket deliberately does
- * NOT add a fifth: three other build slices are concurrently landing their own schema/allow-list changes
- * in sibling worktrees, and `schema.ts`'s migration list is exactly the kind of shared, append-order file
- * where a second concurrent migration-5 would collide. Instead, `findExistingIdea` looks an Idea up by
- * `(run_id, title)` — every real Idea's title is a distinct headline within its own Run (idea-strategist
- * never repeats one), so this is a safe, sufficient natural key, and it costs no schema change. This is
- * ALSO what makes a re-accept of an Idea the one-shot importer already carried safe: the importer wrote a
- * real `title` on every Idea it created, so a later accept-flow call for that SAME Idea finds the
- * importer's own row by `(run_id, title)` and reuses it, rather than creating a duplicate.
+ * QA round-1 (this ticket's own history) found that resolving identity by `(run_id, title)` silently
+ * MERGED two genuinely distinct accepted Ideas that happened to share an identical title: the second
+ * Idea got no Idea row, no Asset row, no Job row of its own, and its own `job` outcome read exactly like
+ * a legitimate "already queued" re-accept — indistinguishable from success, the exact class of bug this
+ * ticket exists to close, reproduced one layer inside the fix.
  *
- * Known, documented risk: two Ideas in the SAME Run sharing an IDENTICAL title would collide under this
- * key. No real Brief has ever done this (surveyed at the time this ticket landed); flagged in
- * `handoff.md` rather than silently assumed away.
+ * The correct fix is the identity that was there all along: every Idea already carries a stable,
+ * per-Brand-unique id (the `"idea-05"` / `"idea-2026-W32-10"` form) that `/log-post`, `/pick`, and the
+ * whole attribution chain already key on. This module now looks an existing Idea up by `(brand_id,
+ * legacy_ref)` via `getIdeaByLegacyRef` (`src/idea/store.ts`) — never by title, so two Ideas sharing a
+ * title (a real, legitimate case: two different real-world stories can share a headline) now correctly
+ * get two SEPARATE Idea/Asset/Job rows. `createIdea` stamps `legacyRef: ideaId` on every row this module
+ * creates; the one-shot importer (`src/importer/execute.ts`) does the same with its own `ideaPlan.legacyId`
+ * (the SAME field), so a re-accept of an importer-carried Idea still correlates correctly.
  *
- * --- Idempotency: report, not roll back --------------------------------------------------------------
+ * The schema itself backstops this: `idx_idea_legacy_ref_per_brand` is a real UNIQUE index (partial —
+ * `NULL` values are never compared), so even a bug that bypassed this module's own lookup entirely would
+ * hit a loud `SQLITE_CONSTRAINT` on the second `createIdea` call, never a silent double-write. "A genuine
+ * collision must be loud" now holds at the DATABASE level, not merely by this module's own discipline.
  *
- * `job.idempotency_key` carries no `UNIQUE` constraint (unlike `schedule_outbox.idempotency_key`, which
- * does) — so the key set here (`"<brand>::<legacy-idea-id>::<recipe>"`, the SAME `::`-joined shape
- * `importer/execute.ts`'s own `assetKey` uses) is recorded provenance, not the enforcement mechanism.
- * The actual guard against a double-enqueued job is `listJobsForComposite` (issue #203 AC1): checked
- * BEFORE every `enqueueJob` call, so a second sync attempt for the same `(brand, idea, recipe)` finds the
- * existing job and skips — the SQL-side sibling of the file queue's own `hasJobFor`.
+ * --- Idempotency: report, not roll back — now backstopped by a schema index too (migration 5) ---------
+ *
+ * The actual, PRIMARY guard against a double-enqueued job is `listJobsForComposite` (issue #203 AC1):
+ * checked BEFORE every `enqueueJob` call, so a second sync attempt for the same `(brand, idea, recipe)`
+ * finds the existing job and skips — the SQL-side sibling of the file queue's own `hasJobFor`. This alone
+ * is safe within one Node process (no `await` between the read and the write), but not across two
+ * separate OS processes racing the same accept (QA round-1 Defect 4). `job.idempotency_key` — set here as
+ * `"<brand>::<legacy-idea-id>::<recipe>"`, the SAME `::`-joined shape `importer/execute.ts`'s own
+ * `assetKey` uses — now ALSO carries a partial `UNIQUE` schema index (migration 5), closing that
+ * cross-process race: a genuinely concurrent second `enqueueJob` call for the same composite throws a
+ * real `SQLITE_CONSTRAINT` error instead of silently creating a duplicate `queued` job.
  *
  * This whole sync is NOT wrapped in one outer SQL transaction: `recordReviewDecision`'s own
  * `selectIdeaRecipes` half already opens its own (`withTransaction` does not nest — SQLite itself refuses
@@ -62,7 +70,7 @@ import { extractSourceUrls } from "../importer/source-urls.ts";
 import { getBrandBySlug } from "../brand/store.ts";
 import { getFormatBySlug } from "../format/store.ts";
 import { getRunByKey } from "../run/store.ts";
-import { getIdea, listIdeasForRun } from "../idea/store.ts";
+import { getIdea, getIdeaByLegacyRef } from "../idea/store.ts";
 import { listJobsForComposite } from "./job-store.ts";
 import { getRecipe } from "../recipe/registry.ts";
 import { UNCLASSIFIED_HOOK_TYPE } from "../vocabulary/hook-type.ts";
@@ -82,6 +90,15 @@ export interface SqlSyncJobOutcome {
   /** `true` when a NEW `job` row was created this call; `false` when one already existed for this
    *  `(brand, idea, recipe)` composite (the SQL-side sibling of the file queue's `"already-queued"`). */
   readonly synced: boolean;
+  /** WHY `synced` is what it is (QA round-1 Defect 1: "`synced: false` currently means both 'already
+   *  there' and 'silently dropped' — those must be distinguishable"). `"created"` — a brand-new `job` row
+   *  was made this call. `"already-queued"` — a `job` row already existed for this EXACT `(brand, idea,
+   *  recipe)` composite, found via `listJobsForComposite` — a legitimate dedupe, never a dropped write.
+   *  Because identity is now the ledger's own per-Brand-unique id (`legacy_ref`, not title), two
+   *  DIFFERENT ledger Ideas can never resolve to the same SQL Idea row, so `"already-queued"` can only
+   *  ever mean a genuine re-sync of the SAME ledger Idea — never a second, distinct Idea silently merged
+   *  into the first. */
+  readonly reason: "created" | "already-queued";
 }
 
 /** The outcome of syncing one Idea's chosen Recipes into SQL. */
@@ -103,14 +120,6 @@ export interface SqlSyncParams {
   /** Passed straight through to `loadBrief` — overridden only by tests. */
   readonly brandsRoot?: string;
   readonly now?: () => string;
-}
-
-/** Finds an existing SQL Idea row for `title` within `runId`, or `null` when none exists yet. See this
- *  module's own doc comment for why `(run_id, title)` — not a legacy-id column — is the correlating
- *  key. */
-function findExistingIdea(db: DatabaseSync, runId: string, title: string): string | null {
-  const match = listIdeasForRun(db, runId).find((i) => i.title === title);
-  return match ? match.id : null;
 }
 
 /**
@@ -168,7 +177,9 @@ export async function syncAcceptToSql(
   const title = ledgerIdea.title ?? ledgerIdea.id;
   const recipeSelections = recipes.map((recipe) => ({ recipe, chosen: true }));
 
-  const existingIdeaId = findExistingIdea(db, runId, title);
+  // The real, per-Brand-unique identity (migration 5, issue #254) — see this module's own doc comment
+  // for why `(brand_id, legacy_ref)` replaces the earlier `(run_id, title)` natural key.
+  const existingIdeaId = getIdeaByLegacyRef(db, brand.id, ideaId)?.id ?? null;
   let sqlIdeaId: string;
   let ideaCreated: boolean;
 
@@ -210,6 +221,10 @@ export async function syncAcceptToSql(
         // this sync creates is classified `unclassified` for both, honestly, rather than guessed.
         hookType: UNCLASSIFIED_HOOK_TYPE,
         theme: UNCLASSIFIED_THEME,
+        // The real identity this row correlates back to (issue #254, migration 5) — see this module's
+        // own doc comment. This is what makes `findExistingIdea` a real, per-Brand-unique lookup instead
+        // of the title-based natural key that silently merged two distinct Ideas in QA round 1.
+        legacyRef: ideaId,
         sourceUrls,
         ...(ledgerIdea.fitScore !== undefined ? { fitScore: ledgerIdea.fitScore } : {}),
       },
@@ -229,7 +244,7 @@ export async function syncAcceptToSql(
 
     const existingJobs = listJobsForComposite(db, brand.id, sqlIdeaId, recipe);
     if (existingJobs.length > 0) {
-      jobs.push({ recipe, synced: false });
+      jobs.push({ recipe, synced: false, reason: "already-queued" });
       continue;
     }
 
@@ -251,7 +266,7 @@ export async function syncAcceptToSql(
       },
       now,
     );
-    jobs.push({ recipe, synced: true });
+    jobs.push({ recipe, synced: true, reason: "created" });
   }
 
   return { ideaId: sqlIdeaId, ideaCreated, jobs };

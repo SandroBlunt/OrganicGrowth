@@ -99,8 +99,8 @@ describe("runMigrations — creates and upgrades the schema, and records the ver
       runMigrations(db);
       assert.equal(
         CURRENT_SCHEMA_VERSION,
-        4,
-        "this assertion assumes migrations 2 (issue #219), 3 (issue #209), and 4 (issue #206) exist",
+        5,
+        "this assertion assumes migrations 2 (issue #219), 3 (issue #209), 4 (issue #206), and 5 (issue #254) exist",
       );
       const now = new Date().toISOString();
       db.prepare(

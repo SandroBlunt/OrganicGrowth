@@ -111,3 +111,24 @@ describe("/review-ideas enqueues the chosen Recipe set (issue #56 — Recipe-awa
     assert.match(doc, /do \*\*not\*\* enqueue/);
   });
 });
+
+describe("/review-ideas ALSO passes db to enqueueOnAccept — the SQL sync (issue #254)", () => {
+  it("instructs opening data/organicgrowth.db and migrating it before enqueueOnAccept", async () => {
+    const doc = await readReviewIdeasDoc();
+    assert.match(doc, /Also pass `db`/);
+    assert.match(doc, /openDatabase\("data\/organicgrowth\.db"\)/);
+    assert.match(doc, /runMigrations\(db\)/);
+  });
+
+  it("states this is what makes the accepted Idea visible to /run-worker at all", async () => {
+    const doc = await readReviewIdeasDoc();
+    assert.match(doc, /visible to `\/run-worker` at all/);
+  });
+
+  it("states a SQL failure must be surfaced verbatim, never retried silently, while the file queue still landed", async () => {
+    const doc = await readReviewIdeasDoc();
+    assert.match(doc, /surface the thrown error's message verbatim/);
+    assert.match(doc, /do not retry silently/);
+    assert.match(doc, /the file-based job still landed/);
+  });
+});

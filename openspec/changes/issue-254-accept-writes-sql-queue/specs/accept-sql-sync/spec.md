@@ -16,21 +16,33 @@
 - **WHEN** `syncAcceptToSql` is called for that Idea
 - **THEN** a new `run` row is created for that `(format_id, run_key)`, inheriting the Format's own `cadence`, and the new Idea row references it
 
-### Requirement: Idea identity is resolved by (run, title) — a re-accept never duplicates the Idea or its jobs
+### Requirement: Idea identity is resolved by idea.legacy_ref (migration 5), never by title — two Ideas sharing a title never collide
 
-`syncAcceptToSql` SHALL resolve whether a SQL `idea` row already represents the given ledger Idea by looking up `(run_id, title)` — the `idea` table carries no column correlating a row back to the file ledger's own id. A second call for the SAME ledger Idea, whether from a genuine re-accept or from an EARLIER write (this ticket's own, or the one-shot importer's, sharing the same title within the same Run) SHALL reuse that existing row rather than creating a duplicate, and SHALL NOT re-run `recordReviewDecision` against an Idea that is no longer `suggested`. Per-Recipe job idempotency SHALL be enforced by checking `job-claim-store`'s `listJobsForComposite(db, brandId, ideaId, recipe)` before every `enqueueJob` call — never relying on `job.idempotency_key`'s uniqueness, since that column carries no `UNIQUE` constraint; the idempotency key is still recorded (`"<brand>::<legacy-idea-id>::<recipe>"`) as provenance.
+`syncAcceptToSql` SHALL resolve whether a SQL `idea` row already represents the given ledger Idea by looking up `(brand_id, legacy_ref)` via `getIdeaByLegacyRef` (`src/idea/store.ts`), where `legacy_ref` is the file ledger's own Idea id (e.g. `"idea-05"`) — the real, stable, per-Brand-unique identifier already carried everywhere in this system (`/log-post`, `/pick`, the whole attribution chain). `createIdea` SHALL stamp `legacyRef: ideaId` on every Idea row this module creates. A SECOND call for the SAME ledger Idea, whether from a genuine re-accept or from an EARLIER write sharing the same `legacy_ref` (this ticket's own, or the one-shot importer's — `src/importer/execute.ts` stamps its own `ideaPlan.legacyId` as `legacyRef`), SHALL reuse that existing row rather than creating a duplicate, and SHALL NOT re-run `recordReviewDecision` against an Idea that is no longer `suggested`. TWO DIFFERENT ledger Ideas that happen to share an identical `title` SHALL NEVER be treated as the same SQL Idea — each SHALL get its own Idea row, its own per-Recipe Asset row(s), and its own `job` row(s), because identity is resolved by `legacy_ref`, never by `title`. The schema itself backstops this: a partial `UNIQUE (brand_id, legacy_ref) WHERE legacy_ref IS NOT NULL` index means a genuine collision (the same `legacy_ref` written twice for the same Brand) throws a real `SQLITE_CONSTRAINT` error rather than silently succeeding twice. Per-Recipe job idempotency SHALL be enforced by checking `job-claim-store`'s `listJobsForComposite(db, brandId, ideaId, recipe)` before every `enqueueJob` call, backstopped by a partial `UNIQUE (job.idempotency_key) WHERE idempotency_key IS NOT NULL` schema index (migration 5) that closes the cross-process race a read-then-write application check alone cannot — the idempotency key itself is still recorded (`"<brand>::<legacy-idea-id>::<recipe>"`) as provenance. Each per-Recipe job outcome SHALL carry a `reason` of `"created"` (a brand-new job row was made this call) or `"already-queued"` (a job already existed for this EXACT composite — a legitimate dedupe, never a dropped write) alongside its `synced` boolean, so the two meanings `synced: false` could otherwise conflate are always distinguishable.
 
 #### Scenario: Calling syncAcceptToSql twice for the same ledger Idea does not duplicate the Idea row or its job
 
 - **GIVEN** `syncAcceptToSql` has already been called once for ledger Idea `idea-01` and Recipe `news-carousel`
 - **WHEN** it is called again for the SAME `(ideaId, recipe)`
-- **THEN** the returned `ideaId` is identical to the first call's, `ideaCreated` is `false`, the Recipe's job outcome is `synced: false`, and exactly one `idea` row and one `job` row exist for that composite
+- **THEN** the returned `ideaId` is identical to the first call's, `ideaCreated` is `false`, the Recipe's job outcome is `{ synced: false, reason: "already-queued" }`, and exactly one `idea` row and one `job` row exist for that composite
 
 #### Scenario: A re-accept of an Idea the one-shot importer already carried reuses that row, never duplicating its job
 
-- **GIVEN** an `idea`/`asset`/`job` row already committed (through the command surface, exactly as `src/importer/execute.ts` would) for a title matching a ledger Idea's own `(run, title)`
+- **GIVEN** an `idea`/`asset`/`job` row already committed (through the command surface, exactly as `src/importer/execute.ts` would) carrying the SAME `legacy_ref` as a ledger Idea's own id
 - **WHEN** `syncAcceptToSql` is called for that SAME ledger Idea and Recipe
-- **THEN** it resolves to the pre-existing `idea` row (`ideaCreated: false`), and the Recipe's job outcome is `synced: false` — exactly one `idea` row and one `job` row exist for that composite, both unchanged
+- **THEN** it resolves to the pre-existing `idea` row (`ideaCreated: false`), and the Recipe's job outcome is `{ synced: false, reason: "already-queued" }` — exactly one `idea` row and one `job` row exist for that composite, both unchanged
+
+#### Scenario: Two DIFFERENT accepted Ideas sharing an IDENTICAL title each get their own Idea/Asset/Job row — never silently merged
+
+- **GIVEN** two genuinely distinct ledger Ideas, `idea-01` and `idea-02`, in the SAME Run, sharing the EXACT SAME `title`, but with different Briefs
+- **WHEN** `syncAcceptToSql` is called for `idea-01`, then separately for `idea-02`, each for Recipe `news-carousel`
+- **THEN** the two calls resolve to two DIFFERENT `ideaId`s, each with `ideaCreated: true`, each Recipe's job outcome is `{ synced: true, reason: "created" }`, and exactly TWO `idea` rows and TWO `job` rows exist — `idea-02` is never merged into `idea-01`'s SQL identity
+
+#### Scenario: A second createIdea call with the SAME (brand, legacy_ref) throws a real, loud SQLITE_CONSTRAINT error
+
+- **GIVEN** an `idea` row already committed with `legacy_ref: "idea-01"` for a given Brand
+- **WHEN** `createIdea` is called again for the SAME Brand with `legacyRef: "idea-01"` (bypassing `findExistingIdea`'s own lookup, e.g. a bug or a race)
+- **THEN** the call throws a `SQLITE_CONSTRAINT` error and no second `idea` row is created — the schema itself is the backstop, not merely application discipline
 
 ### Requirement: A failure to resolve the Brand, Format, or Brief a sync needs throws loudly, never silently
 

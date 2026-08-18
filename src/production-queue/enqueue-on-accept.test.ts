@@ -269,6 +269,7 @@ describe("enqueueOnAccept — OPTIONAL SQL sync (issue #254)", () => {
         assert.ok(r.sql, "the SQL sync outcome is reported");
         assert.equal(r.sql!.jobs.length, 1);
         assert.equal(r.sql!.jobs[0]!.synced, true);
+        assert.equal(r.sql!.jobs[0]!.reason, "created");
 
         const jobs = listJobsForComposite(db, getBrandBySlug(db, BRAND)!.id, r.sql!.ideaId, RECIPE);
         assert.equal(jobs.length, 1, "the SQL job table gained exactly the expected row");
@@ -314,6 +315,48 @@ describe("enqueueOnAccept — OPTIONAL SQL sync (issue #254)", () => {
         assert.equal(onDisk.jobs.length, 1, "the file queue still gained its job despite the SQL failure");
         assert.equal(onDisk.jobs[0]!.recipe, RECIPE);
       });
+    });
+  });
+
+  it("QA round-1 Defect 1, reproduced at the REAL entry point: two DIFFERENT accepted Ideas sharing an IDENTICAL title each get their own SQL Idea/Job — never silently merged", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const brandId = createBrand(db, { slug: BRAND, name: "Mundotip", timezone: "UTC", mediaRoot: "data/brands/mundotip" });
+      createFormat(db, { brandId, slug: SQL_FORMAT, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+
+      const dir = await mkdtemp(join(tmpdir(), "og-accept-sql-collision-"));
+      const ledgerPath = join(dir, "ledger.json");
+      const queuePath = join(dir, "queue.json");
+      const brief1Path = join(dir, "idea-01.md");
+      const brief2Path = join(dir, "idea-02.md");
+      try {
+        await writeFile(brief1Path, "# Same Headline Twice\n\n## Source(s)\n- https://example.com/story-one\n", "utf8");
+        await writeFile(brief2Path, "# Same Headline Twice\n\n## Source(s)\n- https://example.com/story-two\n", "utf8");
+        const ideas = [
+          { id: "idea-01", status: "accepted", run: SQL_RUN, format: SQL_FORMAT, title: "Same Headline Twice", brief_path: brief1Path },
+          { id: "idea-02", status: "accepted", run: SQL_RUN, format: SQL_FORMAT, title: "Same Headline Twice", brief_path: brief2Path },
+        ];
+        await writeFile(ledgerPath, JSON.stringify({ ideas }), "utf8");
+
+        const first = await enqueueOnAccept("idea-01", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => NOW });
+        const second = await enqueueOnAccept("idea-02", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => "2026-08-18T12:00:00.000Z" });
+
+        assert.ok(first.sql, "idea-01's SQL sync ran");
+        assert.ok(second.sql, "idea-02's SQL sync ALSO ran — never silently skipped");
+        assert.notEqual(second.sql!.ideaId, first.sql!.ideaId, "two DIFFERENT ledger Ideas must never resolve to the same SQL row");
+        assert.equal(second.sql!.ideaCreated, true, "idea-02 gets its OWN new SQL Idea row");
+        assert.equal(second.sql!.jobs[0]!.synced, true, "idea-02's job is genuinely created, never silently dropped");
+        assert.equal(second.sql!.jobs[0]!.reason, "created");
+
+        const onDiskQueue = await loadQueue(queuePath);
+        assert.equal(onDiskQueue.jobs.length, 2, "the file queue also gained TWO distinct jobs");
+
+        const brandRowId = getBrandBySlug(db, BRAND)!.id;
+        assert.equal(listJobsForComposite(db, brandRowId, first.sql!.ideaId, RECIPE).length, 1);
+        assert.equal(listJobsForComposite(db, brandRowId, second.sql!.ideaId, RECIPE).length, 1);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
     });
   });
 });

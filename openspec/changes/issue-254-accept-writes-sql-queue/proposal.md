@@ -27,19 +27,39 @@ one queue, eventually; this ticket is **slice 1** — accept writes SQL through 
   one already exists for that `(brand, idea, recipe)` composite (`listJobsForComposite` — the SQL-side
   sibling of the file queue's own `hasJobFor`). Every write goes through `src/command-surface/` —
   `createIdea`, `recordReviewDecision`, `saveAsset`, `enqueueJob`, `createRun` — never a store directly.
-- **Idea identity is resolved by `(run_id, title)`, not a new schema column.** The `idea` table carries no
-  column correlating a SQL row back to the file ledger's own id (`"idea-05"`); this ticket deliberately
-  does not add one — `schema.ts`'s migration list is a shared, append-order file three other build slices
-  are concurrently landing changes near, and a title is a safe, sufficient natural key within one Run
-  (idea-strategist never repeats a headline). This is also what makes a re-accept of an Idea the one-shot
-  importer already carried safe without any backfill: the importer wrote a real `title` on every Idea it
-  created, so a later accept-flow call for the SAME ledger Idea finds the importer's own row by
-  `(run_id, title)` and reuses it, never duplicating it.
-- **Job-level idempotency uses `listJobsForComposite`, not `idempotency_key`'s own uniqueness.**
-  `job.idempotency_key` carries no `UNIQUE` constraint (unlike `schedule_outbox.idempotency_key`). This
-  ticket sets it anyway (`"<brand>::<legacy-idea-id>::<recipe>"`, the same `::`-joined shape the importer's
-  own `assetKey` uses) as recorded provenance, but the actual duplicate guard is checking
-  `listJobsForComposite` (already built by #203) before every `enqueueJob` call.
+- **Idea identity is resolved by `idea.legacy_ref` (migration 5), NOT `(run_id, title)`.** QA round-1
+  found that a title-based natural key silently MERGED two genuinely distinct accepted Ideas sharing an
+  identical title: the second Idea got no Idea row, no Asset row, no Job row of its own, and its own `job`
+  outcome read exactly like a legitimate "already queued" re-accept — the exact guard-blindness bug this
+  ticket exists to close, reproduced one layer inside the fix. Round 2 adds migration 5:
+  `idea.legacy_ref TEXT` (the file ledger's own Idea id, e.g. `"idea-05"` — already unique per Brand and
+  already carried everywhere in this system: `/log-post`, `/pick`, the whole attribution chain) plus a
+  partial `UNIQUE (brand_id, legacy_ref)` index enforced by SQLite itself. `syncAcceptToSql` now looks an
+  Idea up by `(brand_id, legacy_ref)` via `getIdeaByLegacyRef` (`src/idea/store.ts`) and stamps
+  `legacyRef: ideaId` on every row it creates; `src/importer/execute.ts` does the same with its own
+  `ideaPlan.legacyId`, so a re-accept of an importer-carried Idea still correlates correctly. Two Ideas
+  sharing a title now correctly get two SEPARATE Idea/Asset/Job rows; a genuine collision (the same
+  `legacy_ref` used twice for the same Brand) is impossible in normal operation and would hit a real, loud
+  `SQLITE_CONSTRAINT` error if it somehow occurred. **Known, documented residual limit:** an Idea imported
+  by the ORIGINAL one-shot importer run (2026-08-17, before migration 5 existed) carries no `legacy_ref` —
+  a later re-sync of that same ledger Idea will not find it and will create a second, duplicate row rather
+  than reusing the pre-migration one (never a silent MERGE, this ticket's own bar, but a real duplicate an
+  Operator would need to reconcile by hand). See `handoff.md`'s Known Limits.
+- **`SqlSyncJobOutcome` now carries `reason: "created" | "already-queued"`, not just `synced: boolean`.**
+  QA round-1 Defect 1 also named that `synced: false` meant both "already there" and "silently dropped" —
+  indistinguishable. `reason` makes that explicit; because identity is now `legacy_ref`, `"already-queued"`
+  can only ever mean a genuine re-sync of the SAME ledger Idea, never a second, distinct Idea silently
+  merged into the first.
+- **Job-level idempotency uses `listJobsForComposite` as the primary guard, now BACKSTOPPED by a real
+  UNIQUE index (migration 5, QA round-1 Defect 4).** `job.idempotency_key` carried no `UNIQUE` constraint
+  in round 1 (unlike `schedule_outbox.idempotency_key`), so the read-then-write sequence
+  (`listJobsForComposite` then `enqueueJob`) was safe within one process but not across two concurrent OS
+  processes racing the same accept. Migration 5 adds a partial `UNIQUE (job.idempotency_key) WHERE
+  idempotency_key IS NOT NULL` index — cheap (only `sql-sync.ts` ever sets this column, and only once per
+  composite by construction) and closes the race: a second, concurrent `enqueueJob` call for the same
+  composite now throws a real `SQLITE_CONSTRAINT` error instead of silently creating a duplicate `queued`
+  job. `idempotency_key` is still set (`"<brand>::<legacy-idea-id>::<recipe>"`, the same `::`-joined shape
+  the importer's own `assetKey` uses) as recorded provenance and, now, real enforcement too.
 - **`enqueueOnAccept` grows one optional `db` (+ `brandsRoot`) parameter.** Omitted (every existing
   caller), its behavior is byte-for-byte unchanged — `data/queue.json` is written exactly as before. When
   given, AFTER the file write already happened, it calls `syncAcceptToSql` for exactly the Recipes the file
@@ -59,10 +79,21 @@ one queue, eventually; this ticket is **slice 1** — accept writes SQL through 
 - **`.claude/commands/review-ideas.md` is updated** to open (`openDatabase`/`runMigrations`) and pass
   `data/organicgrowth.db` as `enqueueOnAccept`'s new `db` argument at Gate 1 — the change that actually
   makes the worker start seeing new work, and to surface a thrown SQL-sync error to the Operator verbatim
-  rather than reporting a bare "Enqueued" success.
-- **No attended behaviour changes.** `data/queue.json`'s shape, `/queue`/`/pick`/`/pick-cast`/
-  `/run-pipeline`, and every existing `enqueueOnAccept` caller (`run-pipeline.ts`'s stranded-idea recovery,
-  which does not pass `db` in this slice — a known, documented limit) are unaffected.
+  rather than reporting a bare "Enqueued" success. `src/recipe/review-docs.test.ts` now PINS this paragraph
+  (QA round-1 Defect 2) — the established pattern this file already uses for every other Gate-1 accept-flow
+  requirement — so its wording is provable by `npm test`, not merely hand-read.
+- **`run-pipeline.ts`'s stranded-idea recovery — the ONE real, compiled TypeScript caller of
+  `enqueueOnAccept` — now passes `db` BY DEFAULT (QA round-1 Defect 2).** Round 1 left this caller unwired,
+  meaning a real accept through real code never reached SQL at all — only a markdown paragraph an LLM agent
+  had to remember to follow did. `RunPipelineOptions` gains an optional `dbPath` (defaulting to
+  `data/organicgrowth.db` at runtime, the same file every other command opens; every test injects a
+  throwaway temp path). The resume branch now opens + migrates this database itself, before re-enqueueing
+  any stranded Idea, and passes it through; a SQL-only failure (the file queue write always happens first,
+  inside `enqueueOnAccept`, before the SQL attempt) is caught, surfaced to the Operator verbatim in that
+  turn's message, and does not abort re-enqueueing the REMAINING stranded Ideas.
+  `src/commands/run-pipeline.test.ts` adds a positive-path test that seeds a real Brand/Format row in a temp
+  SQLite file, resumes a stranded Idea, and asserts the SQL `job` table gains a real row — proven red
+  (fails without the `db` wiring) then green, not merely asserted.
 
 ## Capabilities
 
@@ -75,20 +106,33 @@ one queue, eventually; this ticket is **slice 1** — accept writes SQL through 
 
 - `production-queue`: `enqueueOnAccept` gains an optional `db` parameter that additively syncs newly-file-
   enqueued Recipes into SQL, never changing the existing file-write behavior.
+- `run-pipeline-conductor`: the resume/fresh Requirement's stranded-idea re-enqueue step (point 3) now
+  opens/migrates the local SQLite database BY DEFAULT and passes it to `enqueueOnAccept`, catching and
+  surfacing a per-Idea SQL failure without aborting the remaining stranded Ideas (QA round-1 Defect 2).
 
 ## Impact
 
 - **New code:** `src/production-queue/sql-sync.ts` (+`.test.ts`),
   `openspec/changes/issue-254-accept-writes-sql-queue/` (this change).
 - **Modified code:** `src/production-queue/enqueue-on-accept.ts` (+`.test.ts` additions),
-  `.claude/commands/review-ideas.md` (Gate 1's accept step passes `db`).
-- **No schema change.** Migrations 1-4 stay untouched; no migration 5 (deliberate — see "What Changes").
+  `.claude/commands/review-ideas.md` (Gate 1's accept step passes `db`),
+  `src/recipe/review-docs.test.ts` (pins that paragraph, Round 2),
+  `src/commands/run-pipeline.ts` (+`.test.ts` additions — the stranded-idea resume path passes `db` by
+  default, Round 2), `src/db/schema.ts` (+`.test.ts`, migration 5, Round 2), `src/db/migrate.test.ts`
+  (`CURRENT_SCHEMA_VERSION` bumped 4→5, Round 2), `src/idea/store.ts` (+`.test.ts` — `legacyRef` /
+  `getIdeaByLegacyRef`, Round 2), `src/importer/execute.ts` (stamps `legacyRef`, Round 2),
+  `src/production-queue/job-store.test.ts` (the `idempotency_key` UNIQUE-index proof, Round 2).
+- **Schema change (Round 2): migration 5.** Adds `idea.legacy_ref TEXT` plus a partial `UNIQUE (brand_id,
+  legacy_ref)` index, AND a partial `UNIQUE (job.idempotency_key)` index — purely additive
+  (`ALTER TABLE ... ADD COLUMN` / `CREATE INDEX`), touching no existing column, row, or constraint.
+  Migrations 1–4 stay byte-for-byte frozen. (Round 1 deliberately shipped with no schema change; QA round-1
+  Defects 1 and 4 are why Round 2 adds one — see "What Changes" and `handoff.md`'s Round-2 Build.)
 - **No new store-write-boundary allow-list entry.** Every SQL write this ticket performs
   (`createIdea`/`recordReviewDecision`/`saveAsset`/`enqueueJob`/`createRun`) is already registered in
   `src/store-write-boundary/scan.ts`'s `STORE_WRITE_FUNCTIONS`, and every one happens inside
   `src/command-surface/` (`syncAcceptToSql` itself reads directly from stores — `getBrandBySlug`,
-  `getFormatBySlug`, `getRunByKey`, `getIdea`, `listIdeasForRun`, `listJobsForComposite` — which the guard
-  is scoped to ignore by design, "writes only, never reads").
+  `getFormatBySlug`, `getRunByKey`, `getIdea`, `getIdeaByLegacyRef`, `listJobsForComposite` — which the
+  guard is scoped to ignore by design, "writes only, never reads").
 - **Hermetic, no live Magnific/Zoho/Apify call.** Every new test runs against a real, throwaway SQLite file
   (`db/test-support.ts`'s `withTempDb`, never `:memory:`); the "worker picks it up" proof drives
   `drainQueue`/`runOneJob` against the SAME Magnific fakes issue #208 already established

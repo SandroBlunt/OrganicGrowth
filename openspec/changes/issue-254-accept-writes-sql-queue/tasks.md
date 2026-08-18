@@ -94,3 +94,36 @@
   acceptance-criteria table, fakes/fixtures used (flagging the Magnific fake explicitly), self-review
   notes, and known limits (no Production Spec authoring at accept time; `run-pipeline.ts`'s stranded-idea
   recovery path not wired to `db` in this slice; `(run_id, title)` Idea-identity risk).
+
+## 6. Round 2 — QA round-1 defect fixes
+
+- [x] 6.1 **Defect 1 (CRITICAL — identity).** Add migration 5: `idea.legacy_ref TEXT` + a partial
+  `UNIQUE (brand_id, legacy_ref)` index; add `idea/store.ts`'s `getIdeaByLegacyRef` + `IdeaInput.legacyRef`;
+  switch `syncAcceptToSql`'s `findExistingIdea` from `(run_id, title)` to `(brand_id, legacy_ref)`; stamp
+  `legacyRef: ideaId` on every Idea it creates; stamp `legacyRef: ideaPlan.legacyId` in
+  `src/importer/execute.ts`. Add `SqlSyncJobOutcome.reason: "created" | "already-queued"`. Red→green test:
+  two ledger Ideas, same Run, identical title, different Briefs — prove each gets its own Idea/Asset/Job
+  row, at both the `syncAcceptToSql` layer and the real `enqueueOnAccept` entry point.
+- [x] 6.2 **Defect 2 (HIGH — the real caller).** Add `RunPipelineOptions.dbPath` (defaults to
+  `data/organicgrowth.db` at runtime; every test injects a temp path). `run-pipeline.ts`'s stranded-idea
+  resume branch now opens+migrates this database BY DEFAULT and passes it to `enqueueOnAccept`, catching a
+  per-Idea SQL failure without aborting the remaining stranded Ideas. Pin `.claude/commands/review-ideas.md`'s
+  "Also pass `db`" paragraph with a new `src/recipe/review-docs.test.ts` describe block. Prove red→green: a
+  new positive-path test fails without the `db` wiring (confirmed by temporarily reverting it) and passes
+  with it.
+- [x] 6.3 **Defect 3 (HIGH — judgement call).** Decide and state plainly in the Build Report: this is an
+  accepted, disclosed consequence of the staging (Option B, slice 1) — the deliverable is that accept-flow
+  rows land correctly in SQL; making the worker able to author a Production Spec is later work. Draft the
+  follow-up issue text (cannot `gh issue create` — read-only `gh issue view` only in this agent's grant);
+  flag for the Operator/orchestrator to file it.
+- [x] 6.4 **Defect 4 (MEDIUM — concurrency).** Add a partial `UNIQUE (job.idempotency_key)` index to
+  migration 5 — cheap (only `sql-sync.ts` ever sets this column), closes the cross-process double-enqueue
+  race at the schema level. Name the residual risk explicitly in Known Limits either way.
+- [x] 6.5 Update the OpenSpec spec deltas (`accept-sql-sync`, `production-queue` ADDED; `run-pipeline-
+  conductor` MODIFIED, heading matched verbatim to the live spec) to reflect the identity fix, the `reason`
+  field, the `job.idempotency_key` index, and the `run-pipeline.ts` default-`db` wiring. Re-run
+  `openspec validate issue-254-accept-writes-sql-queue --strict` and `openspec validate --all --strict`.
+- [x] 6.6 Re-run the full suite (`npm test`, `npm run test:docs`, `npm run build`,
+  `node --import tsx --test src/store-write-boundary/scan.test.ts src/fs-boundary/*.test.ts`) green. Append
+  a `Round-2 Build` block to `handoff.md` covering all four defects, the identity decision, the real-caller
+  proof, the Defect-3 judgement, and red→green transcripts.

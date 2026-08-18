@@ -27,6 +27,12 @@ import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
 import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
 import { loadQueue } from "../production-queue/store.ts";
 
+import { openDatabase } from "../db/connection.ts";
+import { runMigrations } from "../db/migrate.ts";
+import { createBrand, getBrandBySlug } from "../brand/store.ts";
+import { createFormat } from "../format/store.ts";
+import { findNextQueuedJob } from "../production-queue/job-store.ts";
+
 // ---------------------------------------------------------------------------
 // MAGNIFIC FAKE — injected in ALL tests; never the live Space
 // ---------------------------------------------------------------------------
@@ -87,6 +93,9 @@ interface BrandFixturePaths {
   brandsRoot: string;
   queuePath: string;
   brandDir: string;
+  /** A throwaway temp SQLite file (issue #254) — every test passes this as `dbPath`, so `resume`'s
+   *  stranded-idea re-enqueue NEVER opens/migrates the real, committed `data/organicgrowth.db`. */
+  dbPath: string;
 }
 
 /**
@@ -108,6 +117,7 @@ async function withBrandFixture(
   const brandsRoot = join(tmpRoot, "brands");
   const brandDir = join(brandsRoot, slug);
   const queuePath = join(tmpRoot, "queue.json");
+  const dbPath = join(tmpRoot, "organicgrowth.db");
 
   await mkdir(brandDir, { recursive: true });
 
@@ -128,17 +138,19 @@ async function withBrandFixture(
   );
 
   try {
-    await fn({ brandsRoot, queuePath, brandDir });
+    await fn({ brandsRoot, queuePath, brandDir, dbPath });
   } finally {
     await rm(tmpRoot, { recursive: true, force: true });
   }
 }
 
-/** Healthy test options — MAGNIFIC FAKE + APIFY FAKE always injected. */
+/** Healthy test options — MAGNIFIC FAKE + APIFY FAKE always injected. `dbPath` is ALWAYS a throwaway
+ *  temp file (issue #254) — never the real, committed `data/organicgrowth.db`. */
 function healthyOptions(paths: BrandFixturePaths, extra: Partial<RunPipelineOptions> = {}): RunPipelineOptions {
   return {
     brandsRoot: paths.brandsRoot,
     queuePath: paths.queuePath,
+    dbPath: paths.dbPath,
     now: () => "2026-06-06T10:00:00.000Z",
     nowDate: () => new Date("2026-06-01T00:00:00.000Z"), // 2026-W23
     magnific: makeMagniticFake(),   // MAGNIFIC FAKE
@@ -412,6 +424,111 @@ describe("runPipelineCommand — AC4: In-flight work detection", () => {
       const enqueued = q.jobs.filter((j) => j.idea_id === "stranded-idea-01");
       assert.equal(enqueued.length, 1, "Stranded Idea must be re-enqueued on resume");
       assert.equal(enqueued[0]!.brand, "testbrand", "Re-enqueued job must carry the Brand slug");
+    });
+  });
+
+  it("resume ALSO writes to SQL by default — the REAL production code path, never depending on a markdown paragraph being followed (issue #254 Defect 2)", async () => {
+    const RUN_KEY = "2026-W23";
+    const FORMAT_SLUG = "unhypped-news";
+
+    await withBrandFixture({}, async (paths) => {
+      // Seed the temp SQLite db (never the real, committed data/organicgrowth.db — paths.dbPath is a
+      // throwaway temp file) with the Brand + Format rows the SQL sync needs to resolve.
+      const seedDb = await openDatabase(paths.dbPath);
+      runMigrations(seedDb);
+      const brandId = createBrand(seedDb, { slug: "testbrand", name: "Test Brand", timezone: "UTC", mediaRoot: "data/brands/testbrand" });
+      createFormat(seedDb, { brandId, slug: FORMAT_SLUG, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+      seedDb.close();
+
+      // Overwrite the fixture's default empty ledger with a fuller Idea (run/format/title/brief_path)
+      // the SQL sync needs, and write the Brief file it points at.
+      const briefPath = join(paths.brandDir, "stranded-idea-01.md");
+      await writeFile(briefPath, "# A stranded headline\n\n## Source(s)\n- https://example.com/source\n", "utf8");
+      const ledger = JSON.stringify({
+        ideas: [
+          { id: "stranded-idea-01", status: "accepted", run: RUN_KEY, format: FORMAT_SLUG, title: "A stranded headline", brief_path: briefPath },
+        ],
+        baseline: { updated_at: null },
+      });
+      await writeFile(join(paths.brandDir, "ledger.json"), ledger, "utf8");
+
+      await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          if (/resume or fresh/i.test(prompt)) return "resume";
+          return "";
+        },
+      });
+
+      // The file queue still gains the job — unchanged behavior (AC4 of this ticket).
+      const q = await loadQueue(paths.queuePath);
+      assert.equal(q.jobs.filter((j) => j.idea_id === "stranded-idea-01").length, 1, "the file queue still gains the job");
+
+      // AND the SQL job table ALSO gains a row — the real, compiled code path reaches SQL by default,
+      // never depending on an agent reading `.claude/commands/review-ideas.md`'s own paragraph.
+      const verifyDb = await openDatabase(paths.dbPath);
+      try {
+        const job = findNextQueuedJob(verifyDb);
+        assert.ok(job !== null, "resume's re-enqueue must have written a real SQL job row, not just the file queue");
+        assert.equal(job!.brandId, getBrandBySlug(verifyDb, "testbrand")!.id);
+        assert.equal(job!.gate, "cast", "DEFAULT_ASSET_RECIPE (character-explainer-with-cast)'s one declared gate");
+      } finally {
+        verifyDb.close();
+      }
+    });
+  });
+
+  it("a per-Idea SQL sync failure during resume is surfaced plainly and does NOT abort the remaining stranded Ideas (issue #254 Defect 2)", async () => {
+    const RUN_KEY = "2026-W23";
+    const FORMAT_SLUG = "unhypped-news";
+
+    await withBrandFixture({}, async (paths) => {
+      const seedDb = await openDatabase(paths.dbPath);
+      runMigrations(seedDb);
+      const brandId = createBrand(seedDb, { slug: "testbrand", name: "Test Brand", timezone: "UTC", mediaRoot: "data/brands/testbrand" });
+      createFormat(seedDb, { brandId, slug: FORMAT_SLUG, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+      seedDb.close();
+
+      const briefPath = join(paths.brandDir, "stranded-idea-02.md");
+      await writeFile(briefPath, "# A second stranded headline\n\n## Source(s)\n- https://example.com/source-two\n", "utf8");
+      const ledger = JSON.stringify({
+        ideas: [
+          // idea-01 carries no "run" at all — its SQL sync will throw ("carries no \"run\"").
+          { id: "stranded-idea-01", status: "accepted" },
+          // idea-02 is fully resolvable — its SQL sync must still succeed, unaffected by idea-01's failure.
+          { id: "stranded-idea-02", status: "accepted", run: RUN_KEY, format: FORMAT_SLUG, title: "A second stranded headline", brief_path: briefPath },
+        ],
+        baseline: { updated_at: null },
+      });
+      await writeFile(join(paths.brandDir, "ledger.json"), ledger, "utf8");
+
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        getInput: async (prompt) => {
+          if (/resume or fresh/i.test(prompt)) return "resume";
+          return "";
+        },
+      });
+      const out = allMessages(turns);
+
+      // Both Ideas land in the FILE queue — one Idea's SQL failure never blocks the file write for
+      // EITHER Idea (the file write always happens first, inside enqueueOnAccept, for both).
+      const q = await loadQueue(paths.queuePath);
+      assert.equal(q.jobs.filter((j) => j.idea_id === "stranded-idea-01").length, 1);
+      assert.equal(q.jobs.filter((j) => j.idea_id === "stranded-idea-02").length, 1);
+
+      // idea-01's SQL failure is surfaced verbatim, naming the Idea and the problem.
+      assert.match(out, /stranded-idea-01/);
+      assert.match(out, /carries no "run"/);
+
+      // idea-02's SQL sync still completed — ONE Idea's SQL failure never blocks another's.
+      const verifyDb = await openDatabase(paths.dbPath);
+      try {
+        const job = findNextQueuedJob(verifyDb);
+        assert.ok(job !== null, "idea-02's SQL sync must have succeeded despite idea-01's failure");
+      } finally {
+        verifyDb.close();
+      }
     });
   });
 
