@@ -22,6 +22,9 @@ import { THEMES, type Theme } from "../vocabulary/theme.ts";
 import {
   createIdea,
   getIdea,
+  getIdeaByLegacyRef,
+  listUnclaimedIdeasForRunByTitle,
+  claimLegacyRef,
   listIdeasForRun,
   listAllIdeas,
   listIdeasByHookType,
@@ -104,10 +107,11 @@ describe("createIdea — inserts one idea row, always at status: 'suggested' (is
       assert.equal("momentum" in idea, false);
       assert.equal("brandFit" in idea, false);
       assert.equal("rejectionReason" in idea, false);
+      assert.equal("legacyRef" in idea, false);
     });
   });
 
-  it("stores every optional field when given, including a real trendId", async () => {
+  it("stores every optional field when given, including a real trendId and legacyRef", async () => {
     await withTempDb(async (db) => {
       runMigrations(db);
       const fixture = seedRun(db);
@@ -126,6 +130,7 @@ describe("createIdea — inserts one idea row, always at status: 'suggested' (is
         relevance: 0.7,
         momentum: 0.9,
         brandFit: 0.6,
+        legacyRef: "idea-05",
       });
       const idea = getIdea(db, id) as IdeaRecord;
       assert.equal(idea.trendId, trendId);
@@ -134,6 +139,7 @@ describe("createIdea — inserts one idea row, always at status: 'suggested' (is
       assert.equal(idea.relevance, 0.7);
       assert.equal(idea.momentum, 0.9);
       assert.equal(idea.brandFit, 0.6);
+      assert.equal(idea.legacyRef, "idea-05");
     });
   });
 
@@ -491,6 +497,242 @@ describe("getIdea / listIdeasForRun — null-for-unknown, [] for none, never thr
       const idB = seedIdea(db, fixture);
       const ideas = listIdeasForRun(db, fixture.runId);
       assert.deepEqual(ideas.map((i) => i.id), [idA, idB]);
+    });
+  });
+});
+
+describe("getIdeaByLegacyRef — the real, per-Brand-unique identity the accept-flow SQL sync keys on (migration 5, issue #254)", () => {
+  it("returns null when no Idea in this Brand carries that legacyRef", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      seedIdea(db, fixture); // carries no legacyRef
+      assert.equal(getIdeaByLegacyRef(db, fixture.brandId, "idea-01"), null);
+    });
+  });
+
+  it("finds the Idea by (brandId, legacyRef)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const id = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "A real headline",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        legacyRef: "idea-01",
+      });
+      const found = getIdeaByLegacyRef(db, fixture.brandId, "idea-01");
+      assert.equal(found?.id, id);
+      assert.equal(found?.legacyRef, "idea-01");
+    });
+  });
+
+  it("TWO DIFFERENT accepted Ideas sharing an IDENTICAL title never collide — each keeps its own row (QA round-1 Defect 1)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const firstId = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "Same Headline Twice",
+        brief: "The first, real story.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        legacyRef: "idea-01",
+      });
+      const secondId = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "Same Headline Twice",
+        brief: "The second, DIFFERENT real story.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        legacyRef: "idea-02",
+      });
+      assert.notEqual(firstId, secondId, "two distinct legacyRefs must never resolve to one row");
+      assert.equal(getIdeaByLegacyRef(db, fixture.brandId, "idea-01")?.id, firstId);
+      assert.equal(getIdeaByLegacyRef(db, fixture.brandId, "idea-02")?.id, secondId);
+      assert.equal(listIdeasForRun(db, fixture.runId).length, 2, "both Ideas keep their own row");
+    });
+  });
+
+  it("scopes by Brand — two DIFFERENT Brands may legitimately reuse the same legacyRef without colliding", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixtureA = seedRun(db);
+      const fixtureB = seedRun(db);
+      const idA = createIdea(db, {
+        runId: fixtureA.runId,
+        brandId: fixtureA.brandId,
+        formatId: fixtureA.formatId,
+        title: "Brand A's first idea",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        legacyRef: "idea-01",
+      });
+      const idB = createIdea(db, {
+        runId: fixtureB.runId,
+        brandId: fixtureB.brandId,
+        formatId: fixtureB.formatId,
+        title: "Brand B's first idea",
+        brief: "A different brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        legacyRef: "idea-01",
+      });
+      assert.equal(getIdeaByLegacyRef(db, fixtureA.brandId, "idea-01")?.id, idA);
+      assert.equal(getIdeaByLegacyRef(db, fixtureB.brandId, "idea-01")?.id, idB);
+    });
+  });
+
+  it("multiple Ideas with NO legacyRef coexist fine — the UNIQUE index is partial (NULL never compared)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      seedIdea(db, fixture);
+      seedIdea(db, fixture);
+      // No throw — proves the partial index (`WHERE legacy_ref IS NOT NULL`) never compares NULLs.
+      assert.equal(listIdeasForRun(db, fixture.runId).length, 2);
+    });
+  });
+
+  it("the schema itself is the backstop: a SECOND Idea with the SAME (brand, legacyRef) throws loudly, never silently succeeds", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "First",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        legacyRef: "idea-01",
+      });
+      assert.throws(() =>
+        createIdea(db, {
+          runId: fixture.runId,
+          brandId: fixture.brandId,
+          formatId: fixture.formatId,
+          title: "A different title, same legacyRef", // even a different title never bypasses the guard
+          brief: "A different brief.",
+          hookType: VALID_HOOK_TYPE,
+          theme: VALID_THEME,
+          legacyRef: "idea-01",
+        }),
+      );
+    });
+  });
+});
+
+describe("listUnclaimedIdeasForRunByTitle / claimLegacyRef — the pre-migration-5 fallback (Round 3, Defect A, issue #254)", () => {
+  it("returns [] when no Idea in this Run has that title", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      seedIdea(db, fixture);
+      assert.deepEqual(listUnclaimedIdeasForRunByTitle(db, fixture.runId, "No such title"), []);
+    });
+  });
+
+  it("finds a pre-migration-5 row (no legacy_ref) by (run_id, title)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const id = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "A real headline",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        // No legacyRef — exactly what every row imported before migration 5 looks like.
+      });
+      const matches = listUnclaimedIdeasForRunByTitle(db, fixture.runId, "A real headline");
+      assert.equal(matches.length, 1);
+      assert.equal(matches[0]!.id, id);
+    });
+  });
+
+  it("never matches a row that ALREADY carries a legacy_ref — an already-reconciled row is never re-adopted", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "A real headline",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        legacyRef: "idea-01", // already reconciled
+      });
+      assert.deepEqual(listUnclaimedIdeasForRunByTitle(db, fixture.runId, "A real headline"), []);
+    });
+  });
+
+  it("returns MULTIPLE matches when two or more unclaimed rows share a title — the caller decides this is ambiguous", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      createIdea(db, { runId: fixture.runId, brandId: fixture.brandId, formatId: fixture.formatId, title: "Same title", brief: "First.", hookType: VALID_HOOK_TYPE, theme: VALID_THEME });
+      createIdea(db, { runId: fixture.runId, brandId: fixture.brandId, formatId: fixture.formatId, title: "Same title", brief: "Second.", hookType: VALID_HOOK_TYPE, theme: VALID_THEME });
+      assert.equal(listUnclaimedIdeasForRunByTitle(db, fixture.runId, "Same title").length, 2);
+    });
+  });
+
+  it("claimLegacyRef stamps legacyRef onto an unclaimed row, in place", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const id = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "A real headline",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+      });
+      claimLegacyRef(db, id, "idea-01");
+      assert.equal(getIdea(db, id)!.legacyRef, "idea-01");
+      assert.equal(getIdeaByLegacyRef(db, fixture.brandId, "idea-01")?.id, id, "the fast path now finds it directly");
+    });
+  });
+
+  it("claimLegacyRef throws for an unknown Idea id — never silently no-ops", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      assert.throws(() => claimLegacyRef(db, "no-such-id", "idea-01"), /not found, or already carries a legacy_ref/);
+    });
+  });
+
+  it("claimLegacyRef throws when the row ALREADY carries a legacy_ref — refuses to overwrite an existing identity claim", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const fixture = seedRun(db);
+      const id = createIdea(db, {
+        runId: fixture.runId,
+        brandId: fixture.brandId,
+        formatId: fixture.formatId,
+        title: "A real headline",
+        brief: "A brief.",
+        hookType: VALID_HOOK_TYPE,
+        theme: VALID_THEME,
+        legacyRef: "idea-01",
+      });
+      assert.throws(() => claimLegacyRef(db, id, "idea-02"), /not found, or already carries a legacy_ref/);
+      assert.equal(getIdea(db, id)!.legacyRef, "idea-01", "the original claim is left untouched");
     });
   });
 });

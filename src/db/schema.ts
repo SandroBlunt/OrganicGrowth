@@ -537,11 +537,57 @@ ALTER TABLE idea ADD COLUMN theme_source TEXT CHECK (theme_source IS NULL OR the
 `,
 };
 
+/**
+ * Migration 5 (issue #254, QA round-1 Defect 1): adds `idea.legacy_ref` — the file ledger's own Idea id
+ * (e.g. `"idea-05"`, `"idea-2026-W32-10"`), the ONE stable identifier already unique per Brand and
+ * already carried everywhere in this system (`/log-post`, `/pick`, the whole attribution chain). Before
+ * this migration, nothing correlated a SQL `idea` row back to the file ledger's own id at all — the
+ * accept-flow's SQL sync (`src/production-queue/sql-sync.ts`) resolved identity by `(run_id, title)`
+ * instead, which silently merged two DIFFERENT accepted Ideas that happened to share an identical title:
+ * the second Idea got no Idea row, no Asset row, no Job row of its own, and its own `job` outcome read
+ * exactly like a legitimate "already queued" re-accept — indistinguishable from success. `legacy_ref` is
+ * nullable (an importer-imported Idea from BEFORE this migration, or an Idea created by a path that never
+ * supplies one, legitimately carries no ledger id of its own kind) — never a fabricated value standing in
+ * for "unknown". The partial UNIQUE index below is enforced by SQLite ITSELF, not merely by application
+ * code checking first: even if a future caller bypassed `findExistingIdea`'s own lookup (a bug, a race,
+ * anything), a genuine attempt to create two DIFFERENT `idea` rows sharing the same `(brand_id,
+ * legacy_ref)` throws a real, loud `SQLITE_CONSTRAINT` error rather than silently succeeding twice — the
+ * "a genuine collision must be loud" half of this ticket's own repair, backstopped at the schema level,
+ * not only the application level. Purely additive: `ALTER TABLE ... ADD COLUMN` plus two new indexes,
+ * touching no existing column, row, or constraint — migrations 1–4 stay byte-for-byte frozen.
+ *
+ * This migration ALSO adds a UNIQUE index on `job.idempotency_key` (QA round-1 Defect 4): the read
+ * (`listJobsForComposite`) then write (`enqueueJob`) sequence `syncAcceptToSql` uses to guard against a
+ * double-enqueued job is safe within one Node process (no `await` between the two, so nothing can
+ * interleave) but NOT across two separate OS processes both holding the same SQLite file open (e.g. two
+ * concurrent `/review-ideas` sessions accepting the same Idea — a real usage pattern this repo's own
+ * memory notes confirm happens). `idempotency_key` is set ONLY by `sql-sync.ts`, always in the same
+ * deterministic `"<brand>::<legacy-idea-id>::<recipe>"` shape, and only ever once per composite by
+ * construction (the application-level guard already prevents a second `enqueueJob` call for the same
+ * composite in the SAME process) — so this index changes nothing about normal, single-process behavior;
+ * it is cheap insurance, not a new business rule. Partial (`WHERE idempotency_key IS NOT NULL`), so it
+ * never constrains the importer's own jobs, which carry no `idempotency_key` at all
+ * (`src/importer/execute.ts`'s `executeJob` never sets one). With this index, the exact race Defect 4
+ * named can no longer silently double-enqueue: the SECOND process's `enqueueJob` call now throws a real
+ * `SQLITE_CONSTRAINT` error instead of quietly creating a second `queued` job for the same Asset — loud
+ * failure over a silent duplicate, the same trade this migration already makes for `idea.legacy_ref`.
+ */
+const MIGRATION_5: Migration = {
+  version: 5,
+  description:
+    "Adds idea.legacy_ref (the accept-flow SQL sync's real per-Brand identity) and a UNIQUE index on job.idempotency_key (a cross-process double-enqueue backstop).",
+  sql: `
+ALTER TABLE idea ADD COLUMN legacy_ref TEXT;
+CREATE UNIQUE INDEX idx_idea_legacy_ref_per_brand ON idea(brand_id, legacy_ref) WHERE legacy_ref IS NOT NULL;
+CREATE UNIQUE INDEX idx_job_idempotency_key ON job(idempotency_key) WHERE idempotency_key IS NOT NULL;
+`,
+};
+
 /** Every migration, in ascending version order. A future schema change (a new table, a widened
  *  vocabulary, a relaxed constraint) is a NEW entry appended here, never an edit to an already-shipped
- *  migration's SQL — migration 2 (issue #219), migration 3 (issue #209), and migration 4 (issue #206)
- *  are all cases of this rule actually being exercised. */
-export const MIGRATIONS: readonly Migration[] = [MIGRATION_1, MIGRATION_2, MIGRATION_3, MIGRATION_4];
+ *  migration's SQL — migration 2 (issue #219), migration 3 (issue #209), migration 4 (issue #206), and
+ *  migration 5 (issue #254) are all cases of this rule actually being exercised. */
+export const MIGRATIONS: readonly Migration[] = [MIGRATION_1, MIGRATION_2, MIGRATION_3, MIGRATION_4, MIGRATION_5];
 
 /** The schema version a freshly migrated database ends up at — the highest version in `MIGRATIONS`. */
 export const CURRENT_SCHEMA_VERSION: number = Math.max(...MIGRATIONS.map((m) => m.version));

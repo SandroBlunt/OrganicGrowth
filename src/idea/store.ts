@@ -181,6 +181,11 @@ export interface IdeaInput {
   readonly relevance?: number;
   readonly momentum?: number;
   readonly brandFit?: number;
+  /** The file ledger's own Idea id (e.g. `"idea-05"`), when this Idea correlates to one (migration 5,
+   *  issue #254) — the real, per-Brand-unique identity `getIdeaByLegacyRef` looks up by. Omitted for an
+   *  Idea created with no ledger correlate. Enforced UNIQUE per `brandId` by the schema itself (a partial
+   *  index — `NULL` values are never compared), so two DIFFERENT `idea` rows can never silently share one. */
+  readonly legacyRef?: string;
 }
 
 /** One `idea` row, fully typed. */
@@ -207,6 +212,9 @@ export interface IdeaRecord {
   readonly hookTypeSource?: ClassificationSource;
   /** The `theme` sibling of `hookTypeSource` above — independently present/absent. */
   readonly themeSource?: ClassificationSource;
+  /** The file ledger's own Idea id this row correlates to (migration 5, issue #254) — absent (never a
+   *  fabricated value) for an Idea created with no ledger correlate. */
+  readonly legacyRef?: string;
   readonly sourceUrls: readonly string[];
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -230,6 +238,7 @@ interface IdeaRow {
   readonly theme: string;
   readonly hook_type_source: string | null;
   readonly theme_source: string | null;
+  readonly legacy_ref: string | null;
   readonly source_urls_json: string;
   readonly created_at: string;
   readonly updated_at: string;
@@ -254,6 +263,7 @@ function toIdeaRecord(row: IdeaRow): IdeaRecord {
     theme: row.theme as Theme,
     ...(row.hook_type_source !== null ? { hookTypeSource: row.hook_type_source as ClassificationSource } : {}),
     ...(row.theme_source !== null ? { themeSource: row.theme_source as ClassificationSource } : {}),
+    ...(row.legacy_ref !== null ? { legacyRef: row.legacy_ref } : {}),
     sourceUrls: JSON.parse(row.source_urls_json) as string[],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -284,8 +294,8 @@ export function createIdea(
   db.prepare(
     `INSERT INTO idea
        (id, run_id, brand_id, format_id, trend_id, title, brief, status, fit_score, relevance, momentum,
-        brand_fit, hook_type, theme, source_urls_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'suggested', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        brand_fit, hook_type, theme, legacy_ref, source_urls_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'suggested', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.runId,
@@ -300,6 +310,7 @@ export function createIdea(
     input.brandFit ?? null,
     input.hookType,
     input.theme,
+    input.legacyRef ?? null,
     JSON.stringify(input.sourceUrls ?? []),
     timestamp,
     timestamp,
@@ -323,6 +334,67 @@ export function listIdeasForRun(db: DatabaseSync, runId: string): readonly IdeaR
     .prepare(`SELECT * FROM idea WHERE run_id = ? ORDER BY created_at ASC`)
     .all(runId) as unknown as IdeaRow[];
   return rows.map(toIdeaRecord);
+}
+
+/**
+ * Looks up an Idea by its real, per-Brand-unique identity (migration 5, issue #254): the file ledger's
+ * own Idea id, scoped to `brandId` (never globally — two DIFFERENT Brands may legitimately reuse the
+ * same ledger-style id, e.g. both minting `"idea-01"` for their own first Run). Returns `null` when no
+ * Idea in this Brand carries `legacyRef` — never throws. This is the SAME correlating key
+ * `src/production-queue/sql-sync.ts`'s accept-flow sync now resolves identity by, replacing the earlier
+ * `(run_id, title)` natural key that silently merged two genuinely distinct Ideas sharing one title.
+ */
+export function getIdeaByLegacyRef(db: DatabaseSync, brandId: string, legacyRef: string): IdeaRecord | null {
+  const row = db
+    .prepare(`SELECT * FROM idea WHERE brand_id = ? AND legacy_ref = ?`)
+    .get(brandId, legacyRef) as unknown as IdeaRow | undefined;
+  return row ? toIdeaRecord(row) : null;
+}
+
+/**
+ * Every Idea in `runId` sharing `title` EXACTLY that carries NO `legacy_ref` yet (`legacy_ref IS NULL`)
+ * — the reconciliation candidate pool for `syncAcceptToSql`'s legacy-identity FALLBACK (issue #254 Round
+ * 3, Defect A). `getIdeaByLegacyRef` above is the PRIMARY lookup; it returns `null` for any Idea imported
+ * by the ORIGINAL one-shot importer run (2026-08-17), which predates migration 5 and so carries no
+ * `legacy_ref` at all. This is the SAME `(run_id, title)` natural key Round 1 used as its own primary
+ * lookup, now used ONLY as a narrow, bounded fallback — scoped to unclaimed rows (`legacy_ref IS NULL`)
+ * so an already-reconciled row (one some OTHER ledger Idea already adopted) can never be matched a
+ * second time. `[]` when none match (or the Run has no Ideas at all). Ordered by `created_at` for a
+ * deterministic, testable order — a caller MUST still treat 2+ results as genuinely ambiguous (refuse
+ * loudly, `sql-sync.ts`'s own doc comment) rather than picking the first.
+ */
+export function listUnclaimedIdeasForRunByTitle(db: DatabaseSync, runId: string, title: string): readonly IdeaRecord[] {
+  const rows = db
+    .prepare(`SELECT * FROM idea WHERE run_id = ? AND title = ? AND legacy_ref IS NULL ORDER BY created_at ASC`)
+    .all(runId, title) as unknown as IdeaRow[];
+  return rows.map(toIdeaRecord);
+}
+
+/**
+ * Stamps `legacyRef` onto an EXISTING Idea row that currently carries none — the one-time reconciliation
+ * write for a pre-migration-5 imported row (issue #254 Round 3, Defect A). Once a caller has found
+ * EXACTLY ONE unclaimed same-title candidate via `listUnclaimedIdeasForRunByTitle`, this claims it,
+ * atomically (`UPDATE ... WHERE legacy_ref IS NULL`, so a genuinely concurrent second claim attempt for
+ * the SAME row throws rather than silently overwriting the first one's claim) — every SUBSEQUENT sync of
+ * the SAME ledger Idea then takes the fast `getIdeaByLegacyRef` path. Throws, naming `id`, when the row
+ * does not exist OR already carries a `legacy_ref` — this function is only ever called immediately after
+ * a fresh read confirmed the row was unclaimed, so either case is a caller bug (or a lost race) worth
+ * surfacing loudly, never silently ignoring.
+ */
+export function claimLegacyRef(
+  db: DatabaseSync,
+  id: string,
+  legacyRef: string,
+  now: () => string = () => new Date().toISOString(),
+): void {
+  const result = db
+    .prepare(`UPDATE idea SET legacy_ref = ?, updated_at = ? WHERE id = ? AND legacy_ref IS NULL`)
+    .run(legacyRef, now(), id);
+  if (result.changes === 0) {
+    throw new Error(
+      `claimLegacyRef: Idea "${id}" not found, or already carries a legacy_ref — refusing to overwrite an existing identity claim.`,
+    );
+  }
 }
 
 /** Every Idea in the database, across EVERY Run/Brand/Format, in creation order — `[]` for an empty

@@ -8,6 +8,17 @@ import { loadQueue } from "./store.ts";
 import { planEnqueue, enqueueOnAccept } from "./enqueue-on-accept.ts";
 import type { LedgerIdea } from "../ledger/ledger.ts";
 
+import { runMigrations } from "../db/migrate.ts";
+import { withTempDb } from "../db/test-support.ts";
+import { createBrand, getBrandBySlug } from "../brand/store.ts";
+import { createFormat } from "../format/store.ts";
+import { listJobsForComposite } from "./job-store.ts";
+import { getIdea, listIdeasForRun } from "../idea/store.ts";
+import { createIdea as createIdeaRow } from "../command-surface/index.ts";
+import { createRun as createRunRow } from "../run/store.ts";
+import { UNCLASSIFIED_HOOK_TYPE } from "../vocabulary/hook-type.ts";
+import { UNCLASSIFIED_THEME } from "../vocabulary/theme.ts";
+
 const NOW = "2026-06-05T13:00:00.000Z";
 const BRAND = "mundotip";
 const BRAND_B = "otherbrand";
@@ -201,6 +212,192 @@ describe("enqueueOnAccept (orchestration shell, real files)", () => {
       assert.equal(r.enqueued, false);
       const onDisk = await loadQueue(queuePath);
       assert.deepEqual(onDisk, emptyQueue());
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enqueueOnAccept — OPTIONAL SQL sync (issue #254)
+// ---------------------------------------------------------------------------
+
+const SQL_FORMAT = "unhypped-news";
+const SQL_RUN = "2026-W33";
+
+/** A fuller ledger fixture — the SQL sync needs `run`/`format`/`title`/`brief_path`, which the plain
+ *  `withTempFiles` fixture above deliberately omits (it only exercises the file-queue policy). Writes a
+ *  real Brief file alongside the ledger so `syncAcceptToSql`'s Brief lookup succeeds. */
+async function withSqlFixture<T>(fn: (ledgerPath: string, queuePath: string) => Promise<T>): Promise<T> {
+  const dir = await mkdtemp(join(tmpdir(), "og-accept-sql-"));
+  const ledgerPath = join(dir, "ledger.json");
+  const queuePath = join(dir, "queue.json");
+  const briefPath = join(dir, "idea-01.md");
+  await writeFile(briefPath, "# A headline\n\n## Source(s)\n- https://example.com/source\n", "utf8");
+  const idea = {
+    id: "idea-accepted",
+    status: "accepted",
+    run: SQL_RUN,
+    format: SQL_FORMAT,
+    title: "A headline",
+    brief_path: briefPath,
+  };
+  await writeFile(ledgerPath, JSON.stringify({ ideas: [idea] }), "utf8");
+  try {
+    return await fn(ledgerPath, queuePath);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+describe("enqueueOnAccept — OPTIONAL SQL sync (issue #254)", () => {
+  it("omitting options.db leaves behavior byte-for-byte unchanged (no SQL touched)", async () => {
+    await withTempFiles(async (ledgerPath, queuePath) => {
+      const r = await enqueueOnAccept("idea-accepted", BRAND, [RECIPE], { ledgerPath, queuePath, now: () => NOW });
+      assert.equal(r.enqueued, true);
+      assert.equal(r.sql, undefined, "no db was given, so no sql field is present");
+    });
+  });
+
+  it("with options.db, the file queue is written EXACTLY as before AND the SQL job table gains the same job", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const brandId = createBrand(db, { slug: BRAND, name: "Straw Motion", timezone: "UTC", mediaRoot: "data/brands/straw-motion" });
+      createFormat(db, { brandId, slug: SQL_FORMAT, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+
+      await withSqlFixture(async (ledgerPath, queuePath) => {
+        const r = await enqueueOnAccept("idea-accepted", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => NOW });
+
+        assert.equal(r.enqueued, true);
+        const onDisk = await loadQueue(queuePath);
+        assert.equal(onDisk.jobs.length, 1, "the file queue is written exactly as before this ticket");
+        assert.equal(onDisk.jobs[0]!.recipe, RECIPE);
+
+        assert.ok(r.sql, "the SQL sync outcome is reported");
+        assert.equal(r.sql!.jobs.length, 1);
+        assert.equal(r.sql!.jobs[0]!.synced, true);
+        assert.equal(r.sql!.jobs[0]!.reason, "created");
+
+        const jobs = listJobsForComposite(db, getBrandBySlug(db, BRAND)!.id, r.sql!.ideaId, RECIPE);
+        assert.equal(jobs.length, 1, "the SQL job table gained exactly the expected row");
+        assert.equal(jobs[0]!.status, "queued");
+      });
+    });
+  });
+
+  it("a re-accept (already-queued in the file) touches SQL for nothing — no sql field at all", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const brandId = createBrand(db, { slug: BRAND, name: "Straw Motion", timezone: "UTC", mediaRoot: "data/brands/straw-motion" });
+      createFormat(db, { brandId, slug: SQL_FORMAT, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+
+      await withSqlFixture(async (ledgerPath, queuePath) => {
+        await enqueueOnAccept("idea-accepted", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => NOW });
+        const second = await enqueueOnAccept("idea-accepted", BRAND, [RECIPE], {
+          ledgerPath,
+          queuePath,
+          db,
+          now: () => "2026-08-18T12:00:00.000Z",
+        });
+        assert.equal(second.enqueued, false);
+        assert.equal(second.sql, undefined, "nothing newly enqueued in the file queue, so SQL is never touched again");
+      });
+    });
+  });
+
+  it("a SQL failure is LOUD: it throws, but only AFTER the file queue was already saved (never silent, never blocks the file write)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      // Deliberately no createBrand/createFormat — the SQL sync WILL fail.
+
+      await withSqlFixture(async (ledgerPath, queuePath) => {
+        await assert.rejects(
+          () => enqueueOnAccept("idea-accepted", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => NOW }),
+          /no Brand row for slug "mundotip"/,
+        );
+
+        // The file queue was written BEFORE the SQL attempt — a SQL problem never blocks the attended,
+        // file-based pipeline this ticket promises not to change.
+        const onDisk = await loadQueue(queuePath);
+        assert.equal(onDisk.jobs.length, 1, "the file queue still gained its job despite the SQL failure");
+        assert.equal(onDisk.jobs[0]!.recipe, RECIPE);
+      });
+    });
+  });
+
+  it("QA round-1 Defect 1, reproduced at the REAL entry point: two DIFFERENT accepted Ideas sharing an IDENTICAL title each get their own SQL Idea/Job — never silently merged", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const brandId = createBrand(db, { slug: BRAND, name: "Mundotip", timezone: "UTC", mediaRoot: "data/brands/mundotip" });
+      createFormat(db, { brandId, slug: SQL_FORMAT, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+
+      const dir = await mkdtemp(join(tmpdir(), "og-accept-sql-collision-"));
+      const ledgerPath = join(dir, "ledger.json");
+      const queuePath = join(dir, "queue.json");
+      const brief1Path = join(dir, "idea-01.md");
+      const brief2Path = join(dir, "idea-02.md");
+      try {
+        await writeFile(brief1Path, "# Same Headline Twice\n\n## Source(s)\n- https://example.com/story-one\n", "utf8");
+        await writeFile(brief2Path, "# Same Headline Twice\n\n## Source(s)\n- https://example.com/story-two\n", "utf8");
+        const ideas = [
+          { id: "idea-01", status: "accepted", run: SQL_RUN, format: SQL_FORMAT, title: "Same Headline Twice", brief_path: brief1Path },
+          { id: "idea-02", status: "accepted", run: SQL_RUN, format: SQL_FORMAT, title: "Same Headline Twice", brief_path: brief2Path },
+        ];
+        await writeFile(ledgerPath, JSON.stringify({ ideas }), "utf8");
+
+        const first = await enqueueOnAccept("idea-01", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => NOW });
+        const second = await enqueueOnAccept("idea-02", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => "2026-08-18T12:00:00.000Z" });
+
+        assert.ok(first.sql, "idea-01's SQL sync ran");
+        assert.ok(second.sql, "idea-02's SQL sync ALSO ran — never silently skipped");
+        assert.notEqual(second.sql!.ideaId, first.sql!.ideaId, "two DIFFERENT ledger Ideas must never resolve to the same SQL row");
+        assert.equal(second.sql!.ideaCreated, true, "idea-02 gets its OWN new SQL Idea row");
+        assert.equal(second.sql!.jobs[0]!.synced, true, "idea-02's job is genuinely created, never silently dropped");
+        assert.equal(second.sql!.jobs[0]!.reason, "created");
+
+        const onDiskQueue = await loadQueue(queuePath);
+        assert.equal(onDiskQueue.jobs.length, 2, "the file queue also gained TWO distinct jobs");
+
+        const brandRowId = getBrandBySlug(db, BRAND)!.id;
+        assert.equal(listJobsForComposite(db, brandRowId, first.sql!.ideaId, RECIPE).length, 1);
+        assert.equal(listJobsForComposite(db, brandRowId, second.sql!.ideaId, RECIPE).length, 1);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("Round 3, Defect A, reproduced at the REAL entry point: a pre-migration-5 imported row (no legacy_ref) is ADOPTED on re-sync, never duplicated — exactly the shape of all 61 Ideas in the real database", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const brandId = createBrand(db, { slug: BRAND, name: "Mundotip", timezone: "UTC", mediaRoot: "data/brands/mundotip" });
+      const formatId = createFormat(db, { brandId, slug: SQL_FORMAT, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+      const runId = createRunRow(db, { brandId, formatId, runKey: SQL_RUN, cadence: "weekly", startedAt: NOW }, () => NOW);
+
+      // Seed a Brand-new pre-migration-5 style Idea row: created BEFORE legacy_ref existed, exactly the
+      // shape of every one of the real, committed data/organicgrowth.db's 61 imported Ideas.
+      const preMigrationIdeaId = createIdeaRow(
+        db,
+        {
+          runId,
+          brandId,
+          formatId,
+          title: "A headline",
+          brief: "Whatever the original import carried.",
+          hookType: UNCLASSIFIED_HOOK_TYPE,
+          theme: UNCLASSIFIED_THEME,
+          // Deliberately no legacyRef.
+        },
+        () => NOW,
+      );
+
+      await withSqlFixture(async (ledgerPath, queuePath) => {
+        const r = await enqueueOnAccept("idea-accepted", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => NOW });
+
+        assert.ok(r.sql, "the SQL sync ran");
+        assert.equal(r.sql!.ideaId, preMigrationIdeaId, "the pre-migration-5 row is REUSED, not duplicated");
+        assert.equal(r.sql!.ideaCreated, false);
+        assert.equal(listIdeasForRun(db, runId).length, 1, "still exactly ONE Idea row for this one real Idea");
+        assert.equal(getIdea(db, preMigrationIdeaId)!.legacyRef, "idea-accepted", "the row is now reconciled");
+      });
     });
   });
 });

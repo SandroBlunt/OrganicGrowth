@@ -20,7 +20,7 @@ import { HOOK_TYPES } from "../vocabulary/hook-type.ts";
 import { THEMES } from "../vocabulary/theme.ts";
 import { FIXTURE_RECIPE } from "../db/fixtures/seed-chain.ts";
 
-import { createIdea, recordReviewDecision, classifyIdea } from "./ideas.ts";
+import { createIdea, recordReviewDecision, classifyIdea, claimLegacyRef } from "./ideas.ts";
 
 const VALID_HOOK_TYPE = HOOK_TYPES[0]!.value;
 const VALID_THEME = THEMES[0]!.value;
@@ -252,6 +252,27 @@ describe("classifyIdea — the command surface's write over IdeaStore's classifi
           }),
         IdeaValidationError,
       );
+    });
+  });
+});
+
+describe("claimLegacyRef — the command surface's write over IdeaStore's identity reconciliation (issue #254 Round 3, Defect A)", () => {
+  it("stamps legacyRef onto an existing, unclaimed Idea row", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { runId, brandId, formatId } = seedRun(db);
+      const ideaId = createIdea(db, { runId, brandId, formatId, title: "x", brief: "y", hookType: VALID_HOOK_TYPE, theme: VALID_THEME });
+
+      claimLegacyRef(db, ideaId, "idea-01");
+
+      assert.equal(getIdea(db, ideaId)?.legacyRef, "idea-01");
+    });
+  });
+
+  it("throws for an unknown Idea id, never silently no-ops", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      assert.throws(() => claimLegacyRef(db, "no-such-id", "idea-01"));
     });
   });
 });

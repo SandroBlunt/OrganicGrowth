@@ -16,12 +16,28 @@
  * `src/recipe/offer.ts`/`src/ledger/ledger.ts`) and enqueues ONE job per Recipe, each keyed on the
  * composite `(brand, idea_id, recipe)`. A second Recipe on the same accepted Idea is never dropped as a
  * duplicate of the first — the two jobs are distinct triples.
+ *
+ * --- OPTIONAL SQL sync (issue #254) ---
+ *
+ * `data/queue.json` is written EXACTLY as before this ticket — unconditionally, unaffected by anything
+ * below. When the caller ALSO passes `options.db`, this module additionally syncs every Recipe the file
+ * queue decided was genuinely NEW (never one already `"already-queued"` there — that Recipe's SQL row was
+ * synced on an earlier call, or predates this ticket via the one-shot importer) into SQL, through
+ * `sql-sync.ts`'s `syncAcceptToSql` — the SAME `job` table the unattended worker's `findNextQueuedJob`
+ * actually reads. Omitting `db` (every existing caller, until this ticket wires one in) leaves this
+ * function's behavior byte-for-byte unchanged. A SQL sync failure is NEVER swallowed: it throws, after
+ * the file queue has already been saved — so the attended, file-based pipeline this ticket promises not
+ * to change is never blocked by a SQL problem, but nobody calling this function can mistake a failed SQL
+ * sync for a quiet success either. See `sql-sync.ts`'s own doc comment for the full contract.
  */
+
+import type { DatabaseSync } from "node:sqlite";
 
 import { findIdea, loadIdeas } from "../ledger/ledger.ts";
 import { getRecipe } from "../recipe/registry.ts";
 import { enqueue, hasJobFor, type QueueState } from "./queue.ts";
 import { loadQueue, saveQueue, DEFAULT_QUEUE_PATH } from "./store.ts";
+import { syncAcceptToSql, type SqlSyncOutcome } from "./sql-sync.ts";
 
 /** Why one Recipe was NOT enqueued. */
 export type EnqueueSkipReason = "not-accepted" | "already-queued" | "unknown-idea" | "unwired-recipe";
@@ -42,6 +58,10 @@ export interface EnqueueResult {
   readonly outcomes: readonly EnqueueOutcome[];
   /** The queue state after the attempt. */
   readonly state: QueueState;
+  /** Present only when `options.db` was given AND at least one Recipe was newly enqueued in the file
+   *  queue this call (issue #254) — the SQL sync outcome for those same Recipes. Absent (never a
+   *  fabricated empty value) when no `db` was given, or when nothing was newly enqueued. */
+  readonly sql?: SqlSyncOutcome;
 }
 
 export interface EnqueueOnAcceptOptions {
@@ -53,6 +73,11 @@ export interface EnqueueOnAcceptOptions {
   readonly queuePath?: string;
   /** Injected clock for deterministic timestamps in tests; defaults to now. */
   readonly now?: () => string;
+  /** OPTIONAL (issue #254): when given, ALSO syncs the newly-enqueued Recipes into SQL — see this
+   *  module's own doc comment. Omitted, this function's behavior is unchanged from before this ticket. */
+  readonly db?: DatabaseSync;
+  /** Passed straight through to the SQL sync's Brief lookup; overridden only by tests. */
+  readonly brandsRoot?: string;
 }
 
 /**
@@ -142,5 +167,21 @@ export async function enqueueOnAccept(
   if (result.enqueued) {
     await saveQueue(result.state, queuePath);
   }
+
+  // --- OPTIONAL SQL sync (issue #254) — never affects the file write above, which already happened ----
+  if (options.db !== undefined) {
+    const newlyEnqueuedRecipes = result.outcomes.filter((o) => o.enqueued).map((o) => o.recipe);
+    if (newlyEnqueuedRecipes.length > 0) {
+      const sql = await syncAcceptToSql(ideaId, newlyEnqueuedRecipes, {
+        db: options.db,
+        brand,
+        ledgerPath,
+        ...(options.brandsRoot !== undefined ? { brandsRoot: options.brandsRoot } : {}),
+        now: () => now,
+      });
+      return { ...result, sql };
+    }
+  }
+
   return result;
 }

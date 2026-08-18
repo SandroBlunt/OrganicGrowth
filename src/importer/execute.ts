@@ -201,6 +201,11 @@ async function executeRun(
         hookType: UNCLASSIFIED_HOOK_TYPE,
         theme: UNCLASSIFIED_THEME,
         sourceUrls: ideaPlan.sourceUrls,
+        // The file ledger's own Idea id (issue #254, migration 5) — the real, per-Brand-unique identity
+        // a LATER accept-flow re-sync (`src/production-queue/sql-sync.ts`) correlates this row back to,
+        // instead of the earlier `(run_id, title)` natural key that could silently merge two distinct
+        // Ideas sharing one title.
+        legacyRef: ideaPlan.legacyId,
         ...(trendId !== undefined ? { trendId } : {}),
         ...(ideaPlan.fitScore !== undefined ? { fitScore: ideaPlan.fitScore } : {}),
       },

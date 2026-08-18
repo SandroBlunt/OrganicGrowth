@@ -70,6 +70,27 @@ describe("createJob / getJob", () => {
   });
 });
 
+describe("job.idempotency_key — a partial UNIQUE index backstops the cross-process double-enqueue race (migration 5, issue #254 Defect 4)", () => {
+  it("a SECOND job with the SAME idempotency_key throws a real SQLITE_CONSTRAINT error — never silently succeeds", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, assetId } = await seedAsset(db);
+      createJob(db, { assetId, brandId, idempotencyKey: "straw-motion::idea-01::news-carousel" });
+      assert.throws(() => createJob(db, { assetId, brandId, idempotencyKey: "straw-motion::idea-01::news-carousel" }));
+    });
+  });
+
+  it("multiple jobs with NO idempotency_key (e.g. the importer's own jobs) coexist fine — the index is partial (NULL never compared)", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, assetId } = await seedAsset(db);
+      createJob(db, { assetId, brandId });
+      createJob(db, { assetId, brandId }); // no throw
+      assert.equal(listAllJobs(db).length, 2, "both NULL-idempotency_key jobs were created");
+    });
+  });
+});
+
 describe("listJobsForComposite — a NON-UNIQUE (brand, idea, recipe) lookup (issue #203 AC1)", () => {
   it("returns every job sharing one composite, oldest first", async () => {
     await withTempDb(async (db) => {

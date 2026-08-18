@@ -84,30 +84,56 @@ describe("/review-ideas logs declined Recipes verbatim, mirroring Rejection Reas
     assert.match(doc, /logged\s*\n?\s*only, v1 does not auto-apply it to future suggestions/i);
   });
 
-  it("writes the selection via writeIdeaRecipeSelection", async () => {
+  it("writes the selection via writeIdeaRecipeSelection, through the compiled accept-idea command", async () => {
     const doc = await readReviewIdeasDoc();
-    assert.match(doc, /writeIdeaRecipeSelection\(ideaId, chosen, declinedWithReasons/);
+    assert.match(doc, /writes the Recipe selection onto the Brand's ledger \(`writeIdeaRecipeSelection`/);
     assert.match(doc, /src\/ledger\/ledger\.ts/);
   });
 });
 
-describe("/review-ideas enqueues the chosen Recipe set (issue #56 — Recipe-aware queue)", () => {
-  it("passes `chosen` (the resolved Recipe selection) as an explicit argument to enqueueOnAccept", async () => {
+describe("/review-ideas performs the accept mutation via the COMPILED accept-idea command (issue #254 Round 3, Defect B)", () => {
+  it("instructs running `npm run accept-idea` instead of calling writeIdeaRecipeSelection/enqueueOnAccept directly", async () => {
     const doc = await readReviewIdeasDoc();
-    assert.match(doc, /enqueueOnAccept\(ideaId, brand, chosen, \{ ledgerPath: resolveBrand\(brand\)\.ledger \}\)/);
-    assert.match(doc, /chosen.*is what makes the queue Recipe-aware/is);
+    assert.match(doc, /never\s*\n?\s*write the ledger or call `writeIdeaRecipeSelection`\/`enqueueOnAccept` yourself/);
+    assert.match(doc, /npm run accept-idea -- <brand> <ideaId> "<chosen-csv>" '<declined-json>'/);
+    assert.match(doc, /src\/commands\/accept-idea\.ts/);
+    assert.match(doc, /acceptIdeaCommand/);
+  });
+
+  it("sets the Idea's status to accepted via markIdeaAccepted — the first compiled writer of this field", async () => {
+    const doc = await readReviewIdeasDoc();
+    assert.match(doc, /sets the Idea's status: accepted.*`markIdeaAccepted`/s);
+    assert.match(doc, /FIRST compiled writer of this field/);
   });
 
   it("states one job is enqueued PER chosen Recipe, keyed on the composite (brand, idea, recipe)", async () => {
     const doc = await readReviewIdeasDoc();
-    assert.match(doc, /ONE job PER chosen\s*\n?\s*Recipe/i);
+    assert.match(doc, /ONE\s*\n?\s*job PER chosen\s*\n?\s*Recipe/i);
     assert.match(doc, /\(brand, idea, recipe\)/);
     assert.match(doc, /never dropped as a duplicate/i);
   });
 
+  it("states the compiled command opens + migrates data/organicgrowth.db BY DEFAULT — no separate 'also pass db' step to remember", async () => {
+    const doc = await readReviewIdeasDoc();
+    assert.match(doc, /opens \+ migrates\s*\n?\s*`data\/organicgrowth\.db` \*\*BY DEFAULT\*\*/);
+    assert.match(doc, /no separate "also pass\s*\n?\s*`db`" step to remember/);
+    assert.match(doc, /the SQL sync always runs/);
+  });
+
+  it("states the Operator's chosen Recipes become visible to /run-worker via the SQL job table", async () => {
+    const doc = await readReviewIdeasDoc();
+    assert.match(doc, /the SQL `job` table the unattended worker's\s*\n?\s*`\/run-worker` actually reads/);
+  });
+
+  it("instructs relaying the command's own output verbatim — a SQL failure is reported plainly, never silently swallowed or retried", async () => {
+    const doc = await readReviewIdeasDoc();
+    assert.match(doc, /Relay the command's own printed output to the Operator VERBATIM/);
+    assert.match(doc, /never silently swallow this, never re-run the command/);
+  });
+
   it("only skips auto-enqueue when the Operator chose zero Recipes (a brand-new state, not a regression)", async () => {
     const doc = await readReviewIdeasDoc();
-    assert.match(doc, /If `chosen` is\s*\n?\s*\*\*empty\*\*/);
-    assert.match(doc, /do \*\*not\*\* enqueue/);
+    assert.match(doc, /If `chosen` was\s*\n?\s*\*\*empty\*\*/);
+    assert.match(doc, /accepted but not yet queued/i);
   });
 });
