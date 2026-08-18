@@ -164,7 +164,7 @@ describe("mapYoutubeItem — maps real captured YouTube items defensively", () =
 // mapFacebookItem — against a SYNTHETIC fixture (documented schema, not a live capture; issue #84)
 // ---------------------------------------------------------------------------
 
-describe("mapFacebookItem — maps the documented apify/facebook-post-scraper shape defensively", () => {
+describe("mapFacebookItem — maps the documented apify/facebook-posts-scraper shape defensively", () => {
   it("maps likes/comments/shares/viewsCount and the url/time (issue #84 — NOT yet live-verified)", async () => {
     const items = await loadFixture("facebook-post.synthetic-sample.json");
     const mapped = mapFacebookItem(items[0]);

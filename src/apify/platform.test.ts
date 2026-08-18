@@ -63,7 +63,7 @@ describe("detectPlatformFromUrl — derives the platform from the URL, never fro
 const SEEDS_APIFY = {
   facebook: {
     trends_actor: "apify/facebook-posts-scraper",
-    post_actor: "apify/facebook-post-scraper",
+    post_actor: "apify/facebook-posts-scraper",
   },
   instagram: {
     trends_actor: "apify/instagram-scraper",
@@ -85,7 +85,7 @@ describe("resolveApifyActor — reads apify.<platform>.<purpose> defensively, ne
   });
 
   it("resolves the Facebook post actor", () => {
-    assert.equal(resolveApifyActor(SEEDS_APIFY, "facebook", "post_actor"), "apify/facebook-post-scraper");
+    assert.equal(resolveApifyActor(SEEDS_APIFY, "facebook", "post_actor"), "apify/facebook-posts-scraper");
   });
 
   it("resolves the Instagram trends actor", () => {

@@ -95,7 +95,7 @@ pairs the same way Facebook's has always been documented.
 
 `mapInstagramItem`, `mapYoutubeItem`, and `mapFacebookItem` (issue #84) SHALL map one raw Apify dataset
 item — from `apify/instagram-scraper`/`apify/instagram-post-scraper`, `streamers/youtube-scraper`, and
-`apify/facebook-post-scraper`/`apify/facebook-posts-scraper` respectively — into `{ url, postedAt,
+`apify/facebook-posts-scraper` respectively — into `{ url, postedAt,
 shares, comments, reactions, views, notes }`. `shares` SHALL always be `0` for Instagram and YouTube
 (neither publicly exposes a share count), recorded as a note rather than silently omitted. Facebook
 DOES publicly expose a share count, so `mapFacebookItem` SHALL map its `shares` field through — it
@@ -105,7 +105,7 @@ of the three functions SHALL throw on `null`, `undefined`, or non-object input.
 
 `mapFacebookItem`'s field mapping (`likes`→reactions, `comments`→comments, `shares`→shares,
 `viewsCount`→views, `time` falling back to Unix-seconds `timestamp`→`postedAt`) is derived from the
-Apify Store's DOCUMENTED output schema for `apify/facebook-post-scraper`/`apify/facebook-posts-scraper`
+Apify Store's DOCUMENTED output schema for `apify/facebook-posts-scraper`
 — unlike the Instagram/YouTube mapping (verified against a live sanctioned capture in issue #48), it is
 NOT yet verified against a live run; this is flagged honestly in the module docstring and
 `src/apify/fixtures/README.md`, backed by a SYNTHETIC (not live-captured) fixture.
@@ -185,4 +185,38 @@ verified actor).
 - **WHEN** its `apify` block is read
 - **THEN** `instagram:` and `youtube:` are uncommented keys carrying `apify/instagram-scraper` /
   `apify/instagram-post-scraper` / `streamers/youtube-scraper`, and `linkedin:` is still commented out
+
+### Requirement: A Brand's configured Apify actor slug is loaded straight from its own seeds.yaml, never fabricated
+
+`loadConfiguredActorSlug(seedsPath, platform, purpose)` (`src/apify/actor-config.ts`) SHALL read the Brand's `seeds.yaml` at `seedsPath`, parse it as YAML, and resolve `apify.<platform>.<purpose>` via the existing pure `resolveApifyActor`. It SHALL return `null` — NEVER throw, never fabricate a slug — when: the file cannot be read (missing or otherwise unreadable), the file's contents cannot be parsed as YAML, there is no `apify` block at all, or `resolveApifyActor` itself returns `null` (missing platform block, missing purpose, or the `"..."` not-yet-wired placeholder).
+
+#### Scenario: A configured actor slug resolves correctly from a real seeds.yaml file
+
+- **GIVEN** a `seeds.yaml` file on disk with `apify.facebook.post_actor: apify/facebook-posts-scraper`
+- **WHEN** `loadConfiguredActorSlug(seedsPath, "facebook", "post_actor")` is called
+- **THEN** it returns `"apify/facebook-posts-scraper"`
+
+#### Scenario: A missing seeds.yaml resolves to null, never a thrown error
+
+- **GIVEN** a `seedsPath` pointing at a file that does not exist
+- **WHEN** `loadConfiguredActorSlug(seedsPath, "facebook", "post_actor")` is called
+- **THEN** it returns `null`
+
+#### Scenario: Unparseable YAML resolves to null, never a thrown error
+
+- **GIVEN** a `seeds.yaml` file whose contents are not valid YAML
+- **WHEN** `loadConfiguredActorSlug(seedsPath, "facebook", "post_actor")` is called
+- **THEN** it returns `null`
+
+#### Scenario: A platform with no configured block resolves to null
+
+- **GIVEN** a `seeds.yaml` file with an `apify` block that has no `facebook` entry
+- **WHEN** `loadConfiguredActorSlug(seedsPath, "facebook", "post_actor")` is called
+- **THEN** it returns `null`
+
+#### Scenario: The not-yet-wired "..." placeholder resolves to null, not the literal string
+
+- **GIVEN** a `seeds.yaml` file with `apify.linkedin.post_actor: "..."`
+- **WHEN** `loadConfiguredActorSlug(seedsPath, "linkedin", "post_actor")` is called
+- **THEN** it returns `null` — never the literal `"..."` string
 

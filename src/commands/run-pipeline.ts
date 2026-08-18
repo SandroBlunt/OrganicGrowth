@@ -61,7 +61,7 @@ import { ideaAtGate, ideaHasAssetStatus } from "../asset/asset.ts";
 import { DEFAULT_ASSET_RECIPE } from "../asset/migrate.ts";
 import { loadQueue } from "../production-queue/store.ts";
 import { enqueueOnAccept } from "../production-queue/enqueue-on-accept.ts";
-import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
+import { runReadiness, findingsBlockPhase, isActorExistenceFinding } from "./run-pipeline-readiness.ts";
 import { reportCommand } from "./report.ts";
 import { isoWeek } from "../format/run-id.ts";
 import type { Finding } from "../readiness/types.ts";
@@ -157,6 +157,13 @@ const DEFAULT_APIFY_PORT: ApifyReadinessPort = {
   async probeToken() {
     // Runtime placeholder: live Apify ping is deferred. If called, assume valid (permissive default).
     return true;
+  },
+  async probeActorExists() {
+    // Runtime placeholder: the live actor-existence probe (issue #253) is deferred. Honestly report
+    // "unreachable" (never checked) rather than fabricating "ok" — this NEVER blocks any phase either
+    // way (see run-pipeline-readiness.ts's probeConfiguredActors), so the permissive-vs-honest choice
+    // here has no gating consequence, unlike probeToken's `true` default above.
+    return "unreachable";
   },
 };
 
@@ -582,8 +589,13 @@ export async function* conductorTurns(
     apify,
   });
 
-  // The conductor is SILENT when all findings are advisory-only or there are none.
-  // It only surfaces output when blocking findings exist (phase-scoped gaps).
+  // The conductor is SILENT when all findings are advisory-only or there are none — EXCEPT for one
+  // narrow, named carve-out (issue #253, Round 2): an actor-existence advisory (a configured Apify
+  // actor slug confirmed dead or unreachable) is printed unconditionally, whether or not a `block`
+  // finding also exists that run. Every other advisory-only finding keeps the general silent default.
+  // Without this carve-out the advisory is computed by `probeConfiguredActors` and then simply never
+  // shown to a human in the common case (a healthy Brand with one bad actor slug) — indistinguishable
+  // from no check existing at all, which is the exact bug issue #253 was filed to close.
   const blockFindings = findings.filter((f) => f.severity === "block");
 
   if (blockFindings.length > 0) {
@@ -593,6 +605,15 @@ export async function* conductorTurns(
       lines.push(`  ${icon} (${f.phase}) ${f.message}`);
     }
     yield { message: lines.join("\n") };
+  } else {
+    const actorAdvisories = findings.filter(isActorExistenceFinding);
+    if (actorAdvisories.length > 0) {
+      const lines: string[] = ["Readiness check:"];
+      for (const f of actorAdvisories) {
+        lines.push(`  [WARN] (${f.phase}) ${f.message}`);
+      }
+      yield { message: lines.join("\n") };
+    }
   }
 
   // Phase-scoped blocking: a research block stops the launch
