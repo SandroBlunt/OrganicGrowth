@@ -319,25 +319,3 @@ async function loadConfigFile<T>(
 export function findingsBlockPhase(findings: Finding[], phase: Finding["phase"]): boolean {
   return findings.some((f) => f.severity === "block" && f.phase === phase);
 }
-
-// ---------------------------------------------------------------------------
-// isActorExistenceFinding — identifies a probeConfiguredActors Finding (issue #253, Round 2)
-// ---------------------------------------------------------------------------
-
-/**
- * True for a Finding produced by `probeConfiguredActors` above — a dead (`apify_actor_not_found:`) or
- * unreachable (`apify_actor_unreachable:`) configured Apify actor slug.
- *
- * Exported so the conductor (`run-pipeline.ts`) can single this ONE finding class out for unconditional
- * printing, even when it is the only finding present that run (no `block` finding co-occurring). This
- * is a narrow, named carve-out from the general "silent when all findings are advisory-only" default —
- * see `run-pipeline.ts`'s own comment at the call site for why: a computed-but-never-shown advisory is
- * indistinguishable from no advisory at all, which is the exact "and nothing notices" failure issue
- * #253 exists to close. It deliberately does NOT change how any OTHER advisory-only finding (e.g.
- * `null_baseline`, `empty_banned_words`, `off_niche_seed`, `config_todo`, `niche_unset`, `voice_unset`,
- * `space_inaccessible_advisory`, `credits_low_advisory`) is printed — those keep the pre-existing
- * silent-when-advisory-only behavior untouched by this slice.
- */
-export function isActorExistenceFinding(f: Finding): boolean {
-  return f.code.startsWith("apify_actor_not_found:") || f.code.startsWith("apify_actor_unreachable:");
-}

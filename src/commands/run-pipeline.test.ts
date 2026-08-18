@@ -93,6 +93,20 @@ region: US
 
 const EMPTY_LEDGER = JSON.stringify({ ideas: [], baseline: { updated_at: null } }, null, 2);
 
+/**
+ * A ledger that is genuinely, fully healthy: no Ideas, AND a Channel performance baseline already
+ * measured (`baseline.updated_at` set) — so `classify`'s `null_baseline` advisory does NOT fire.
+ * `EMPTY_LEDGER` above has `updated_at: null`, which DOES compute a `null_baseline` advisory (issue
+ * #260: every computed advisory is now printed unconditionally) — a test asserting "no readiness output
+ * at all" must use THIS fixture, not `EMPTY_LEDGER`, or it is unknowingly asserting on a fixture that
+ * was never actually zero-Finding, only zero-Finding-PRINTED under the old silent-when-advisory-only
+ * policy this issue replaces.
+ */
+const HEALTHY_LEDGER_WITH_BASELINE = JSON.stringify({
+  ideas: [],
+  baseline: { shares: 3, comments: 2, reactions: 10, views: 100, updated_at: "2026-06-01T00:00:00.000Z" },
+}, null, 2);
+
 interface BrandFixturePaths {
   brandsRoot: string;
   queuePath: string;
@@ -224,7 +238,10 @@ describe("runPipelineCommand — AC1: Brand resolution and threading", () => {
 
 describe("runPipelineCommand — AC2: Readiness check", () => {
   it("produces no readiness output when the Brand is healthy", async () => {
-    await withBrandFixture({}, async (paths) => {
+    // Genuinely healthy: a baseline is already measured, so `null_baseline` does not fire either
+    // (issue #260 — every advisory prints unconditionally now, so a fixture with an UNmeasured
+    // baseline would no longer qualify as "no readiness output at all").
+    await withBrandFixture({ ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
       const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
       const out = allMessages(turns);
       // Healthy readiness = no BLOCK/WARN lines
@@ -275,8 +292,14 @@ voice: "Test voice"
 banned_words: []
 `.trim();
 
-    await withBrandFixture({ profileYaml: profileWithEmptyBannedWords }, async (paths) => {
+    await withBrandFixture({ profileYaml: profileWithEmptyBannedWords, ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
       const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
+      const out = allMessages(turns);
+      // issue #260: the advisory itself must actually be PRINTED, not merely fail to stop the loop —
+      // a test that only checks the loop didn't stop can pass even when the finding is silently
+      // dropped (exactly the bug this ticket exists to close).
+      assert.doesNotMatch(out, /\[BLOCK\]/, "this fixture has no block finding");
+      assert.match(out, /\[WARN\]/, "the empty-banned-words advisory must actually be printed");
       // Should NOT stop with done=true early due to advisory only
       // A done turn may appear at the end (loop complete), but not immediately after readiness
       // The gate prompt (or a loop message) should appear after the advisory warning
@@ -973,6 +996,12 @@ apify:
 // then silently dropped by the conductor's "silent when advisory-only" print gate in the exact scenario
 // issue #253 exists to fix (a healthy Brand, one dead actor slug, no co-occurring block finding). These
 // tests drive `runPipelineCommand` end to end and assert on its printed `turns`, closing that gap.
+//
+// issue #260 UPDATE: #253's fix was a narrow, named carve-out (`isActorExistenceFinding`) covering only
+// these two actor-existence codes. Issue #260 replaced that carve-out with the SAME guarantee applied
+// generally — every Finding prints unconditionally now, not just these two codes — so
+// `isActorExistenceFinding` itself is deleted as dead code. The tests below still pass unmodified: they
+// were already proving an instance of what is now the general rule, not a special case.
 
 describe("runPipelineCommand — actor-existence advisory reaches the Operator even with no block finding (issue #253, Round 2)", () => {
   const DEAD_SLUG = "apify/facebook-post-scraper";
@@ -1043,7 +1072,9 @@ apify:
     post_actor: "apify/facebook-posts-scraper"
 `.trim();
 
-    await withBrandFixture({ seedsYaml: seedsHealthyActor }, async (paths) => {
+    // Genuinely healthy: a baseline is already measured, so `null_baseline` does not also fire
+    // (issue #260 — the default EMPTY_LEDGER fixture's unmeasured baseline WOULD now print).
+    await withBrandFixture({ seedsYaml: seedsHealthyActor, ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
       const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
       const out = allMessages(turns);
       assert.doesNotMatch(out, /\[WARN\]/, "no advisory should print when every configured actor probes OK");
@@ -1076,6 +1107,142 @@ apify:
       assert.match(out, /\[BLOCK\]/, "the forced token-invalid block must still be surfaced");
       assert.match(out, /\[WARN\]/, "the actor advisory must still be printed alongside the block finding");
       assert.match(out, new RegExp(DEAD_SLUG), "the printed advisory must still name the dead slug");
+    });
+  });
+});
+
+// ===========================================================================
+// runPipelineCommand — every advisory finding reaches the Operator without an unrelated block
+// co-occurring (issue #260 — the GENERAL fix, replacing #253's two-code carve-out)
+// ===========================================================================
+//
+// Each test below drives `runPipelineCommand` end to end and asserts on its PRINTED `turns` — never on
+// `runReadiness`'s bare return value — for one of the seven advisory codes issue #260 names as still
+// silent before this change (`space_inaccessible_advisory`, `credits_low_advisory`, `off_niche_seed`,
+// `niche_unset`, `config_todo`, `voice_unset`; `null_baseline` and `empty_banned_words` are covered by
+// the C21 describe block and the "advisory findings do not stop the loop" test above respectively).
+// None of these fixtures has any co-occurring block finding except where the SAME underlying condition
+// (an inaccessible Space / low credits) inherently produces both an advisory (research) and a block
+// (production) from a single check — those two prove the advisory prints ALONGSIDE its own natural
+// block, not that it needs an UNRELATED one.
+
+describe("runPipelineCommand — every previously-silent advisory finding now reaches the Operator on its own (issue #260)", () => {
+  it("prints the niche_unset advisory alone, with no block finding present", async () => {
+    const profileNoNiche = `
+channel:
+  - platform: facebook
+    url: "https://www.facebook.com/testbrand"
+    primary: true
+niche: ""
+voice: "Test voice"
+banned_words: ["bad-word"]
+`.trim();
+
+    await withBrandFixture({ profileYaml: profileNoNiche, ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
+      const out = allMessages(turns);
+      assert.doesNotMatch(out, /\[BLOCK\]/, "this fixture is otherwise entirely healthy — no block finding should appear");
+      assert.match(out, /\[WARN\]/, "the niche_unset advisory must be printed");
+      assert.match(out, /Brand's niche is not set/i, "the printed advisory must name the actual gap");
+      assert.match(out, /\/rename testbrand/, "an advisory-only finding must never block the run");
+    });
+  });
+
+  it("prints the voice_unset advisory alone, with no block finding present", async () => {
+    const profileNoVoice = `
+channel:
+  - platform: facebook
+    url: "https://www.facebook.com/testbrand"
+    primary: true
+niche: "Test niche"
+voice: ""
+banned_words: ["bad-word"]
+`.trim();
+
+    await withBrandFixture({ profileYaml: profileNoVoice, ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
+      const out = allMessages(turns);
+      assert.doesNotMatch(out, /\[BLOCK\]/, "this fixture is otherwise entirely healthy — no block finding should appear");
+      assert.match(out, /\[WARN\]/, "the voice_unset advisory must be printed");
+      assert.match(out, /Brand's voice is not set/i, "the printed advisory must name the actual gap");
+      assert.match(out, /\/rename testbrand/, "an advisory-only finding must never block the run");
+    });
+  });
+
+  it("prints the config_todo advisory alone (a TODO placeholder in niche), with no block finding present", async () => {
+    const profileTodoNiche = `
+channel:
+  - platform: facebook
+    url: "https://www.facebook.com/testbrand"
+    primary: true
+niche: "TODO: fill this in"
+voice: "Test voice"
+banned_words: ["bad-word"]
+`.trim();
+
+    await withBrandFixture({ profileYaml: profileTodoNiche, ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
+      const out = allMessages(turns);
+      assert.doesNotMatch(out, /\[BLOCK\]/, "this fixture is otherwise entirely healthy — no block finding should appear");
+      assert.match(out, /\[WARN\]/, "the config_todo advisory must be printed");
+      assert.match(out, /TODO placeholder/i, "the printed advisory must name the actual gap");
+      assert.match(out, /\/rename testbrand/, "an advisory-only finding must never block the run");
+    });
+  });
+
+  it("prints the off_niche_seed advisory alone, with no block finding present", async () => {
+    const seedsOffNiche = `
+seed_pages:
+  - "OFF_NICHE: https://www.facebook.com/offniche"
+`.trim();
+
+    await withBrandFixture({ seedsYaml: seedsOffNiche, ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
+      const out = allMessages(turns);
+      assert.doesNotMatch(out, /\[BLOCK\]/, "this fixture is otherwise entirely healthy — no block finding should appear");
+      assert.match(out, /\[WARN\]/, "the off_niche_seed advisory must be printed");
+      assert.match(out, /off-niche/i, "the printed advisory must name the actual gap");
+      assert.match(out, /\/rename testbrand/, "an advisory-only finding must never block the run");
+    });
+  });
+
+  it("prints the space_inaccessible_advisory alongside its own co-occurring production block (never an UNRELATED one)", async () => {
+    await withBrandFixture({ ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        magnific: makeMagniticFake({ accessible: false, creditsOk: true }),
+      });
+      const out = allMessages(turns);
+      assert.match(out, /\[WARN\]/, "the space_inaccessible_advisory must be printed");
+      assert.match(out, /Magnific Space is currently unreachable/i, "the research-phase advisory text must appear");
+      assert.match(out, /\[BLOCK\]/, "the SAME check's own production block must also be printed");
+      assert.match(out, /Magnific Space is unreachable\. Asset production cannot proceed/i, "the production-phase block text must appear");
+      assert.match(out, /\/rename testbrand/, "the run proceeds past readiness — research is not blocked");
+    });
+  });
+
+  it("prints the credits_low_advisory alongside its own co-occurring production block (never an UNRELATED one)", async () => {
+    await withBrandFixture({ ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", {
+        ...healthyOptions(paths),
+        magnific: makeMagniticFake({ accessible: true, creditsOk: false }),
+      });
+      const out = allMessages(turns);
+      assert.match(out, /\[WARN\]/, "the credits_low_advisory must be printed");
+      assert.match(out, /Magnific account balance is insufficient/i, "the research-phase advisory text must appear");
+      assert.match(out, /\[BLOCK\]/, "the SAME check's own production block must also be printed");
+      assert.match(out, /Magnific account balance is too low to run a generation/i, "the production-phase block text must appear");
+      assert.match(out, /\/rename testbrand/, "the run proceeds past readiness — research is not blocked");
+    });
+  });
+
+  it("is silent only when there are literally zero findings (a fully healthy Brand, baseline already measured)", async () => {
+    await withBrandFixture({ ledgerContent: HEALTHY_LEDGER_WITH_BASELINE }, async (paths) => {
+      const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
+      const out = allMessages(turns);
+      assert.doesNotMatch(out, /\[BLOCK\]/, "no block finding should appear for a genuinely healthy brand");
+      assert.doesNotMatch(out, /\[WARN\]/, "no advisory should appear for a genuinely healthy brand");
+      assert.doesNotMatch(out, /Readiness check:/, "the readiness header itself must not print when there is nothing to report");
     });
   });
 });
@@ -1308,13 +1475,12 @@ describe("runPipelineCommand — baseline advisory reads the ledger's updated_at
       baseline: { shares: 3, comments: 2, reactions: 10, views: 100, updated_at: "2026-06-01T00:00:00.000Z" },
     });
     await withBrandFixture({ ledgerContent: ledgerWithBaseline }, async (paths) => {
-      // Force a research block (bad Apify token) so the conductor prints the readiness findings.
-      const turns = await runPipelineCommand("testbrand", {
-        ...healthyOptions(paths),
-        apify: makeApifyFake({ tokenValid: false }),
-      });
+      // No forced block needed (issue #260): every finding prints unconditionally now, so a fully
+      // healthy, block-free run is the correct fixture to prove the advisory is genuinely ABSENT
+      // (not merely un-printed alongside something else).
+      const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
       const out = allMessages(turns);
-      assert.match(out, /\[BLOCK\]/, "the forced research block must be surfaced");
+      assert.doesNotMatch(out, /\[BLOCK\]/, "this fixture is otherwise entirely healthy — no block finding should appear");
       assert.doesNotMatch(
         out,
         /No Channel performance baseline/i,
@@ -1323,19 +1489,27 @@ describe("runPipelineCommand — baseline advisory reads the ledger's updated_at
     });
   });
 
-  it("still shows the no-baseline advisory when the ledger baseline has no updated_at", async () => {
+  it("still shows the no-baseline advisory on its own — no unrelated block finding required (issue #260)", async () => {
+    // This is the exact test issue #260 was filed to fix: it previously had to FORCE an unrelated
+    // research block (an invalid Apify token) just to make the null_baseline advisory observable —
+    // a test shaped around the defect, not around the behaviour anyone actually wants. It now proves
+    // the advisory reaches the Operator entirely on its own, with the rest of the fixture healthy.
     const ledgerNoBaseline = JSON.stringify({ ideas: [], baseline: { updated_at: null } });
     await withBrandFixture({ ledgerContent: ledgerNoBaseline }, async (paths) => {
-      const turns = await runPipelineCommand("testbrand", {
-        ...healthyOptions(paths),
-        apify: makeApifyFake({ tokenValid: false }),
-      });
+      const turns = await runPipelineCommand("testbrand", healthyOptions(paths));
       const out = allMessages(turns);
+      assert.doesNotMatch(
+        out,
+        /\[BLOCK\]/,
+        "this fixture is otherwise entirely healthy — no block finding should appear or be needed",
+      );
+      assert.match(out, /\[WARN\]/, "the no-baseline advisory must print as a [WARN] line on its own");
       assert.match(
         out,
         /No Channel performance baseline/i,
-        "no-baseline advisory must appear when no baseline has been measured yet",
+        "no-baseline advisory must appear when no baseline has been measured yet, with no block finding present",
       );
+      assert.match(out, /\/rename testbrand/, "an advisory-only finding must never block the run — it must proceed to the rename hint");
     });
   });
 });
