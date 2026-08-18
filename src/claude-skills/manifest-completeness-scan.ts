@@ -13,6 +13,27 @@
  * `checkManifestCompleteness` never throws on malformed input (a `SKILL.md` with no frontmatter, a
  * `metadata.yaml` that fails to parse) — it reports that failure as a defect and keeps checking whatever
  * else it safely can, so one bad file never crashes the whole guard run.
+ *
+ * **Issue #261: declared paths are checked for EXISTENCE, not just internal consistency.** Before this
+ * change, `evals[].path` was only cross-checked against this same entry's own declared `scripts[].path`
+ * set — a script that was renamed or deleted, with its eval still pointing at the same dead name, stayed
+ * invisible: the two were consistent WITH EACH OTHER, and consistency was all that was measured. Now
+ * `ManifestCheckOptions.pathExists`, an OPTIONAL predicate, is consulted for every declared
+ * `scripts[].path`, `evals[].path`, `references[].path`, and `shared_references.path` (the three
+ * additional path-shaped fields this module decided also deserve the same treatment — see
+ * `docs/catalogue-manifest-format.md`'s "Path-shaped fields" section for the full field-by-field
+ * decision, including which fields were deliberately left uncovered and why, and why
+ * `shared_references.path` is checked directly here even though a sibling guard — the dangling-
+ * reference-citation guard, same file — ALSO covers it for the common case: that sibling guard's
+ * coverage turned out to depend on the literal `references/` folder-name segment surviving the
+ * corruption, confirmed live, not assumed). This module still never touches disk itself: the predicate
+ * is supplied by the caller (the real guard in `reference-citation-guard.docs-test.ts` backs it with
+ * `existsSync`), so this module stays provable with in-memory fixtures alone, exactly like
+ * `reference-citation-scan.ts`'s own `findDanglingReferenceCitations(citations, pathExists)`. The
+ * EXISTING evals-cites-a-declared-script
+ * consistency check is kept, unweakened, and runs independently of the new existence check — both are
+ * needed, per the issue's own instruction, because they catch different errors (a well-formed but
+ * unrelated path vs. a well-formed, related, but dead one).
  */
 
 import { parse as parseYaml } from "yaml";
@@ -38,6 +59,20 @@ export interface ManifestCheckOptions {
   readonly expectedOwner: string;
   readonly expectedLicence: string;
   readonly minimumPurposeLength: number;
+  /**
+   * Optional path-existence predicate (issue #261). When supplied, every declared `scripts[].path`,
+   * `evals[].path`, `references[].path`, and `shared_references.path` is ALSO checked against it, in
+   * addition to the existing evals-cites-a-declared-script consistency check (kept, unweakened). Called as
+   * `pathExists(skillName, declaredPath)` — `declaredPath` exactly as written in `metadata.yaml`,
+   * relative to that catalogue entry's own directory; resolving it against a real directory and
+   * consulting the filesystem is entirely the caller's job, since this module never touches disk itself
+   * (mirrors `reference-citation-scan.ts`'s own pure/impure split). Left `undefined` by any caller that
+   * only cares about the manifest's shape, not the real filesystem (every existing fixture-only test in
+   * `manifest-completeness-scan.test.ts` before issue #261 leaves this unset, and stays green
+   * unchanged); the real guard (`reference-citation-guard.docs-test.ts`) always supplies one, backed by
+   * `existsSync`.
+   */
+  readonly pathExists?: (skillName: string, declaredPath: string) => boolean;
 }
 
 const ALLOWED_INSTALL_STRATEGIES = new Set(["copy-alongside", "vendored", "refuse-without"]);
@@ -223,37 +258,97 @@ export function checkManifestCompleteness(
   requireArray("inputs", metadata["inputs"], 1);
   requireArray("outputs", metadata["outputs"], 1);
 
+  // A small local helper: given a field name + declared path, checks it against options.pathExists (if
+  // supplied) and records a defect naming that exact field when the path does not resolve — issue #261.
+  const checkPathExists = (field: string, path: string): void => {
+    if (options.pathExists !== undefined && !options.pathExists(source.skillName, path)) {
+      fail(
+        field,
+        `declared but no file exists at ${JSON.stringify(path)} (resolved relative to this entry's own directory)`,
+      );
+    }
+  };
+
+  // scripts — each declared entry's path must be a non-empty string (previously silently filtered out
+  // of the evals cross-check set below rather than flagged) AND, when a path-existence predicate is
+  // supplied, must resolve to a real file on disk (issue #261: a renamed/deleted script with no
+  // existence check stayed invisible as long as nothing else cited it).
+  const scriptsField = metadata["scripts"];
+  const declaredScriptPaths = new Set<string>();
+  if (Array.isArray(scriptsField)) {
+    scriptsField.forEach((entry, index) => {
+      const path = isPlainObject(entry) ? entry["path"] : undefined;
+      if (typeof path !== "string" || path.trim().length === 0) {
+        fail(`scripts[${index}].path`, `expected a non-empty string, found ${JSON.stringify(path)}`);
+        return;
+      }
+      declaredScriptPaths.add(path);
+      checkPathExists(`scripts[${index}].path`, path);
+    });
+  }
+
   // evals — each entry's path must be more than well-formed: it must actually name one of this entry's
   // own declared scripts:, per docs/catalogue-manifest-format.md ("evals ... points at an existing
   // scripts: test entry"). A path that is merely a non-empty string but names no real script would
-  // otherwise pass silently (issue #212 Round 2, Defect 1's sibling sweep).
-  const scriptsField = metadata["scripts"];
-  const declaredScriptPaths = new Set(
-    Array.isArray(scriptsField)
-      ? scriptsField
-          .filter(isPlainObject)
-          .map((s) => s["path"])
-          .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
-      : [],
-  );
+  // otherwise pass silently (issue #212 Round 2, Defect 1's sibling sweep). This consistency check is
+  // kept, unweakened, by issue #261 — it catches a DIFFERENT error than existence (a well-formed path
+  // that simply names the wrong thing) — and now runs ALONGSIDE an independent existence check: a
+  // script renamed/deleted with its eval still citing the old, dead name is consistent with itself but
+  // no longer resolves, which is exactly the shape #261 was filed to close.
   const evals = requireArray("evals", metadata["evals"], 1);
   if (evals !== undefined) {
     evals.forEach((entry, index) => {
       const path = isPlainObject(entry) ? entry["path"] : undefined;
       if (typeof path !== "string" || path.trim().length === 0) {
         fail(`evals[${index}].path`, `expected a non-empty string, found ${JSON.stringify(path)}`);
-      } else if (!declaredScriptPaths.has(path)) {
+        return;
+      }
+      if (!declaredScriptPaths.has(path)) {
         fail(
           `evals[${index}].path`,
           `expected a path present in this entry's own scripts: list, found ${JSON.stringify(path)} ` +
             `(scripts: ${JSON.stringify([...declaredScriptPaths])})`,
         );
       }
+      checkPathExists(`evals[${index}].path`, path);
+    });
+  }
+
+  // references — this entry's own reference documents (translation-notes.md, official-guidelines.md,
+  // README.md, ...). Not itself a required field (unchanged scope from #212 — see
+  // docs/catalogue-manifest-format.md), but every declared entry's path is exactly as path-shaped as
+  // scripts:/evals:, and issue #261 decided it deserves the same existence treatment: no OTHER guard
+  // watches it. The dangling-reference-citation guard (the sibling guard in the SAME file) only matches
+  // a `(../)+references/...`-shaped CLIMBING citation — a same-directory `references/<name>.md` value
+  // never satisfies that pattern, so without this, a renamed/deleted own-reference document would be
+  // invisible to every guard in this repository (see docs/catalogue-manifest-format.md's "Path-shaped
+  // fields" section for the full decision record of what was and was not extended this way).
+  const referencesField = metadata["references"];
+  if (Array.isArray(referencesField)) {
+    referencesField.forEach((entry, index) => {
+      const path = isPlainObject(entry) ? entry["path"] : undefined;
+      if (typeof path !== "string" || path.trim().length === 0) {
+        fail(`references[${index}].path`, `expected a non-empty string, found ${JSON.stringify(path)}`);
+        return;
+      }
+      checkPathExists(`references[${index}].path`, path);
     });
   }
 
   // shared_references.*
-  requireNonEmptyString("shared_references.path", getIn(metadata, "shared_references.path"));
+  // Existence is checked directly here too (issue #261), not left to the sibling dangling-reference-
+  // citation guard alone: that guard's regex only recognises a citation whose literal `references/`
+  // folder-name segment survives (e.g. it catches a wrong CLIMB depth or an inserted bogus segment) —
+  // it cannot see a `shared_references.path` value whose `references` segment itself was mistyped or
+  // renamed to something else entirely, because the value would then no longer match the citation shape
+  // it scans for at all. Confirmed live (see this change's handoff.md): a corrupted-depth path was
+  // caught by the sibling guard as expected, but a `references`-segment-renamed path was not — exactly
+  // the seam-between-two-guards gap the issue asked to confirm, not assume. Checking it directly here
+  // closes that seam for good, on top of (not instead of) the sibling guard's own broader citation walk.
+  const sharedReferencesPath = requireNonEmptyString("shared_references.path", getIn(metadata, "shared_references.path"));
+  if (sharedReferencesPath !== undefined) {
+    checkPathExists("shared_references.path", sharedReferencesPath);
+  }
   // Every entry with a shared_references block genuinely depends on the shared references (its own
   // entities.reads always cites them) — required is not merely "a boolean," it must be true. A
   // present-but-false value is a well-typed lie about a real structural dependency (issue #212 Round 2,
