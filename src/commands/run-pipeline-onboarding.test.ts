@@ -47,11 +47,14 @@ function makeMagniticFake(opts: { accessible?: boolean; creditsOk?: boolean } = 
   };
 }
 
-/** Healthy fake Apify port: token valid. */
+/** Healthy fake Apify port: token valid, every actor slug confirmed to exist. */
 function makeApifyFake(opts: { tokenValid?: boolean } = {}): ApifyReadinessPort {
   return {
     async probeToken() {
       return opts.tokenValid ?? true;
+    },
+    async probeActorExists() {
+      return "ok";
     },
   };
 }

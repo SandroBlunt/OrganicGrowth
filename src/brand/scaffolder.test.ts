@@ -323,7 +323,7 @@ describe("buildSeeds — maps interview answers to seeds shape", () => {
     const seeds = buildSeeds(MINIMAL_ANSWERS);
     const fb = (seeds.apify as Record<string, unknown>)["facebook"] as Record<string, string>;
     assert.equal(fb["trends_actor"], "apify/facebook-posts-scraper");
-    assert.equal(fb["post_actor"], "apify/facebook-post-scraper");
+    assert.equal(fb["post_actor"], "apify/facebook-posts-scraper");
   });
 
   for (const platform of ["linkedin"] as const) {

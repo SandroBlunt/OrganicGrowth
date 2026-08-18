@@ -469,7 +469,7 @@ the word budget by a wide margin.
 
 ## Closing — validation
 
-Run the helper script `scripts/build-prompt.py` to assemble and validate
+Run the helper script `scripts/build-prompt.ts` to assemble and validate
 the prompt before emitting it. The script enforces the subject-first
 SPACE skeleton, checks the 30–100 word budget, requires in-image text to
 be quoted, validates the Edit target and hex/swatch recolour value,
@@ -479,7 +479,7 @@ set counts and the global style lock for sequential-set mode, accepts the
 negation-only prompts, and prints the assembled prompt to stdout.
 
 ```
-python3 scripts/build-prompt.py --mode T2I --subject "..." --action "..." \
+npx tsx scripts/build-prompt.ts --mode T2I --subject "..." --action "..." \
     --setting "..." --style "..." --camera "..."
 ```
 
@@ -488,12 +488,12 @@ targeted edit (`--target` marks the element, `--color` takes a hex or
 swatch):
 
 ```
-python3 scripts/build-prompt.py --mode Design --subject "..." \
+npx tsx scripts/build-prompt.ts --mode Design --subject "..." \
     --setting "..." --style "..." --in-image-text '"HEADING"' --layers
-python3 scripts/build-prompt.py --mode Edit --subject "..." --style "..." \
+npx tsx scripts/build-prompt.ts --mode Edit --subject "..." --style "..." \
     --reference "..." --target "..." --color "#1E3A8A"
 ```
 
-See `scripts/build-prompt.py --help` for the full argument list. The
-script's tests live in `scripts/test_build_prompt.py` and run with
-`python3 scripts/test_build_prompt.py`.
+See `scripts/build-prompt.ts --help` for the full argument list. The
+script's tests live in `scripts/build-prompt.test.ts` and run with
+`node --import tsx --test scripts/build-prompt.test.ts`.

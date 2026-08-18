@@ -23,7 +23,7 @@ overperformance_only: true  # Only mine peer posts beating their OWN page baseli
 apify:
   facebook:
     trends_actor: "apify/facebook-posts-scraper"  # scrapes an account's recent posts
-    post_actor:   "apify/facebook-post-scraper"   # scrapes one post's public metrics by URL
+    post_actor:   "apify/facebook-posts-scraper"  # scrapes one post's public metrics by URL (same actor as trends_actor — issue #253)
   instagram:
     trends_actor: "apify/instagram-scraper"        # scrapes a profile's recent posts/reels
     post_actor:   "apify/instagram-post-scraper"   # scrapes one post's public metrics by URL

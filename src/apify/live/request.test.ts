@@ -17,7 +17,7 @@ const POST_URL = "https://www.facebook.com/permalink.php?story_fbid=123&id=456";
 
 describe("actorUrlSegment — converts a seeds.yaml actor slug into Apify's URL path segment (issue #200)", () => {
   it("replaces the first slash with a tilde", () => {
-    assert.equal(actorUrlSegment("apify/facebook-post-scraper"), "apify~facebook-post-scraper");
+    assert.equal(actorUrlSegment("apify/facebook-posts-scraper"), "apify~facebook-posts-scraper");
     assert.equal(actorUrlSegment("streamers/youtube-scraper"), "streamers~youtube-scraper");
   });
 
@@ -33,17 +33,17 @@ describe("actorUrlSegment — converts a seeds.yaml actor slug into Apify's URL 
 describe("apifyRunSyncUrl — the run-sync-get-dataset-items endpoint, NEVER carrying a token or query string (issue #200)", () => {
   it("builds the expected URL for a Facebook actor slug", () => {
     assert.equal(
-      apifyRunSyncUrl("apify/facebook-post-scraper"),
-      "https://api.apify.com/v2/acts/apify~facebook-post-scraper/run-sync-get-dataset-items",
+      apifyRunSyncUrl("apify/facebook-posts-scraper"),
+      "https://api.apify.com/v2/acts/apify~facebook-posts-scraper/run-sync-get-dataset-items",
     );
   });
 
   it("never contains a '?' — no query string of any kind", () => {
-    assert.ok(!apifyRunSyncUrl("apify/facebook-post-scraper").includes("?"));
+    assert.ok(!apifyRunSyncUrl("apify/facebook-posts-scraper").includes("?"));
   });
 
   it("never contains the substring 'token' in any casing", () => {
-    const url = apifyRunSyncUrl("apify/facebook-post-scraper");
+    const url = apifyRunSyncUrl("apify/facebook-posts-scraper");
     assert.ok(!/token/i.test(url));
   });
 });
@@ -74,7 +74,7 @@ describe("buildApifyRunSyncRequest — the token travels ONLY in the Authorizati
   it("puts the token in the Authorization header as a Bearer token", () => {
     const request = buildApifyRunSyncRequest({
       platform: "facebook",
-      actorSlug: "apify/facebook-post-scraper",
+      actorSlug: "apify/facebook-posts-scraper",
       postUrl: POST_URL,
       token: FAKE_TOKEN,
     });
@@ -84,7 +84,7 @@ describe("buildApifyRunSyncRequest — the token travels ONLY in the Authorizati
   it("the URL NEVER contains the token value, in any form", () => {
     const request = buildApifyRunSyncRequest({
       platform: "facebook",
-      actorSlug: "apify/facebook-post-scraper",
+      actorSlug: "apify/facebook-posts-scraper",
       postUrl: POST_URL,
       token: FAKE_TOKEN,
     });
@@ -96,7 +96,7 @@ describe("buildApifyRunSyncRequest — the token travels ONLY in the Authorizati
   it("the request body NEVER contains the token value either", () => {
     const request = buildApifyRunSyncRequest({
       platform: "facebook",
-      actorSlug: "apify/facebook-post-scraper",
+      actorSlug: "apify/facebook-posts-scraper",
       postUrl: POST_URL,
       token: FAKE_TOKEN,
     });
@@ -117,11 +117,11 @@ describe("buildApifyRunSyncRequest — the token travels ONLY in the Authorizati
   it("routes each platform to its own actor URL and input body", () => {
     const fb = buildApifyRunSyncRequest({
       platform: "facebook",
-      actorSlug: "apify/facebook-post-scraper",
+      actorSlug: "apify/facebook-posts-scraper",
       postUrl: POST_URL,
       token: FAKE_TOKEN,
     });
-    assert.equal(fb.url, "https://api.apify.com/v2/acts/apify~facebook-post-scraper/run-sync-get-dataset-items");
+    assert.equal(fb.url, "https://api.apify.com/v2/acts/apify~facebook-posts-scraper/run-sync-get-dataset-items");
     assert.deepEqual(JSON.parse(fb.body), { startUrls: [{ url: POST_URL }] });
 
     const ig = buildApifyRunSyncRequest({

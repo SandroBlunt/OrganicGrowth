@@ -231,8 +231,11 @@ export function buildBrandProfile(answers: BrandInterviewAnswers): BrandProfileC
 const APIFY_ACTOR_PLACEHOLDER = "...";
 const APIFY_ACTORS: Record<string, { trends_actor: string; post_actor: string }> = {
   facebook: {
+    // The same actor handles both an account's recent posts and one post by URL (issue #253 —
+    // "apify/facebook-post-scraper", singular, is a dead slug that never existed; verified live via
+    // curl: apify/facebook-posts-scraper resolves 200, apify/facebook-post-scraper resolves 404).
     trends_actor: "apify/facebook-posts-scraper",
-    post_actor: "apify/facebook-post-scraper",
+    post_actor: "apify/facebook-posts-scraper",
   },
   instagram: {
     trends_actor: "apify/instagram-scraper",

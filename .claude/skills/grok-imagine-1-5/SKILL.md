@@ -310,7 +310,7 @@ duration falls outside 1-15.
 
 ## Closing — validation
 
-Run the helper script `scripts/build-prompt.py` to assemble and validate the
+Run the helper script `scripts/build-prompt.ts` to assemble and validate the
 prompt before emitting it. It front-loads the camera move, orders
 subject+action → environment → style, places Sound last, enforces the
 one-move-per-clip rule (soft; `--override-camera` bypasses), enforces the
@@ -321,7 +321,7 @@ checks the 1-15 s duration and aspect-ratio set, and prints the assembled
 prompt to stdout.
 
 ```
-python3 scripts/build-prompt.py --mode T2V \
+npx tsx scripts/build-prompt.ts --mode T2V \
     --camera "Medium tracking shot alongside the performers" \
     --subject "Two performers move through a precise athletic stage routine" \
     --action "their footwork splashes through puddles in synchronized timing" \
@@ -333,7 +333,7 @@ python3 scripts/build-prompt.py --mode T2V \
 For I2V with dialogue and a staged label:
 
 ```
-python3 scripts/build-prompt.py --mode I2V --staging \
+npx tsx scripts/build-prompt.ts --mode I2V --staging \
     --camera "slow arc around the performers" \
     --subject "the two performers from the frame" \
     --action "complete their precise athletic stage routine" \
@@ -342,6 +342,6 @@ python3 scripts/build-prompt.py --mode I2V --staging \
     --ambience "rain hammering surfaces, distant traffic"
 ```
 
-See `scripts/build-prompt.py --help` for the full argument list. The
-script's tests live in `scripts/test_build_prompt.py` and run with
-`python3 scripts/test_build_prompt.py`.
+See `scripts/build-prompt.ts --help` for the full argument list. The
+script's tests live in `scripts/build-prompt.test.ts` and run with
+`node --import tsx --test scripts/build-prompt.test.ts`.
