@@ -365,3 +365,153 @@ ok 2 - catalogue entry manifest completeness (issue #212)
 # pass 3
 # fail 0
 ```
+
+---
+
+## QA Verdict — Round 1: PASS
+
+### Suite result
+
+All commands re-run independently by QA, in the worktree, from scratch:
+
+| Command | Result |
+|---|---|
+| `npm test` | `tsc -p tsconfig.json --noEmit` 0 errors, then **3906 tests / 1045 suites / 0 fail** |
+| `npm run test:docs` | **351 tests / 94 suites / 0 fail** |
+| `npm run build` | `tsc -p tsconfig.build.json` — 0 errors |
+| `npx openspec validate issue-255-prompt-builders-typescript --strict` | `Change 'issue-255-prompt-builders-typescript' is valid` |
+| `npx openspec validate --all --strict` | `Totals: 69 passed, 0 failed (69 items)` |
+
+Baseline arithmetic independently corroborated (not merely trusted): `git diff cdb68a0 --name-status -- src/`
+returns **nothing** — `src/` is untouched by this diff, so the entire +244 delta can only have come from
+the 22 new `.claude/skills/**/*.test.ts` files. Re-running each of the 11 ported test files individually
+and summing `# tests` gives **244** exactly (see per-skill table below), so 3906 − 244 = 3662 matches the
+Build Report's claimed baseline without relying on it.
+
+### Per-criterion results (issue #255)
+
+| Acceptance criterion | Result | Evidence |
+|---|:---:|---|
+| Port all 11 `build-prompt.py` → `build-prompt.ts`, runnable with `npx tsx` | PASS | All 11 files present at `.claude/skills/<entry>/scripts/build-prompt.ts`; ran live for 2 skills not in the Build Report's own transcripts (`grok-imagine` edit mode, `happy-horse` I2V+dialogue), both exit 0 |
+| Port all 11 `test_build_prompt.py` → Node's test runner, running inside `npm test` | PASS | `npm test`'s glob includes `.claude/skills/**/*.test.ts`; full suite green, +244 confirmed above |
+| Update each `SKILL.md`/`metadata.yaml` to name the TS entry point | PASS | All 11 `SKILL.md` "Closing — validation" sections invoke `npx tsx scripts/build-prompt.ts`; all 11 `metadata.yaml` `scripts:`/`evals:` name `.ts` paths; `tools: []` in all 11 |
+| Delete the 22 `.py` files only once green | PASS | `find .claude/skills -name "*.py"` → zero; `git diff cdb68a0 --name-status` shows exactly 22 `D` entries (11 `build-prompt.py` + 11 `test_build_prompt.py`), 22 `A` (the `.ts` pairs) + 4 openspec files, 25 `M` (11 SKILL.md + 11 metadata.yaml + package.json + 2 tsconfigs) — matches the Build Report's file list exactly |
+| No `python3` reference survives anywhere in `.claude/` | PASS | `grep -rn "python3" .claude/` → no output (re-run by QA) |
+| Port tests before script, per-skill | PASS (process claim, not independently re-derivable) | Single squashed commit on this branch (`git log cdb68a0..HEAD` → 1 commit), so QA cannot replay the intra-slice ordering from history; taken on the Build Report's live transcript, which is plausible and consistent with every port's current shape |
+| Per-skill test count reported, matches Python, 244 total | PASS | QA independently ran all 11 ported files and summed counts: 10/21/35/26/26/13/26/12/22/33/20 = **244**, matching the issue's own table exactly; spot-checked 3 Python originals not in the Build Report's own ground-truthing note (`grok-imagine`: 21, `seedream-4-5`: 22, `kling-3-0-omni`: 13) by running `python3 test_build_prompt.py` from `git show cdb68a0:...` — all match |
+| Identical output for ≥3 skills of differing size | PASS | Build Report showed 4 (`chatgpt-image-2`, `kling-3-0`, `seedream-5-0-pro`, `veo-3-1`); QA independently reproduced `chatgpt-image-2`'s T2I transcript live and extended to 2 skills the Build Report never touched — `nano-banana-2` (T2I + MR with JSON references) and `seedance-2-0` (T2V + MR error path) — all `diff` clean |
+| Prove ported tests are not vacuous | PASS | Build Report demonstrated `chatgpt-image-2`'s negation guard; QA independently reproduced on a **different skill and different rule** — `veo-3-1`'s timestamp-segment-sum-must-equal-duration check — disabling it flipped exactly 1 of 20 tests red (`segments not summing raises`), restoring returned 20/20, md5 of the restored file matched the pre-edit md5 exactly, `git status` clean throughout |
+| Cross-ticket manifest interaction (#212) honoured | PASS | Read `src/claude-skills/manifest-completeness-scan.ts` directly: confirmed its `evals[].path` check only verifies membership in the entry's own `scripts[].path` set, never disk existence of `scripts[].path` itself — the exact gap QA was asked to hunt. Checked all 11 `metadata.yaml`'s declared `scripts:`/`evals:` paths against the real filesystem: **every declared path resolves to a real file** — no dangling declaration found. This is a live near-miss (the guard alone would not have caught it if the developer had forgotten a rename), but not an actual defect in this build. See Defect list, item D1 (informational, not blocking). |
+
+### Per-scenario results (spec deltas vs issue)
+
+| Requirement / Scenario | Result | Covering test / evidence |
+|---|:---:|---|
+| Byte-identical stdout, ≥3 skills | PASS | 4 in Build Report + 2 more by QA (`nano-banana-2`, `seedance-2-0`), all `diff` clean |
+| Validation failure raises same error class | PASS | Confirmed live for `chatgpt-image-2` negation guard (both Python/TS), and for `seedance-2-0`'s MR mix-budget heuristic — error text byte-identical between languages |
+| `npm test` runs and passes all 244 ported tests alongside existing suite | PASS | 3906/1045/0 fail, delta +244 exactly (see Suite result) |
+| A broken validation rule is caught by its own ported test, not vacuous | PASS | Both the developer's (`chatgpt-image-2`) and QA's own (`veo-3-1`) independent reproduction |
+| Ported script's own type-checking is included in `npm test`'s pretest step | PASS | `.claude/skills/**/*.ts` is in `tsconfig.json`'s `include`; `tsc -p tsconfig.json --noEmit` (the same invocation `npm test` runs) covers it — confirmed no `@ts-nocheck`/`@ts-ignore` anywhere under `.claude/skills/*/scripts/*.ts` and no per-directory override `tsconfig`/`jsconfig` exists there |
+| `npm run build` excludes `.claude/skills`, `dist/` unaffected | PASS | `npm run build` exits 0; `find dist -path "*claude*"` shows only `dist/claude-agents`, `dist/claude-commands`, `dist/claude-skills` (the pre-existing `src/claude-*` guard modules) — **no** `dist/.claude` or any compiled `build-prompt.js` anywhere |
+| Every `metadata.yaml` declares `tools: []` and `.ts` scripts/evals paths | PASS | Confirmed for all 11 |
+| Grepping `.claude/` for `python3` finds nothing | PASS | Re-run by QA, no output |
+| Existing manifest/dangling-citation guard stays green, unmodified | PASS | `git diff cdb68a0 --stat -- src/claude-skills/` → empty (file byte-for-byte unmodified); re-run directly, 3/3 pass |
+| No `.py` file remains under `.claude/skills` | PASS | `find .claude/skills -name "*.py"` → empty |
+
+### Test-by-test fidelity check (job (b), "matching counts are necessary, not sufficient")
+
+Compared the Python original (`git show cdb68a0:...`) against the TypeScript port test-by-test, full text,
+for **three** skills — one more than the minimum requested:
+
+- **`chatgpt-image-2`** (10 tests): every `test_*` method ported 1:1 — same fixture values, same
+  `assertIn`/`assertRaises` → `assert.match`/`assert.throws` mapping, same ordering assertions
+  (`idx_subject < idx_setting < idx_camera`). No weakening found.
+- **`kling-3-0`** (26 tests): every class (`TestT2V`, `TestI2V`, `TestMR`, `TestFL`, `TestMultiShot`,
+  `TestAudio`, `TestMotionIntensity`, `TestNegativePrompt`, `TestAspect`, `TestDuration`) ported with
+  identical fixtures (the same `base()` helper, same overrides per test), identical assertions including
+  every `assertRaises(PromptValidationError)` → `assert.throws(..., PromptValidationError)`. No weakening
+  found.
+- **`nano-banana-2`** (26 tests): every class ported 1:1 including the variant-aware MR-cap boundary tests
+  (Flash 10 objects passes / 11 raises, Pro 6 characters raises at exactly the boundary, the 14-total-cap
+  test), the frame-sequence 2/4/9-frame boundary tests, and the resolution/grounding per-variant tests. No
+  weakening found.
+
+No test in any of the three sampled skills had an assertion dropped, an exact-output check downgraded to
+a substring check, or a `raises` expectation downgraded to a truthiness check. All three are faithful
+1:1 ports, not merely count-matched.
+
+### Always-rules + hermeticity checks
+
+| Rule | Result | Evidence |
+|---|:---:|---|
+| Generate-never-publish | N/A (out of scope) | This slice touches no Producer/Space/publish code path at all |
+| Public-metrics-only | N/A | No metrics code touched |
+| Relative-not-absolute | N/A | No scoring code touched |
+| Explicit-attribution | N/A | No ledger/attribution code touched |
+| Ledger-as-source-of-truth | N/A | `src/` entirely untouched (`git diff cdb68a0 --name-status -- src/` empty); no ledger/store write anywhere in this diff |
+| Magnific fake / no live-Space calls | PASS | `grep -rln "spaces_\|creations_\|apify\|Apify\|APIFY" .claude/skills/*/scripts/*.ts` → no matches; the 244 tests exercise pure `buildPrompt()` string logic only, no network, no credits, no board mutation |
+| No new runtime dependency | PASS | `package.json`'s `dependencies` unchanged (`jpeg-js`, `yaml` — both pre-existing in base `cdb68a0`, confirmed via `git show cdb68a0:package.json`); `package-lock.json` has zero diff |
+| Five shared craft references untouched | PASS | `git diff cdb68a0 --stat -- .claude/references/` → empty |
+
+### `tsconfig.json` scrutiny (job 4)
+
+- **`dist/` unaffected**: confirmed no `.claude/skills` output and no `build-prompt.js` anywhere under
+  `dist/` after a real `npm run build`.
+- **No strictness lost, and it applies to the new skill scripts too**: `tsconfig.json`'s
+  `compilerOptions` (which `tsconfig.build.json` extends, unmodified) retains `strict`,
+  `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noUnusedLocals`, `noUnusedParameters`,
+  `noImplicitOverride` unchanged; `.claude/skills/**/*.ts` is in the same `include` list as `src/**/*.ts`
+  and is type-checked by the same single `tsc -p tsconfig.json --noEmit` invocation `npm test` runs — no
+  `@ts-nocheck`/`@ts-ignore` escape hatch and no per-directory override config exists anywhere under
+  `.claude/skills`.
+- **`TS6059` claim reproduced live, not merely accepted**: QA copied `tsconfig.json`, added back
+  `rootDir: "src"`, saved it as a sibling file `tsconfig.rootDir-test.json` inside the repo root (required
+  for its relative `include` globs to resolve), and ran `npx tsc -p tsconfig.rootDir-test.json --noEmit`
+  directly. It failed with `TS6059: File '.../.claude/skills/.../build-prompt.test.ts' is not under
+  'rootDir' '.../src'` for every one of the 11 skills' test files. The temp config file was deleted
+  immediately after; `git status` confirmed clean.
+
+### Non-vacuousness proof reproduced independently (job 5)
+
+Done on `veo-3-1` (not used by the developer) and its timestamp-segment-duration-sum rule (not
+`chatgpt-image-2`'s negation guard). Full detail in the Per-criterion table above. `md5` before/after
+edit: `07170b6751ab8261a428ab775127d7c5` both times; `git status` clean after restore.
+
+### Doc-as-written check (job 6)
+
+Followed two `SKILL.md` "Closing — validation" code blocks literally, verbatim, substituting only the
+`"..."` placeholders with real values:
+
+- `grok-imagine`'s documented edit-mode invocation → ran, exit 0, correct output.
+- `happy-horse`'s documented I2V + dialogue invocation → ran, exit 0, correct output, byte-identical to
+  the Python original run on the same arguments (the `Camera: Static..` double-period is a pre-existing
+  Python quirk, reproduced faithfully, not a porting bug — confirmed by running the recovered Python
+  original on the same input).
+
+### Defect list
+
+**D1 — informational, not blocking (severity: low).** The manifest-completeness guard
+(`src/claude-skills/manifest-completeness-scan.ts`) checks `evals[].path` for membership in the entry's
+own declared `scripts[].path` set, but never checks that a declared `scripts[].path` (or `evals[].path`)
+actually exists on disk. In this build that gap is **not exercised** — QA independently verified all 22
+declared script paths across all 11 `metadata.yaml` files resolve to real files — so there is no live
+defect to fix in this slice. Flagging only because the guard itself would stay green even if a future
+edit renamed or deleted a declared script without updating the manifest (the same shape as #212's own
+two false-promise findings and #252's dangling citations). Repro: read
+`src/claude-skills/manifest-completeness-scan.ts` lines 226–253 — `declaredScriptPaths` is built from
+`metadata["scripts"]` itself, and the `evals[].path` check only cross-references that in-memory set, with
+no `existsSync` call anywhere in the file. No action required for issue #255; worth a follow-up ticket if
+the Operator wants the guard hardened, out of this slice's scope.
+
+No other defects found.
+
+### Round-1 verdict
+
+**PASS.** Full suite green (3906/1045/0, independently re-run), both docs-tests and build clean, both
+OpenSpec validations strict-green, +244 delta independently derived (not merely trusted) from `src/`
+being fully untouched, every acceptance criterion mapped to a passing test QA itself exercised, three
+skills' tests compared 1:1 against their Python originals with no weakened assertion found, two
+additional skills' identical-output comparisons done beyond the Build Report's own four, the
+non-vacuousness proof independently reproduced on a different skill and rule, the `TS6059`/`rootDir`
+claim reproduced live rather than accepted on faith, and the hunted manifest-dangling-path gap checked
+file-by-file with no live instance found. Proceed to branch + PR.
