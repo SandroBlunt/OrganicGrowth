@@ -61,6 +61,7 @@ function twoBrandPlan(): ImportPlan {
                         postUrl: "https://www.facebook.com/permalink/1",
                         postedAt: "2026-01-02T00:00:00Z",
                         postPlatform: "facebook",
+                        postChannelIndex: 0,
                       },
                     ],
                   },

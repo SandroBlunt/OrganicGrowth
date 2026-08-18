@@ -242,12 +242,14 @@ async function planBrand(
   const copyRules = await loadCopyRules(paths.brandProfile);
   const watermarkHandle = await loadWatermarkHandle(paths.brandProfile);
 
-  // This Brand's Channel list (issue #240) — resolved and validated BEFORE any Idea/Asset is planned,
-  // so a later post_url can be checked against a real, known set of configured platforms rather than
-  // assumed. A platform outside KNOWN_PLATFORMS is a problem, never a silently-skipped Channel.
+  // This Brand's Channel list (issue #240) — resolved and validated BEFORE any Idea/Asset is planned, so
+  // a later post_url can be resolved to a SPECIFIC configured Channel (issue #243's `resolvePostChannel`)
+  // rather than assumed. A platform outside KNOWN_PLATFORMS is a problem, never a silently-skipped
+  // Channel. `channelPlans` itself (not a derived per-platform set) is what a Post resolves against —
+  // its ORDER is load-bearing: `executeChannels` creates one `channel` row per entry in this SAME order,
+  // so a `postChannelIndex` resolved here stays a valid index at execute time.
   const rawChannels = await loadChannels(paths.brandProfile);
   const channelPlans: ChannelPlanItem[] = [];
-  const brandChannelPlatforms = new Set<KnownPlatform>();
   const knownPlatforms: readonly string[] = KNOWN_PLATFORMS;
   for (const channel of rawChannels) {
     if (!knownPlatforms.includes(channel.platform)) {
@@ -258,7 +260,6 @@ async function planBrand(
     }
     const platform = channel.platform as KnownPlatform;
     channelPlans.push({ platform, url: channel.url, isPrimary: channel.primary });
-    brandChannelPlatforms.add(platform);
   }
 
   const formatSlugs = await listFormatSlugs(slug, options.brandsRoot);
@@ -340,7 +341,7 @@ async function planBrand(
         checkoutRoot: options.checkoutRoot,
         mediaFileOps: options.mediaFileOps,
         loadSpec: options.loadSpec,
-        brandChannelPlatforms,
+        brandChannels: channelPlans,
       };
       for (const idea of ideasForRun) {
         const brief = await loadBrief({ id: idea.id, run: runKey, ...(idea.format !== undefined ? { format: idea.format } : {}), ...(idea.briefPath !== undefined ? { briefPath: idea.briefPath } : {}) }, slug, options.brandsRoot);

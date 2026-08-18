@@ -26,7 +26,7 @@ import type { KnownPlatform } from "../copy/platform-shape.ts";
 import { extractSourceUrls } from "./source-urls.ts";
 import { resolveIdeaStatus, type CanonicalIdeaStatus } from "./idea-status.ts";
 import { planAssetMedia, type AssetMediaFileOps, type PlannedAssetMediaItem, type DeadAssetMediaPath } from "./plan-asset-media.ts";
-import { resolvePostPlatform } from "./resolve-post-platform.ts";
+import { resolvePostChannel, type ChannelIdentity } from "./resolve-post-channel.ts";
 
 export type { CanonicalIdeaStatus };
 
@@ -54,11 +54,13 @@ export interface PlanIdeaDeps {
   /** Reads one Asset's Spec file, returning its parsed JSON body, or `null` when the path is missing/
    *  unreadable (never a refusal — see this module's own doc comment). */
   readonly loadSpec: (specPath: string) => Promise<Record<string, unknown> | null>;
-  /** The platforms THIS Brand actually has a configured Channel for (`src/importer/plan.ts`'s own
-   *  `planBrand`, reading `brand-profile.yaml`'s `channel` list via `loadChannels`) — issue #240. An
-   *  Asset's `post_url` resolves to a platform purely from its own hostname
-   *  (`resolvePostPlatform`); that resolved platform is then checked against THIS set, never assumed. */
-  readonly brandChannelPlatforms: ReadonlySet<KnownPlatform>;
+  /** THIS Brand's FULL Channel list, in the SAME order `src/importer/execute.ts`'s `executeChannels`
+   *  creates the real `channel` rows in (`src/importer/plan.ts`'s own `planBrand`, reading
+   *  `brand-profile.yaml`'s `channel` list via `loadChannels`) — issue #240, specific-resolution-aware
+   *  since issue #243. An Asset's `post_url` resolves to a SPECIFIC Channel via `resolvePostChannel`:
+   *  unambiguous when only one Channel exists for the resolved platform, identifier-matched (or refused)
+   *  when more than one does — never assumed, never a silent "whichever was created last". */
+  readonly brandChannels: readonly ChannelIdentity[];
 }
 
 // ---------------------------------------------------------------------------
@@ -80,13 +82,16 @@ export interface PlannedAsset {
   readonly scheduledAt?: string;
   readonly cameraHubUploadedAt?: string;
   readonly zohoScheduleReference?: ZohoScheduleReference;
-  /** The three fields present ONLY when the source Asset carried a `post_url` (issue #240) — an Asset
-   *  with none of them produces no `post` row at execute time (AC3). `postPlatform` is the Channel
-   *  platform `postUrl` resolved to (`resolvePostPlatform`), already checked against the Brand's own
-   *  configured Channels — `executeImport` trusts it rather than re-resolving. */
+  /** The four fields present ONLY when the source Asset carried a `post_url` (issue #240, extended by
+   *  issue #243) — an Asset with none of them produces no `post` row at execute time (AC3). `postPlatform`
+   *  is the platform `postUrl` resolved to; `postChannelIndex` is the SPECIFIC Channel it resolved to —
+   *  an index into `PlanIdeaDeps.brandChannels` / `BrandPlanItem.channels` (the SAME order Channel rows
+   *  are created in), never merely "a Channel for that platform". Both are already resolved+validated by
+   *  `resolvePostChannel` — `executeImport` trusts them rather than re-resolving. */
   readonly postUrl?: string;
   readonly postedAt?: string;
   readonly postPlatform?: KnownPlatform;
+  readonly postChannelIndex?: number;
   readonly media: readonly PlannedAssetMediaItem[];
   readonly deadMedia: readonly DeadAssetMediaPath[];
 }
@@ -134,15 +139,16 @@ interface PlanOneAssetResult {
 }
 
 /**
- * Resolves an Asset's `post_url`/`posted_at` into the three `PlannedAsset` Post fields (issue #240), or
- * a named problem — never a silent drop, mirroring `planAssetMedia`'s own refusal discipline. Returns
- * `{}` (no problem) for an Asset carrying no `post_url` at all — AC3's "no Post row" case.
+ * Resolves an Asset's `post_url`/`posted_at` into the four `PlannedAsset` Post fields (issue #240,
+ * extended by issue #243's SPECIFIC Channel resolution), or a named problem — never a silent drop,
+ * mirroring `planAssetMedia`'s own refusal discipline. Returns `{}` (no problem) for an Asset carrying no
+ * `post_url` at all — AC3's "no Post row" case.
  */
 function planAssetPost(
   asset: LedgerAssetRecord,
   ideaId: string,
-  brandChannelPlatforms: ReadonlySet<KnownPlatform>,
-): { readonly fields: Pick<PlannedAsset, "postUrl" | "postedAt" | "postPlatform">; readonly problem?: string } {
+  brandChannels: readonly ChannelIdentity[],
+): { readonly fields: Pick<PlannedAsset, "postUrl" | "postedAt" | "postPlatform" | "postChannelIndex">; readonly problem?: string } {
   if (asset.post_url === undefined) return { fields: {} };
 
   const label = `Idea "${ideaId}" Asset "${asset.recipe}"`;
@@ -150,25 +156,20 @@ function planAssetPost(
     return { fields: {}, problem: `${label}: has post_url ("${asset.post_url}") but no posted_at — cannot create a Post row without a real timestamp` };
   }
 
-  const platform = resolvePostPlatform(asset.post_url);
-  if (platform === null) {
-    return { fields: {}, problem: `${label}: post_url "${asset.post_url}" does not resolve to any known platform` };
-  }
-  if (!brandChannelPlatforms.has(platform)) {
-    const configured = [...brandChannelPlatforms].join(", ") || "none";
-    return {
-      fields: {},
-      problem: `${label}: post_url "${asset.post_url}" resolves to platform "${platform}", which this Brand has no configured Channel for (configured: ${configured})`,
-    };
+  const resolved = resolvePostChannel(asset.post_url, brandChannels);
+  if (!resolved.ok) {
+    return { fields: {}, problem: `${label}: ${resolved.reason}` };
   }
 
-  return { fields: { postUrl: asset.post_url, postedAt: asset.posted_at, postPlatform: platform } };
+  return {
+    fields: { postUrl: asset.post_url, postedAt: asset.posted_at, postPlatform: resolved.platform, postChannelIndex: resolved.channelIndex },
+  };
 }
 
 async function planOneAsset(asset: LedgerAssetRecord, ideaId: string, deps: PlanIdeaDeps): Promise<PlanOneAssetResult> {
   const mediaResult = await planAssetMedia(asset.asset_paths ?? [], deps.legacyAbsolutePrefix, deps.checkoutRoot, deps.mediaFileOps);
   const spec = asset.spec_path !== undefined ? await deps.loadSpec(asset.spec_path) : null;
-  const postResult = planAssetPost(asset, ideaId, deps.brandChannelPlatforms);
+  const postResult = planAssetPost(asset, ideaId, deps.brandChannels);
   const planned: PlannedAsset = {
     recipe: asset.recipe,
     status: asset.status,

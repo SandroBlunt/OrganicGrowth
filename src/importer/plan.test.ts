@@ -280,6 +280,90 @@ describe("planImport — a Brand's Channel list is planned, and an Asset's post_
 });
 
 // ---------------------------------------------------------------------------
+// TWO Channels on the SAME platform — issue #243's own case
+// ---------------------------------------------------------------------------
+
+describe("planImport — a Brand with TWO Channels on the same platform resolves each Post specifically, or refuses", () => {
+  function twoFacebookChannelFiles(postUrl: string): MiniRepoFile[] {
+    return [
+      {
+        path: "data/brands/acme/brand-profile.yaml",
+        content:
+          "niche: test\n" +
+          "channel:\n" +
+          "  - platform: facebook\n" +
+          "    url: https://www.facebook.com/profile.php?id=61591885769033\n" +
+          "    primary: true\n" +
+          "  - platform: facebook\n" +
+          '    url: "https://www.facebook.com/profile.php?id=99999999999999"\n',
+      },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      {
+        path: "data/brands/acme/ledger.json",
+        content: json({
+          ideas: [
+            {
+              id: "idea-01",
+              run: "2026-W01",
+              format: "news",
+              status: "accepted",
+              recipes: ["news-carousel"],
+              assets: [{ recipe: "news-carousel", status: "posted", post_url: postUrl, posted_at: "2026-01-02T00:00:00Z" }],
+            },
+          ],
+        }),
+      },
+      { path: "data/brands/acme/ideas/news/2026-W01/idea-01.md", content: "# hi\n" },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+  }
+
+  it("resolves to the SECOND Channel when the post_url's identifier matches only that one — never the first by default", async () => {
+    const files = twoFacebookChannelFiles("https://www.facebook.com/permalink.php?story_fbid=abc&id=99999999999999");
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      const brand = result.plan.brands[0]!;
+      assert.equal(brand.channels.length, 2);
+      const asset = brand.formats[0]!.runs[0]!.ideas[0]!.assets[0]!;
+      assert.equal(asset.postChannelIndex, 1);
+    });
+  });
+
+  it("resolves to the FIRST Channel when the post_url's identifier matches that one instead", async () => {
+    const files = twoFacebookChannelFiles("https://www.facebook.com/permalink.php?story_fbid=abc&id=61591885769033");
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      const asset = result.plan.brands[0]!.formats[0]!.runs[0]!.ideas[0]!.assets[0]!;
+      assert.equal(asset.postChannelIndex, 0);
+    });
+  });
+
+  it("refuses — never silently collapses to whichever Channel was created last — when the post_url's identifier matches NEITHER configured Channel", async () => {
+    const files = twoFacebookChannelFiles("https://www.facebook.com/permalink.php?story_fbid=abc&id=11111111111111");
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, false);
+      if (result.ok) return;
+      assert.ok(result.problems.some((p) => p.includes("idea-01") && p.includes("matches none")));
+    });
+  });
+
+  it("refuses — never defaults to hostname-only resolution — when the post_url carries no extractable identifier at all", async () => {
+    const files = twoFacebookChannelFiles("https://www.facebook.com/watch/?v=123");
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, false);
+      if (result.ok) return;
+      assert.ok(result.problems.some((p) => p.includes("idea-01") && p.includes("cannot disambiguate")));
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Refusal paths
 // ---------------------------------------------------------------------------
 
