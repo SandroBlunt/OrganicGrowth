@@ -1,7 +1,7 @@
 /**
  * The Library screen (issue #210, AC2/AC3): lists every Asset, sortable by Performance Score,
- * filterable by hook type, theme, Recipe, and Format. Pure — takes already-fetched, already-filtered/
- * sorted data and returns an HTML string; no database, no `node:fs`.
+ * filterable by hook type, theme, Recipe, Format, and status. Pure — takes already-fetched, already-
+ * filtered/sorted data and returns an HTML string; no database, no `node:fs`.
  *
  * The filter/sort controls are a plain `<form method="get">` — submitting it only ever navigates to a
  * new GET url (e.g. `/?hookType=irony&sort=performance`). There is no `<form method="post">` anywhere
@@ -44,6 +44,10 @@ function filterFormHtml(options: LibraryFilterOptions, activeFilter: LibraryFilt
     options.formats.map((f) => ({ value: f.slug, label: f.name })),
     activeFilter.format,
   );
+  const statusOptions = optionsHtml(
+    options.statuses.map((s) => ({ value: s, label: s.replace(/_/g, " ") })),
+    activeFilter.status,
+  );
   const sortOptions = SORT_OPTIONS.map(
     (s) => `<option value="${s.value}"${s.value === activeSort ? " selected" : ""}>${escapeHtml(s.label)}</option>`,
   ).join("");
@@ -53,8 +57,9 @@ function filterFormHtml(options: LibraryFilterOptions, activeFilter: LibraryFilt
   <div><label for="theme">Theme</label><select id="theme" name="theme">${themeOptions}</select></div>
   <div><label for="recipe">Recipe</label><select id="recipe" name="recipe">${recipeOptions}</select></div>
   <div><label for="format">Format</label><select id="format" name="format">${formatOptions}</select></div>
+  <div><label for="status">Status</label><select id="status" name="status">${statusOptions}</select></div>
   <div><label for="sort">Sort by</label><select id="sort" name="sort">${sortOptions}</select></div>
-  <div><button type="submit">Apply</button> <a href="/">Reset</a></div>
+  <div><md-filled-button type="submit">Apply</md-filled-button> <md-text-button href="/">Reset</md-text-button></div>
 </form>`;
 }
 
@@ -63,7 +68,7 @@ function rowHtml(row: LibraryAssetRow): string {
     ? "—"
     : row.posts.map((p) => `<a href="${escapeHtml(p.postUrl)}" target="_blank" rel="noopener">${escapeHtml(p.channelPlatform)}</a>`).join(", ");
   return `<tr>
-    <td><a href="/assets/${encodeURIComponent(row.assetId)}">${escapeHtml(row.ideaTitle)}</a></td>
+    <td><a href="/assets/${encodeURIComponent(row.assetId)}" target="_blank" rel="noopener">${escapeHtml(row.ideaTitle)}</a></td>
     <td><span class="badge">${escapeHtml(row.hookType)}</span></td>
     <td><span class="badge">${escapeHtml(row.theme)}</span></td>
     <td>${escapeHtml(row.recipeName)}</td>

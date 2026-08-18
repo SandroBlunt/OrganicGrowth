@@ -19,6 +19,7 @@ export function matchesLibraryFilter(row: LibraryAssetRow, filter: LibraryFilter
   if (filter.theme !== undefined && row.theme !== filter.theme) return false;
   if (filter.recipe !== undefined && row.recipeSlug !== filter.recipe) return false;
   if (filter.format !== undefined && row.formatSlug !== filter.format) return false;
+  if (filter.status !== undefined && row.status !== filter.status) return false;
   return true;
 }
 
@@ -32,6 +33,7 @@ export function applyLibraryFilter(rows: readonly LibraryAssetRow[], filter: Lib
 export function deriveFilterOptions(rows: readonly LibraryAssetRow[]): LibraryFilterOptions {
   const hookTypes = [...new Set(rows.map((r) => r.hookType))].sort();
   const themes = [...new Set(rows.map((r) => r.theme))].sort();
+  const statuses = [...new Set(rows.map((r) => r.status))].sort();
 
   const recipeMap = new Map<string, string>();
   const formatMap = new Map<string, string>();
@@ -42,7 +44,7 @@ export function deriveFilterOptions(rows: readonly LibraryAssetRow[]): LibraryFi
   const recipes = [...recipeMap.entries()].map(([slug, name]) => ({ slug, name })).sort((a, b) => a.slug.localeCompare(b.slug));
   const formats = [...formatMap.entries()].map(([slug, name]) => ({ slug, name })).sort((a, b) => a.slug.localeCompare(b.slug));
 
-  return { hookTypes, themes, recipes, formats };
+  return { hookTypes, themes, recipes, formats, statuses };
 }
 
 /** A stable, deterministic secondary tie-break so two rows sharing a primary sort value (all the way

@@ -40,9 +40,44 @@ const NAV_LINKS: readonly { readonly href: string; readonly label: string }[] = 
   { href: "/top", label: "Top 5" },
 ];
 
+/**
+ * The Material Design 3 page chrome's own module loading — an import map (so the `lit`/`@material/web`
+ * family's bare `import` specifiers resolve against `/vendor/...`, `server.ts`'s static route into
+ * `node_modules`) followed by the one module script that actually registers the custom elements this
+ * shell uses. No bundler: every path here is a real file under `node_modules`, served byte-for-byte
+ * (`vendor-assets.ts`) — the import map is what lets a browser resolve `lit`'s own bare imports (e.g.
+ * `import {html} from 'lit'`) without one. The trailing-slash entries are prefix mappings (part of the
+ * import-map spec, not this codebase's own invention): one entry covers every subpath a package exports
+ * (`lit/decorators.js`, `@lit/reactive-element/decorators/property.js`, etc.) rather than enumerating
+ * each file by hand.
+ */
+const MATERIAL_WEB_SCRIPTS = `<script type="importmap">${JSON.stringify({
+  imports: {
+    "@material/web/": "/vendor/@material/web/",
+    "lit": "/vendor/lit/index.js",
+    "lit/": "/vendor/lit/",
+    "lit-html": "/vendor/lit-html/lit-html.js",
+    "lit-html/": "/vendor/lit-html/",
+    "lit-element": "/vendor/lit-element/lit-element.js",
+    "lit-element/": "/vendor/lit-element/",
+    "@lit/reactive-element": "/vendor/@lit/reactive-element/reactive-element.js",
+    "@lit/reactive-element/": "/vendor/@lit/reactive-element/",
+    "@lit/context": "/vendor/@lit/context/index.js",
+    "@lit/context/": "/vendor/@lit/context/",
+    "@lit-labs/ssr-dom-shim": "/vendor/@lit-labs/ssr-dom-shim/index.js",
+    "tslib": "/vendor/tslib/tslib.es6.js",
+  },
+})}</script>
+<script type="module">
+  import "/vendor/@material/web/button/filled-button.js";
+  import "/vendor/@material/web/button/text-button.js";
+</script>`;
+
 /** Wraps `bodyHtml` in the shared page shell: a `<!doctype html>` document, one `<title>`, one shared
- *  nav bar, and minimal inline CSS (this repo's one runtime dependency is `yaml` — a CSS/JS bundler is
- *  not proportionate to a local, single-Operator, read-only viewer). */
+ *  nav bar, the Material Design 3 component loading above, and minimal inline CSS (this repo's one
+ *  runtime dependency used to be just `yaml` — `@material/web` is now a second, deliberately chosen one;
+ *  a CSS/JS bundler still is not proportionate to a local, single-Operator, read-only viewer, so this
+ *  page ships its module imports unbundled, straight off `node_modules`). */
 export function page(title: string, bodyHtml: string): string {
   const nav = NAV_LINKS.map((link) => `<a href="${link.href}">${escapeHtml(link.label)}</a>`).join(" &middot; ");
   return `<!doctype html>
@@ -50,6 +85,7 @@ export function page(title: string, bodyHtml: string): string {
 <head>
 <meta charset="utf-8">
 <title>${escapeHtml(title)} — OrganicGrowth Library</title>
+${MATERIAL_WEB_SCRIPTS}
 <style>
   body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; color: #1a1a1a; background: #fafafa; }
   header { background: #1a1a1a; color: #fff; padding: 12px 20px; }

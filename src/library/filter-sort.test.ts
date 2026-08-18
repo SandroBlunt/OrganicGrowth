@@ -35,15 +35,16 @@ describe("matchesLibraryFilter / applyLibraryFilter", () => {
     assert.equal(applyLibraryFilter(rows, {}).length, 2);
   });
 
-  it("filters on hookType, theme, recipe, and format independently", () => {
+  it("filters on hookType, theme, recipe, format, and status independently", () => {
     const rows = [
-      row({ assetId: "a", hookType: "reframe", theme: "product_or_tool", recipeSlug: "news-carousel", formatSlug: "unhypped-news" }),
-      row({ assetId: "b", hookType: "irony", theme: "safety_or_risk", recipeSlug: "character-explainer-with-cast", formatSlug: "other-format" }),
+      row({ assetId: "a", hookType: "reframe", theme: "product_or_tool", recipeSlug: "news-carousel", formatSlug: "unhypped-news", status: "produced" }),
+      row({ assetId: "b", hookType: "irony", theme: "safety_or_risk", recipeSlug: "character-explainer-with-cast", formatSlug: "other-format", status: "posted" }),
     ];
     assert.deepEqual(applyLibraryFilter(rows, { hookType: "irony" }).map((r) => r.assetId), ["b"]);
     assert.deepEqual(applyLibraryFilter(rows, { theme: "product_or_tool" }).map((r) => r.assetId), ["a"]);
     assert.deepEqual(applyLibraryFilter(rows, { recipe: "character-explainer-with-cast" }).map((r) => r.assetId), ["b"]);
     assert.deepEqual(applyLibraryFilter(rows, { format: "unhypped-news" }).map((r) => r.assetId), ["a"]);
+    assert.deepEqual(applyLibraryFilter(rows, { status: "posted" }).map((r) => r.assetId), ["b"]);
   });
 
   it("combines several filter fields (AND, not OR)", () => {
@@ -61,10 +62,10 @@ describe("matchesLibraryFilter / applyLibraryFilter", () => {
 });
 
 describe("deriveFilterOptions — only offers values actually present, never a fixed static list", () => {
-  it("derives distinct, sorted hookTypes/themes/recipes/formats from the given rows", () => {
+  it("derives distinct, sorted hookTypes/themes/recipes/formats/statuses from the given rows", () => {
     const rows = [
-      row({ assetId: "a", hookType: "reframe", theme: "product_or_tool", recipeSlug: "news-carousel", recipeName: "News Carousel", formatSlug: "unhypped-news", formatName: "Unhypped News" }),
-      row({ assetId: "b", hookType: "irony", theme: "safety_or_risk", recipeSlug: "character-explainer-with-cast", recipeName: "Character Explainer with Cast", formatSlug: "unhypped-news", formatName: "Unhypped News" }),
+      row({ assetId: "a", hookType: "reframe", theme: "product_or_tool", recipeSlug: "news-carousel", recipeName: "News Carousel", formatSlug: "unhypped-news", formatName: "Unhypped News", status: "produced" }),
+      row({ assetId: "b", hookType: "irony", theme: "safety_or_risk", recipeSlug: "character-explainer-with-cast", recipeName: "Character Explainer with Cast", formatSlug: "unhypped-news", formatName: "Unhypped News", status: "posted" }),
     ];
     const options = deriveFilterOptions(rows);
     assert.deepEqual(options.hookTypes, ["irony", "reframe"]);
@@ -74,11 +75,12 @@ describe("deriveFilterOptions — only offers values actually present, never a f
       { slug: "news-carousel", name: "News Carousel" },
     ]);
     assert.deepEqual(options.formats, [{ slug: "unhypped-news", name: "Unhypped News" }]);
+    assert.deepEqual(options.statuses, ["posted", "produced"]);
   });
 
   it("returns every field empty for an empty row set", () => {
     const options = deriveFilterOptions([]);
-    assert.deepEqual(options, { hookTypes: [], themes: [], recipes: [], formats: [] });
+    assert.deepEqual(options, { hookTypes: [], themes: [], recipes: [], formats: [], statuses: [] });
   });
 });
 

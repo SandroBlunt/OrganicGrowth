@@ -75,6 +75,34 @@ describe("createLibraryServer — GET routes", () => {
     });
   });
 
+  it("GET /?status=produced narrows to matching rows; a non-matching status returns zero", async () => {
+    await withServer(async (baseUrl) => {
+      const matching = await (await fetch(`${baseUrl}/?status=produced`)).text();
+      assert.match(matching, /Server test idea/);
+
+      const nonMatching = await (await fetch(`${baseUrl}/?status=posted`)).text();
+      assert.doesNotMatch(nonMatching, /Server test idea/);
+      assert.match(nonMatching, /No Assets match this filter/);
+    });
+  });
+
+  it("GET /vendor/@material/web/button/filled-button.js serves the real installed component as JS", async () => {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/vendor/@material/web/button/filled-button.js`);
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("content-type"), "text/javascript; charset=utf-8");
+      const body = await res.text();
+      assert.match(body, /FilledButton/);
+    });
+  });
+
+  it("GET /vendor/... 404s for a package outside the allow-list", async () => {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/vendor/typescript/lib/typescript.js`);
+      assert.equal(res.status, 404);
+    });
+  });
+
   it("GET /assets/:id renders the Asset page together with its Spec/media/copy/posts", async () => {
     await withServer(async (baseUrl) => {
       const res = await fetch(`${baseUrl}/`);
@@ -156,7 +184,7 @@ describe("createLibraryServer — GET routes", () => {
 
 describe("createLibraryServer — AC10: no write path at all, for ANY path", () => {
   const METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
-  const PATHS = ["/", "/queue", "/chart", "/top", "/assets/anything", "/media/anything", "/nowhere"] as const;
+  const PATHS = ["/", "/queue", "/chart", "/top", "/assets/anything", "/media/anything", "/vendor/@material/web/button/filled-button.js", "/nowhere"] as const;
 
   for (const method of METHODS) {
     for (const path of PATHS) {

@@ -60,15 +60,18 @@ export interface LibraryFilterOptions {
   readonly themes: readonly Theme[];
   readonly recipes: readonly { readonly slug: string; readonly name: string }[];
   readonly formats: readonly { readonly slug: string; readonly name: string }[];
+  readonly statuses: readonly AssetStatus[];
 }
 
 /** The Library screen's filter — every field optional (an absent field means "no filter on this
- *  dimension"). AC3: "filters by hook type, theme, Recipe and Format." */
+ *  dimension"). AC3: "filters by hook type, theme, Recipe and Format," extended to filter by the
+ *  Asset's own lifecycle status too. */
 export interface LibraryFilter {
   readonly hookType?: HookType;
   readonly theme?: Theme;
   readonly recipe?: string;
   readonly format?: string;
+  readonly status?: AssetStatus;
 }
 
 /** How the Library screen orders its rows. `"performance"` sorts by `bestPerformanceScore` DESC, an

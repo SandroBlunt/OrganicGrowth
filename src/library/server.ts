@@ -4,8 +4,9 @@
  *
  * **Read-only by construction, AC1/AC10:**
  *   - Every route handler below only ever CALLS a read-model function (which itself only ever calls a
- *     store's READ export — see `read-model.ts`'s own doc comment) or `resolveMediaFile` (a plain
- *     `readFile`). Nothing in this file calls a store's write function, and nothing here imports one.
+ *     store's READ export — see `read-model.ts`'s own doc comment), `resolveMediaFile`, or
+ *     `readVendorFile` (both a plain `readFile`, off an allow-listed path). Nothing in this file calls a
+ *     store's write function, and nothing here imports one.
  *   - Any HTTP method other than `GET` is refused with `405 Method Not Allowed` before any route is
  *     even consulted — there is no `POST`/`PUT`/`PATCH`/`DELETE` handler anywhere in this module, for
  *     any path (AC10: "not a disabled button, no endpoint" — there is genuinely no code path that would
@@ -32,9 +33,11 @@ import { renderQueueBody } from "./render/queue.ts";
 import { renderChartBody } from "./render/chart.ts";
 import { renderTopBody } from "./render/top.ts";
 import { resolveMediaFile } from "./media.ts";
+import { readVendorFile } from "./vendor-assets.ts";
 import { getAssetById } from "../asset/store.ts";
 import { isHookType } from "../vocabulary/hook-type.ts";
 import { isTheme } from "../vocabulary/theme.ts";
+import { isAssetStatus } from "../asset/asset.ts";
 import type { LibraryFilter, LibrarySort, TopAssetEntry } from "./types.ts";
 
 const TOP_N = 5;
@@ -44,11 +47,13 @@ function parseFilter(params: URLSearchParams): LibraryFilter {
   const theme = params.get("theme");
   const recipe = params.get("recipe");
   const format = params.get("format");
+  const status = params.get("status");
   return {
     ...(hookType !== null && hookType !== "" && isHookType(hookType) ? { hookType } : {}),
     ...(theme !== null && theme !== "" && isTheme(theme) ? { theme } : {}),
     ...(recipe !== null && recipe !== "" ? { recipe } : {}),
     ...(format !== null && format !== "" ? { format } : {}),
+    ...(status !== null && status !== "" && isAssetStatus(status) ? { status } : {}),
   };
 }
 
@@ -70,9 +75,25 @@ function sendNotFound(res: ServerResponse): void {
 
 const ASSET_PATH = /^\/assets\/([^/]+)$/;
 const MEDIA_PATH = /^\/media\/([^/]+)$/;
+const VENDOR_PREFIX = "/vendor/";
 
 async function handleGet(db: DatabaseSync, url: URL, res: ServerResponse): Promise<void> {
   const path = url.pathname;
+
+  // The page shell's Material Design 3 components (`render/html.ts`'s import map) — served straight out
+  // of `node_modules` (never bundled), the same "no build step" shape as everything else in this viewer.
+  // `readVendorFile` is the one place that decides what's servable; this route trusts its null-or-bytes
+  // answer completely.
+  if (path.startsWith(VENDOR_PREFIX)) {
+    const bytes = await readVendorFile(path);
+    if (bytes === null) {
+      sendNotFound(res);
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "content-length": bytes.length });
+    res.end(bytes);
+    return;
+  }
 
   if (path === "/") {
     const allRows = buildLibraryIndex(db);

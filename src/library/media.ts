@@ -4,8 +4,9 @@
  * behind a **root-relative** `storage_key` (`src/db/storage-key.ts`) resolved against the owning
  * Brand's own `media_root` (configuration) at READ time. This is that read-time resolution.
  *
- * The ONE `node:fs` import in `src/library/**` — registered in `src/fs-boundary/allow-list.ts` — and,
- * deliberately, a pure READ (`readFile`); this module never writes.
+ * One of two `node:fs` imports in `src/library/**` (the other, `vendor-assets.ts`, reads page-chrome JS
+ * off `node_modules` instead of a Brand's media_root) — both registered in
+ * `src/fs-boundary/allow-list.ts`, and both, deliberately, a pure READ (`readFile`); neither writes.
  */
 
 import { readFile } from "node:fs/promises";

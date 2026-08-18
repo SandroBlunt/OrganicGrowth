@@ -102,4 +102,8 @@ export const NODE_FS_ALLOW_LIST: readonly string[] = [
   //     (src/library/read-only.test.ts) prove the whole viewer never writes through its database
   //     handle either.
   "src/library/media.ts",
+  // reads the Library's page-chrome JS (Material Design 3 components) straight out of node_modules for
+  // the `/vendor/...` route — same read-only shape as the entry above, a different tree on disk
+  // (node_modules, not a Brand's media_root), gated by its own short package allow-list.
+  "src/library/vendor-assets.ts",
 ] as const;
