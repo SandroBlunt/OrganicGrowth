@@ -229,6 +229,7 @@ export const SPACE_LESS_TEST_RECIPE: Recipe = {
     maxEmojis: 2,
   },
   copySkill: "write-social-copy",
+  producerSkill: "test-produce-space-less-recipe",
   phases: SPACE_LESS_TEST_PHASES,
 };
 

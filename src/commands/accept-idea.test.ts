@@ -26,6 +26,7 @@ import { createFormat } from "../format/store.ts";
 import { getIdeaByLegacyRef } from "../idea/store.ts";
 import { listJobsForComposite } from "../production-queue/job-store.ts";
 import { openDatabase } from "../db/connection.ts";
+import { loadIdeaAssets } from "../asset/store.ts";
 
 const BRAND = "straw-motion";
 const FORMAT = "unhypped-news";
@@ -215,6 +216,102 @@ describe("acceptIdeaCommand — opens + migrates data/organicgrowth.db BY DEFAUL
       // the database by default, `result.sql` would be silently absent and this assertion would fail.
       const out = await acceptIdeaCommand(BRAND, "idea-01", [RECIPE], [], { brandsRoot, queuePath, dbPath, now: () => NOW });
       assert.match(out, /SQL sync:/, "a caller giving ONLY dbPath (no db) must still get a real SQL sync outcome");
+    });
+  });
+});
+
+describe("acceptIdeaCommand — authors + self-checks each chosen Recipe's Production Spec BEFORE enqueueing (ADR-0031, issue #264)", () => {
+  it("persists the authored Spec onto the SQL Asset row, and regenerates the on-disk file view FROM it", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      createBrand(db, { slug: BRAND, name: "Straw Motion", timezone: "UTC", mediaRoot: "data/brands/straw-motion" });
+      createFormat(db, { brandId: getBrandBySlug(db, BRAND)!.id, slug: FORMAT, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+
+      await withBrandFixture(async ({ brandsRoot, ledgerPath, queuePath }) => {
+        const out = await acceptIdeaCommand(BRAND, "idea-01", [RECIPE], [], { brandsRoot, queuePath, db, now: () => NOW });
+        assert.doesNotMatch(out, /AUTHORSHIP FAILED/);
+        assert.match(out, /Spec persisted for "news-carousel" and regenerated at/);
+
+        const brandId = getBrandBySlug(db, BRAND)!.id;
+        const sqlIdea = getIdeaByLegacyRef(db, brandId, "idea-01")!;
+        const assets = (await loadIdeaAssets(sqlIdea.id, { db })) as readonly { readonly recipe: string; readonly spec?: unknown }[];
+        const asset = assets.find((a) => a.recipe === RECIPE)!;
+        assert.ok(asset.spec, "the SQL Asset row carries the authored Spec");
+        assert.ok((asset.spec as { slides: unknown[] }).slides.length > 0);
+
+        // The regenerated file view lives beside the Brief, under ideasRoot — read it back and prove it
+        // is deep-equal to what SQL holds (a GENERATED view, never a second, independently-authored copy).
+        const specPath = join(brandsRoot, BRAND, "ideas", RUN, "idea-01.news-carousel.spec.json");
+        const onDisk = JSON.parse(await readFile(specPath, "utf8")) as unknown;
+        assert.deepEqual(onDisk, asset.spec);
+
+        // The ledger accept + file queue land exactly as before this ticket.
+        const ideas = await loadIdeas(ledgerPath, BRAND);
+        assert.equal(findIdea(ideas, "idea-01")?.status, "accepted");
+        const onDiskQueue = await loadQueue(queuePath);
+        assert.equal(onDiskQueue.jobs.length, 1);
+      });
+    });
+  });
+
+  it("a forced banned-word violation in the Idea's title blocks that Recipe's accept, loudly — no job in either queue, no Spec anywhere", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      createBrand(db, { slug: BRAND, name: "Straw Motion", timezone: "UTC", mediaRoot: "data/brands/straw-motion" });
+      createFormat(db, { brandId: getBrandBySlug(db, BRAND)!.id, slug: FORMAT, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+
+      const root = await mkdtemp(join(tmpdir(), "og-accept-idea-authorship-"));
+      try {
+        const brandDir = join(root, BRAND);
+        await mkdir(brandDir, { recursive: true });
+        const ledgerPath = join(brandDir, "ledger.json");
+        const briefPath = join(brandDir, "idea-01.md");
+        const queuePath = join(root, "queue.json");
+        // The AUTHORING step reads banned words from the FILE-backed Brand Profile (loadBannedWords),
+        // never from the SQL brand row — this is the config that actually blocks authorship below.
+        await writeFile(join(brandDir, "brand-profile.yaml"), "banned_words:\n  - VERBOTEN\n", "utf8");
+        await writeFile(briefPath, "# VERBOTEN word in the headline\n\n## Source(s)\n- https://example.com/real-source\n", "utf8");
+        await writeFile(
+          ledgerPath,
+          JSON.stringify({
+            ideas: [
+              {
+                id: "idea-01",
+                status: "suggested",
+                run: RUN,
+                format: FORMAT,
+                title: "VERBOTEN word in the headline",
+                brief_path: briefPath,
+              },
+            ],
+          }),
+          "utf8",
+        );
+
+        const out = await acceptIdeaCommand(BRAND, "idea-01", [RECIPE], [], { brandsRoot: root, queuePath, db, now: () => NOW });
+
+        assert.match(out, /AUTHORSHIP FAILED for Recipe "news-carousel"/);
+        assert.match(out, /banned-words|VERBOTEN/i);
+        assert.match(out, /nothing was enqueued|No Recipe's Spec was successfully authored/i);
+
+        // The ledger still records the accept + the Operator's ORIGINAL chosen Recipe set.
+        const ideas = await loadIdeas(ledgerPath, BRAND);
+        assert.equal(findIdea(ideas, "idea-01")?.status, "accepted");
+        const raw = JSON.parse(await readFile(ledgerPath, "utf8")) as { ideas: Array<Record<string, unknown>> };
+        assert.deepEqual(raw.ideas[0]!.recipes, [RECIPE]);
+
+        // Neither queue gained a job for this Recipe.
+        const onDiskQueue = await loadQueue(queuePath);
+        assert.equal(onDiskQueue.jobs.length, 0);
+        const brandId = getBrandBySlug(db, BRAND)!.id;
+        const sqlIdea = getIdeaByLegacyRef(db, brandId, "idea-01");
+        if (sqlIdea !== null) {
+          const jobs = listJobsForComposite(db, brandId, sqlIdea.id, RECIPE);
+          assert.equal(jobs.length, 0);
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
     });
   });
 });

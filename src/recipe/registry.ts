@@ -295,6 +295,17 @@ export interface Recipe {
    */
   readonly copySkill: string;
   /**
+   * The project Skill slug (`.claude/skills/<slug>/SKILL.md`) that authors this Recipe's Production
+   * Spec (ADR-0031, issue #264) — the same shape as `copySkill` above, naming the Recipe's OWN
+   * authoring Skill rather than a mapping hard-coded into any one agent's own prose. Since Review
+   * (accept time) is now the single point a Spec is authored (ADR-0031), more than one caller needs
+   * this dispatch — `/review-ideas`' accept flow (`src/commands/accept-idea.ts`, via its own
+   * deterministic stand-in, `src/production-spec/author-at-review.ts`) and, for documentation/parity,
+   * the attended Producer, which no longer authors but still names which Skill Review ran on its
+   * behalf. Mirrors `copySkill`'s own "swappable, per-Recipe field" shape exactly (issue #111).
+   */
+  readonly producerSkill: string;
+  /**
    * This Recipe's canvas's two typed inputs — media slots + prompt node (ADR-0016, issue #81) — or
    * ABSENT for a Space-less Recipe (ADR-0021), which has no canvas to bind media into or inject a
    * prompt onto. Absent together with `space` above.
@@ -510,6 +521,7 @@ const CHARACTER_EXPLAINER_WITH_CAST: Recipe = {
     maxEmojis: CHARACTER_EXPLAINER_COPY_MAX_EMOJIS,
   },
   copySkill: "write-social-copy",
+  producerSkill: "produce-character-explainer",
   canvasInputs: {
     mediaSlots: {
       "Selected Character": {
@@ -801,6 +813,7 @@ const NEWS_CAROUSEL: Recipe = {
     maxEmojis: NEWS_CAROUSEL_COPY_MAX_EMOJIS,
   },
   copySkill: "write-social-copy",
+  producerSkill: "produce-news-carousel",
   canvasInputs: {
     mediaSlots: {
       // The slot's map key IS the physical canvas node name (a brand-asset slot has no separate
@@ -1009,6 +1022,7 @@ const NEWS_SHORT_SCRIPT: Recipe = {
     titleMaxChars: YOUTUBE_COPY_SHAPE.titleMaxChars,
   },
   copySkill: "write-social-copy",
+  producerSkill: "produce-news-short-script",
   // No `space`, no `canvasInputs` — a Space-less Recipe (ADR-0021): there is no canvas to bind media
   // into, inject a prompt onto, or drive a run-point against. `usesSpace(NEWS_SHORT_SCRIPT)` is `false`.
   phases: NEWS_SHORT_SCRIPT_PHASES,

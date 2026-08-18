@@ -94,6 +94,7 @@ export {
   type ResolveGateOutcome,
 } from "./gates.ts";
 export { saveCopyVariant, type CopyVariantInput, type CopyVariantRecord } from "./copy.ts";
+export { saveAssetSpec, refreshSpecFile } from "./production-spec.ts";
 export {
   runOneJob,
   DEFAULT_LEASE_MS,
