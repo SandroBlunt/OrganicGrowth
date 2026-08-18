@@ -1,0 +1,62 @@
+{
+  "caption": "Google just shipped Gemini 3.7 Flash, and here is the part nobody puts on the slide: it landed 21 days after 3.6 Flash. If you wired 3.6 into your product this month, you are already a version behind.\n\nThe upgrade is real. On the DeepSWE coding test it jumped from 49.0% to 65.3%, and it lands at 1588 on Code Arena. It is genuinely better at coding, web dev, and agent work.\n\nHere is the catch. That launch price of $0.75 in and $3.75 out per million tokens is 50% off, and it doubles to $1.50 and $7.50 in January. The cheap intro is a hook to pull you off whatever you run now, right before the real bill shows up.\n\nCheap today is not cheap in five months. Would you switch your whole stack for a discount that expires? Tell us in the comments.",
+  "hashtags": [
+    "#Gemini",
+    "#GoogleAI",
+    "#AInews",
+    "#DeveloperTools",
+    "#AI"
+  ],
+  "variants": [
+    {
+      "platform": "facebook",
+      "caption": "Google just shipped Gemini 3.7 Flash, and here is the part nobody puts on the slide: it landed 21 days after 3.6 Flash. If you wired 3.6 into your product this month, you are already a version behind.\n\nThe upgrade is real. On the DeepSWE coding test it jumped from 49.0% to 65.3%, and it lands at 1588 on Code Arena. It is genuinely better at coding, web dev, and agent work.\n\nHere is the catch. That launch price of $0.75 in and $3.75 out per million tokens is 50% off, and it doubles to $1.50 and $7.50 in January. The cheap intro is a hook to pull you off whatever you run now, right before the real bill shows up.\n\nCheap today is not cheap in five months. Would you switch your whole stack for a discount that expires? Tell us in the comments.",
+      "hashtags": [
+        "#Gemini",
+        "#GoogleAI",
+        "#AInews",
+        "#DeveloperTools",
+        "#AI"
+      ]
+    },
+    {
+      "platform": "instagram",
+      "caption": "Google shipped Gemini 3.7 Flash just 21 days after 3.6 Flash. If you integrated 3.6 this month, you are already a version behind.\n\nThe gains are real. DeepSWE coding jumped from 49.0% to 65.3%, and it hits 1588 on Code Arena. Better at coding, web dev, and agent work.\n\nThe catch: the launch price of $0.75 in and $3.75 out per million tokens is half off, and it doubles to $1.50 and $7.50 in January. The discount is a hook, not a gift.\n\nWould you move your stack for a price that expires? Tell us in the comments.",
+      "hashtags": [
+        "#Gemini",
+        "#GoogleAI",
+        "#AInews",
+        "#DeveloperTools",
+        "#AI",
+        "#GeminiFlash"
+      ]
+    },
+    {
+      "platform": "linkedin",
+      "caption": "@Google shipped Gemini 3.7 Flash 21 days after 3.6 Flash. If your team integrated 3.6 earlier this month, you are already maintaining a last-generation model.\n\nThe improvement is measurable. On the DeepSWE coding benchmark it moved from 49.0% to 65.3%, and it lands at 1588 on Code Arena Elo, with real gains in coding, web development, and agent workflows.\n\nThe part worth planning for: the introductory price of $0.75 input and $3.75 output per million tokens is a 50% discount, and it doubles to $1.50 and $7.50 in January. That cheap launch window is designed to move developers off competing APIs before the full price returns.\n\nTwo questions for engineering leaders. Is the migration cost worth a five-month discount? And can your team absorb this release cadence without integration fatigue?\n\nWe cover what actually shipped and what it really costs you. Follow Straw Motion for the unhypped read on every big AI move.",
+      "hashtags": [
+        "#Gemini",
+        "#GoogleAI",
+        "#AI",
+        "#DeveloperTools"
+      ]
+    },
+    {
+      "platform": "x",
+      "caption": "Google shipped Gemini 3.7 Flash just 21 days after 3.6. Coding jumped 49 to 65 on DeepSWE. The catch: the 50% launch price doubles in January. The cheap intro is a hook, not a gift. Budget before you commit.",
+      "hashtags": [
+        "#Gemini",
+        "#GoogleAI"
+      ]
+    },
+    {
+      "platform": "tiktok",
+      "caption": "Google dropped Gemini 3.7 Flash 21 days after 3.6. Cheaper today, sure. But that 50% deal doubles in January. The discount is bait 👀",
+      "hashtags": [
+        "#Gemini",
+        "#GoogleAI",
+        "#AInews"
+      ]
+    }
+  ]
+}
