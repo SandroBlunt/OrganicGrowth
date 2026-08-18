@@ -85,6 +85,20 @@ ledger reads and writes go through the Brand's own ledger (`src/ledger/ledger.ts
       add), do **not** enqueue — there is nothing to produce yet; tell the Operator the Idea is accepted
       but not yet queued, and that adding a Recipe later is not yet supported (v1). Run `/queue <brand>`
       to see the backlog.
+      **Also pass `db` in that same options object (issue #254):** before calling `enqueueOnAccept`, open
+      the SAME SQLite database the unattended worker drains —
+      `const db = await openDatabase("data/organicgrowth.db"); runMigrations(db);`
+      (`src/db/connection.ts`, `src/db/migrate.ts` — migrating an already-current database is a safe
+      no-op) — and add it to the options object above as `db`. This is what makes the accepted Idea's
+      chosen Recipes visible to `/run-worker` at all (issue #254's own fix: before it, accepting only
+      ever wrote `data/queue.json`, which the worker never reads). `data/queue.json` is written **exactly
+      as before** either way — the SQL sync is additive, never a replacement, and a SQL failure never
+      silently succeeds: if the `enqueueOnAccept` call throws AFTER you already see the file queue
+      confirmation, the file-based job still landed (tell the Operator that plainly) but the SQL sync did
+      not — surface the thrown error's message verbatim rather than reporting a bare "Enqueued" success,
+      and do not retry silently. A missing/un-migrated `data/organicgrowth.db` is itself created and
+      migrated by the `openDatabase`/`runMigrations` calls above, so this should only throw for a genuine
+      data problem (e.g. this Brand/Format has no SQL row yet — run `/import-data` first).
 6. **For each REJECT:** set `status: rejected` on the Brand's ledger (`src/ledger/ledger.ts`) and store
    their reason **verbatim** in `rejection_reason` — the same `recordReviewDecision`-shaped write as
    step 5.6 above. Log it as-is — do **not** argue, re-pitch, or act on it (v1 logs only).
