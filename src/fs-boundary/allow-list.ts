@@ -38,6 +38,9 @@ export const NODE_FS_ALLOW_LIST: readonly string[] = [
 
   // --- Documents ADR-0029 explicitly names as staying files (Brand Profile / Format / Baseline Prompt /
   //     Mention Handle Registry / a hand-maintained seeds.yaml of the same class) -------------------
+  // reads one Brand's seeds.yaml directly to resolve one configured Apify actor slug (issue #253) —
+  // same seeds.yaml document, same read-only "never fabricate" contract as the two entries below.
+  "src/apify/actor-config.ts",
   "src/commands/run-pipeline-readiness.ts",
   "src/commands/track-performance.ts",
   "src/format/baseline-prompt.ts",

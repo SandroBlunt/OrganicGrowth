@@ -35,7 +35,7 @@ overperformance_only: true # Only mine peer posts beating their OWN page baselin
 apify:
   facebook:
     trends_actor: apify/facebook-posts-scraper
-    post_actor: apify/facebook-post-scraper
+    post_actor: apify/facebook-posts-scraper
   instagram:
     trends_actor: apify/instagram-scraper
     post_actor: apify/instagram-post-scraper

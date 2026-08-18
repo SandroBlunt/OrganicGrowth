@@ -70,17 +70,18 @@ function assetKey(brand: string, legacyIdeaId: string, recipe: string): string {
   return `${brand}::${legacyIdeaId}::${recipe}`;
 }
 
-/** Creates every Channel this Brand's Profile named (issue #240), BEFORE any Format/Run/Idea/Asset —
- *  so a later Asset's Post always has a real Channel row to key against. Returns a lookup from
- *  platform -> the created `channel.id`, the SAME map the Asset loop resolves a Post's `channelId`
- *  from. */
-function executeChannels(db: DatabaseSync, brandId: string, channelPlans: readonly ChannelPlanItem[], now: () => string): Map<string, string> {
-  const channelIdByPlatform = new Map<string, string>();
+/** Creates every Channel this Brand's Profile named (issue #240), BEFORE any Format/Run/Idea/Asset — so
+ *  a later Asset's Post always has a real Channel row to key against. Returns the created `channel.id`s
+ *  in the SAME order as `channelPlans` — a plain array, not a `platform -> id` map (issue #243: a map
+ *  keyed by platform alone silently collapses two Channels on the same platform to whichever was
+ *  created last; an Asset's `postChannelIndex` — resolved at plan time by `resolvePostChannel` — is an
+ *  index into THIS array, so it always names the one specific Channel it resolved to). */
+function executeChannels(db: DatabaseSync, brandId: string, channelPlans: readonly ChannelPlanItem[], now: () => string): readonly string[] {
+  const channelIds: string[] = [];
   for (const channelPlan of channelPlans) {
-    const channelId = createChannel(db, { brandId, platform: channelPlan.platform, url: channelPlan.url, isPrimary: channelPlan.isPrimary }, now);
-    channelIdByPlatform.set(channelPlan.platform, channelId);
+    channelIds.push(createChannel(db, { brandId, platform: channelPlan.platform, url: channelPlan.url, isPrimary: channelPlan.isPrimary }, now));
   }
-  return channelIdByPlatform;
+  return channelIds;
 }
 
 async function executeBrand(
@@ -114,7 +115,7 @@ async function executeBrand(
     now,
   );
 
-  const channelIdByPlatform = executeChannels(db, brandId, brandPlan.channels, now);
+  const channelIds = executeChannels(db, brandId, brandPlan.channels, now);
 
   let formats = 0;
   let runs = 0;
@@ -129,7 +130,7 @@ async function executeBrand(
     formats++;
 
     for (const runPlan of formatPlan.runs) {
-      const runResult = await executeRun(db, brandId, formatId, brandPlan.slug, runPlan, now, assetIdByKey, channelIdByPlatform);
+      const runResult = await executeRun(db, brandId, formatId, brandPlan.slug, runPlan, now, assetIdByKey, channelIds);
       runs++;
       trends += runResult.trends;
       ideas += runResult.ideas;
@@ -167,7 +168,7 @@ async function executeRun(
   runPlan: RunPlanItem,
   now: () => string,
   assetIdByKey: Map<string, string>,
-  channelIdByPlatform: ReadonlyMap<string, string>,
+  channelIds: readonly string[],
 ): Promise<{ readonly trends: number; readonly ideas: number; readonly assets: number; readonly assetMedia: number; readonly posts: number }> {
   const runId = createRun(db, { brandId, formatId, runKey: runPlan.runKey, cadence: runPlan.cadence, startedAt: runPlan.startedAt }, now);
 
@@ -248,10 +249,14 @@ async function executeRun(
       }
 
       if (assetPlan.postUrl !== undefined) {
-        const channelId = channelIdByPlatform.get(assetPlan.postPlatform!);
+        // `postChannelIndex` names a SPECIFIC Channel (issue #243) — an index into `channelIds`, itself
+        // built in the exact same order as `brandPlan.channels`/`channelPlans` (`executeChannels`'s own
+        // doc comment). Never a `platform -> id` lookup: that shape is exactly what silently collapsed
+        // two Channels on the same platform before this ticket.
+        const channelId = assetPlan.postChannelIndex !== undefined ? channelIds[assetPlan.postChannelIndex] : undefined;
         if (channelId === undefined) {
           throw new Error(
-            `Internal error: Idea "${ideaId}" Asset "${assetPlan.recipe}" resolved to platform "${assetPlan.postPlatform}" but Brand "${brandSlug}" has no created Channel for it — planImport should have refused this plan.`,
+            `Internal error: Idea "${ideaId}" Asset "${assetPlan.recipe}" resolved to Channel index ${assetPlan.postChannelIndex} (platform "${assetPlan.postPlatform}") but Brand "${brandSlug}" has no created Channel there — planImport should have refused this plan.`,
           );
         }
         logPost(db, { assetId: saved.id, channelId, postUrl: assetPlan.postUrl, postedAt: assetPlan.postedAt! }, now);

@@ -65,10 +65,11 @@ What `npm run track-performance <brand>` reads, for your own understanding — n
    query string reaches shell history and any proxy/access log that records request URLs; a header
    does not):
 
-   **Facebook** (`apify/facebook-post-scraper`):
+   **Facebook** (`apify/facebook-posts-scraper` — the same actor as trends_actor; there is no separate
+   singular `facebook-post-scraper` actor, that slug is dead — issue #253):
    ```bash
    curl -s -X POST \
-     "https://api.apify.com/v2/acts/apify~facebook-post-scraper/run-sync-get-dataset-items" \
+     "https://api.apify.com/v2/acts/apify~facebook-posts-scraper/run-sync-get-dataset-items" \
      -H "Authorization: Bearer ${APIFY_API_TOKEN}" \
      -H 'Content-Type: application/json' \
      -d '{"startUrls":[{"url":"<POST_URL>"}]}'
@@ -101,9 +102,11 @@ What `npm run track-performance <brand>` reads, for your own understanding — n
    the canonical reference — Instagram/YouTube against real captured samples (issue #48); Facebook
    (`mapFacebookItem`, issue #84) against a SYNTHETIC fixture built from Apify's documented output
    schema. Facebook is today's one Brand-with-posted-Assets platform that actually matters, so this
-   mapping needs a live check — `npx tsx src/apify/live/smoke.ts
-   <facebook-post-url>` (or `npm run apify-smoke`) makes exactly ONE real scrape and prints the raw
-   item next to `mapFacebookItem`'s output for that comparison (issue #200's Operator runbook).
+   mapping needs a live check — `npx tsx src/apify/live/smoke.ts <brand>
+   <facebook-post-url>` (or `npm run apify-smoke`) resolves the Brand's OWN configured `facebook.post_actor`
+   from its `seeds.yaml` (never a hardcoded literal — issue #253) and makes exactly ONE real scrape,
+   printing the raw item next to `mapFacebookItem`'s output for that comparison (issue #200's Operator
+   runbook).
    - **Performance Score** (0–1) — the SAME formula regardless of platform, since the mapping above
      already normalized every platform's metrics to shares/comments/reactions/views — relative to the
      Brand's Channel baseline (the ledger's `baseline`, a rolling median across every `scored` Asset):

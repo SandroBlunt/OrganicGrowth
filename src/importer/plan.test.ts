@@ -280,6 +280,211 @@ describe("planImport — a Brand's Channel list is planned, and an Asset's post_
 });
 
 // ---------------------------------------------------------------------------
+// TWO Channels on the SAME platform — issue #243's own case
+// ---------------------------------------------------------------------------
+
+describe("planImport — a Brand with TWO Channels on the same platform resolves each Post specifically, or refuses", () => {
+  function twoFacebookChannelFiles(postUrl: string): MiniRepoFile[] {
+    return [
+      {
+        path: "data/brands/acme/brand-profile.yaml",
+        content:
+          "niche: test\n" +
+          "channel:\n" +
+          "  - platform: facebook\n" +
+          "    url: https://www.facebook.com/profile.php?id=61591885769033\n" +
+          "    primary: true\n" +
+          "  - platform: facebook\n" +
+          '    url: "https://www.facebook.com/profile.php?id=99999999999999"\n',
+      },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      {
+        path: "data/brands/acme/ledger.json",
+        content: json({
+          ideas: [
+            {
+              id: "idea-01",
+              run: "2026-W01",
+              format: "news",
+              status: "accepted",
+              recipes: ["news-carousel"],
+              assets: [{ recipe: "news-carousel", status: "posted", post_url: postUrl, posted_at: "2026-01-02T00:00:00Z" }],
+            },
+          ],
+        }),
+      },
+      { path: "data/brands/acme/ideas/news/2026-W01/idea-01.md", content: "# hi\n" },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+  }
+
+  it("resolves to the SECOND Channel when the post_url's identifier matches only that one — never the first by default", async () => {
+    const files = twoFacebookChannelFiles("https://www.facebook.com/permalink.php?story_fbid=abc&id=99999999999999");
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      const brand = result.plan.brands[0]!;
+      assert.equal(brand.channels.length, 2);
+      const asset = brand.formats[0]!.runs[0]!.ideas[0]!.assets[0]!;
+      assert.equal(asset.postChannelIndex, 1);
+    });
+  });
+
+  it("resolves to the FIRST Channel when the post_url's identifier matches that one instead", async () => {
+    const files = twoFacebookChannelFiles("https://www.facebook.com/permalink.php?story_fbid=abc&id=61591885769033");
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      const asset = result.plan.brands[0]!.formats[0]!.runs[0]!.ideas[0]!.assets[0]!;
+      assert.equal(asset.postChannelIndex, 0);
+    });
+  });
+
+  it("reports (never blocks the plan) — never silently collapses to whichever Channel was created last — when the post_url's identifier matches NEITHER configured Channel (issue #243 round 2, QA round 1's Defect 1)", async () => {
+    const files = twoFacebookChannelFiles("https://www.facebook.com/permalink.php?story_fbid=abc&id=11111111111111");
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      // NOT a refusal: the plan still succeeds — one unresolvable Post must never abort the whole import.
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      const asset = result.plan.brands[0]!.formats[0]!.runs[0]!.ideas[0]!.assets[0]!;
+      assert.equal(asset.postUrl, undefined);
+      assert.equal(asset.postChannelIndex, undefined);
+      assert.equal(result.plan.unresolvedPosts.length, 1);
+      const unresolved = result.plan.unresolvedPosts[0]!;
+      assert.equal(unresolved.brand, "acme");
+      assert.equal(unresolved.ideaLegacyId, "idea-01");
+      assert.match(unresolved.reason, /matches none/);
+    });
+  });
+
+  it("reports (never blocks the plan) — never defaults to hostname-only resolution — when the post_url carries no extractable identifier at all", async () => {
+    const files = twoFacebookChannelFiles("https://www.facebook.com/watch/?v=123");
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      assert.equal(result.plan.unresolvedPosts.length, 1);
+      assert.match(result.plan.unresolvedPosts[0]!.reason, /cannot disambiguate/);
+    });
+  });
+
+  it("an unresolved Post on one Idea does not block a SECOND, otherwise-resolvable Idea in the same Brand", async () => {
+    const files: MiniRepoFile[] = [
+      {
+        path: "data/brands/acme/brand-profile.yaml",
+        content:
+          "niche: test\n" +
+          "channel:\n" +
+          "  - platform: facebook\n" +
+          "    url: https://www.facebook.com/profile.php?id=61591885769033\n" +
+          "    primary: true\n" +
+          "  - platform: facebook\n" +
+          '    url: "https://www.facebook.com/profile.php?id=99999999999999"\n',
+      },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      {
+        path: "data/brands/acme/ledger.json",
+        content: json({
+          ideas: [
+            {
+              id: "idea-01",
+              run: "2026-W01",
+              format: "news",
+              status: "accepted",
+              recipes: ["news-carousel"],
+              // Matches NEITHER configured Channel — unresolvable.
+              assets: [{ recipe: "news-carousel", status: "posted", post_url: "https://www.facebook.com/permalink.php?story_fbid=abc&id=11111111111111", posted_at: "2026-01-02T00:00:00Z" }],
+            },
+            {
+              id: "idea-02",
+              run: "2026-W01",
+              format: "news",
+              status: "accepted",
+              recipes: ["news-carousel"],
+              // Matches the FIRST configured Channel — resolves cleanly.
+              assets: [{ recipe: "news-carousel", status: "posted", post_url: "https://www.facebook.com/permalink.php?story_fbid=xyz&id=61591885769033", posted_at: "2026-01-03T00:00:00Z" }],
+            },
+          ],
+        }),
+      },
+      { path: "data/brands/acme/ideas/news/2026-W01/idea-01.md", content: "# hi\n" },
+      { path: "data/brands/acme/ideas/news/2026-W01/idea-02.md", content: "# hi again\n" },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      const ideas = result.plan.brands[0]!.formats[0]!.runs[0]!.ideas;
+      assert.equal(ideas.length, 2, "BOTH Ideas still import — the unresolved Post never dropped its own Idea");
+      const idea01 = ideas.find((i) => i.legacyId === "idea-01")!;
+      const idea02 = ideas.find((i) => i.legacyId === "idea-02")!;
+      assert.equal(idea01.assets[0]!.postUrl, undefined);
+      assert.equal(idea02.assets[0]!.postChannelIndex, 0, "the resolvable Post still resolves normally");
+      assert.equal(result.plan.unresolvedPosts.length, 1);
+      assert.equal(result.plan.unresolvedPosts[0]!.ideaLegacyId, "idea-01");
+    });
+  });
+
+  it("resolves via a Channel's alternate_urls — the Operator's configurable recovery route, without editing ledger data (issue #243 round 2, QA round 1's Defect 1)", async () => {
+    const files: MiniRepoFile[] = [
+      {
+        path: "data/brands/acme/brand-profile.yaml",
+        content:
+          "niche: test\n" +
+          "channel:\n" +
+          "  - platform: facebook\n" +
+          "    url: https://www.facebook.com/profile.php?id=61591885769033\n" +
+          "    primary: true\n" +
+          "    alternate_urls:\n" +
+          "      - https://www.facebook.com/122096865609396192\n" +
+          "  - platform: facebook\n" +
+          '    url: "https://www.facebook.com/profile.php?id=88888888888888"\n',
+      },
+      { path: "data/brands/acme/formats/news.yaml", content: MINIMAL_FORMAT },
+      {
+        path: "data/brands/acme/ledger.json",
+        content: json({
+          ideas: [
+            {
+              id: "idea-10",
+              run: "2026-W01",
+              format: "news",
+              status: "accepted",
+              recipes: ["news-carousel"],
+              // The real idea-2026-W32-10 shape — a different Facebook id than the first Channel's own
+              // configured url, resolvable ONLY because its alternate_urls names it.
+              assets: [
+                {
+                  recipe: "news-carousel",
+                  status: "posted",
+                  post_url: "https://www.facebook.com/122096865609396192/posts/122114019723396192",
+                  posted_at: "2026-01-02T00:00:00Z",
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      { path: "data/brands/acme/ideas/news/2026-W01/idea-10.md", content: "# hi\n" },
+      { path: "data/queue.json", content: json({ jobs: [] }) },
+    ];
+    await withMiniRepo(files, async (checkoutRoot) => {
+      const result = await planImport({ brandSlugs: ["acme"], legacyAbsolutePrefix: LEGACY_PREFIX, checkoutRoot });
+      assert.equal(result.ok, true, result.ok ? "" : JSON.stringify((result as { problems: readonly string[] }).problems));
+      if (!result.ok) return;
+      assert.equal(result.plan.unresolvedPosts.length, 0);
+      const asset = result.plan.brands[0]!.formats[0]!.runs[0]!.ideas[0]!.assets[0]!;
+      assert.equal(asset.postChannelIndex, 0);
+      assert.equal(asset.postUrl, "https://www.facebook.com/122096865609396192/posts/122114019723396192");
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Refusal paths
 // ---------------------------------------------------------------------------
 
@@ -495,6 +700,7 @@ describe("planImport — structural smoke test against the REAL mundotip and str
     assert.equal(plan.jobs.length, 66, "66 queue jobs");
     assert.equal(plan.duplicateJobKeys.length, 12, "the 12 duplicate job identity keys, reported not resolved");
     assert.equal(totalPosts, 7, "the real 7 Straw Motion W32 news-carousel Posts (issue #240)");
+    assert.equal(plan.unresolvedPosts.length, 0, "both real Brands have at most one configured Channel per platform today — nothing is genuinely ambiguous yet (issue #243 round 2)");
 
     // Every real Post resolves to Facebook — the Brand's own configured Channel, never hardcoded.
     const strawMotion = plan.brands.find((b) => b.slug === "straw-motion")!;

@@ -106,15 +106,12 @@ inputs:
 outputs:
   - name: prompt
     type: string
-tools:
-  - name: python3
-    kind: runtime-interpreter
-    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
+tools: []
 scripts:
-  - path: scripts/build-prompt.py
+  - path: scripts/build-prompt.ts
     purpose: Assemble and validate a Grok Imagine 1.5 video prompt across all four modes, with the required Sound section, the one-camera-move rule, and the moderation-safety scanner.
-  - path: scripts/test_build_prompt.py
-    purpose: Unit tests for build-prompt.py (TDD-first) — ordering, sound-required, I2V/extend/reference rules, camera stacking + override, moderation scanner + override, negation guard, duration range.
+  - path: scripts/build-prompt.test.ts
+    purpose: Unit tests for build-prompt.ts (TDD-first) — ordering, sound-required, I2V/extend/reference rules, camera stacking + override, moderation scanner + override, negation guard, duration range.
 references:
   - path: references/translation-notes.md
     purpose: Model-specific quirks (moderation-aware prompting, native audio, four modes, one move per clip, no negative prompt, front-end set, 5-8s sweet spot).
@@ -123,9 +120,9 @@ references:
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
 evals:
-  - path: scripts/test_build_prompt.py
+  - path: scripts/build-prompt.test.ts
     method: unit-tests
-    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
+    purpose: Proves build-prompt.ts assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://www.imagine.art/blogs/grok-imagine-video-1-5-prompt-guide
   additional_sources:

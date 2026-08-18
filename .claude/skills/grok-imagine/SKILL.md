@@ -303,7 +303,7 @@ exceeds the word ceiling.
 
 ## Closing — validation
 
-Run the helper script `scripts/build-prompt.py` to assemble and validate
+Run the helper script `scripts/build-prompt.ts` to assemble and validate
 the prompt before emitting it. The script enforces the subject-first
 structure, requires a lighting clause and a named style for T2I, requires
 a change clause + a keep clause + exactly one reference for edit, checks
@@ -313,7 +313,7 @@ scanner (refusing risky terms with a safer rephrasing, bypassed by
 ratio, and prints the assembled prompt to stdout.
 
 ```
-python3 scripts/build-prompt.py --mode T2I --subject "..." \
+npx tsx scripts/build-prompt.ts --mode T2I --subject "..." \
     --environment "..." --lighting "..." --camera "..." --style "..."
 ```
 
@@ -321,11 +321,11 @@ For an edit (`--change` and `--keep` are both required, `--reference`
 takes the one uploaded image):
 
 ```
-python3 scripts/build-prompt.py --mode edit --reference "..." \
+npx tsx scripts/build-prompt.ts --mode edit --reference "..." \
     --change "Relight as heavy night rain with neon reflections." \
     --keep "the faces, poses, costumes, and exact composition"
 ```
 
-See `scripts/build-prompt.py --help` for the full argument list. The
-script's tests live in `scripts/test_build_prompt.py` and run with
-`python3 scripts/test_build_prompt.py`.
+See `scripts/build-prompt.ts --help` for the full argument list. The
+script's tests live in `scripts/build-prompt.test.ts` and run with
+`node --import tsx --test scripts/build-prompt.test.ts`.

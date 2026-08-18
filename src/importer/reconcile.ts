@@ -29,11 +29,18 @@
  * reporting, never a write; issue #233's command-surface-write guard is explicitly scoped to writes
  * (its own `proposal.md`: "Scope is writes only, not reads"), so this stays outside that boundary by
  * design, same as `src/db/schema.test.ts`'s own direct-SQL reads.
+ *
+ * Since issue #243 round 2 (QA round 1's Defect 1), `report.unresolvedPosts` is a THIRD report-only
+ * category carried straight through from `plan.unresolvedPosts`, alongside `deadMediaPaths`/
+ * `duplicateJobKeys` — a Post whose `post_url` could not be resolved to a specific Channel is named
+ * here (never silently dropped) but does NOT block the plan. `Posts in`/`Posts out` above deliberately
+ * EXCLUDE these, so the two counts stay meaningful; see `formatReconciliationMarkdown`'s own prose for
+ * why that exclusion itself is stated on the report, not just here.
  */
 
 import type { DatabaseSync } from "node:sqlite";
 
-import type { ImportPlan, DeadMediaPathReport, DuplicateJobKeyReport } from "./plan.ts";
+import type { ImportPlan, DeadMediaPathReport, DuplicateJobKeyReport, UnresolvedPostReport } from "./plan.ts";
 
 export interface BrandReconciliation {
   readonly brand: string;
@@ -64,6 +71,10 @@ export interface ReconciliationReport {
   readonly totals: ReconciliationTotals;
   readonly deadMediaPaths: readonly DeadMediaPathReport[];
   readonly duplicateJobKeys: readonly DuplicateJobKeyReport[];
+  /** Every Post whose `post_url` could not be resolved to a SPECIFIC Channel (issue #243 round 2 — QA
+   *  round 1's Defect 1), carried straight through from `plan.unresolvedPosts`. `Posts in`/`Posts out`
+   *  above deliberately EXCLUDE these — see `formatReconciliationMarkdown`'s own prose. */
+  readonly unresolvedPosts: readonly UnresolvedPostReport[];
 }
 
 function countIn(
@@ -148,7 +159,14 @@ export function buildReconciliation(db: DatabaseSync, plan: ImportPlan, now: () 
     { ideasIn: 0, ideasOut: 0, assetsIn: 0, assetsOut: 0, jobsIn: 0, jobsOut: 0, postsIn: 0, postsOut: 0 },
   );
 
-  return { generatedAt: now(), brands, totals, deadMediaPaths: plan.deadMediaPaths, duplicateJobKeys: plan.duplicateJobKeys };
+  return {
+    generatedAt: now(),
+    brands,
+    totals,
+    deadMediaPaths: plan.deadMediaPaths,
+    duplicateJobKeys: plan.duplicateJobKeys,
+    unresolvedPosts: plan.unresolvedPosts,
+  };
 }
 
 function matchMark(inCount: number, outCount: number): string {
@@ -180,8 +198,18 @@ export function formatReconciliationMarkdown(report: ReconciliationReport): stri
   lines.push("");
   lines.push(
     "Counted and cross-checked above, per Brand and in total: **Ideas** (doubling as Briefs), **Assets**, " +
-      "**Jobs**, and **Posts** (every Asset carrying a ledger `post_url` becomes one `post` row, keyed to " +
-      "its Asset and its resolved Channel, ADR-0028).",
+      "**Jobs**, and **Posts** (every Asset carrying a ledger `post_url` **that resolved to a SPECIFIC " +
+      "Channel** becomes one `post` row, keyed to its Asset and its resolved Channel, ADR-0028).",
+  );
+  lines.push("");
+  lines.push(
+    "**`Posts in`/`Posts out` exclude any Post reported below as unresolved (issue #243).** A `post_url` " +
+      "that could not be resolved to a specific Channel is never folded into either count — it is named, " +
+      "by Brand/Idea/Recipe/URL/reason, in its own **Unresolved Posts** section below, and its Idea/Asset " +
+      "still import normally, just without that one `post` row. This keeps the two counts meaningful " +
+      "(a genuine executor bug still shows up as a mismatch) while never repeating issue #240's own " +
+      "lesson: a category silently excluded from every count, and never named anywhere else either, is " +
+      "the exact shape that let 7 real Posts go missing behind an all-green report.",
   );
   lines.push("");
   lines.push(
@@ -216,6 +244,19 @@ export function formatReconciliationMarkdown(report: ReconciliationReport): stri
       for (const job of dup.jobs) {
         lines.push(`  - gate=${job.gate ?? "null"} status=${job.status} enqueued_at=${job.enqueuedAt}${job.pick !== undefined ? ` pick=${job.pick}` : ""}`);
       }
+    }
+  }
+  lines.push("");
+
+  lines.push(
+    `## Unresolved Posts (${report.unresolvedPosts.length}) — reported for an Operator decision, never silently dropped, never blocking the rest of the plan (issue #243)`,
+  );
+  lines.push("");
+  if (report.unresolvedPosts.length === 0) {
+    lines.push("None.");
+  } else {
+    for (const u of report.unresolvedPosts) {
+      lines.push(`- ${u.brand} / ${u.ideaLegacyId} / ${u.recipe}: \`${u.postUrl}\` — ${u.reason}`);
     }
   }
 
