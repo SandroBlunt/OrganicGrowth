@@ -39,7 +39,7 @@ describe("LiveApifyClient.scrapePost — never a real network call in this suite
     const { fetchImpl, calls } = fakeFetch(() => ({ ok: true, body: JSON.stringify([{ likes: 40 }]) }));
     const client = new LiveApifyClient({ token: FAKE_TOKEN, fetchImpl });
 
-    const item = await client.scrapePost(FB_URL, "facebook", "apify/facebook-post-scraper");
+    const item = await client.scrapePost(FB_URL, "facebook", "apify/facebook-posts-scraper");
 
     assert.deepEqual(item, { likes: 40 });
     assert.equal(calls.length, 1);
@@ -47,14 +47,14 @@ describe("LiveApifyClient.scrapePost — never a real network call in this suite
     assert.equal(call.init.headers["Authorization"], `Bearer ${FAKE_TOKEN}`);
     assert.ok(!call.url.includes(FAKE_TOKEN), "the token must never appear in the URL");
     assert.ok(!call.url.includes("?"), "the URL must carry no query string at all");
-    assert.equal(call.url, "https://api.apify.com/v2/acts/apify~facebook-post-scraper/run-sync-get-dataset-items");
+    assert.equal(call.url, "https://api.apify.com/v2/acts/apify~facebook-posts-scraper/run-sync-get-dataset-items");
   });
 
   it("resolves the token from an injected env when no token option is given (real token-resolution path, still hermetic)", async () => {
     const { fetchImpl, calls } = fakeFetch(() => ({ ok: true, body: JSON.stringify([{ likes: 1 }]) }));
     const client = new LiveApifyClient({ env: { APIFY_API_TOKEN: FAKE_TOKEN }, fetchImpl });
 
-    await client.scrapePost(FB_URL, "facebook", "apify/facebook-post-scraper");
+    await client.scrapePost(FB_URL, "facebook", "apify/facebook-posts-scraper");
 
     assert.equal(calls[0]!.init.headers["Authorization"], `Bearer ${FAKE_TOKEN}`);
   });
@@ -64,7 +64,7 @@ describe("LiveApifyClient.scrapePost — never a real network call in this suite
     const client = new LiveApifyClient({ env: {}, fetchImpl });
 
     await assert.rejects(
-      () => client.scrapePost(FB_URL, "facebook", "apify/facebook-post-scraper"),
+      () => client.scrapePost(FB_URL, "facebook", "apify/facebook-posts-scraper"),
       ApifyTokenMissingError,
     );
     assert.equal(calls.length, 0, "no request is ever sent without a token");
@@ -74,7 +74,7 @@ describe("LiveApifyClient.scrapePost — never a real network call in this suite
     const { fetchImpl } = fakeFetch(() => ({ ok: true, body: "[]" }));
     const client = new LiveApifyClient({ token: FAKE_TOKEN, fetchImpl });
 
-    assert.equal(await client.scrapePost(FB_URL, "facebook", "apify/facebook-post-scraper"), null);
+    assert.equal(await client.scrapePost(FB_URL, "facebook", "apify/facebook-posts-scraper"), null);
   });
 
   it("throws ApifyRequestError on a non-ok HTTP response", async () => {
@@ -82,7 +82,7 @@ describe("LiveApifyClient.scrapePost — never a real network call in this suite
     const client = new LiveApifyClient({ token: FAKE_TOKEN, fetchImpl });
 
     await assert.rejects(
-      () => client.scrapePost(FB_URL, "facebook", "apify/facebook-post-scraper"),
+      () => client.scrapePost(FB_URL, "facebook", "apify/facebook-posts-scraper"),
       ApifyRequestError,
     );
   });
@@ -118,7 +118,7 @@ describe("LiveApifyClient.scrapePost — never a real network call in this suite
     const otherToken = "test-fake-apify-token-" + "aaaaaaaaaaaaaaaa";
     const client = new LiveApifyClient({ token: FAKE_TOKEN, env: { APIFY_API_TOKEN: otherToken }, fetchImpl });
 
-    await client.scrapePost(FB_URL, "facebook", "apify/facebook-post-scraper");
+    await client.scrapePost(FB_URL, "facebook", "apify/facebook-posts-scraper");
 
     assert.equal(calls[0]!.init.headers["Authorization"], `Bearer ${FAKE_TOKEN}`);
   });

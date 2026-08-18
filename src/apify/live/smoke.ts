@@ -11,14 +11,25 @@
  * — and prints the RAW dataset item next to what `mapFacebookItem` makes of it, so you can eyeball
  * whether the field names line up before trusting a full batch run.
  *
+ * ISSUE #253: this script used to hardcode its actor slug as a string literal
+ * (`"apify/facebook-post-scraper"`) instead of reading the Brand's own configured one — and that
+ * literal happened to be a dead slug (404 — it never existed). So the one script whose entire purpose
+ * is verifying the live Facebook mapping never actually exercised the configured actor at all, and a
+ * dead-actor 404 (thrown as `ApifyRequestError`) would have been reported no differently from a
+ * generic crash. It now resolves the actor from the given Brand's own `seeds.yaml`
+ * (`loadConfiguredActorSlug`, `../actor-config.ts`) and, when the request itself is rejected by Apify
+ * (wrong/dead slug, bad token, …), reports that distinctly from "the actor ran fine but found nothing"
+ * (`describeActorRequestFailure`, `./smoke-diagnose.ts`) — see that module for the tested distinction.
+ *
  * This is a REAL network call and spends a REAL Apify credit when you run it — the `developer` build
  * agent never runs this itself (CLAUDE.md: hermetic build, no live calls, no credits). Run it yourself,
  * by hand, as the Operator.
  *
- * Run:   npx tsx src/apify/live/smoke.ts <facebook-post-url>
- *   e.g. npx tsx src/apify/live/smoke.ts \
+ * Run:   npx tsx src/apify/live/smoke.ts <brand> <facebook-post-url>
+ *   e.g. npx tsx src/apify/live/smoke.ts straw-motion \
  *          "https://www.facebook.com/permalink.php?story_fbid=pfbid0VMYBWhDbQHhQfyckAVFPwutpKJEM38fNySUqpNFXU4WZbWnENWHMjfdw1wACunR6l&id=61591885769033"
- * Requires: `APIFY_API_TOKEN` in `.env` (copy `.env.example`) or already exported in the shell.
+ * Requires: `APIFY_API_TOKEN` in `.env` (copy `.env.example`) or already exported in the shell, and a
+ * `facebook.post_actor` configured in `<brand>`'s `seeds.yaml` (data-handling rule 2 — never a default).
  *
  * What to do with the result — see the printed "NEXT STEPS" block, and the Build Report's runbook
  * (`openspec/changes/issue-200-apify-client-scores-baselines/handoff.md`).
@@ -28,19 +39,50 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { LiveApifyClient } from "./client.ts";
+import { describeActorRequestFailure } from "./smoke-diagnose.ts";
 import { mapFacebookItem } from "../normalize-metrics.ts";
+import { loadConfiguredActorSlug } from "../actor-config.ts";
+import { resolveBrand } from "../../brand/resolver.ts";
 
 async function main(): Promise<void> {
-  const postUrl = process.argv[2];
-  if (postUrl === undefined) {
-    console.error("usage: npx tsx src/apify/live/smoke.ts <facebook-post-url>");
+  const [brand, postUrl] = process.argv.slice(2);
+  if (brand === undefined || postUrl === undefined) {
+    console.error("usage: npx tsx src/apify/live/smoke.ts <brand> <facebook-post-url>");
+    console.error('  e.g. npx tsx src/apify/live/smoke.ts straw-motion "https://www.facebook.com/..."');
     process.exitCode = 1;
     return;
   }
 
-  console.log(`[1/3] scraping ${postUrl} via apify/facebook-post-scraper (ONE real Apify credit)`);
+  const brandPaths = resolveBrand(brand);
+  const actorSlug = await loadConfiguredActorSlug(brandPaths.seeds, "facebook", "post_actor");
+  if (actorSlug === null) {
+    console.error(
+      `No facebook.post_actor is configured in ${brandPaths.seeds} — set it before running this smoke ` +
+        "test (never a hardcoded default; see data-handling rule 2).",
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log(`[1/3] scraping ${postUrl} via ${actorSlug} (from ${brand}'s seeds.yaml — ONE real Apify credit)`);
   const client = new LiveApifyClient();
-  const raw = await client.scrapePost(postUrl, "facebook", "apify/facebook-post-scraper");
+
+  let raw: unknown;
+  try {
+    raw = await client.scrapePost(postUrl, "facebook", actorSlug);
+  } catch (err: unknown) {
+    // ISSUE #253: an ApifyRequestError (the request itself was rejected — e.g. a 404 for a dead/wrong
+    // actor slug) is a DIFFERENT failure than "the actor ran fine but found nothing" below. Report it
+    // distinctly rather than letting it fall through to a generic crash or a misleading "no data"
+    // message — see smoke-diagnose.ts for the tested distinction.
+    const diagnosis = describeActorRequestFailure(err, actorSlug);
+    if (diagnosis !== null) {
+      console.error(diagnosis);
+      process.exitCode = 1;
+      return;
+    }
+    throw err;
+  }
 
   if (raw === null) {
     console.log("Apify returned NO data for this URL — nothing to verify. Check the post is still");
@@ -64,8 +106,8 @@ async function main(): Promise<void> {
   console.log("     mapFacebookItem before running a full batch, then re-run this script to confirm.");
   console.log("  2. If the mapping is correct as-is, post this RAW/normalized pair as a comment on");
   console.log("     issue #200 — that IS the required Facebook-mapping verification.");
-  console.log("  3. Then run the full batch for real: npm run track-performance straw-motion");
-  console.log("  4. Then: npm run report straw-motion — quote one Idea's Fit Score next to its");
+  console.log(`  3. Then run the full batch for real: npm run track-performance ${brand}`);
+  console.log(`  4. Then: npm run report ${brand} — quote one Idea's Fit Score next to its`);
   console.log("     Performance Score (the required prediction/outcome pair) as a comment on issue #200.");
 }
 

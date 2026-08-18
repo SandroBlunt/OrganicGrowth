@@ -46,11 +46,15 @@ function makeMagniticFake(opts: { accessible?: boolean; creditsOk?: boolean } = 
   };
 }
 
-/** Healthy fake Apify port: token valid. Tests that need bad token override. */
+/** Healthy fake Apify port: token valid, every actor slug confirmed to exist. Tests that need bad
+ *  token, or a specific actor-probe outcome, override. */
 function makeApifyFake(opts: { tokenValid?: boolean } = {}): ApifyReadinessPort {
   return {
     async probeToken() {
       return opts.tokenValid ?? true;
+    },
+    async probeActorExists() {
+      return "ok";
     },
   };
 }
@@ -674,6 +678,174 @@ describe("runPipelineCommand — AC6: Auto-drain and post-publish offers", () =>
 // ===========================================================================
 // runReadiness — readiness probe orchestrator tests
 // ===========================================================================
+
+// ===========================================================================
+// probeConfiguredActors — configured Apify actor-existence probing (issue #253)
+// ===========================================================================
+
+describe("runReadiness — probes every configured Apify actor slug for existence (issue #253)", () => {
+  // The REAL dead slug the #253 investigation found via curl (404) — grounding this proof in real
+  // evidence, not a hypothetical slug, the same way #235's own guard proofs used a real quoted shape.
+  const DEAD_SLUG = "apify/facebook-post-scraper";
+
+  it("reports a confirmed-dead actor slug as a non-blocking research advisory, naming the slug and where it's used", async () => {
+    const seedsWithDeadActor = `
+seed_pages:
+  - "https://www.facebook.com/seed1"
+apify:
+  facebook:
+    trends_actor: "apify/facebook-posts-scraper"
+    post_actor: "${DEAD_SLUG}"
+`.trim();
+
+    await withBrandFixture({ seedsYaml: seedsWithDeadActor }, async (paths) => {
+      const apify: ApifyReadinessPort = {
+        async probeToken() {
+          return true;
+        },
+        async probeActorExists(slug) {
+          return slug === DEAD_SLUG ? "not_found" : "ok";
+        },
+      };
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: true,
+        magnific: makeMagniticFake(),
+        apify,
+      });
+
+      const advisory = findings.find((f) => f.code === `apify_actor_not_found:${DEAD_SLUG}`);
+      assert.ok(advisory, "a confirmed-dead actor slug must surface an advisory finding");
+      assert.equal(advisory?.severity, "advisory", "a dead actor slug must NEVER block the run");
+      assert.equal(advisory?.phase, "research");
+      assert.match(advisory?.message ?? "", /facebook\.post_actor/, "the finding must name where the slug is used");
+      assert.ok(
+        !findings.some((f) => f.severity === "block"),
+        "an actor-existence problem must never produce a block finding on any phase",
+      );
+    });
+  });
+
+  it("reports an unreachable actor-existence probe as advisory too, distinct from not-found", async () => {
+    const seedsWithActor = `
+seed_pages:
+  - "https://www.facebook.com/seed1"
+apify:
+  facebook:
+    post_actor: "apify/facebook-posts-scraper"
+`.trim();
+    await withBrandFixture({ seedsYaml: seedsWithActor }, async (paths) => {
+      const apify: ApifyReadinessPort = {
+        async probeToken() {
+          return true;
+        },
+        async probeActorExists() {
+          throw new Error("ETIMEDOUT — simulated network blip");
+        },
+      };
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: true,
+        magnific: makeMagniticFake(),
+        apify,
+      });
+
+      const advisory = findings.find((f) => f.code.startsWith("apify_actor_unreachable:"));
+      assert.ok(advisory, "a probe FAILURE must surface as 'unreachable', never silently dropped");
+      assert.equal(advisory?.severity, "advisory");
+      assert.ok(
+        !findings.some((f) => f.severity === "block"),
+        "an unreachable actor probe must never block any phase — this is the network-blip guard",
+      );
+      assert.ok(
+        !findings.some((f) => f.code.startsWith("apify_actor_not_found:")),
+        "an unreachable probe must never be reported as a confirmed not_found",
+      );
+    });
+  });
+
+  it("a confirmed-OK actor slug produces no actor-existence finding at all", async () => {
+    const seedsHealthyActor = `
+seed_pages:
+  - "https://www.facebook.com/seed1"
+apify:
+  facebook:
+    trends_actor: "apify/facebook-posts-scraper"
+    post_actor: "apify/facebook-posts-scraper"
+`.trim();
+    await withBrandFixture({ seedsYaml: seedsHealthyActor }, async (paths) => {
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: true,
+        magnific: makeMagniticFake(),
+        apify: makeApifyFake(), // probeActorExists always "ok"
+      });
+      assert.equal(findings.length, 0, "a fully healthy config + confirmed-OK actor must produce no findings");
+    });
+  });
+
+  it("a Brand with no apify block configured yet is never probed (nothing to probe, no findings)", async () => {
+    await withBrandFixture({}, async (paths) => {
+      let probeCalls = 0;
+      const apify: ApifyReadinessPort = {
+        async probeToken() {
+          return true;
+        },
+        async probeActorExists() {
+          probeCalls += 1;
+          return "ok";
+        },
+      };
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: true,
+        magnific: makeMagniticFake(),
+        apify,
+      });
+      assert.equal(probeCalls, 0, "no apify block configured means no actor slug to probe");
+      assert.ok(!findings.some((f) => f.code.startsWith("apify_actor_")));
+    });
+  });
+
+  it("the SAME slug configured for both trends_actor and post_actor is probed exactly once", async () => {
+    const seedsSharedSlug = `
+seed_pages:
+  - "https://www.facebook.com/seed1"
+apify:
+  youtube:
+    trends_actor: "streamers/youtube-scraper"
+    post_actor: "streamers/youtube-scraper"
+`.trim();
+    await withBrandFixture({ seedsYaml: seedsSharedSlug }, async (paths) => {
+      let probeCalls = 0;
+      const apify: ApifyReadinessPort = {
+        async probeToken() {
+          return true;
+        },
+        async probeActorExists() {
+          probeCalls += 1;
+          return "not_found";
+        },
+      };
+      const findings = await runReadiness({
+        brandProfilePath: join(paths.brandDir, "brand-profile.yaml"),
+        seedsPath: join(paths.brandDir, "seeds.yaml"),
+        baselineExists: true,
+        magnific: makeMagniticFake(),
+        apify,
+      });
+      assert.equal(probeCalls, 1, "a slug shared by two purposes must be probed once, not twice");
+      const advisory = findings.find((f) => f.code === "apify_actor_not_found:streamers/youtube-scraper");
+      assert.ok(advisory);
+      assert.match(advisory?.message ?? "", /youtube\.trends_actor/);
+      assert.match(advisory?.message ?? "", /youtube\.post_actor/);
+    });
+  });
+});
 
 describe("runReadiness — readiness probe orchestrator", () => {
   it("returns empty findings for a healthy Brand config + healthy probes", async () => {

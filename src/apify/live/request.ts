@@ -24,8 +24,8 @@ export interface ApifyRunSyncRequest {
 }
 
 /**
- * Convert a `seeds.yaml` actor slug (e.g. `"apify/facebook-post-scraper"`) into the URL path segment
- * Apify's REST API expects (`"apify~facebook-post-scraper"`) — only the FIRST `/` is replaced (a real
+ * Convert a `seeds.yaml` actor slug (e.g. `"apify/facebook-posts-scraper"`) into the URL path segment
+ * Apify's REST API expects (`"apify~facebook-posts-scraper"`) — only the FIRST `/` is replaced (a real
  * actor slug never carries a second one). A slug with no `/` at all passes through unchanged.
  */
 export function actorUrlSegment(actorSlug: string): string {

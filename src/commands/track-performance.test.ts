@@ -21,7 +21,7 @@ const SEEDS_YAML_FACEBOOK_ONLY = [
   "apify:",
   "  facebook:",
   "    trends_actor: apify/facebook-posts-scraper",
-  "    post_actor: apify/facebook-post-scraper",
+  "    post_actor: apify/facebook-posts-scraper",
   "  instagram:",
   '    post_actor: "..."', // not-yet-wired placeholder
   "",

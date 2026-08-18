@@ -57,7 +57,7 @@ const HEALTHY_SEEDS: Seeds = {
   apify: {
     facebook: {
       trends_actor: "apify/facebook-posts-scraper",
-      post_actor: "apify/facebook-post-scraper",
+      post_actor: "apify/facebook-posts-scraper",
     },
   },
 };

@@ -22,7 +22,8 @@ import { classify } from "../readiness/classify.ts";
 import { checkConfig, normalizeSeeds, type BrandProfile, type Seeds } from "../readiness/check-config.ts";
 import { sortFindings } from "../readiness/sort.ts";
 import { primaryChannelFrom } from "../production-spec/brand-profile.ts";
-import type { MagnificReadinessPort, ApifyReadinessPort } from "./run-pipeline-ports.ts";
+import { resolveApifyActor, type ApifyActorPurpose, type ApifyPlatform } from "../apify/platform.ts";
+import type { MagnificReadinessPort, ApifyReadinessPort, ActorProbeResult } from "./run-pipeline-ports.ts";
 
 // ---------------------------------------------------------------------------
 // Options
@@ -105,9 +106,10 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
 
   // --- Live probes via injected ports ---
 
-  const [spaceProbeResult, apifyTokenValid] = await Promise.all([
+  const [spaceProbeResult, apifyTokenValid, actorFindings] = await Promise.all([
     magnific.probeSpace().catch(() => ({ accessible: false, creditsOk: false })),
     apify.probeToken().catch(() => false),
+    probeConfiguredActors(seeds.apify, apify),
   ]);
 
   // --- Assemble ReadinessInputs for classify ---
@@ -141,7 +143,7 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
   const seen = new Set<string>();
   const merged: Finding[] = [];
 
-  for (const f of [...configFindings, ...classifyFindings]) {
+  for (const f of [...configFindings, ...classifyFindings, ...actorFindings]) {
     if (!seen.has(f.code)) {
       seen.add(f.code);
       merged.push(f);
@@ -149,6 +151,99 @@ export async function runReadiness(options: RunReadinessOptions): Promise<Findin
   }
 
   return sortFindings(merged);
+}
+
+// ---------------------------------------------------------------------------
+// probeConfiguredActors — verify every configured Apify actor slug exists (issue #253)
+// ---------------------------------------------------------------------------
+
+const ACTOR_PLATFORMS: readonly ApifyPlatform[] = ["facebook", "instagram", "youtube", "linkedin"];
+const ACTOR_PURPOSES: readonly ApifyActorPurpose[] = ["trends_actor", "post_actor"];
+
+/**
+ * Probe every DISTINCT, non-placeholder Apify actor slug configured across every
+ * `apify.<platform>.<trends_actor|post_actor>` entry in `seeds.yaml`, and return advisory findings
+ * for any that could not be confirmed to exist.
+ *
+ * DECISION (issue #253 — "should a configured actor slug be verified to exist, and where?"): here, in
+ * the readiness check's I/O shell — a unit test cannot reach the network, so `checkConfig`/`classify`
+ * (which must stay PURE) cannot do this themselves; the readiness conductor already owns the other two
+ * live probes (Magnific, Apify token) via the exact same injected-port pattern this reuses.
+ *
+ * SEVERITY (argued, not assumed): a confirmed-dead slug (`"not_found"`) and a probe that could not
+ * complete (`"unreachable"`) are BOTH reported as `severity: "advisory"` — NEVER `"block"` — for the
+ * same reason `probeToken`'s catch-to-false already treats a network hiccup as "invalid" rather than
+ * throwing: an actor-existence check is inherently a THIRD-PARTY network call the Operator does not
+ * control, and Trend Research/Performance Tracking already report "not trackable"/"SKIPPED" cleanly
+ * per-platform when an actor turns out to be unusable (`resolveApifyActor`'s own `null` contract,
+ * `trackPerformanceCommand`'s SKIPPED lines) — nothing downstream crashes or fabricates data from a
+ * dead actor. Blocking the ENTIRE research phase over one bad slug (when e.g. Instagram/YouTube are
+ * still fine) would stop useful work over a config quality issue, and blocking on a mere network blip
+ * to Apify's actor-lookup endpoint would make readiness flaky for a reason that has nothing to do with
+ * the Brand's own config. An advisory that NAMES the exact slug and where it is used is the actionable,
+ * non-destructive middle ground — this is what "reporting unreachable rather than failing hard" means
+ * in practice: never let this ONE probe halt a launch.
+ *
+ * Distinct per-slug `code`s (`apify_actor_not_found:<slug>` / `apify_actor_unreachable:<slug>`) so two
+ * different bad slugs are never deduplicated into one finding by `runReadiness`'s seen-by-code merge.
+ */
+async function probeConfiguredActors(
+  apifyConfig: Record<string, unknown> | undefined,
+  apify: ApifyReadinessPort,
+): Promise<Finding[]> {
+  const usagesBySlug = new Map<string, string[]>();
+  for (const platform of ACTOR_PLATFORMS) {
+    for (const purpose of ACTOR_PURPOSES) {
+      const slug = resolveApifyActor(apifyConfig, platform, purpose);
+      if (slug === null) continue;
+      const usage = `${platform}.${purpose}`;
+      const usages = usagesBySlug.get(slug);
+      if (usages !== undefined) usages.push(usage);
+      else usagesBySlug.set(slug, [usage]);
+    }
+  }
+  if (usagesBySlug.size === 0) return [];
+
+  const probed = await Promise.all(
+    [...usagesBySlug.entries()].map(async ([slug, usages]) => {
+      let result: ActorProbeResult;
+      try {
+        result = await apify.probeActorExists(slug);
+      } catch {
+        result = "unreachable";
+      }
+      return { slug, usages, result };
+    }),
+  );
+
+  const findings: Finding[] = [];
+  for (const { slug, usages, result } of probed) {
+    if (result === "ok") continue;
+    const where = usages.join(", ");
+    findings.push(
+      result === "not_found"
+        ? {
+            severity: "advisory",
+            phase: "research",
+            code: `apify_actor_not_found:${slug}`,
+            message:
+              `The configured Apify actor "${slug}" (used for ${where}) was confirmed NOT to exist ` +
+              "(a 404 from Apify's own actor lookup). Trend research and/or performance tracking " +
+              "through it will keep failing until seeds.yaml is corrected — this never blocks the " +
+              "run, but should be fixed.",
+          }
+        : {
+            severity: "advisory",
+            phase: "research",
+            code: `apify_actor_unreachable:${slug}`,
+            message:
+              `Could not verify the configured Apify actor "${slug}" (used for ${where}) — the ` +
+              "existence check itself was unreachable (a network blip, not necessarily a broken " +
+              "configuration). This never blocks the run; re-run readiness later to confirm.",
+          },
+    );
+  }
+  return findings;
 }
 
 // ---------------------------------------------------------------------------

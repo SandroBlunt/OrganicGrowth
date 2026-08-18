@@ -61,9 +61,9 @@ re-decides WHICH platform to use — that remains `detectPlatformFromUrl`'s job 
 
 #### Scenario: An actor slug's first slash becomes the URL path tilde
 
-- **GIVEN** the actor slug `"apify/facebook-post-scraper"`
+- **GIVEN** the actor slug `"apify/facebook-posts-scraper"`
 - **WHEN** `apifyRunSyncUrl` is called
-- **THEN** it returns `"https://api.apify.com/v2/acts/apify~facebook-post-scraper/run-sync-get-dataset-items"`
+- **THEN** it returns `"https://api.apify.com/v2/acts/apify~facebook-posts-scraper/run-sync-get-dataset-items"`
 
 ### Requirement: The live client's response parsing never fabricates a score from a garbled or empty response
 

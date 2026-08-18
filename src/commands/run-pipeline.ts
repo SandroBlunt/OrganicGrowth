@@ -158,6 +158,13 @@ const DEFAULT_APIFY_PORT: ApifyReadinessPort = {
     // Runtime placeholder: live Apify ping is deferred. If called, assume valid (permissive default).
     return true;
   },
+  async probeActorExists() {
+    // Runtime placeholder: the live actor-existence probe (issue #253) is deferred. Honestly report
+    // "unreachable" (never checked) rather than fabricating "ok" — this NEVER blocks any phase either
+    // way (see run-pipeline-readiness.ts's probeConfiguredActors), so the permissive-vs-honest choice
+    // here has no gating consequence, unlike probeToken's `true` default above.
+    return "unreachable";
+  },
 };
 
 // ---------------------------------------------------------------------------

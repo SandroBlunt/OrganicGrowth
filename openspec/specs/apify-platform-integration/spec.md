@@ -95,7 +95,7 @@ pairs the same way Facebook's has always been documented.
 
 `mapInstagramItem`, `mapYoutubeItem`, and `mapFacebookItem` (issue #84) SHALL map one raw Apify dataset
 item — from `apify/instagram-scraper`/`apify/instagram-post-scraper`, `streamers/youtube-scraper`, and
-`apify/facebook-post-scraper`/`apify/facebook-posts-scraper` respectively — into `{ url, postedAt,
+`apify/facebook-posts-scraper` respectively — into `{ url, postedAt,
 shares, comments, reactions, views, notes }`. `shares` SHALL always be `0` for Instagram and YouTube
 (neither publicly exposes a share count), recorded as a note rather than silently omitted. Facebook
 DOES publicly expose a share count, so `mapFacebookItem` SHALL map its `shares` field through — it
@@ -105,7 +105,7 @@ of the three functions SHALL throw on `null`, `undefined`, or non-object input.
 
 `mapFacebookItem`'s field mapping (`likes`→reactions, `comments`→comments, `shares`→shares,
 `viewsCount`→views, `time` falling back to Unix-seconds `timestamp`→`postedAt`) is derived from the
-Apify Store's DOCUMENTED output schema for `apify/facebook-post-scraper`/`apify/facebook-posts-scraper`
+Apify Store's DOCUMENTED output schema for `apify/facebook-posts-scraper`
 — unlike the Instagram/YouTube mapping (verified against a live sanctioned capture in issue #48), it is
 NOT yet verified against a live run; this is flagged honestly in the module docstring and
 `src/apify/fixtures/README.md`, backed by a SYNTHETIC (not live-captured) fixture.

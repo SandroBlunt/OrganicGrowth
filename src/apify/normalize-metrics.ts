@@ -4,7 +4,8 @@
  * Apify actor output schemas vary per platform (data-handling rule 4: "Actor input/output schemas
  * vary; read the returned JSON and map fields defensively"). These pure functions map ONE raw Apify
  * dataset item (already-parsed JSON, `unknown`) from the Facebook / Instagram / YouTube actors this
- * repo uses — `apify/facebook-post-scraper` (one Facebook post), `apify/instagram-scraper` +
+ * repo uses — `apify/facebook-posts-scraper` (both an account's recent posts AND one post by URL —
+ * the same actor handles both, like YouTube's below; issue #253), `apify/instagram-scraper` +
  * `apify/instagram-post-scraper` (peer posts / one post), and `streamers/youtube-scraper` (peer
  * videos / one video); see `templates/brand-skeleton/seeds.yaml` for the actor slugs — into the four
  * metrics CONTEXT.md's "Performance" and the Performance Score formula
@@ -21,8 +22,8 @@
  *
  * Facebook (`mapFacebookItem`, issue #84) maps `likes` → reactions, `comments` → comments, `shares` →
  * shares, `viewsCount` → views, `time` (falling back to the Unix-seconds `timestamp`) → postedAt — per
- * the Apify Store's DOCUMENTED output schema for `apify/facebook-post-scraper`/
- * `apify/facebook-posts-scraper`. Unlike Instagram/YouTube's mapping, this is **not yet verified
+ * the Apify Store's DOCUMENTED output schema for `apify/facebook-posts-scraper`. Unlike
+ * Instagram/YouTube's mapping, this is **not yet verified
  * against a live sanctioned capture** (no `.env` Apify token was exercised for this slice — hermetic
  * build, issue #84) — `src/apify/fixtures/facebook-post.synthetic-sample.json` is a SYNTHETIC fixture
  * built from that documented shape, not a real capture. Flagged as a follow-up: verify against a real
@@ -143,9 +144,9 @@ function isoFromUnixSeconds(value: unknown): string | null {
 }
 
 /**
- * Map one raw Facebook dataset item (from `apify/facebook-post-scraper` — one post by URL — or
- * `apify/facebook-posts-scraper` — an account's recent posts, same output shape) to
- * `NormalizedMetrics`. Unlike Instagram/YouTube's mapping, Facebook's field names here are NOT yet
+ * Map one raw Facebook dataset item (from `apify/facebook-posts-scraper` — the ONE real actor, used
+ * for both one post by URL and an account's recent posts, same output shape) to `NormalizedMetrics`.
+ * Unlike Instagram/YouTube's mapping, Facebook's field names here are NOT yet
  * verified against a live sanctioned capture — see the module docstring.
  *
  * Pure and defensive: `raw` is `unknown` and never throws, even for `null`/garbled input.
