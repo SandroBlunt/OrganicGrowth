@@ -61,6 +61,7 @@ function twoBrandPlan(): ImportPlan {
                         postUrl: "https://www.facebook.com/permalink/1",
                         postedAt: "2026-01-02T00:00:00Z",
                         postPlatform: "facebook",
+                        postChannelIndex: 0,
                       },
                     ],
                   },
@@ -121,12 +122,17 @@ function twoBrandPlan(): ImportPlan {
     ],
     jobs: [{ brand: "acme", ideaLegacyId: "idea-01", recipe: "news-carousel", gate: null, status: "queued", enqueuedAt: "2026-01-01T00:00:00Z" }],
     deadMediaPaths: [{ brand: "acme", ideaLegacyId: "idea-01", recipe: "news-carousel", ordinal: 1, storageKey: "data/x/1.png" }],
+    // issue #243 round 2 (QA round 1's Defect 1): a third report-only category, alongside dead media
+    // paths and duplicate job keys — named here, never silently dropped, but never blocking the plan.
+    unresolvedPosts: [
+      { brand: "acme", ideaLegacyId: "idea-03", recipe: "news-carousel", postUrl: "https://www.facebook.com/999999999999999/posts/1", reason: "post_url \"https://www.facebook.com/999999999999999/posts/1\" identifier \"999999999999999\" matches none of this Brand's 2 configured \"facebook\" Channels" },
+    ],
     duplicateJobKeys: [{ brand: "acme", ideaLegacyId: "idea-01", recipe: "news-carousel", jobs: [{ gate: null, status: "queued", enqueuedAt: "2026-01-01T00:00:00Z" }, { gate: null, status: "queued", enqueuedAt: "2026-01-02T00:00:00Z" }] }],
   };
 }
 
 describe("buildReconciliation — counts in (the Plan) vs counts out (a real query against the database)", () => {
-  it("reports matching counts in/out for both Brands after a clean execute, plus the two report-only categories", async () => {
+  it("reports matching counts in/out for both Brands after a clean execute, plus all three report-only categories", async () => {
     await withTempDb(async (db) => {
       runMigrations(db);
       const plan = twoBrandPlan();
@@ -165,6 +171,11 @@ describe("buildReconciliation — counts in (the Plan) vs counts out (a real que
 
       assert.equal(report.deadMediaPaths.length, 1);
       assert.equal(report.duplicateJobKeys.length, 1);
+
+      // issue #243 round 2 (QA round 1's Defect 1): a third report-only category — carried straight
+      // through, unaffected by the counts above (Posts in/out already excludes it).
+      assert.equal(report.unresolvedPosts.length, 1);
+      assert.equal(report.unresolvedPosts[0]!.ideaLegacyId, "idea-03");
     });
   });
 
@@ -183,7 +194,7 @@ describe("buildReconciliation — counts in (the Plan) vs counts out (a real que
 });
 
 describe("formatReconciliationMarkdown — a human-readable rendering", () => {
-  it("names every Brand, the totals, both report-only categories, the Posts column, and what it does/does not cover", async () => {
+  it("names every Brand, the totals, all three report-only categories, the Posts column, and what it does/does not cover", async () => {
     await withTempDb(async (db) => {
       runMigrations(db);
       const plan = twoBrandPlan();
@@ -199,6 +210,12 @@ describe("formatReconciliationMarkdown — a human-readable rendering", () => {
       assert.match(markdown, /What this reconciliation covers/i);
       assert.match(markdown, /NOT independently counted/);
       assert.match(markdown, /channel_baseline/);
+      // issue #243 round 2 (QA round 1's Defect 1): the third report-only category is on the report too.
+      assert.match(markdown, /Unresolved Posts/i);
+      assert.match(markdown, /never blocking the rest of the plan/i);
+      assert.match(markdown, /idea-03/);
+      assert.match(markdown, /999999999999999/);
+      assert.match(markdown, /exclude any Post reported below as unresolved/i);
     });
   });
 });

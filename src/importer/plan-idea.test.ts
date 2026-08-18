@@ -12,6 +12,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { planIdea, type PlanIdeaDeps } from "./plan-idea.ts";
+import type { ChannelIdentity } from "./resolve-post-channel.ts";
 import type { FullLedgerIdea } from "../ledger/ledger.ts";
 import type { KnownPlatform } from "../copy/platform-shape.ts";
 
@@ -22,6 +23,10 @@ function fakeDeps(
   specs: Readonly<Record<string, Record<string, unknown>>> = {},
   brandChannelPlatforms: readonly KnownPlatform[] = [],
 ): PlanIdeaDeps {
+  // Test convenience: one blank-`url` Channel per named platform — sufficient for every existing test
+  // here, none of which exercises the two-Channels-on-one-platform case (that lives in
+  // `resolve-post-channel.test.ts` and `plan.test.ts`'s own dedicated coverage, issue #243).
+  const brandChannels: ChannelIdentity[] = brandChannelPlatforms.map((platform) => ({ platform, url: "" }));
   return {
     legacyAbsolutePrefix: REPO_ROOT,
     checkoutRoot: REPO_ROOT,
@@ -30,7 +35,7 @@ function fakeDeps(
       digest: async () => ({ sha256: "deadbeef", sizeBytes: 42 }),
     },
     loadSpec: async (specPath) => specs[specPath] ?? null,
-    brandChannelPlatforms: new Set(brandChannelPlatforms),
+    brandChannels,
   };
 }
 
@@ -229,9 +234,10 @@ describe("planIdea — an Asset's post_url resolves to a Channel the Brand actua
     assert.equal(asset.postUrl, "https://www.facebook.com/permalink.php?story_fbid=pfbid0VMYBWh&id=61591885769033");
     assert.equal(asset.postedAt, "2026-08-04T18:03:10.000Z");
     assert.equal(asset.postPlatform, "facebook");
+    assert.equal(asset.postChannelIndex, 0);
   });
 
-  it("an Asset with no post_url carries none of the three Post fields", async () => {
+  it("an Asset with no post_url carries none of the four Post fields", async () => {
     const idea: FullLedgerIdea = {
       id: "idea-01",
       run: "2026-W29",
@@ -242,6 +248,7 @@ describe("planIdea — an Asset's post_url resolves to a Channel the Brand actua
     const result = await planIdea({ idea, brief: { ok: true, content: "" } }, fakeDeps([], {}, ["facebook"]));
     assert.equal(result.problems.length, 0);
     const asset = result.idea!.assets[0]!;
+    assert.equal(asset.postChannelIndex, undefined);
     assert.equal(asset.postUrl, undefined);
     assert.equal(asset.postedAt, undefined);
     assert.equal(asset.postPlatform, undefined);
@@ -292,5 +299,143 @@ describe("planIdea — an Asset's post_url resolves to a Channel the Brand actua
     assert.equal(result.idea, undefined);
     assert.equal(result.problems.length, 1);
     assert.match(result.problems[0]!, /posted_at/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPECIFIC Channel resolution — two Channels on the same platform (issue #243)
+// ---------------------------------------------------------------------------
+
+describe("planIdea — a Brand with TWO Channels on the same platform resolves specifically, or refuses", () => {
+  it("resolves postChannelIndex to the Channel whose url identifier matches the post_url's own", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-01",
+      run: "2026-W29",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [
+        {
+          recipe: "news-carousel",
+          status: "posted",
+          post_url: "https://www.facebook.com/permalink.php?story_fbid=abc&id=99999999999999",
+          posted_at: "2026-08-04T18:03:10.000Z",
+        },
+      ],
+    };
+    const deps: PlanIdeaDeps = {
+      legacyAbsolutePrefix: REPO_ROOT,
+      checkoutRoot: REPO_ROOT,
+      mediaFileOps: { exists: async () => false, digest: async () => ({ sha256: "deadbeef", sizeBytes: 42 }) },
+      loadSpec: async () => null,
+      brandChannels: [
+        { platform: "facebook", url: "https://www.facebook.com/profile.php?id=61591885769033" },
+        { platform: "facebook", url: "https://www.facebook.com/profile.php?id=99999999999999" },
+      ],
+    };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, deps);
+    assert.equal(result.problems.length, 0);
+    assert.equal(result.idea!.assets[0]!.postChannelIndex, 1);
+  });
+
+  it("reports (never blocks) when the post_url cannot be matched to a SPECIFIC Channel — issue #243 round 2's Defect 1 fix", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-01",
+      run: "2026-W29",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [
+        {
+          recipe: "news-carousel",
+          status: "posted",
+          // No id= query param and no numeric/vanity path segment for facebook.com/watch/ — carries no
+          // extractable identifier at all, and this Brand has two facebook Channels.
+          post_url: "https://www.facebook.com/watch/?v=123",
+          posted_at: "2026-08-04T18:03:10.000Z",
+        },
+      ],
+    };
+    const deps: PlanIdeaDeps = {
+      legacyAbsolutePrefix: REPO_ROOT,
+      checkoutRoot: REPO_ROOT,
+      mediaFileOps: { exists: async () => false, digest: async () => ({ sha256: "deadbeef", sizeBytes: 42 }) },
+      loadSpec: async () => null,
+      brandChannels: [
+        { platform: "facebook", url: "https://www.facebook.com/profile.php?id=61591885769033" },
+        { platform: "facebook", url: "https://www.facebook.com/profile.php?id=99999999999999" },
+      ],
+    };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, deps);
+    // NOT a refusal (issue #243 round 2): this Idea still plans successfully — one unresolvable Post
+    // must never abort a whole Idea/Brand/plan (QA round 1's Defect 1 — see plan.ts's own doc comment).
+    assert.equal(result.problems.length, 0);
+    const asset = result.idea!.assets[0]!;
+    assert.equal(asset.postUrl, undefined);
+    assert.equal(asset.postChannelIndex, undefined);
+    assert.ok(asset.unresolvedPost, "expected the unresolved Post to be reported, never silently dropped");
+    assert.equal(asset.unresolvedPost!.postUrl, "https://www.facebook.com/watch/?v=123");
+    assert.match(asset.unresolvedPost!.reason, /cannot disambiguate/);
+  });
+
+  it("still refuses (blocks) when post_url is present but posted_at is missing — a data-quality defect, not a Channel-configuration gap", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-01",
+      run: "2026-W29",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [{ recipe: "news-carousel", status: "posted", post_url: "https://www.facebook.com/watch/?v=123" }],
+    };
+    const deps: PlanIdeaDeps = {
+      legacyAbsolutePrefix: REPO_ROOT,
+      checkoutRoot: REPO_ROOT,
+      mediaFileOps: { exists: async () => false, digest: async () => ({ sha256: "deadbeef", sizeBytes: 42 }) },
+      loadSpec: async () => null,
+      brandChannels: [
+        { platform: "facebook", url: "https://www.facebook.com/profile.php?id=61591885769033" },
+        { platform: "facebook", url: "https://www.facebook.com/profile.php?id=99999999999999" },
+      ],
+    };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, deps);
+    assert.equal(result.idea, undefined);
+    assert.equal(result.problems.length, 1);
+    assert.match(result.problems[0]!, /posted_at/);
+  });
+
+  it("resolves via a Channel's alternate_urls when the post_url's identifier matches only an ALTERNATE, not the Channel's own url", async () => {
+    const idea: FullLedgerIdea = {
+      id: "idea-2026-W32-10",
+      run: "2026-W32",
+      status: "accepted",
+      recipes: ["news-carousel"],
+      assets: [
+        {
+          recipe: "news-carousel",
+          status: "posted",
+          // The real idea-2026-W32-10 shape — a DIFFERENT numeric Facebook id than the Channel's own
+          // configured url, only resolvable here because the FIRST Channel declares it as an alternate.
+          post_url: "https://www.facebook.com/122096865609396192/posts/122114019723396192",
+          posted_at: "2026-08-04T18:03:10.000Z",
+        },
+      ],
+    };
+    const deps: PlanIdeaDeps = {
+      legacyAbsolutePrefix: REPO_ROOT,
+      checkoutRoot: REPO_ROOT,
+      mediaFileOps: { exists: async () => false, digest: async () => ({ sha256: "deadbeef", sizeBytes: 42 }) },
+      loadSpec: async () => null,
+      brandChannels: [
+        {
+          platform: "facebook",
+          url: "https://www.facebook.com/profile.php?id=61591885769033",
+          alternateUrls: ["https://www.facebook.com/122096865609396192"],
+        },
+        { platform: "facebook", url: "https://www.facebook.com/profile.php?id=88888888888888" },
+      ],
+    };
+    const result = await planIdea({ idea, brief: { ok: true, content: "" } }, deps);
+    assert.equal(result.problems.length, 0);
+    const asset = result.idea!.assets[0]!;
+    assert.equal(asset.unresolvedPost, undefined);
+    assert.equal(asset.postChannelIndex, 0);
+    assert.equal(asset.postUrl, "https://www.facebook.com/122096865609396192/posts/122114019723396192");
   });
 });

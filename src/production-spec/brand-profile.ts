@@ -19,14 +19,24 @@
  * `watermarkNode` before the final render, never folding it into the composed Copy (ADR-0012).
  *
  * `channelsFrom`/`primaryChannelFrom`/`loadChannels`/`loadPrimaryChannel` (ADR-0019, issue #127) read
- * the Brand's `channel` field — a LIST of `{ platform, url?, primary? }` entries, exactly one of which
- * carries `primary: true`. This is a migrate-in-place change with NO back-compat shim for the old
- * single-object `channel: { name, platform, url }` shape: a `channel` value that is not an array (the
- * old shape, or anything else malformed) reads as `[]`, same as a missing `channel` key — never
- * crashes, never silently reinterprets the old shape. The Channel performance-tracker, the baseline,
- * readiness checks (`src/readiness/check-config.ts`), and ledger attribution all key off the ONE
- * primary entry `primaryChannelFrom` returns — unchanged machinery from the pre-list single-Channel
+ * the Brand's `channel` field — a LIST of `{ platform, url?, primary?, alternate_urls? }` entries,
+ * exactly one of which carries `primary: true`. This is a migrate-in-place change with NO back-compat
+ * shim for the old single-object `channel: { name, platform, url }` shape: a `channel` value that is not
+ * an array (the old shape, or anything else malformed) reads as `[]`, same as a missing `channel` key —
+ * never crashes, never silently reinterprets the old shape. The Channel performance-tracker, the
+ * baseline, readiness checks (`src/readiness/check-config.ts`), and ledger attribution all key off the
+ * ONE primary entry `primaryChannelFrom` returns — unchanged machinery from the pre-list single-Channel
  * behavior (ADR-0019's own scope note; per-Channel tracking for the rest is a deferred future epic).
+ *
+ * `alternate_urls` (issue #243's Defect 1 fix) is a per-Channel, OPTIONAL list of additional URLs this
+ * SAME real account is also known to answer to — e.g. Facebook's own verified quirk where one Page
+ * exposes more than one internally-valid numeric id depending which permalink shape produced the link.
+ * It exists so the one-shot importer's Channel-disambiguation (`src/importer/resolve-post-channel.ts`,
+ * issue #243) has an Operator-configurable escape hatch for the ambiguous (2+ Channels on one platform)
+ * case: without it, a real Post whose URL happens to carry a Page's alternate id has no way to be
+ * described as belonging to a specific, already-configured Channel once that platform stops being
+ * unambiguous. Omitted (never `[]`) when a Channel configures none, mirroring this module's own
+ * optional-field convention elsewhere (`requiredCta`, `watermarkHandle`).
  *
  * `zohoConfigFrom`/`loadZohoConfig` (issue #143, PRD #140) read the Brand's OPTIONAL `zoho` field — a
  * DIFFERENT per-Brand parameter than `channel` above: it groups this Brand's platforms into **Zoho
@@ -174,12 +184,27 @@ export async function loadWatermarkHandle(path: string): Promise<string> {
  * `checkConfig`'s `channel_url_missing` finding, not by this reader) and optional/blank on the others
  * until the Operator supplies it — represented here as `""`, never `null`/`undefined`, so callers
  * never re-check a sentinel. No `handle` field — LinkedIn `@mention` tagging is a separate lookup
- * (issue #126).
+ * (issue #126). `alternateUrls` (issue #243) is OPTIONAL and OMITTED (never `[]`) when a Channel
+ * configures none — see this module's own top-of-file doc comment for what it is for.
  */
 export interface Channel {
   readonly platform: string;
   readonly url: string;
   readonly primary: boolean;
+  readonly alternateUrls?: readonly string[];
+}
+
+/**
+ * Extract one Channel entry's `alternate_urls` list (issue #243). Pure and defensive, mirroring
+ * `bannedWordsFrom`/`requiredHashtagsFrom`: non-string entries are dropped, blanks ignored, and a
+ * missing/non-list `alternate_urls` yields `[]` — never a guess, never a crash.
+ */
+function alternateUrlsFrom(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((w): w is string => typeof w === "string")
+    .map((w) => w.trim())
+    .filter((w) => w.length > 0);
 }
 
 /**
@@ -189,7 +214,9 @@ export interface Channel {
  * with no shim) and yields `[]`, exactly like a missing/absent `channel` key. Each list entry is then
  * validated independently: an entry that isn't an object, or whose `platform` is missing, blank, or
  * non-string, is dropped rather than crashing the whole Run; a malformed/absent `url` defaults to
- * `""` and a malformed/absent `primary` defaults to `false`.
+ * `""` and a malformed/absent `primary` defaults to `false`. `alternate_urls` (issue #243) is read via
+ * `alternateUrlsFrom` and OMITTED from the returned entry (never included as `[]`) when empty, so an
+ * existing caller comparing a Channel entry structurally never sees a new key it didn't ask for.
  */
 export function channelsFrom(raw: unknown): Channel[] {
   if (!isObject(raw)) return [];
@@ -201,7 +228,8 @@ export function channelsFrom(raw: unknown): Channel[] {
     const platform = entry.platform;
     if (typeof platform !== "string" || platform.trim().length === 0) continue;
     const url = typeof entry.url === "string" ? entry.url.trim() : "";
-    out.push({ platform: platform.trim(), url, primary: entry.primary === true });
+    const alternateUrls = alternateUrlsFrom(entry.alternate_urls);
+    out.push({ platform: platform.trim(), url, primary: entry.primary === true, ...(alternateUrls.length > 0 ? { alternateUrls } : {}) });
   }
   return out;
 }
