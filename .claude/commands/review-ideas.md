@@ -90,8 +90,21 @@ ledger reads and writes go through the Brand's own ledger (`src/ledger/ledger.ts
           for every ordinary accept, through code, not prose (closing the exact gap issue #254 exists to
           fix — previously ONLY the rare stranded-idea resume path, `run-pipeline.ts`, opened this
           database by default; the everyday `/review-ideas` accept did not).
+        - and, for EACH chosen Recipe, **authors and self-checks its Production Spec BEFORE either queue
+          is written** (ADR-0031, `docs/adr/0031-production-spec-authored-at-review.md`; issue #264) —
+          Review is now the single point a Spec is authored, so the attended Producer no longer authors
+          its own and the unattended worker's own author-phase check always finds one waiting. A Recipe
+          whose Spec fails its author-phase self-check is dropped from what gets enqueued — **in EITHER
+          queue** — and is named plainly in the command's own printed output; the ledger still records
+          it as chosen (the Operator's decision is unchanged), it simply is not yet producible. Once a
+          Recipe's Spec authors successfully and its SQL sync lands, the command also persists that Spec
+          onto the SQL Asset row and regenerates the human-readable file beside the Brief
+          (`ideas/<format>/<run>/idea-NN.<recipe>.spec.json`) — a GENERATED VIEW of the SQL row, never a
+          second, independently-authored copy.
       **Relay the command's own printed output to the Operator VERBATIM** — it already states whether the
-      Idea was accepted, what (if anything) was enqueued, and whether the SQL sync succeeded or failed (a
+      Idea was accepted, what (if anything) was enqueued, whether any Recipe's Spec authorship FAILED
+      (naming the Recipe and the failing check — retry by re-running this same command once fixed), and
+      whether the SQL sync succeeded or failed (a
       SQL failure is reported plainly in the output itself — e.g. "this Brand/Format has no SQL row yet";
       the file-based job still landed regardless — never silently swallow this, never re-run the command
       to "retry" a SQL failure). If `chosen` was **empty**, the command's own output already tells the

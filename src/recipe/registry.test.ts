@@ -175,6 +175,10 @@ describe("The character Recipe declares gates + spec-shape + copy-shape + Space 
   it("declares a copySkill — the Skill slug the copy step loads, resolved from this registry (issue #111)", () => {
     assert.equal(recipe.copySkill, "write-social-copy");
   });
+
+  it("declares its own producerSkill — the Skill slug that authors its Production Spec (ADR-0031, issue #264)", () => {
+    assert.equal(recipe.producerSkill, "produce-character-explainer");
+  });
 });
 
 describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-shape + Space target (issue #81 AC2)", () => {
@@ -298,6 +302,10 @@ describe("The News Carousel Recipe declares its OWN gates + spec-shape + copy-sh
   it("declares a copySkill — the Skill slug the copy step loads, resolved from this registry (issue #111)", () => {
     assert.equal(recipe.copySkill, "write-social-copy");
   });
+
+  it("declares its own producerSkill — the Skill slug that authors its Production Spec (ADR-0031, issue #264)", () => {
+    assert.equal(recipe.producerSkill, "produce-news-carousel");
+  });
 });
 
 describe("The News Short Script Recipe declares its OWN gates + spec-shape + copy-shape + NO Space target (issue #174, ADR-0021)", () => {
@@ -344,6 +352,10 @@ describe("The News Short Script Recipe declares its OWN gates + spec-shape + cop
 
   it("declares its copySkill as the SAME shared write-social-copy Skill every other Recipe uses", () => {
     assert.equal(recipe.copySkill, "write-social-copy");
+  });
+
+  it("declares its own producerSkill — the Skill slug that authors its Production Spec (ADR-0031, issue #264)", () => {
+    assert.equal(recipe.producerSkill, "produce-news-short-script");
   });
 
   it("declares all six Phase Contracts, in PHASE_ORDER's exact order", () => {
@@ -422,5 +434,20 @@ describe("All three wired Recipes' copySkill is a swappable, per-Recipe field (i
     assert.notDeepEqual(character.gates, carousel.gates);
     assert.notEqual(character.copyShape.maxChars, carousel.copyShape.maxChars);
     assert.equal(character.copySkill, carousel.copySkill);
+  });
+});
+
+describe("All three wired Recipes declare their OWN, DISTINCT producerSkill (ADR-0031, issue #264)", () => {
+  it("each producerSkill names a real .claude/skills/produce-*/ directory, one per Recipe, never shared", () => {
+    const character = getRecipe("character-explainer-with-cast")!;
+    const carousel = getRecipe("news-carousel")!;
+    const newsShortScript = getRecipe("news-short-script")!;
+    assert.equal(character.producerSkill, "produce-character-explainer");
+    assert.equal(carousel.producerSkill, "produce-news-carousel");
+    assert.equal(newsShortScript.producerSkill, "produce-news-short-script");
+    // Unlike copySkill (shared across all three), each Recipe's OWN producerSkill is distinct — a
+    // different Recipe is authored by a different Skill.
+    const slugs = [character.producerSkill, carousel.producerSkill, newsShortScript.producerSkill];
+    assert.equal(new Set(slugs).size, slugs.length);
   });
 });

@@ -18,6 +18,7 @@ import {
   strawMotionIdeaOneCarouselSpec,
 } from "../production-spec/fixtures/news-carousel-straw-motion-specs.ts";
 import { auditNewsCarouselAuthorPhase } from "../production-spec/news-carousel-author-checklist.ts";
+import { authorSpecForRecipe } from "../production-spec/author-at-review.ts";
 
 const FAST: PollOptions = { sleep: async () => {} };
 const NEWS_CAROUSEL = getRecipe("news-carousel")!;
@@ -139,5 +140,40 @@ describe("carousel — a missing REQUIRED Brand Asset STOPS the run before any S
     const space = new FakeCarouselSpace();
     assert.equal(space.editGoals.length, 0);
     assert.equal(space.runs.length, 0);
+  });
+});
+
+/**
+ * The attended Producer's flow, driven directly via `driveToNextGate` (never `runOneJob`/`drainQueue`),
+ * completes correctly against a Spec that Review already authored (ADR-0031, issue #264) — proving the
+ * attended path is UNAFFECTED by the fact that authorship happened before this turn started. This uses
+ * the SAME `authorSpecForRecipe` `acceptIdeaCommand` calls at accept time — never a second, hand-written
+ * Spec — so a real drift between "what Review authors" and "what the attended Producer can drive" would
+ * fail this test.
+ */
+describe("carousel end-to-end — the attended Producer's own drive completes against a Spec Review already authored (ADR-0031, issue #264)", () => {
+  it("driveToNextGate runs straight through, reading the SAME Spec authorSpecForRecipe produced — never authoring its own", async () => {
+    const outcome = authorSpecForRecipe(NEWS_CAROUSEL, { id: "idea-01", run: "2026-W33", title: "A real headline about AI news" }, []);
+    assert.equal(outcome.ok, true);
+    if (!outcome.ok) return;
+
+    const bindResult = bindMediaSlots(NEWS_CAROUSEL, {
+      [LOGO_SLOT_NAME]: { kind: "brand-asset", found: true, path: BRAND_LOGO_LOCAL_PATH },
+    });
+    assert.equal(bindResult.ok, true);
+
+    const space = new FakeCarouselSpace();
+    const input: DriveLegInput = {
+      kind: "first",
+      targetGate: null,
+      spec: outcome.spec,
+      promptNode: NEWS_CAROUSEL.canvasInputs!.promptNode,
+    };
+    const result = await driveToNextGate(space, await space.readState(), input, FAST);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.outcome.kind, "finished");
+    if (result.outcome.kind !== "finished") return;
+    assert.equal(result.outcome.asset.assetId, CAROUSEL_ASSET_CREATION_ID);
   });
 });

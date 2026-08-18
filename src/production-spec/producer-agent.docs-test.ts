@@ -98,11 +98,20 @@ describe("producer.md is a thin, recipe-generic conductor — no recipe-specific
     assert.match(text, /never read any Brand Profile field for it/i);
   });
 
-  it("runs the Recipe's own producer Skill BY SLUG (ADR-0018) — never authoring prompts itself", async () => {
+  it("never authors a Production Spec — Review already did, at accept time (ADR-0031, issue #264)", async () => {
     const text = await readFile(PRODUCER_AGENT, "utf8");
-    assert.match(text, /produce-character-explainer/);
-    assert.match(text, /produce-news-carousel/);
+    assert.match(text, /ADR-0031/);
+    assert.match(text, /never authors? (a|its own|your own) Production Spec/i);
+    assert.match(text, /producerSkill/);
+    assert.match(text, /never call `saveSpec`\/`saveProductionSpec` yourself/);
+    // The Skill tool is still real here — the SHARED copy step still loads a Skill — but authorship's
+    // own Skill names are gone: producer.md must not instruct loading a Recipe's producerSkill itself.
     assert.match(text, /Skill tool/);
+    assert.doesNotMatch(
+      text,
+      /load(s|ing)? (a |the )?Recipe'?s producerSkill/i,
+      "producer.md must not instruct loading a Recipe's producerSkill — that is Review's job now (ADR-0031)",
+    );
   });
 
   it("resolves the Idea's Format from the ledger record, STOPping when it is absent (issue #88)", async () => {
