@@ -95,15 +95,12 @@ inputs:
 outputs:
   - name: prompt
     type: string
-tools:
-  - name: python3
-    kind: runtime-interpreter
-    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
+tools: []
 scripts:
-  - path: scripts/build-prompt.py
+  - path: scripts/build-prompt.ts
     purpose: Assemble and validate a Veo 3.1 prompt across all modes.
-  - path: scripts/test_build_prompt.py
-    purpose: Unit tests for build-prompt.py (TDD-first).
+  - path: scripts/build-prompt.test.ts
+    purpose: Unit tests for build-prompt.ts (TDD-first).
 references:
   - path: references/translation-notes.md
     purpose: Model-specific quirks (mode exclusivity, audio rules, timestamp prompting, Add/Remove Object on Veo 2, SynthID, F/L hand-off from Nano Banana 2).
@@ -112,9 +109,9 @@ references:
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
 evals:
-  - path: scripts/test_build_prompt.py
+  - path: scripts/build-prompt.test.ts
     method: unit-tests
-    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
+    purpose: Proves build-prompt.ts assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-veo-3-1
   additional_sources:

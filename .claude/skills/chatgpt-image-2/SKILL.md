@@ -236,16 +236,17 @@ note (e.g. they asked for negation as the primary control).
 
 ## Closing — validation
 
-Run the helper script `scripts/build-prompt.py` to assemble and validate
+Run the helper script `scripts/build-prompt.ts` to assemble and validate
 the prompt before emitting it. The script enforces the five-clause
 skeleton, refuses negation-only prompts, caps MR at four references, and
 prints the assembled prompt to stdout.
 
 ```
-python3 scripts/build-prompt.py --mode T2I --subject "..." --action "..." \
+npx tsx scripts/build-prompt.ts --mode T2I --subject "..." --action "..." \
     --setting "..." --style "..." --camera "..."
 ```
 
-See `scripts/build-prompt.py --help` for the full argument list. The
-script's tests live in `scripts/test_build_prompt.py` and run with
-`python3 scripts/test_build_prompt.py`.
+See `scripts/build-prompt.ts --help` for the full argument list. The
+script's tests live in `scripts/build-prompt.test.ts` and run with
+`node --import tsx --test scripts/build-prompt.test.ts` (or as part of
+this repository's own `npm test`).
