@@ -137,8 +137,11 @@ own vertical, e.g. "Life hacks, household tips & tricks" — Theme is per-Idea, 
 **Review**:
 The Operator's curation pass over a Run's suggested Ideas — accepting some (and choosing the **Recipes**
 each is produced through, pre-filled from the Format), rejecting others with a Rejection Reason. Done
-conversationally; the gate between a `suggested` and an `accepted` Idea. Accepting enqueues **one
-production job per chosen Recipe**.
+conversationally; the gate between a `suggested` and an `accepted` Idea. Accepting **authors that Recipe's
+Production Spec** (running its **Recipe Skill**, self-audited against the author **Phase Contract**) and
+**enqueues one production job per chosen Recipe** — a Recipe whose Spec fails its self-audit blocks that
+Recipe's accept instead of enqueueing (ADR-0031). Review is the **single authorship point**: nothing
+downstream (the attended Producer or the unattended worker) authors a Spec of its own.
 _Avoid_: approval (it's richer — rejection carries feedback).
 
 **Rejection Reason**:
@@ -148,8 +151,9 @@ suggestions is a deferred decision.
 _Avoid_: note, comment.
 
 **Production Spec**:
-The strict, schema'd JSON the **Producer** generates from an accepted Idea to feed a **Recipe**'s Space
-media input — **the media instructions only**. Its **shape is per-Recipe** (the *Character Explainer with
+The strict, schema'd JSON generated **at Review** (ADR-0031), the moment an Idea is accepted and its
+Recipes chosen, to feed a **Recipe**'s Space media input — **the media instructions only**. Its **shape
+is per-Recipe** (the *Character Explainer with
 Cast* Recipe's is 3 `character_concepts` + 3 narrative `clips` with `image_prompt` + `video_prompt` + 3
 `thumbnails`, bound by that Space's style guide). **Copy is no longer in the Spec** — it is composed
 separately (see **Copy**; ADR-0012). The Space's flow — never the Spec — selects the actual image/video
@@ -237,8 +241,8 @@ image carousel, a Pixar-3D character Reel. A Space is **brand-agnostic**: any **
 through it. A Space makes **media only** — it does **not** write the post's copy (that is the Recipe's
 copy step). A **Recipe** drives one (or more) Spaces; each Space carries its own input contract (the
 **Production Spec** shape) and its own **Execution Protocol**. A canvas takes **two typed inputs** —
-**media slots** (filled by **Brand Assets** or idea-picks) and a **prompt node** (the Producer's authored
-prompt; ADR-0016). Today one Space (the 9:16 character Reel) is wired.
+**media slots** (filled by **Brand Assets** or idea-picks) and a **prompt node** (the authored prompt,
+written at **Review**; ADR-0016, ADR-0031). Today one Space (the 9:16 character Reel) is wired.
 _Avoid_: flow, template, pipeline (the Space *is* the pipeline); format (a Space is the media engine
 inside a **Recipe**, not the editorial **Format**).
 
@@ -248,8 +252,8 @@ ordered steps to drive it, any human **pick-gate**, and the **copy step** that t
 caption / hashtags / mentions for this kind of content. A Recipe is **defined in OrganicGrowth's repo** — it names the
 Space(s) and reads each Space's on-canvas run-points for the media, but owns the gates, the copy, and the
 spec shape itself (ADR-0010) — plus its canvas's **two typed inputs** (media slots + a prompt node;
-ADR-0016), its **Phase Contracts** (ADR-0017), and a producer **Skill** that authors the media prompt
-(ADR-0018). The **Operator picks one or many** Recipes per
+ADR-0016), its **Phase Contracts** (ADR-0017), and a **Recipe Skill** that authors the media prompt at
+**Review** (ADR-0018, ADR-0031). The **Operator picks one or many** Recipes per
 Idea (a Reel, a carousel, a meme…); each yields its own Asset → Post. A Recipe may drive **no Space at all** when its Asset is written words plus collected media (a
 teleprompter script with its **Shot List**; ADR-0021). A Recipe is **brand-agnostic** and shared — the
 per-Brand halves are the **Format** and idea generation. Today three Recipes are wired — **Character
@@ -261,12 +265,12 @@ one), media output (that is the Recipe's *result*, not the plan).
 
 **Producer**:
 The agent that renders an accepted **Idea** into its **Assets** by running each chosen **Recipe** — for
-each: running the Recipe's **Skill** to **author the media prompt** — its core craft, from the Brand's
-rules, the Format's **Baseline Prompt**, and the Idea's brief — **binding media** into the canvas's slots,
-driving the Recipe's **Space(s)** for the media (following the Space's on-canvas **Execution
-Protocol**), pausing at the Recipe's **gates**, and running its **copy step**. It **self-audits** each
-phase's output against that phase's **Phase Contract** before advancing (ADR-0017). A thin runner
-configured by the in-repo **Recipe**. It **generates, never publishes**.
+each: reading that Recipe's already-authored **Production Spec** (authored at **Review**, ADR-0031, not
+by the Producer) — **binding media** into the canvas's slots, driving the Recipe's **Space(s)** for the
+media (following the Space's on-canvas **Execution Protocol**), pausing at the Recipe's **gates**, and
+running its **copy step**. It **self-audits** each phase's output, from bind-media onward, against that
+phase's **Phase Contract** before advancing (ADR-0017) — the author phase's own self-audit runs at
+Review instead. A thin runner configured by the in-repo **Recipe**. It **generates, never publishes**.
 _Avoid_: generator, studio, creator.
 
 **Execution Protocol**:
@@ -301,25 +305,28 @@ _Avoid_: reference image (too narrow — assets are also video/audio), attachmen
 **Media Slot & Prompt Node** (a Recipe's two typed canvas inputs):
 The two kinds of input a **Recipe**'s canvas takes. A **media slot** is a named slot holding an image,
 video, or audio — filled by a **Brand Asset** (reused) or an idea-pick (per Idea, from a gate), via a
-named map the Recipe owns. A **prompt node** is the text the **Producer** authors to the Recipe's
-contract. Authoring the prompt is the Producer's core craft; binding media is the second job (ADR-0016).
+named map the Recipe owns. A **prompt node** is the text authored to the Recipe's contract, at **Review**
+(ADR-0031). Authoring the prompt is Review's job; binding media into the slot is the **Producer**'s
+(ADR-0016).
 *(Decided in map #70; build pending.)*
 _Avoid_: input, field (name the kind — media slot or prompt node).
 
 **Phase Contract** (per-phase, checkable):
 The **checklist** a production **phase**'s output must satisfy — author the prompt → bind media → gate →
-render → copy → save, each with its own. The **Producer** self-audits its output against the phase's
-contract before advancing (redraft, or STOP on a banned word / broken shape); a **QA** pass re-runs the
-same checklist. Mechanical items stay as code (the spec validator, the copy check, the banned-word scan);
+render → copy → save, each with its own. The **author** phase's contract is self-audited **at Review**
+(ADR-0031) — a failure there blocks that Recipe's accept instead of reaching production. The **Producer**
+(or the unattended worker) self-audits every phase from bind-media onward against its own contract before
+advancing (redraft, or STOP on a banned word / broken shape); a **QA** pass re-runs the same checklist.
+Mechanical items stay as code (the spec validator, the copy check, the banned-word scan);
 the rest are agent-judged (ADR-0017). This is OrganicGrowth's **observability** at production time.
 *(Decided in map #70; build pending.)*
 _Avoid_: validation (only the mechanical part is), test.
 
-**Recipe Skill** (a Recipe's producer procedure):
-The interpreting **Skill** the thin **Producer** runs for a Recipe (by the job's slug) — it reads the
-Brand's rules + the Format's **Baseline Prompt** + the Idea's brief and **authors the media prompt** in
-the baseline shape, self-checking against the author **Phase Contract** (ADR-0018). One per wired Recipe
-(e.g. `produce-news-carousel`). *(Decided in map #70; build pending.)*
+**Recipe Skill** (a Recipe's authoring procedure):
+The interpreting **Skill** run **at Review** for a Recipe (by its slug — ADR-0031; previously run by the
+thin **Producer**) — it reads the Brand's rules + the Format's **Baseline Prompt** + the Idea's brief and
+**authors the media prompt** in the baseline shape, self-checking against the author **Phase Contract**
+(ADR-0018). One per wired Recipe (e.g. `produce-news-carousel`). *(Decided in map #70; build pending.)*
 _Avoid_: producer.md (that thins to a conductor), instruction file (it is a Skill).
 
 **Production Queue**:
@@ -420,7 +427,7 @@ decision, designed fresh for OrganicGrowth.
 - The **Operator** launches a **Run** for one of a Brand's **Formats** at that Format's cadence (weekly or daily — ADR-0022), using that Format's own sources, voice, and idea count
 - A **Run** scrapes **Trends** (Apify) and turns the strongest into **suggested Ideas**
 - The **Operator Reviews** the suggested Ideas — **accepting** some, **rejecting** others with a **Rejection Reason**
-- At **Review** the Operator accepts an Idea **and chooses its Recipes** (pre-filled from the Format); each chosen **Recipe** becomes one production job. For each, the **Producer** drives that Recipe's **Space** for the media (pausing at the Recipe's own gates, e.g. the *Character Explainer with Cast* pick), then composes the **Copy** — yielding **one Asset per Recipe**. The Operator reviews each Asset and **publishes** it into a **Post**, logging the URL with its Recipe (attribution is stated, never inferred)
+- At **Review** the Operator accepts an Idea **and chooses its Recipes** (pre-filled from the Format); accepting **authors each chosen Recipe's Production Spec** right there (ADR-0031) and each chosen **Recipe** becomes one production job. For each, the **Producer** reads that already-authored Spec, binds media, and drives that Recipe's **Space** for the media (pausing at the Recipe's own gates, e.g. the *Character Explainer with Cast* pick), then composes the **Copy** — yielding **one Asset per Recipe**. The Operator reviews each Asset and **publishes** it into a **Post**, logging the URL with its Recipe (attribution is stated, never inferred)
 - The human gates are **Review** (accept the Idea + choose its Recipes), then **each Recipe's own pick-gate(s)** (zero, one, or several — the Reel's is the **Cast** pick), then **Publish**. The Producer pauses at each; nothing renders past a gate until the Operator acts
 - **Accepting an Idea enqueues one job per chosen Recipe**; the Producer works the **Production Queue** in the Operator's session, **one generation at a time** (bounded by the single attended Operator, not by per-Space capacity). A job paused at a gate never holds the Space
 - A **Post** earns **Performance**, refreshed over time from the Meta export — a moving number, not a snapshot — which collapses to a **Performance Score**
