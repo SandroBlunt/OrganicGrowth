@@ -318,17 +318,17 @@ character.
 
 ## Closing — validation
 
-Run the helper script `scripts/build-prompt.py` to assemble and
+Run the helper script `scripts/build-prompt.ts` to assemble and
 validate the prompt before emitting it. The script enforces the
 six-clause skeleton, refuses negation-only prompts, applies the
 mix-budget heuristic to MR, and prints the assembled prompt to stdout.
 
 ```
-python3 scripts/build-prompt.py --mode T2V --subject "..." --action "..." \
+npx tsx scripts/build-prompt.ts --mode T2V --subject "..." --action "..." \
     --setting "..." --style "..." --camera "..." --motion "..."
 ```
 
 For MR, pass each reference as a JSON object `{"type": "image", "role":
-"subject"}`; see `scripts/build-prompt.py --help`. The script's tests
-live in `scripts/test_build_prompt.py` and run with
-`python3 scripts/test_build_prompt.py`.
+"subject"}`; see `scripts/build-prompt.ts --help`. The script's tests
+live in `scripts/build-prompt.test.ts` and run with
+`node --import tsx --test scripts/build-prompt.test.ts`.

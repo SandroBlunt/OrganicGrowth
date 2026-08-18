@@ -358,7 +358,7 @@ on the Pro variant is also a `defer-to-user` (Pro does not support it).
 
 ## Closing — validation
 
-Run the helper script `scripts/build-prompt.py` to assemble and
+Run the helper script `scripts/build-prompt.ts` to assemble and
 validate the prompt before emitting it. The script enforces the
 five-clause skeleton, refuses negation-only prompts, validates frame
 counts and hand-off naming for frame-sequence mode, applies the
@@ -366,20 +366,20 @@ variant-aware character/object caps for MR, and prints the assembled
 prompt to stdout.
 
 ```
-python3 scripts/build-prompt.py --mode T2I --subject "..." --action "..." \
+npx tsx scripts/build-prompt.ts --mode T2I --subject "..." --action "..." \
     --setting "..." --style "..." --camera "..."
 ```
 
 For frame-sequence:
 
 ```
-python3 scripts/build-prompt.py --mode frame-sequence \
+npx tsx scripts/build-prompt.ts --mode frame-sequence \
     --subject "..." --camera "..." --style "..." \
     --frame "Frame 1: ..." --frame "Frame 2: ..." \
     --handoff "Veo 3.1 first-and-last-frame"
 ```
 
 For MR with variant-aware caps, pass `--variant flash` or `--variant
-pro`. See `scripts/build-prompt.py --help` for the full argument list.
-The script's tests live in `scripts/test_build_prompt.py` and run with
-`python3 scripts/test_build_prompt.py`.
+pro`. See `scripts/build-prompt.ts --help` for the full argument list.
+The script's tests live in `scripts/build-prompt.test.ts` and run with
+`node --import tsx --test scripts/build-prompt.test.ts`.

@@ -362,7 +362,7 @@ wide margin.
 
 ## Closing — validation
 
-Run the helper script `scripts/build-prompt.py` to assemble and
+Run the helper script `scripts/build-prompt.ts` to assemble and
 validate the prompt before emitting it. The script enforces the
 subject-first skeleton, checks the 30–100 word budget, requires
 in-image text to be quoted, enforces the ~10 reference cap and
@@ -371,18 +371,18 @@ lock for sequential-set mode, refuses negation-only prompts, and prints
 the assembled prompt to stdout.
 
 ```
-python3 scripts/build-prompt.py --mode T2I --subject "..." --action "..." \
+npx tsx scripts/build-prompt.ts --mode T2I --subject "..." --action "..." \
     --setting "..." --style "..." --camera "..."
 ```
 
 For a sequential set:
 
 ```
-python3 scripts/build-prompt.py --mode sequential-set \
+npx tsx scripts/build-prompt.ts --mode sequential-set \
     --subject "..." --style "..." --set-count 6 \
     --frame "Image 1: ..." --frame "Image 2: ..." ...
 ```
 
-See `scripts/build-prompt.py --help` for the full argument list. The
-script's tests live in `scripts/test_build_prompt.py` and run with
-`python3 scripts/test_build_prompt.py`.
+See `scripts/build-prompt.ts --help` for the full argument list. The
+script's tests live in `scripts/build-prompt.test.ts` and run with
+`node --import tsx --test scripts/build-prompt.test.ts`.

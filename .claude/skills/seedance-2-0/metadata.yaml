@@ -96,15 +96,12 @@ inputs:
 outputs:
   - name: prompt
     type: string
-tools:
-  - name: python3
-    kind: runtime-interpreter
-    required_for: [scripts/build-prompt.py, scripts/test_build_prompt.py]
+tools: []
 scripts:
-  - path: scripts/build-prompt.py
+  - path: scripts/build-prompt.ts
     purpose: Assemble and validate a Seedance 2.0 prompt across all four modes including per-modality caps and the mix-budget heuristic.
-  - path: scripts/test_build_prompt.py
-    purpose: Unit tests for build-prompt.py (TDD-first).
+  - path: scripts/build-prompt.test.ts
+    purpose: Unit tests for build-prompt.ts (TDD-first).
 references:
   - path: references/translation-notes.md
     purpose: Model-specific quirks (per-modality caps, mix-budget heuristic, Edit vs Reference, shot-script, sub-second timecodes, notation alternatives, camera rules).
@@ -113,9 +110,9 @@ references:
   - path: references/README.md
     purpose: Pointer to shared references at ../../references/.
 evals:
-  - path: scripts/test_build_prompt.py
+  - path: scripts/build-prompt.test.ts
     method: unit-tests
-    purpose: Proves build-prompt.py assembles a valid prompt across every declared mode before it is trusted to emit one.
+    purpose: Proves build-prompt.ts assembles a valid prompt across every declared mode before it is trusted to emit one.
 source_tracking:
   official_guidelines_url: https://seed.bytedance.com/en/seedance2_0
   additional_sources:
