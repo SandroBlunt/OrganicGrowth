@@ -7,7 +7,9 @@
  * ADR-0011, issue #56), so the Operator can inspect exactly what will drive a render (PRD #1 story 5)
  * and so a second chosen Recipe for the same Idea gets its OWN Spec file rather than overwriting the
  * first Recipe's. Kept thin and separate from the pure logic in `validate.ts` / `generate.ts`; the gate
- * that only valid, brand-safe Specs reach disk lives in the `compose.ts` shell.
+ * that only valid, brand-safe Specs reach disk is `author-at-review.ts`'s `authorSpecForRecipe`
+ * (self-checked against `auditAuthorPhase`, at accept time — ADR-0031, issue #264). This module never
+ * calls the Recipe's generator/validator/brand-safety scanner itself — it only locates and writes.
  */
 
 import { mkdir } from "node:fs/promises";

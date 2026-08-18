@@ -132,13 +132,17 @@ A tracked SQL-backed domain store's file-backed write function SHALL be named in
 - **THEN** it is reported as a `(path, "src/production-spec/store.ts", ["saveSpec"])` triple, identically
   in shape to how a SQL-backed write import is reported
 
-#### Scenario: an audited, allow-listed file-backed-write orchestration shell is not flagged
+#### Scenario: a hypothetical audited, allow-listed file-backed-write orchestration shell would not be flagged
 
-- **GIVEN** `src/production-spec/compose.ts`'s own real import of `saveSpec`, present in
-  `STORE_WRITE_BOUNDARY_ALLOW_LIST` with a stated reason (it is the write-gate for the file-backed
-  Production Spec, not a caller reaching around one; tracked for migration by issue #238)
-- **WHEN** the guard runs
-- **THEN** it does not fail — the found triple exactly matches the allow-listed one
+- **GIVEN** a hypothetical module, allow-listed with a stated reason as a file-backed write's own
+  orchestration shell (the same category `STORE_WRITE_BOUNDARY_ALLOW_LIST`'s doc-comment names for issue
+  #235, currently holding no live example — issue #238 retired its one instance,
+  `src/production-spec/compose.ts`, once ADR-0031/#264 moved the Production Spec's real persistence path
+  onto `src/command-surface/`, which this guard exempts by path instead)
+- **WHEN** the guard runs against that hypothetical entry
+- **THEN** it does not fail — a correctly-paired (importing file, store, function) triple present in both
+  the real disk-walk and the allow-list is never flagged, regardless of which specific module currently
+  occupies this category
 
 ### Requirement: a namespace import of a tracked store module is resolved as importing every one of that store's write functions
 
