@@ -45,6 +45,19 @@
  * dangling-reference half already shipped in #252 — extend that guard, do not build a second one" — this
  * lives in the SAME file, not a new one. See `docs/catalogue-manifest-format.md` for the full field list
  * and `handoff.md` for the field-by-field, one-at-a-time red/green non-vacuousness transcripts.
+ *
+ * **Issue #261: the manifest-completeness `describe` block below now also supplies a real
+ * `pathExists` predicate (backed by `existsSync`, resolved against `SKILLS_ROOT`/`skillName`/declared
+ * path) — the ONE place THIS guard touches the filesystem for existence, same discipline as the
+ * dangling-citation half above.** `findIncompleteManifests` now also fails when a declared
+ * `scripts[].path`, `evals[].path`, `references[].path`, or `shared_references.path` does not resolve to
+ * a real file (or, for `shared_references.path`, a real directory) on disk, in addition to (never instead
+ * of) the pre-existing evals-cites-a-declared-script consistency check. See `handoff.md`'s "Round: issue
+ * #261" section for the mutate/run/restore transcripts proving this non-vacuous, separately for a
+ * `scripts[].path` case and an `evals[].path` case, plus the live finding that the dangling-citation
+ * guard above covers `shared_references.path` for a wrong-depth corruption but NOT for one that renames
+ * the literal `references` segment itself — the reason `shared_references.path` also gets a direct check
+ * here now, confirmed rather than assumed.
  */
 
 import { describe, it } from "node:test";
@@ -189,6 +202,11 @@ describe("catalogue entry manifest completeness (issue #212)", () => {
       expectedOwner: licence!.holder,
       expectedLicence: licence!.spdxId,
       minimumPurposeLength: MINIMUM_PURPOSE_LENGTH,
+      // issue #261: every declared scripts[].path / evals[].path / references[].path /
+      // shared_references.path is resolved against this entry's own real directory and checked with
+      // existsSync — the guard's one and only filesystem touch for this half, exactly like the
+      // dangling-citation half above.
+      pathExists: (skillName, declaredPath) => existsSync(join(SKILLS_ROOT, skillName, declaredPath)),
     };
     const defects = findIncompleteManifests(sources, options);
 

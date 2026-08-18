@@ -336,6 +336,106 @@ describe("checkManifestCompleteness — one missing/invalid field at a time", ()
   });
 });
 
+describe("checkManifestCompleteness — path existence (issue #261)", () => {
+  function withMetadata(patchedYaml: string): CatalogueEntrySource {
+    return { skillName: "fixture-model", skillMdContent: COMPLETE_SKILL_MD, metadataYamlContent: patchedYaml };
+  }
+
+  it("does not check existence when no pathExists predicate is supplied — backward compatible", () => {
+    // COMPLETE_METADATA_YAML's declared scripts/evals/references paths are fixture-only strings that
+    // exist nowhere on any real disk; without an opted-in `pathExists`, that must never be a defect.
+    assert.deepEqual(checkManifestCompleteness(completeSource(), OPTIONS), []);
+  });
+
+  it("catches a scripts[].path that does not resolve on disk when pathExists is supplied", () => {
+    const options: ManifestCheckOptions = { ...OPTIONS, pathExists: (_skill, path) => path !== "scripts/build-prompt.py" };
+    const defects = checkManifestCompleteness(withMetadata(COMPLETE_METADATA_YAML), options);
+    assert.ok(
+      defects.some((d) => d.field === "scripts[0].path" && /no file exists/.test(d.reason)),
+      JSON.stringify(defects),
+    );
+    // the sibling declared script (still resolvable) must not be flagged
+    assert.ok(!defects.some((d) => d.field === "scripts[1].path"), JSON.stringify(defects));
+    // and the evals cross-check (pointing at the OTHER, resolvable script) must stay clean
+    assert.ok(!defects.some((d) => d.field.startsWith("evals[")), JSON.stringify(defects));
+  });
+
+  it("catches an evals[].path that does not resolve on disk, even though it passes the existing scripts: consistency check", () => {
+    const options: ManifestCheckOptions = {
+      ...OPTIONS,
+      pathExists: (_skill, path) => path !== "scripts/test_build_prompt.py",
+    };
+    const defects = checkManifestCompleteness(withMetadata(COMPLETE_METADATA_YAML), options);
+    // the declared script itself is flagged...
+    assert.ok(
+      defects.some((d) => d.field === "scripts[1].path" && /no file exists/.test(d.reason)),
+      JSON.stringify(defects),
+    );
+    // ...and the eval citing that same (declared-but-dead) script is flagged too, for existence —
+    // NOT for consistency: it is still a real member of this entry's own scripts: list.
+    const evalDefect = defects.find((d) => d.field === "evals[0].path");
+    assert.ok(evalDefect !== undefined, JSON.stringify(defects));
+    assert.ok(/no file exists/.test(evalDefect!.reason), JSON.stringify(defects));
+    assert.ok(!/scripts: list/.test(evalDefect!.reason), JSON.stringify(defects));
+  });
+
+  it("keeps the existing evals-cites-a-declared-script consistency check independent of existence — a path that resolves but names no real scripts: entry still fails", () => {
+    const yaml = COMPLETE_METADATA_YAML.replace(
+      "evals:\n  - path: scripts/test_build_prompt.py",
+      "evals:\n  - path: scripts/not-a-declared-script.py",
+    );
+    // pathExists always true — proves the consistency-check failure below is NOT the new existence
+    // check firing; it is the pre-existing, unweakened cross-check against this entry's own scripts:.
+    const options: ManifestCheckOptions = { ...OPTIONS, pathExists: () => true };
+    const defects = checkManifestCompleteness(withMetadata(yaml), options);
+    assert.ok(
+      defects.some((d) => d.field === "evals[0].path" && /scripts: list/.test(d.reason)),
+      JSON.stringify(defects),
+    );
+  });
+
+  it("catches a references[].path that does not resolve on disk when pathExists is supplied", () => {
+    const options: ManifestCheckOptions = {
+      ...OPTIONS,
+      pathExists: (_skill, path) => path !== "references/README.md",
+    };
+    const defects = checkManifestCompleteness(withMetadata(COMPLETE_METADATA_YAML), options);
+    assert.ok(
+      defects.some((d) => d.field === "references[0].path" && /no file exists/.test(d.reason)),
+      JSON.stringify(defects),
+    );
+  });
+
+  it("catches a shared_references.path that does not resolve on disk when pathExists is supplied — checked directly here, not left to the sibling citation guard alone", () => {
+    const options: ManifestCheckOptions = {
+      ...OPTIONS,
+      pathExists: (_skill, path) => path !== "../../references/",
+    };
+    const defects = checkManifestCompleteness(withMetadata(COMPLETE_METADATA_YAML), options);
+    assert.ok(
+      defects.some((d) => d.field === "shared_references.path" && /no file exists/.test(d.reason)),
+      JSON.stringify(defects),
+    );
+  });
+
+  it("passes the pathExists predicate the skillName so a caller can resolve per-entry", () => {
+    const seen: Array<{ skillName: string; path: string }> = [];
+    const options: ManifestCheckOptions = {
+      ...OPTIONS,
+      pathExists: (skillName, path) => {
+        seen.push({ skillName, path });
+        return true;
+      },
+    };
+    checkManifestCompleteness({ ...completeSource("real-skill-name") }, options);
+    assert.ok(seen.every((s) => s.skillName === "real-skill-name"), JSON.stringify(seen));
+    assert.ok(seen.some((s) => s.path === "scripts/build-prompt.py"), JSON.stringify(seen));
+    assert.ok(seen.some((s) => s.path === "scripts/test_build_prompt.py"), JSON.stringify(seen));
+    assert.ok(seen.some((s) => s.path === "references/README.md"), JSON.stringify(seen));
+    assert.ok(seen.some((s) => s.path === "../../references/"), JSON.stringify(seen));
+  });
+});
+
 describe("findIncompleteManifests", () => {
   it("returns [] across multiple complete entries", () => {
     const sources = [completeSource("a"), completeSource("b")];

@@ -195,10 +195,12 @@ change's `handoff.md` for the red/green transcripts):**
 - `inputs` (non-empty array) and `outputs` (non-empty array)
 - `evals` (non-empty array, each item naming a non-empty `path` that also names one of this same entry's
   own `scripts:` entries — a path to a script this entry doesn't declare fails, per "evals ... points at
-  an existing scripts: test entry" above)
-- `shared_references.path` (non-empty), `shared_references.required` (must equal `true` — every entry
-  with a `shared_references` block genuinely depends on it, per its own `entities.reads`; a present but
-  `false` value is caught, not merely a missing one — issue #212 Round 2, Defect 1), `shared_references.install`
+  an existing scripts: test entry" above, AND — independently, issue #261 — that same `path` must itself
+  resolve to a real file on disk; see "Path-shaped fields: existence, not just consistency" below)
+- `shared_references.path` (non-empty, and — issue #261 — resolves to a real directory on disk),
+  `shared_references.required` (must equal `true` — every entry with a `shared_references` block
+  genuinely depends on it, per its own `entities.reads`; a present but `false` value is caught, not
+  merely a missing one — issue #212 Round 2, Defect 1), `shared_references.install`
   (non-empty, one of `copy-alongside` / `vendored` / `refuse-without`)
 
 **Fields deliberately left to type/presence checks only, not value-checked, with the reason (issue #212
@@ -223,9 +225,73 @@ Round 2's field-by-field sweep):**
 - `inputs` / `outputs` item shape (beyond non-empty array) — a deeper per-item schema (name/type/required
   well-formedness) is a separate, larger config-validation design question this ticket's own field list
   never promised to cover.
-- `shared_references.path` value (beyond non-empty) — again the dangling-citation guard's job (#252):
-  it resolves this exact field's value against the real `.claude/references/` folder already (a corrupted
-  path is caught there, proven in this change's `handoff.md`'s Round-1 Mutation 6 transcript).
+
+## Path-shaped fields: existence, not just consistency (issue #261)
+
+Before issue #261, `evals[].path` was only cross-checked against this same entry's own declared
+`scripts[].path` set — the two being consistent WITH EACH OTHER, never that either one resolved to a real
+file. A script renamed or deleted, with its eval still citing the same dead name, would have stayed
+invisible: the guard was measuring consistency, not existence. This is the third time this exact shape of
+bug hit this catalogue (#252: 129 citations to documents never committed; #212: promised folders that
+never existed) — the property that would have caught all three is existence, and nothing checked it.
+
+`ManifestCheckOptions.pathExists`, an optional predicate `(skillName, declaredPath) => boolean`, closes
+this. `checkManifestCompleteness` stays pure — it never touches disk itself — but when a caller supplies
+`pathExists`, every declared path in the fields below is resolved against that entry's own directory and
+checked. The real guard (`reference-citation-guard.docs-test.ts`) always supplies one, backed by
+`existsSync`. **The existing evals-cites-a-declared-script consistency check is kept, unweakened, and
+runs independently** — it catches a different error (a well-formed path that simply names the wrong
+thing) than existence does (a well-formed, correctly-named path that is nonetheless dead).
+
+**Fields that gained the existence check, and why:**
+
+- `scripts[].path` and `evals[].path` — the issue's own explicit ask. Proven non-vacuous live: a real
+  `scripts[].path` was mutated to a name with no file on disk (isolated case), and separately a real
+  script was "renamed" (its `scripts[].path` AND the `evals[].path` citing it both repointed to the same
+  dead name, keeping them internally consistent) — the guard failed both times, naming the entry and
+  exact field; restored, the guard passed again and the tree was clean. Transcripts in this change's
+  `handoff.md`.
+- `references[].path` (this entry's own reference documents) — decided in scope here, because no other
+  guard watches it. The dangling-reference-citation guard's regex only matches a
+  `(../)+(<segment>/)*references/(<name>.md)?`-shaped CLIMBING citation; a same-directory
+  `references/<name>.md` value (what every real `references[].path` entry looks like) never satisfies
+  that shape, so it was invisible to every guard in this repository before this change. Proven
+  non-vacuous live the same way as above (transcript in `handoff.md`).
+- `shared_references.path` — the issue named this field as "already has a sibling guard" and asked for
+  that claim to be **confirmed, not assumed**. Confirmed live, and the result was a genuine, narrower
+  finding: the dangling-reference-citation guard DOES catch a `shared_references.path` corrupted to the
+  wrong depth or with a bogus intervening segment (its regex matches `(../)+(<segment>/)*references/`,
+  so a value like `../../references-nonce-parent/references/` is caught) — but it does NOT catch a value
+  whose `references` folder-name segment itself is mistyped or renamed to something else entirely (e.g.
+  `../../refs/`), because the regex requires that literal segment name to recognise the string as a
+  citation at all; a value that fails to match is invisible to a guard that only checks values it
+  recognises as citations. That is exactly the "gap living in the seam between two individually-correct
+  guards" the issue warned is a documented failure mode here (#235, #238). Closed by checking
+  `shared_references.path` directly in `manifest-completeness-scan.ts` too — on top of, not instead of,
+  the sibling guard's own broader citation walk. Both transcripts (the sibling guard catching the
+  wrong-depth case; the sibling guard NOT catching the renamed-segment case, and the new direct check
+  catching it) are in `handoff.md`.
+
+**Fields deliberately NOT given an existence check, and why:**
+
+- `tools[].required_for` (a list of script paths, annotation-only) — every real entry declares
+  `tools: []` today (issue #255 dropped the Python runtime dependency), so there is no live data to
+  existence-check and no live regression this would guard against; `tools[].required_for` also has no
+  presence/shape validation of its own yet (out of #212's original scope, unchanged here) — adding an
+  existence check to an unvalidated, currently-always-empty field would be speculative, not evidenced.
+  Revisit if a future entry's `tools` block becomes non-empty again.
+- `entities.reads` / `entities.writes` — glob-shaped (`references/*.md`, `../../references/*.md`), not a
+  single literal path; there is nothing for `existsSync` to resolve against a glob. Any literal, named
+  citation these fields' real values happen to contain is still walked and existence-checked by the
+  dangling-reference-citation guard's own corpus-wide scan (unchanged, #252) — duplicating glob-expansion
+  logic here would be a second, redundant resolver for the same already-covered ground.
+- `domain_path` (e.g. `gen-prompting/code/video/veo-3-1`) — a categorisation label, not a filesystem
+  path; it does not name a file or directory this repository ships, so "resolves to a real file" is not
+  a meaningful question for it.
+- `source_tracking.official_guidelines_url` / `additional_sources` — external URLs (and one
+  `"vendor-doc: ..."` free-text citation of an offline source document), never a path into this
+  repository's own tree; existence-checking an external URL is a different, unrelated concern (a live
+  HTTP fetch) this change does not take on.
 
 **Threshold justification (the brief's own demand — never leave a number unjustified).** The `purpose`
 length floor is 100 characters. Measured directly against the real corpus at authoring time, the
