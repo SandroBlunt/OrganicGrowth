@@ -37,20 +37,36 @@ The conductor SHALL run a readiness check at every launch. The check SHALL NEVER
 - Sanity-check the Brand config (via `checkConfig`).
 - Feed all probe results to `classify` and combine the findings.
 
-When all findings are advisory-only or there are no findings, the readiness output SHALL be silent
-(no output to the Operator). When blocking findings exist, the conductor SHALL surface them and apply
-phase-scoped blocking: a `block` on `research` stops the launch; a `block` on `production` allows
-research to proceed but stops production; a `block` on `publish` allows research and production to
-proceed but stops publication. The conductor SHALL list only the blocking/advisory findings for the
-current and upcoming phases — it SHALL NOT surface findings for phases already complete.
+The conductor SHALL print EVERY Finding it computes — `block` and `advisory` severity alike —
+unconditionally, under a `"Readiness check:"` header: a `block`-severity Finding as a `[BLOCK]` line, an
+`advisory`-severity Finding as a `[WARN]` line. Printing a Finding SHALL NEVER depend on any OTHER
+Finding — of either severity — also existing that same run. The readiness output SHALL be silent ONLY
+when the computed Finding list is literally empty (a fully healthy Brand and healthy probes). This
+supersedes the PRIOR policy ("silent when all findings are advisory-only") and the narrow, per-Finding
+-code carve-out issue #253 introduced to work around it for exactly two codes
+(`apify_actor_not_found:*` / `apify_actor_unreachable:*`, previously identified by
+`isActorExistenceFinding`) — that carve-out is now REMOVED as redundant (see the REMOVED Requirements
+section of this change) because this Requirement's general rule already covers it, and covers every
+OTHER advisory `code` `classify.ts`/`check-config.ts` produce today or add in the future without
+requiring any hand-maintained allow-list.
 
-The live probes SHALL be modelled behind injectable port interfaces (`MagniticReadinessPort` and
+Printing SHALL remain entirely independent of phase-scoped blocking. When one or more `block`-severity
+findings exist, the conductor SHALL apply phase-scoped blocking exactly as before: a `block` on
+`research` stops the launch; a `block` on `production` allows research to proceed but stops production;
+a `block` on `publish` allows research and production to proceed but stops publication. An
+`advisory`-severity finding SHALL NEVER stop or block any phase, regardless of whether it is the only
+Finding printed that run or is printed alongside one or more `block` findings. The conductor SHALL list
+only the blocking/advisory findings for the current and upcoming phases — it SHALL NOT surface findings
+for phases already complete.
+
+The live probes SHALL be modelled behind injectable port interfaces (`MagnificReadinessPort` and
 `ApifyReadinessPort`) so that tests can inject fakes and the build remains hermetic (no live
 `spaces_*`/`creations_*` calls, no credits, no board mutation).
 
 #### Scenario: Healthy readiness produces no output
 
-- **GIVEN** a Brand with valid config, accessible Space, sufficient credits, and a valid Apify token
+- **GIVEN** a Brand with valid config, accessible Space, sufficient credits, a valid Apify token, and a
+  Channel performance baseline already measured (a literally empty Finding list)
 - **WHEN** `/run-pipeline <brand>` performs the readiness check
 - **THEN** no readiness output is shown to the Operator
 - **AND** the conductor proceeds to the rename hint
@@ -59,24 +75,34 @@ The live probes SHALL be modelled behind injectable port interfaces (`MagniticRe
 
 - **GIVEN** a Brand whose Apify token is invalid (probe returns false)
 - **WHEN** `/run-pipeline <brand>` performs the readiness check
-- **THEN** a finding with `severity: 'block'` and `phase: 'research'` is surfaced
+- **THEN** a finding with `severity: 'block'` and `phase: 'research'` is surfaced as a `[BLOCK]` line
 - **AND** the conductor stops and does not proceed to the loop
 
 #### Scenario: Production block allows research but stops production
 
 - **GIVEN** a Brand whose Magnific Space is inaccessible (`accessible: false`)
 - **WHEN** `/run-pipeline <brand>` performs the readiness check
-- **THEN** a finding with `severity: 'block'` and `phase: 'production'` is surfaced
+- **THEN** a finding with `severity: 'block'` and `phase: 'production'` is surfaced as a `[BLOCK]` line
 - **AND** the conductor proceeds through research and review but stops before production
 
-#### Scenario: Advisory-only findings do not stop the loop
+#### Scenario: An advisory finding reaches the Operator with no block finding present
 
-- **GIVEN** a Brand with `banned_words` empty (advisory finding only)
+- **GIVEN** a Brand whose config is otherwise entirely healthy except that its ledger carries no
+  Channel performance baseline yet (`baseline.updated_at` is `null` — an advisory-only finding,
+  `code: "null_baseline"`)
 - **WHEN** `/run-pipeline <brand>` performs the readiness check
-- **THEN** the advisory finding MAY be surfaced as a warning
+- **THEN** the printed output contains a `[WARN]` line naming the missing baseline
+- **AND** no `[BLOCK]` line appears
 - **AND** the conductor proceeds to the loop (the advisory does NOT block any phase)
 
----
+#### Scenario: An advisory printed alongside a co-occurring block still leaves phase-scoped blocking unchanged
+
+- **GIVEN** a Brand whose Apify token is invalid (a `block` on `research`) AND whose `banned_words` list
+  is empty (an `advisory` on `research`, unrelated to the token)
+- **WHEN** `/run-pipeline <brand>` performs the readiness check
+- **THEN** the printed output contains both a `[BLOCK]` line and a `[WARN]` line
+- **AND** the conductor stops before research proceeds — caused by the `block`, not by the co-occurring
+  `advisory`
 
 ### Requirement: The conductor prints a rename hint but does not rename the session itself
 
@@ -566,33 +592,4 @@ instead.
 - **THEN** the injected `ApifyReadinessPort`'s `probeActorExists` is invoked exactly once for that slug
 - **AND** if that probe returns `"not_found"`, the resulting Finding's `message` names both
   `youtube.trends_actor` and `youtube.post_actor`
-
-### Requirement: The conductor prints an actor-existence advisory to the Operator even when it is the only finding present
-
-`runPipelineCommand` (`src/commands/run-pipeline.ts`) SHALL print every actor-existence Finding produced by `probeConfiguredActors` (a `code` starting with `apify_actor_not_found:` or `apify_actor_unreachable:`, identified by `run-pipeline-readiness.ts`'s `isActorExistenceFinding`) regardless of whether a `block`-severity Finding also exists that run — a narrow, named carve-out from the base "Readiness runs every launch, is silent when healthy, and surfaces gaps with phase-scoped blocking" Requirement's general default, applying only to this one finding class, because a computed-but-never-printed advisory is indistinguishable from no advisory at all, which is the exact "and nothing notices" failure issue #253 exists to close. Printing this advisory SHALL NEVER stop or block any phase — the run proceeds exactly as it would if no finding existed at all.
-
-#### Scenario: A dead actor slug's advisory reaches the Operator even when it is the ONLY finding that run
-
-- **GIVEN** a Brand whose config is otherwise entirely healthy (valid Apify token, accessible Space,
-  sufficient credits, a clean `checkConfig` result) except that one configured Apify actor slug is
-  reported `"not_found"` by `probeActorExists`
-- **WHEN** `runPipelineCommand` runs
-- **THEN** the printed output contains a `[WARN]` line naming the dead slug
-- **AND** the conductor is NOT stopped by it — it proceeds past readiness to the `/rename` hint and Gate 1
-
-#### Scenario: An unreachable actor-existence probe's advisory also reaches the Operator when it is the only finding
-
-- **GIVEN** a Brand whose config is otherwise entirely healthy except that `probeActorExists` throws for
-  one configured slug
-- **WHEN** `runPipelineCommand` runs
-- **THEN** the printed output contains a `[WARN]` line
-- **AND** the conductor is NOT stopped by it — it proceeds past readiness to the `/rename` hint
-
-#### Scenario: A co-occurring block finding still surfaces the actor advisory alongside it
-
-- **GIVEN** a Brand whose Apify token is invalid (forcing an unrelated research block) AND one configured
-  Apify actor slug is reported `"not_found"`
-- **WHEN** `runPipelineCommand` runs
-- **THEN** the printed output contains both a `[BLOCK]` line for the invalid token and a `[WARN]` line
-  naming the dead slug
 

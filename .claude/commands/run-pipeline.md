@@ -30,8 +30,12 @@ how you invoke it selects the Brand:
    - The Magnific Space (accessible? credits cover at least one cast+render cycle?).
    - The Apify token (valid?).
    - The Brand config (niche, voice, seeds, channel URL, banned words).
-   Silent when everything is healthy. Only surfaces issues when there are blocking gaps.
-   Phase-scoped: a Space problem doesn't block trend research; a bad Apify token stops research.
+   Silent only when there is literally nothing to report (a fully healthy Brand). Every finding it
+   computes is printed — a `[BLOCK]` or a `[WARN]` line — so an advisory (e.g. no performance baseline
+   yet, an empty banned-words list) never depends on an unrelated blocking gap also existing that same
+   run to be seen (issue #260). Printing is independent of blocking: only `[BLOCK]` findings stop a
+   phase; a `[WARN]` never does, whether it prints alone or alongside a block. Phase-scoped: a Space
+   problem doesn't block trend research; a bad Apify token stops research.
 
 3. **Prints a `/rename` hint.** Outputs a line like `/rename mundotip · 2026-W23` — paste it in
    your terminal to rename the session. The conductor does NOT rename the session itself.

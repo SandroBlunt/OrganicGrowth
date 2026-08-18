@@ -61,7 +61,7 @@ import { ideaAtGate, ideaHasAssetStatus } from "../asset/asset.ts";
 import { DEFAULT_ASSET_RECIPE } from "../asset/migrate.ts";
 import { loadQueue } from "../production-queue/store.ts";
 import { enqueueOnAccept, type EnqueueOnAcceptOptions } from "../production-queue/enqueue-on-accept.ts";
-import { runReadiness, findingsBlockPhase, isActorExistenceFinding } from "./run-pipeline-readiness.ts";
+import { runReadiness, findingsBlockPhase } from "./run-pipeline-readiness.ts";
 import { reportCommand } from "./report.ts";
 import { isoWeek } from "../format/run-id.ts";
 import { openDatabase } from "../db/connection.ts";
@@ -611,31 +611,23 @@ export async function* conductorTurns(
     apify,
   });
 
-  // The conductor is SILENT when all findings are advisory-only or there are none — EXCEPT for one
-  // narrow, named carve-out (issue #253, Round 2): an actor-existence advisory (a configured Apify
-  // actor slug confirmed dead or unreachable) is printed unconditionally, whether or not a `block`
-  // finding also exists that run. Every other advisory-only finding keeps the general silent default.
-  // Without this carve-out the advisory is computed by `probeConfiguredActors` and then simply never
-  // shown to a human in the common case (a healthy Brand with one bad actor slug) — indistinguishable
-  // from no check existing at all, which is the exact bug issue #253 was filed to close.
-  const blockFindings = findings.filter((f) => f.severity === "block");
-
-  if (blockFindings.length > 0) {
+  // The conductor prints EVERY finding it computes — block or advisory alike — unconditionally, so an
+  // advisory reaching the Operator never depends on an unrelated block finding also existing that same
+  // run (issue #260). It is SILENT only when there are literally NO findings at all (a fully healthy
+  // Brand and healthy probes). This replaces the OLD "silent when all findings are advisory-only"
+  // default and the narrow, per-finding-code carve-out issue #253 introduced to work around it for
+  // exactly two codes (`apify_actor_not_found:*` / `apify_actor_unreachable:*`) — no future finding
+  // code needs to be added to a hand-maintained allow-list to reach the Operator; every Finding
+  // `runReadiness` returns is printed, unconditionally, by construction. Printing stays fully decoupled
+  // from blocking: phase-scoped blocking below is driven solely by `findingsBlockPhase`'s own
+  // severity-only check — an advisory NEVER blocks, whether it prints alone or alongside a block.
+  if (findings.length > 0) {
     const lines: string[] = ["Readiness check:"];
     for (const f of findings) {
       const icon = f.severity === "block" ? "[BLOCK]" : "[WARN]";
       lines.push(`  ${icon} (${f.phase}) ${f.message}`);
     }
     yield { message: lines.join("\n") };
-  } else {
-    const actorAdvisories = findings.filter(isActorExistenceFinding);
-    if (actorAdvisories.length > 0) {
-      const lines: string[] = ["Readiness check:"];
-      for (const f of actorAdvisories) {
-        lines.push(`  [WARN] (${f.phase}) ${f.message}`);
-      }
-      yield { message: lines.join("\n") };
-    }
   }
 
   // Phase-scoped blocking: a research block stops the launch
