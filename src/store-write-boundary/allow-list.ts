@@ -9,8 +9,10 @@
  * `*.test.ts`, so they need an explicit entry), **a pre-#205 live production caller** of
  * `AssetStore.writeAsset`'s file-backed `{ ledgerPath }` overload — the live `ledger.json` write path,
  * untouched by and pre-dating #205's SQL-side migration — or **a file-backed write's own orchestration
- * shell** (issue #235; today, `src/production-spec/compose.ts` — see its entry below for the full
- * reasoning). `store-write-guard.test.ts` asserts this list is EXACTLY the set of non-test,
+ * shell** (issue #235) — a category currently holding NO entry: its one instance,
+ * `src/production-spec/compose.ts`, was retired by issue #238 once ADR-0031/#264 moved the Production
+ * Spec's real persistence path onto `src/command-surface/production-spec.ts`, which this guard exempts by
+ * path instead. `store-write-guard.test.ts` asserts this list is EXACTLY the set of non-test,
  * non-`command-surface` modules that import a store write function today — no more (a new, un-audited
  * bypass fails the build), and no fewer (a stale entry that no longer imports that function also fails
  * the build, so this list can never silently drift from reality in either direction).
@@ -73,17 +75,4 @@ export const STORE_WRITE_BOUNDARY_ALLOW_LIST: readonly StoreWriteImport[] = [
     store: "src/asset/store.ts",
     functions: ["writeAsset"],
   },
-
-  // --- The file-backed Production Spec write's own orchestration shell (issue #235) -------------------
-  //     composeSpec IS the write-gate for the file-backed Spec (generate -> validate -> brand-safety scan
-  //     -> save) — it is the boundary itself, not a caller reaching around one, the same relationship
-  //     src/command-surface/ has to the SQL-backed stores it wraps. It is not routed onto
-  //     src/command-surface/ because that surface's own spec Requirement fixes its shape to "an
-  //     already-open, already-migrated DatabaseSync as its first argument" (openspec/specs/command-
-  //     surface/spec.md) — saveSpec has no `db` parameter at all, so wrapping it there would violate that
-  //     Requirement, not satisfy it. composeSpec has ZERO production callers today (confirmed:
-  //     `grep -rn "composeSpec" src --include='*.ts'` outside tests returns only this file's own
-  //     definition) — a dormant pairing, not a live bypass. Tracked for migration once something starts
-  //     calling composeSpec in production (most likely issue #211's agent rewrite): issue #238. ----------
-  { path: "src/production-spec/compose.ts", store: "src/production-spec/store.ts", functions: ["saveSpec"] },
 ] as const;
