@@ -697,19 +697,25 @@ npx openspec validate --all --strict
 
 ### Known limits (round 2 — supersedes round 1's version in full)
 
-- **The one-shot importer is not re-runnable against an already-populated database.** `brand.slug` is
-  `UNIQUE` (`src/db/schema.ts`) — a second `executeImport` run against the same database raises a
-  UNIQUE-constraint error rather than merging or updating. This means `alternate_urls`' practical recovery
-  window is BEFORE the one production run: the Operator should configure it in `brand-profile.yaml` ahead
-  of that run for any Channel/Post pair known to need it (Straw Motion's own `idea-2026-W32-10` is the one
-  concretely known case today — recorded here so the Operator has the exact fix ready:
-  `alternate_urls: ["https://www.facebook.com/122096865609396192"]` on that Brand's existing primary
-  `facebook` Channel entry, needed ONLY once/if a second Facebook Channel is ever configured for Straw
-  Motion). If a Post is discovered unresolved only AFTER the one-shot import has already committed, there
-  is currently no standalone command to attach a Post to an already-imported SQL Asset — `logPost` (the
-  command-surface function) is called only by the importer itself today. Closing that gap is a distinct,
-  future ticket (e.g. exposing a small `resolveUnresolvedPost` command-surface entry point), not attempted
-  here — it was out of scope for this defect fix and would itself need its own test-first design.
+- **The one-shot importer is not re-runnable against an already-populated database — this is one step in
+  the recovery route, not a wall.** `brand.slug` is `UNIQUE` (`src/db/schema.ts`) — a second `executeImport`
+  run against the same database raises a UNIQUE-constraint error rather than merging or updating, and
+  `src/importer/cli.ts`'s own refusal message already tells the Operator what to do about it: "...start over
+  with a fresh database file." `data/organicgrowth.db` is gitignored, derived state — nothing today treats
+  it as a live source of truth (`ledger.json` still is, and the worker/#208 remains Operator-gated) — and
+  the real one-shot import has already been deleted and re-run from an empty database twice for this exact
+  migration (the committed reconciliation docs at `eb7830b` and `4dc6754`). **So the actual recovery route,
+  available whether the one production run has already happened or not, is: add the needed `alternate_urls`
+  entry to `brand-profile.yaml`, delete `data/organicgrowth.db`, and re-run `/import-data` from an empty
+  database — a normal, safe, already-precedented operation, not a dead end.** Straw Motion's own
+  `idea-2026-W32-10` is the one concretely known case today — recorded here so the Operator has the exact
+  fix ready: `alternate_urls: ["https://www.facebook.com/122096865609396192"]` on that Brand's existing
+  primary `facebook` Channel entry, needed ONLY once/if a second Facebook Channel is ever configured for
+  Straw Motion. Separately, there is currently no standalone command to attach a single already-imported
+  Post to a Channel without the delete-and-rerun step above — `logPost` (the command-surface function) is
+  called only by the importer itself today. Closing that narrower gap with a live, standalone
+  `resolveUnresolvedPost` command-surface entry point is a distinct, future ticket, not attempted here — it
+  was out of scope for this defect fix and would itself need its own test-first design.
 - **Per-platform identifier coverage is real-Facebook-verified only** (unchanged from round 1) — YouTube/
   X/TikTok/Instagram/LinkedIn's rules are principled but not yet exercised against real ambiguous data on
   those platforms, since neither real Brand has 2+ Channels on any non-Facebook platform today.
@@ -725,3 +731,306 @@ npx openspec validate --all --strict
   change deliberately does not attempt (migrations 1–4 stay byte-for-byte frozen, per the round 2 brief).
 - No new migration and no schema change, still — `src/db/schema.ts`/`src/db/migrate.ts` remain untouched
   by both rounds combined.
+
+## QA Verdict — Round 2: PASS (with one MEDIUM defect logged, non-blocking)
+
+Verified independently in the worktree
+`/Users/CaxtonTaylor/Developer/.og-worktrees/issue-243-channel-platform-resolution` at `ccf1c9f` (base
+`cdb68a0`, Round 1 was `e15b8bf`). Read `gh issue view 243`, the full diff `e15b8bf..ccf1c9f`, `proposal.md`'s
+new "Round 2" section, `specs/importer/spec.md` in full, `resolve-post-channel.ts`, `plan-idea.ts`, `plan.ts`,
+`execute.ts`, `reconcile.ts`, `cli.ts`, `brand-profile.ts`, and every touched test file. Ran every command
+myself; nothing here is taken on the Build Report's word alone.
+
+### Suite result — all green, matches the Build Report exactly
+
+- `npm test` → **3708 tests / 960 suites / 0 fail** (I ran it fresh; Round 1 baseline was 3694/958/0 —
+  confirmed **+14 tests / +2 suites**, matching the Build Report's own accounting).
+- `npm run test:docs` → **351 tests / 94 suites / 0 fail** (unchanged from Round 1, as claimed).
+- `npm run build` (`tsc -p tsconfig.build.json`) → clean, no errors.
+- `npx openspec validate issue-243-channel-platform-resolution --strict` → `Change
+  'issue-243-channel-platform-resolution' is valid`.
+- `npx openspec validate --all --strict` → **69 passed, 0 failed**.
+- Standalone run of every round-2-touched test file (`resolve-post-channel.test.ts`, `plan-idea.test.ts`,
+  `plan.test.ts`, `execute.test.ts`, `reconcile.test.ts`, `brand-profile.test.ts`) → **132/35/0**.
+- `git diff cdb68a0..ccf1c9f -- src/ | grep -in "magnific\|spaces_\|creations_\|apify"` → no hits outside
+  prose comments. `git diff cdb68a0..ccf1c9f -- src/db/schema.ts src/db/migrate.ts` → empty (migrations
+  1–4 byte-for-byte frozen). `git diff cdb68a0..ccf1c9f -- package.json package-lock.json` → empty (no new
+  dependency). `git status --short` after all inspection → clean (no stray edits left by my own reads).
+
+### Defect 1 [HIGH, Round 1] — re-verified FIXED
+
+Traced the full path end to end, not just read the claim:
+
+1. **`alternate_urls` parsing is genuinely defensive** (`src/production-spec/brand-profile.ts`'s
+   `alternateUrlsFrom`, mirroring `bannedWordsFrom`/`requiredHashtagsFrom` exactly). Tried every case
+   the task asked for by reading the code + `brand-profile.test.ts`'s new describe block (4 tests): missing
+   field → omitted key; empty list → omitted key; `null` → `!Array.isArray(null)` → omitted key; a bare
+   string scalar → omitted key, never a crash; a list with a blank/whitespace-only entry → dropped after
+   `.trim()`; a malformed-URL string → passed through as a plain string (validated later, defensively, by
+   `extractChannelIdentifier`'s own `try { new URL(...) } catch { return null }`, never a throw). One
+   malformed record never crashes a Run — data-handling rule 4 holds. **PASS.**
+2. **The matching logic never softens a refusal into a guess.** Read `resolve-post-channel.ts` in full.
+   `channelIdentifiers()` unions a Channel's own `url` identifier with its `alternateUrls` identifiers;
+   `matches.length === 0` and `matches.length > 1` both still refuse (`kind: "ambiguous"`), including the
+   dedicated "misconfigured duplicate `alternate_urls` on BOTH Channels" test and the pre-existing
+   "duplicate configuration via two different url shapes" test. Attacked it further myself: a blank-`url`
+   Channel with a populated `alternateUrls` correctly matches on the alternate alone (an explicit
+   Operator-configured identifier, not a guess); a genuine collision (own-`url` vs. another Channel's
+   `alternate_urls`) is caught by the same generic `matches.length > 1` branch, exercised by the existing
+   duplicate-configuration test — the mechanism is platform-agnostic to WHERE the colliding identifier came
+   from, so I found no separate gap needing its own dedicated test. **PASS — refusal stays refusal.**
+3. **`kind` discriminant behaves exactly as claimed.** `"unknown-platform"`/`"no-configured-channel"` stay
+   hard-blocking `problem`s in `plan-idea.ts`'s `planAssetPost` (byte-identical to #240); only `"ambiguous"`
+   routes to the new non-blocking `unresolvedPost`/`unresolvedPosts` report. Confirmed by the `kind`
+   assertions added to every existing refusal test in `resolve-post-channel.test.ts`. **PASS.**
+4. **One unresolvable Post no longer fails the whole plan — and I confirmed this actually reaches the
+   Operator, not just the plan object.** This was the check I weighted most heavily, per the #253 lesson
+   named in my brief (a correctly-computed finding that was never printed). Traced the full chain:
+   - `plan.ts`: `ImportPlan.unresolvedPosts` is a real, populated array on a successful plan.
+   - `reconcile.ts`: `buildReconciliation` carries `plan.unresolvedPosts` straight onto
+     `ReconciliationReport.unresolvedPosts`; `formatReconciliationMarkdown` **unconditionally** renders an
+     "Unresolved Posts" section (prints `"None."` when empty, the actual records — by Brand/Idea/Recipe/URL/
+     reason — when not) as part of the SAME markdown string every other section is in, not behind any
+     "only if something blocks" gate.
+   - `reconcile.test.ts`'s `formatReconciliationMarkdown` test asserts the rendered **string** itself
+     (`assert.match(markdown, /Unresolved Posts/i)`, plus the specific idea id and URL) — this is a direct
+     string assertion on the human-visible output, not merely `report.unresolvedPosts.length === 1`, so a
+     regression that stopped rendering the section (exactly the #253 failure mode) would fail this test.
+   - `cli.ts`'s `importCommand` sets `report = formatReconciliationMarkdown(reconciliation)` and returns it
+     verbatim as `result.report`; `main()` unconditionally does
+     `process.stdout.write(result.report + "\n")` on every successful run — no conditional gating.
+     `cli.test.ts`'s pre-existing tests already prove `result.report` is exactly what reaches stdout and
+     `--reconciliation-out`, so this plumbing (trivial pass-through, unchanged this round) is proven correct
+     by long-standing coverage.
+   - Net: an ambiguous Post genuinely reaches the Operator's terminal on the real run, and a test would
+     fail if it stopped being shown. **PASS — this is NOT a repeat of #253's silent-drop shape.**
+   - Minor observation, not a defect: `cli.test.ts` itself (untouched this round) has no end-to-end case
+     that builds an ambiguous-Post scenario through the full `importCommand` and asserts on `result.report`
+     directly — the chain above is proven by composing two already-tested links (reconcile.test.ts's string
+     assertion + cli.test.ts's pass-through proof) rather than one single test spanning both. This is
+     sufficient evidence, not a gap I'm filing.
+
+### Recovery-route reasoning — confirmed to hold; Known Limits understates it (MEDIUM defect)
+
+Confirmed independently: `data/*.db` is gitignored (`.gitignore` lines 25–27) and does not exist in this
+worktree — it is derived, not source-controlled state. `git log` shows the real one-shot import has
+already been committed via its reconciliation doc twice (`eb7830b`, then `4dc6754` superseding it after
+#240), and `docs/import-reconciliation-2026-08-17.md` is the currently-committed record — so "run once,
+inspect, redo from an empty database" is the ALREADY-ESTABLISHED, safe, precedented practice for this
+migration, not a hypothetical. `cli.ts`'s own non-empty-database refusal message says so explicitly in the
+code the Operator will actually see: `"...start over with a fresh database file."` Per project state
+(worker/#208 still Operator-gated, no production caller yet reads the SQL store as its source of truth —
+`ledger.json` still is), nothing today would be lost by deleting `data/organicgrowth.db` and re-running.
+
+**The reasoning holds — the route is genuinely available — but "Known limits" does not say so plainly.**
+Its own wording: *"the practical recovery window is BEFORE the one production run"* and *"the one-shot
+importer is not re-runnable against an already-populated database"* — both true in isolation, but neither
+sentence tells the Operator that if the run has already happened, deleting the (gitignored, derived, already
+twice-redone-in-practice) database file and re-running is the same safe operation that produced both prior
+committed reconciliation docs. As written, an Operator (or a future engineer) reading only Known Limits
+would reasonably conclude there is no way back once "the one production run" has occurred, when in fact
+there plainly is, and the CLI's own refusal text already says so. This is the exact category of
+"undisclosed/misleadingly-stated limitation" that failed Round 1's Defect 1 — smaller in impact here (the
+underlying fix works, is fully tested, and the true fact is discoverable from the CLI's own error message),
+but real enough that per my brief's explicit instruction ("if the route out is genuinely available, the
+limit should say so plainly... if it is not, that is a defect") I am filing it rather than passing it
+silently forward.
+
+### Defect 2 [MEDIUM, Round 1] — re-verified FIXED
+
+Read `execute.test.ts`'s new test line-by-line and traced `execute.ts`'s own indexing logic
+(`channelIds[assetPlan.postChannelIndex]`, a plain array index with no default, throwing an explicit
+internal-error if undefined/out of bounds — never a silent fallback). The test builds a real 2-Channel plan
+with `postChannelIndex: 1`, runs it through the real `executeImport` against a real, throwaway SQLite file,
+fetches BOTH Channel rows independently by their own distinct `url` (never assuming insertion order), and
+asserts `post.channel_id` equals the SECOND row's real id AND (`assert.notEqual`) does not equal the
+first's. Structurally this is watertight against an off-by-one, a zero-default, or a swapped-array bug —
+not just the exact swap the developer's own transcript demonstrated.
+
+**Disclosed limitation on my own verification of this item:** my tool grant is read/run-only (`Edit`
+restricted to this `handoff.md`; `Bash` restricted to `npm test`/`npm run test:docs`/`openspec
+validate`/read-only `git`/`gh`) — I did not perform a live self-authored mutation of `execute.test.ts`
+(break it, watch it fail, restore byte-identically) as my brief's item 6 asked, because doing so would
+require editing a test file, which is outside my permitted actions even temporarily-and-restored (the
+guardrail "never edit product code, tests, specs" is a hard constraint no task instruction can override).
+I instead verified by (a) tracing `execute.ts`'s own source for the absence of any default/fallback in the
+index lookup, and (b) cross-checking the developer's own red→green transcript (swapping `postChannelIndex:
+1` → `0`, which under my own reading of the code would indeed flip which Channel's real UUID `channelIds[
+assetPlan.postChannelIndex]` returns) against that source. I am confident in the result but flagging the
+method difference from what was asked, in the interest of not silently substituting a weaker check for the
+one requested. **PASS**, on this evidentiary basis.
+
+### Per-criterion results (issue #243, Round 2 scope)
+
+1. **Defect 1 — recovery route exists and is proven.** PASS — `resolve-post-channel.test.ts`'s two
+   `idea-2026-W32-10`-shaped `alternate_urls` tests (unit) + `plan.test.ts`'s full-`planImport` equivalent.
+2. **Defect 1 — refusal never softens into a guess.** PASS — see "never softens" above; attacked further
+   with a blank-url+alternate and an own-url/alternate-url collision, both held.
+3. **Defect 1 — one unresolvable Post does not fail the entire plan.** PASS —
+   `plan.test.ts`'s "an unresolved Post on one Idea does not block a SECOND, otherwise-resolvable Idea"
+   test, read and confirmed.
+4. **Defect 1 — refusal-that-should-stay-blocking stays blocking.** PASS — `kind` assertions +
+   `plan-idea.test.ts`'s still-blocks-on-missing-`posted_at` test.
+5. **Defect 1 — disclosed in Known Limits with the recovery route spelled out.** **PARTIAL — see the
+   MEDIUM defect above.** The route exists and works; the disclosure undersells its availability.
+6. **Defect 2 — a real test proves the 2-Channel index survives to the correct, non-zero `post.channel_id`
+   row.** PASS — traced and confirmed watertight (see caveat on my own verification method above).
+
+### Per-scenario results (`specs/importer/spec.md`, Round 2's new/modified Scenarios)
+
+| Scenario | Result | Covering test |
+|---|---|---|
+| Two Channels — identifier matching NEITHER is reported+deferred, never blocking | PASS | `resolve-post-channel.test.ts`; `plan-idea.test.ts` L340-378; `plan.test.ts` L345-373 |
+| Two Channels — no extractable identifier is reported+deferred, never blocking | PASS | `plan.test.ts` L355-373 (shared with above) |
+| `alternate_urls` resolves a Post matching only an alternate | PASS | `resolve-post-channel.test.ts`; `plan-idea.test.ts` L403+; `plan.test.ts` L432+ |
+| A resolvable Post is unaffected by an unrelated unresolved Post in the same Brand | PASS | `plan.test.ts` L374-431 |
+| Posts in/out exclude an unresolved Post, named in its own section, prose states it | PASS | `reconcile.test.ts` — both `buildReconciliation` and `formatReconciliationMarkdown` tests |
+| Report states what it does/does not cover, on the report itself | PASS (unchanged from Round 1) | `reconcile.test.ts` |
+| ADDED: ambiguous Post reported, rest of plan succeeds | PASS | `plan.test.ts` L345-373, L374-431 |
+| ADDED: unknown-platform / no-configured-channel STAY blocking | PASS | `resolve-post-channel.test.ts` `kind` assertions; `plan-idea.test.ts` L257-288 (unchanged from #240) |
+
+All 8 Round-2 Scenarios pass with a real, exercised test.
+
+### Always-rules + Magnific-fake / hermeticity checks (Round 2 diff)
+
+- **No live Magnific/Apify calls anywhere in `cdb68a0..ccf1c9f`.** Confirmed by my own grep — no hits
+  outside prose. **PASS.**
+- **No new migration, no schema change.** `git diff cdb68a0..ccf1c9f -- src/db/schema.ts src/db/migrate.ts`
+  empty. **PASS.**
+- **No new runtime dependency.** `git diff cdb68a0..ccf1c9f -- package.json package-lock.json` empty.
+  **PASS.**
+- **`ledger-as-source-of-truth`.** `execute.ts`'s writes (`createChannel`, `logPost`, etc.) remain imported
+  exclusively from `src/command-surface/index.ts`, unchanged this round. **PASS.**
+- **`explicit-attribution`.** `alternate_urls` is configured in `brand-profile.yaml` only — the Post's own
+  logged `post_url` is never touched by this recovery route. Confirmed no test or code path edits a Post's
+  `post_url`. **PASS.**
+- **`relative-not-absolute` / `generate-never-publish` / `public-metrics-only`.** Untouched by this round
+  (no scoring/content-generation/publication code in the diff). **PASS.**
+
+### Defect list
+
+1. **[MEDIUM] "Known limits" understates an already-available, already-precedented recovery route.**
+   The Known Limits section states the practical `alternate_urls` recovery window is "BEFORE the one
+   production run," without stating that — since the real one-shot import has already run twice (per
+   #204/#240, each time from a freshly emptied, gitignored database) and nothing today treats the SQL
+   database as a live source of truth yet (`ledger.json` still is; the worker/#208 remains Operator-gated)
+   — deleting `data/organicgrowth.db` and re-running is the SAME safe, already-used operation, and is
+   already what `cli.ts`'s own refusal message tells the Operator to do
+   ("...start over with a fresh database file."). As written, Known Limits reads as if the window has
+   permanently closed once "the one production run" happens, which is not true.
+   **Repro:** read `handoff.md`'s "Known limits (round 2)" section in isolation, without also reading
+   `src/importer/cli.ts`'s refusal message or `git log`'s two prior committed reconciliation docs; note it
+   never states the delete-and-rerun route explicitly.
+   **Requested fix:** add one explicit sentence to Known Limits stating the actual recovery route once a
+   run has already happened: delete the (gitignored) database file and re-run `/import-data` from empty —
+   exactly as already done twice for this same migration — after adding the needed `alternate_urls` entry.
+   This is a documentation-accuracy fix only; no code or test change is implied.
+
+### Why PASS despite the MEDIUM defect
+
+Both defects Round 1 raised are genuinely fixed in the code, with real, load-bearing tests: the
+`alternate_urls` escape hatch works, degrades defensively on malformed input, never softens a refusal into
+a guess, and the non-blocking `unresolvedPosts` report demonstrably reaches the Operator (not a repeat of
+#253's silent-drop shape — I checked this specifically and it holds). Defect 2's wiring gap is closed by a
+real, structurally sound DB-level test. The one new finding — the Known Limits section underselling its own
+recovery route — is a documentation-accuracy issue, not a functional defect: the correct information is
+independently discoverable (the CLI prints it directly on refusal), no guess/silent-drop/collapse behavior
+exists anywhere in the diff, and the fix requested is a single added sentence with no code implication. Per
+the cap on retry rounds and the proportionality of a doc-wording gap against two now-solidly-fixed
+functional defects, I am passing this round with the MEDIUM defect logged for the record rather than
+sending it back for a third round.
+
+## Build Report — Round 3 (developer)
+
+Documentation-only fix for the one MEDIUM defect QA logged for the record on the Round 2 PASS (Known
+Limits understating an already-available recovery route). No product code, no tests, no other prose
+touched — the build itself already passed.
+
+### What changed
+
+`handoff.md`'s "Known limits (round 2 — supersedes round 1's version in full)" section's first bullet is
+rewritten. It still states the true, worth-knowing caveat — the one-shot importer refuses to run against
+an already-populated database (`brand.slug UNIQUE`) — but now frames that refusal as one step in a
+recovery route, not a dead end, and states the route explicitly: `data/organicgrowth.db` is gitignored,
+derived state that nothing today treats as a live source of truth; the real one-shot import has already
+been deleted and re-run from empty twice for this exact migration (`eb7830b`, `4dc6754`); and
+`src/importer/cli.ts`'s own refusal message already tells the Operator to do exactly that. So the recovery
+route — available whether the one production run has already happened or not — is: add the needed
+`alternate_urls` entry to `brand-profile.yaml`, delete `data/organicgrowth.db`, and re-run `/import-data`
+from an empty database.
+
+Checked `proposal.md`, `tasks.md`, and `specs/importer/spec.md` for the same understated phrasing: none
+found. `proposal.md`'s own "Residual case (Known Limits)" section already just points at `handoff.md`'s
+Known Limits for "the concrete mechanics of that recovery path" — it never itself claims the window closes
+permanently, so it needed no edit. `specs/importer/spec.md`'s only mention is a Scenario title naming
+"the Operator's configurable recovery route" (the `alternate_urls` mechanism itself, not the
+already-run-once wording QA flagged) — also unchanged.
+
+### The new wording (quoted in full)
+
+> - **The one-shot importer is not re-runnable against an already-populated database — this is one step in
+>   the recovery route, not a wall.** `brand.slug` is `UNIQUE` (`src/db/schema.ts`) — a second `executeImport`
+>   run against the same database raises a UNIQUE-constraint error rather than merging or updating, and
+>   `src/importer/cli.ts`'s own refusal message already tells the Operator what to do about it: "...start over
+>   with a fresh database file." `data/organicgrowth.db` is gitignored, derived state — nothing today treats
+>   it as a live source of truth (`ledger.json` still is, and the worker/#208 remains Operator-gated) — and
+>   the real one-shot import has already been deleted and re-run from an empty database twice for this exact
+>   migration (the committed reconciliation docs at `eb7830b` and `4dc6754`). **So the actual recovery route,
+>   available whether the one production run has already happened or not, is: add the needed `alternate_urls`
+>   entry to `brand-profile.yaml`, delete `data/organicgrowth.db`, and re-run `/import-data` from an empty
+>   database — a normal, safe, already-precedented operation, not a dead end.** Straw Motion's own
+>   `idea-2026-W32-10` is the one concretely known case today — recorded here so the Operator has the exact
+>   fix ready: `alternate_urls: ["https://www.facebook.com/122096865609396192"]` on that Brand's existing
+>   primary `facebook` Channel entry, needed ONLY once/if a second Facebook Channel is ever configured for
+>   Straw Motion. Separately, there is currently no standalone command to attach a single already-imported
+>   Post to a Channel without the delete-and-rerun step above — `logPost` (the command-surface function) is
+>   called only by the importer itself today. Closing that narrower gap with a live, standalone
+>   `resolveUnresolvedPost` command-surface entry point is a distinct, future ticket, not attempted here — it
+>   was out of scope for this defect fix and would itself need its own test-first design.
+
+### Files touched
+
+- `openspec/changes/issue-243-channel-platform-resolution/handoff.md` — this file only (the Known Limits
+  bullet rewritten, plus this Round 3 block appended).
+
+### How to run
+
+```bash
+cd /Users/CaxtonTaylor/Developer/.og-worktrees/issue-243-channel-platform-resolution
+npm test
+npm run test:docs
+npx openspec validate issue-243-channel-platform-resolution --strict
+npx openspec validate --all --strict
+```
+
+**Results (this worktree, 2026-08-18, round 3):** unchanged from Round 2, confirming nothing moved:
+- `npm test`: **3708 tests / 960 suites / 0 fail**.
+- `npm run test:docs`: **351 tests / 94 suites / 0 fail**.
+- `openspec validate issue-243-channel-platform-resolution --strict`: `Change
+  'issue-243-channel-platform-resolution' is valid`.
+- `openspec validate --all --strict`: **69 passed, 0 failed**.
+
+### Acceptance-criteria / defect self-assessment (round 3)
+
+- **QA's Round 2 MEDIUM defect ("Known limits understates an already-available, already-precedented
+  recovery route") — status: FIXED.** The requested fix was explicitly "a documentation-accuracy fix only;
+  no code or test change is implied" — that is exactly what was done. The new wording states the
+  delete-and-rerun route plainly, names both prior real occurrences (`eb7830b`, `4dc6754`) QA itself
+  verified, and quotes the CLI's own refusal text QA cited as already pointing the Operator there.
+
+### Self-review notes
+
+- Considered also rewriting the earlier in-line "Residual case (Known Limits, updated — see below)"
+  preview paragraph inside the Round 2 Defect 1 narrative (the one with the same "practical recovery
+  window is BEFORE that one run" phrasing) — left it untouched: it explicitly defers to "Known Limits
+  below" as the authoritative statement, which now carries the corrected wording, and touching build
+  narrative outside what QA's defect and this round's own instruction scoped (Known Limits, plus
+  `proposal.md`/the spec delta if the same wording appeared there) would be scope creep on a
+  documentation-only round.
+- Re-verified `proposal.md` and `specs/importer/spec.md` directly (grep, read in full) rather than
+  assuming — confirmed neither needed the correction.
+
+### Known limits
+
+Unchanged from Round 2 in substance — see the corrected Known Limits section above (now accurate about
+the recovery route). No new limitation introduced by this round.
