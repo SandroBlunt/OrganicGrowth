@@ -76,7 +76,7 @@ export interface StoreWriteImport {
  */
 export const STORE_WRITE_FUNCTIONS: Readonly<Record<string, readonly string[]>> = {
   "src/trend/store.ts": ["createTrend"],
-  "src/idea/store.ts": ["createIdea", "acceptIdea", "rejectIdea", "selectIdeaRecipes", "classifyIdea"],
+  "src/idea/store.ts": ["createIdea", "acceptIdea", "rejectIdea", "selectIdeaRecipes", "classifyIdea", "claimLegacyRef"],
   "src/production-queue/job-store.ts": ["createJob", "claimJob", "releaseJob", "requeueJob"],
   "src/production-queue/gate-request-store.ts": ["createGateRequest", "recordGateDecision"],
   "src/asset/store.ts": ["writeAsset", "addAssetMedia", "addAssetMediaBatch"],

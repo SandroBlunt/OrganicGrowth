@@ -28,6 +28,7 @@ import {
   rejectIdea,
   selectIdeaRecipes,
   classifyIdea as classifyIdeaRow,
+  claimLegacyRef as claimLegacyRefRow,
   type IdeaInput,
   type IdeaRecipeSelectionItem,
   type IdeaClassificationInput,
@@ -89,4 +90,19 @@ export function classifyIdea(
   now: () => string = () => new Date().toISOString(),
 ): void {
   classifyIdeaRow(db, ideaId, input, now);
+}
+
+/**
+ * Reconciles a pre-migration-5 Idea row (one carrying no `legacy_ref` yet) to the file ledger's real
+ * identity — the command-surface entry point for `production-queue/sql-sync.ts`'s legacy-identity
+ * fallback (issue #254 Round 3, Defect A). Throws for an unknown `id`, or one that already carries a
+ * `legacy_ref` — see `src/idea/store.ts`'s `claimLegacyRef` for the full contract.
+ */
+export function claimLegacyRef(
+  db: DatabaseSync,
+  id: string,
+  legacyRef: string,
+  now: () => string = () => new Date().toISOString(),
+): void {
+  claimLegacyRefRow(db, id, legacyRef, now);
 }

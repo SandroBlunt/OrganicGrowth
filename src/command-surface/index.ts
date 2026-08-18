@@ -51,6 +51,7 @@ export {
   createIdea,
   recordReviewDecision,
   classifyIdea,
+  claimLegacyRef,
   type IdeaInput,
   type IdeaRecipeSelectionItem,
   type IdeaClassificationInput,

@@ -127,3 +127,31 @@
   `node --import tsx --test src/store-write-boundary/scan.test.ts src/fs-boundary/*.test.ts`) green. Append
   a `Round-2 Build` block to `handoff.md` covering all four defects, the identity decision, the real-caller
   proof, the Defect-3 judgement, and red→green transcripts.
+
+## 7. Round 3 — QA round-2 defect fixes
+
+- [x] 7.1 **Defect A (CRITICAL — the identity fix duplicates every already-imported Idea).** Add
+  `src/idea/store.ts`'s `listUnclaimedIdeasForRunByTitle` (read) and `claimLegacyRef` (write, allow-listed
+  in `src/store-write-boundary/scan.ts`, wrapped by `src/command-surface/ideas.ts`). `syncAcceptToSql`
+  falls back to this lookup, scoped to `legacy_ref IS NULL` rows, ONLY when `getIdeaByLegacyRef` finds
+  nothing: exactly one match adopts (claims) it; more than one match throws (ambiguity, never guessed); no
+  match creates, as before. Rewrite the identity Requirement in `specs/accept-sql-sync/spec.md` to state
+  this real, bounded behavior (no unconditional claim), with Scenarios for the adopt case and the
+  ambiguous-refuse case. Prove at BOTH the `syncAcceptToSql` layer and the real `enqueueOnAccept` entry
+  point: a pre-migration-5 row (no `legacy_ref`) is reused, never duplicated, on re-sync.
+- [x] 7.2 **Defect B (HIGH — the everyday accept path has no compiled backing).** Judged buildable within
+  scope (not deferred): add `src/ledger/ledger.ts`'s `markIdeaAccepted` (the first compiled writer of an
+  Idea's `status: accepted` on the file ledger) and `src/commands/accept-idea.ts`'s `acceptIdeaCommand` —
+  performs the WHOLE accept mutation (Recipe selection + status + file-queue-and-SQL enqueue) in one
+  compiled call, opening/migrating `data/organicgrowth.db` BY DEFAULT (mirroring Round 2's `run-pipeline.ts`
+  fix). Add the `accept-idea` npm script. Rewrite `.claude/commands/review-ideas.md`'s Gate-1 accept step
+  (5.5) to call `npm run accept-idea -- ...` instead of freeform function calls; update
+  `src/recipe/review-docs.test.ts` to match; keep issue #247's own pinned `recordReviewDecision` citation
+  (`src/claude-commands/command-surface-citations.docs-test.ts`) satisfied by the rewritten prose, unmodified.
+  New capability spec `specs/accept-idea-command/spec.md` (ADDED Requirements). Prove: an ordinary accept
+  puts rows in SQL through compiled code (`options.dbPath` alone, never `options.db`), and a regression-
+  guard test that fails if that default-opening wiring is removed.
+- [x] 7.3 Re-run the full suite (`npm test`, `npm run test:docs`, `npm run build`,
+  `openspec validate issue-254-accept-writes-sql-queue --strict`, `openspec validate --all --strict`) green.
+  Append a `Round-3 Build` block to `handoff.md` covering both defects, the identity-reconciliation
+  argument, the Defect-B judgement, and red→green/break-it-on-purpose transcripts.

@@ -37,6 +37,32 @@
  * hit a loud `SQLITE_CONSTRAINT` on the second `createIdea` call, never a silent double-write. "A genuine
  * collision must be loud" now holds at the DATABASE level, not merely by this module's own discipline.
  *
+ * --- The pre-migration-5 fallback: adopt / refuse / create (Round 3, Defect A) --------------------------
+ *
+ * `legacy_ref` did not exist until migration 5 — every one of the 61 Ideas the ORIGINAL one-shot importer
+ * run (2026-08-17, issue #204) committed carries `legacy_ref IS NULL`. QA round 2 found that treating a
+ * `null` `getIdeaByLegacyRef` result as "nothing exists yet" DUPLICATED every one of those real rows on
+ * re-sync — a real regression, reachable in production via `run-pipeline.ts`'s stranded-idea resume
+ * branch (Round 2's own Defect-2 fix), which now opens the real database by default.
+ *
+ * So when `getIdeaByLegacyRef` finds nothing, this module does NOT immediately create a new row. It falls
+ * back to `listUnclaimedIdeasForRunByTitle(db, runId, title)` — the SAME `(run_id, title)` natural key
+ * Round 1 used as its PRIMARY lookup, now scoped to UNCLAIMED rows only (`legacy_ref IS NULL`, so an
+ * already-reconciled row some OTHER ledger Idea already adopted can never be matched a second time) — and
+ * decides:
+ *
+ *   - **Exactly one match** → ADOPT it: `claimLegacyRef` stamps `legacyRef: ideaId` onto that row, in
+ *     place. The legacy row is reconciled, not duplicated, and every SUBSEQUENT sync of this SAME ledger
+ *     Idea takes the fast `getIdeaByLegacyRef` path from then on.
+ *   - **More than one match** → REFUSE, loudly. Two-or-more pre-migration-5 rows sharing this exact
+ *     title, none yet reconciled, is genuine ambiguity — Round 1's CRITICAL was exactly this class of
+ *     mistake (guessing instead of refusing), so this module never guesses which one is `ideaId`.
+ *   - **No match** → CREATE a brand-new row, exactly as before (this ledger Idea was never imported).
+ *
+ * This closes the duplicate-row regression WITHOUT a backfill migration (migrations 1-4 stay frozen, and
+ * this ticket's own migration 5 is additive-only) and without requiring a re-import: the fallback is
+ * self-healing — the FIRST re-sync of any given pre-migration-5 Idea reconciles it permanently.
+ *
  * --- Idempotency: report, not roll back — now backstopped by a schema index too (migration 5) ---------
  *
  * The actual, PRIMARY guard against a double-enqueued job is `listJobsForComposite` (issue #203 AC1):
@@ -70,7 +96,7 @@ import { extractSourceUrls } from "../importer/source-urls.ts";
 import { getBrandBySlug } from "../brand/store.ts";
 import { getFormatBySlug } from "../format/store.ts";
 import { getRunByKey } from "../run/store.ts";
-import { getIdea, getIdeaByLegacyRef } from "../idea/store.ts";
+import { getIdea, getIdeaByLegacyRef, listUnclaimedIdeasForRunByTitle } from "../idea/store.ts";
 import { listJobsForComposite } from "./job-store.ts";
 import { getRecipe } from "../recipe/registry.ts";
 import { UNCLASSIFIED_HOOK_TYPE } from "../vocabulary/hook-type.ts";
@@ -82,6 +108,7 @@ import {
   saveAsset,
   getAssetByRecipe,
   enqueueJob,
+  claimLegacyRef,
 } from "../command-surface/index.ts";
 
 /** The per-Recipe outcome of one `syncAcceptToSql` call. */
@@ -105,8 +132,11 @@ export interface SqlSyncJobOutcome {
 export interface SqlSyncOutcome {
   /** The Idea's SQL surrogate id (freshly created, or the existing row this call resolved to). */
   readonly ideaId: string;
-  /** `true` when this call created a brand-new SQL Idea row; `false` when it reused one already there
-   *  (an importer-carried Idea, or a prior accept-flow call for the same ledger Idea). */
+  /** `true` when this call created a brand-new SQL Idea row; `false` when it reused one already there —
+   *  a post-migration-5 importer-carried Idea or a prior accept-flow call for the same ledger Idea
+   *  (matched via `legacy_ref`), OR a pre-migration-5 importer-carried row this call just ADOPTED (Round
+   *  3, Defect A: matched via the `(run_id, title)` fallback and just stamped with `legacy_ref` — see
+   *  this module's own doc comment). Either way, `false` means no duplicate was created. */
   readonly ideaCreated: boolean;
   readonly jobs: readonly SqlSyncJobOutcome[];
 }
@@ -191,47 +221,74 @@ export async function syncAcceptToSql(
       recordReviewDecision(db, sqlIdeaId, { outcome: "accepted", recipes: recipeSelections }, now);
     }
   } else {
-    const briefResult = await loadBrief(
-      {
-        id: ledgerIdea.id,
-        run: ledgerIdea.run,
-        format: ledgerIdea.format,
-        ...(ledgerIdea.briefPath !== undefined ? { briefPath: ledgerIdea.briefPath } : {}),
-      },
-      params.brand,
-      params.brandsRoot,
-    );
-    if (!briefResult.ok) {
-      throw new Error(
-        `syncAcceptToSql: could not read Idea "${ideaId}"'s Brief — tried: ${briefResult.candidates.join(", ")}.`,
-      );
-    }
-    const sourceUrls = extractSourceUrls(briefResult.content);
+    // Round 3, Defect A: `getIdeaByLegacyRef` found nothing — either this ledger Idea has genuinely
+    // never been synced, OR it is one of the 61 rows the ORIGINAL one-shot importer run (2026-08-17)
+    // committed, before migration 5 existed, so it carries no `legacy_ref` at all. Fall back to the
+    // SAME `(run_id, title)` natural key Round 1 used as its own primary lookup — scoped to UNCLAIMED
+    // rows only — before ever creating a new row. See this module's own doc comment, "The pre-migration-5
+    // fallback: adopt / refuse / create".
+    const unclaimed = listUnclaimedIdeasForRunByTitle(db, runId, title);
 
-    sqlIdeaId = createIdea(
-      db,
-      {
-        runId,
-        brandId: brand.id,
-        formatId: format.id,
-        title,
-        brief: briefResult.content,
-        // The real Hook Type/Theme backfill (issue #206) targets the file ledger's own Briefs, not SQL —
-        // mirroring the one-shot importer's own decision (`executeImport`'s own doc comment), every Idea
-        // this sync creates is classified `unclassified` for both, honestly, rather than guessed.
-        hookType: UNCLASSIFIED_HOOK_TYPE,
-        theme: UNCLASSIFIED_THEME,
-        // The real identity this row correlates back to (issue #254, migration 5) — see this module's
-        // own doc comment. This is what makes `findExistingIdea` a real, per-Brand-unique lookup instead
-        // of the title-based natural key that silently merged two distinct Ideas in QA round 1.
-        legacyRef: ideaId,
-        sourceUrls,
-        ...(ledgerIdea.fitScore !== undefined ? { fitScore: ledgerIdea.fitScore } : {}),
-      },
-      now,
-    );
-    ideaCreated = true;
-    recordReviewDecision(db, sqlIdeaId, { outcome: "accepted", recipes: recipeSelections }, now);
+    if (unclaimed.length === 1) {
+      const adopted = unclaimed[0]!;
+      claimLegacyRef(db, adopted.id, ideaId, now);
+      sqlIdeaId = adopted.id;
+      ideaCreated = false;
+      if (adopted.status === "suggested") {
+        recordReviewDecision(db, sqlIdeaId, { outcome: "accepted", recipes: recipeSelections }, now);
+      }
+    } else if (unclaimed.length > 1) {
+      throw new Error(
+        `syncAcceptToSql: ambiguous identity for Idea "${ideaId}" — ${unclaimed.length} pre-migration-5 ` +
+          `Idea rows in Run "${ledgerIdea.run}" share the title ${JSON.stringify(title)} and none carries ` +
+          `a legacy_ref yet. Refusing to guess which one is Idea "${ideaId}" — this is exactly the class ` +
+          `of mistake this ticket exists to prevent (never merge on ambiguous identity). Reconcile ` +
+          `manually (stamp the correct row's legacy_ref via claimLegacyRef, or rename the colliding ` +
+          `titles) before accepting this Idea through SQL.`,
+      );
+    } else {
+      const briefResult = await loadBrief(
+        {
+          id: ledgerIdea.id,
+          run: ledgerIdea.run,
+          format: ledgerIdea.format,
+          ...(ledgerIdea.briefPath !== undefined ? { briefPath: ledgerIdea.briefPath } : {}),
+        },
+        params.brand,
+        params.brandsRoot,
+      );
+      if (!briefResult.ok) {
+        throw new Error(
+          `syncAcceptToSql: could not read Idea "${ideaId}"'s Brief — tried: ${briefResult.candidates.join(", ")}.`,
+        );
+      }
+      const sourceUrls = extractSourceUrls(briefResult.content);
+
+      sqlIdeaId = createIdea(
+        db,
+        {
+          runId,
+          brandId: brand.id,
+          formatId: format.id,
+          title,
+          brief: briefResult.content,
+          // The real Hook Type/Theme backfill (issue #206) targets the file ledger's own Briefs, not SQL —
+          // mirroring the one-shot importer's own decision (`executeImport`'s own doc comment), every Idea
+          // this sync creates is classified `unclassified` for both, honestly, rather than guessed.
+          hookType: UNCLASSIFIED_HOOK_TYPE,
+          theme: UNCLASSIFIED_THEME,
+          // The real identity this row correlates back to (issue #254, migration 5) — see this module's
+          // own doc comment. This is what makes identity resolution a real, per-Brand-unique lookup
+          // instead of the title-based natural key that silently merged two distinct Ideas in QA round 1.
+          legacyRef: ideaId,
+          sourceUrls,
+          ...(ledgerIdea.fitScore !== undefined ? { fitScore: ledgerIdea.fitScore } : {}),
+        },
+        now,
+      );
+      ideaCreated = true;
+      recordReviewDecision(db, sqlIdeaId, { outcome: "accepted", recipes: recipeSelections }, now);
+    }
   }
 
   const jobs: SqlSyncJobOutcome[] = [];

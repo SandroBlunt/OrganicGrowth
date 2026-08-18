@@ -63,45 +63,45 @@ ledger reads and writes go through the Brand's own ledger (`src/ledger/ledger.ts
    4. **For each entry in `declined`**, capture a free-text reason from the Operator (mirrors a
       Rejection Reason) and log it **verbatim** — do **not** argue, re-pitch, or act on it (logged
       only, v1 does not auto-apply it to future suggestions).
-   5. **Write the selection** via `writeIdeaRecipeSelection(ideaId, chosen, declinedWithReasons,
-      { ledgerPath: resolveBrand(brand).ledger })` (`src/ledger/ledger.ts`) — `declinedWithReasons` is
-      `declined` paired with each captured reason: `{ recipe, reason }`.
-   6. **Then:** set `status: accepted` on the Brand's ledger (`src/ledger/ledger.ts`) — shaped the way
-      command-surface's `recordReviewDecision` (`src/command-surface/ideas.ts`) records a review
-      decision, the sanctioned target once Ideas move onto the SQL-backed pipeline; today's operative
-      write is the ledger append itself (rule 7). If `chosen` is non-empty,
-      **auto-enqueue** the Idea's chosen Recipes for production by calling
-      `enqueueOnAccept(ideaId, brand, chosen, { ledgerPath: resolveBrand(brand).ledger })`
-      (`src/production-queue/enqueue-on-accept.ts`) — `chosen` is the SAME array `resolveRecipeSelection`
-      returned in step 5.3; passing it is what makes the queue Recipe-aware (issue #56). All FOUR
-      arguments are required: the `brand` and the explicit `ledgerPath` are what tie the job(s) to this
-      Brand's ledger — omitting them enqueues a job with no Brand that is silently dropped on the next
-      load, or validates acceptance against the wrong Brand's ledger. This appends ONE job PER chosen
-      Recipe to `data/queue.json` (the global Production Queue — ADR-0006/0008), each keyed on the
-      composite `(brand, idea, recipe)` — a second chosen Recipe is never dropped as a duplicate of the
-      first. Enqueue is idempotent per `(brand, idea, recipe)`: re-accepting the same Idea with the same
-      Recipe set adds no second job, and only `accepted` Ideas ever enter the queue (rejected Ideas cost
-      nothing). If `chosen` is **empty** (the Operator declined every offered Recipe and named none to
-      add), do **not** enqueue — there is nothing to produce yet; tell the Operator the Idea is accepted
-      but not yet queued, and that adding a Recipe later is not yet supported (v1). Run `/queue <brand>`
-      to see the backlog.
-      **Also pass `db` in that same options object (issue #254):** before calling `enqueueOnAccept`, open
-      the SAME SQLite database the unattended worker drains —
-      `const db = await openDatabase("data/organicgrowth.db"); runMigrations(db);`
-      (`src/db/connection.ts`, `src/db/migrate.ts` — migrating an already-current database is a safe
-      no-op) — and add it to the options object above as `db`. This is what makes the accepted Idea's
-      chosen Recipes visible to `/run-worker` at all (issue #254's own fix: before it, accepting only
-      ever wrote `data/queue.json`, which the worker never reads). `data/queue.json` is written **exactly
-      as before** either way — the SQL sync is additive, never a replacement, and a SQL failure never
-      silently succeeds: if the `enqueueOnAccept` call throws AFTER you already see the file queue
-      confirmation, the file-based job still landed (tell the Operator that plainly) but the SQL sync did
-      not — surface the thrown error's message verbatim rather than reporting a bare "Enqueued" success,
-      and do not retry silently. A missing/un-migrated `data/organicgrowth.db` is itself created and
-      migrated by the `openDatabase`/`runMigrations` calls above, so this should only throw for a genuine
-      data problem (e.g. this Brand/Format has no SQL row yet — run `/import-data` first).
+   5. **Perform the accept mutation via the COMPILED command (issue #254 Round 3, Defect B) — never
+      write the ledger or call `writeIdeaRecipeSelection`/`enqueueOnAccept` yourself.** Run:
+      ```
+      npm run accept-idea -- <brand> <ideaId> "<chosen-csv>" '<declined-json>'
+      ```
+      (`src/commands/accept-idea.ts`'s `acceptIdeaCommand`) — `<chosen-csv>` is `chosen` (the Recipe
+      slugs resolved in step 5.3) joined with commas, or `-` when `chosen` is **empty**; `<declined-json>`
+      is a JSON array of `declinedWithReasons` (`declined` paired with each captured reason:
+      `{ "recipe": ..., "reason": ... }`), or `'[]'` when there is none. This ONE compiled call replaces
+      the two separate writes an earlier version of this doc described freehand:
+        - writes the Recipe selection onto the Brand's ledger (`writeIdeaRecipeSelection`,
+          `src/ledger/ledger.ts`) — `declinedWithReasons` is `declined` paired with each captured reason;
+        - sets the Idea's status: accepted, mirroring the shape command-surface's `recordReviewDecision`
+          (`src/command-surface/ideas.ts`) records a review decision with — today's operative write is
+          `markIdeaAccepted` (`src/ledger/ledger.ts`), the FIRST compiled writer of this field on the
+          file ledger; before this ticket an agent edited the JSON directly, with no code enforcing it;
+        - and, when `chosen` is non-empty, **auto-enqueues** the Idea's chosen Recipes for production
+          into BOTH `data/queue.json` (the global Production Queue — ADR-0006/0008, unchanged shape, ONE
+          job PER chosen Recipe, keyed on the composite `(brand, idea, recipe)` — a second chosen Recipe
+          is never dropped as a duplicate of the first; idempotent — re-accepting the same Idea with the
+          same Recipe set adds no second job) **AND** the SQL `job` table the unattended worker's
+          `/run-worker` actually reads. This compiled command opens + migrates
+          `data/organicgrowth.db` **BY DEFAULT** before enqueueing — unlike the earlier freeform
+          instruction, there is no separate "also pass `db`" step to remember; the SQL sync always runs,
+          for every ordinary accept, through code, not prose (closing the exact gap issue #254 exists to
+          fix — previously ONLY the rare stranded-idea resume path, `run-pipeline.ts`, opened this
+          database by default; the everyday `/review-ideas` accept did not).
+      **Relay the command's own printed output to the Operator VERBATIM** — it already states whether the
+      Idea was accepted, what (if anything) was enqueued, and whether the SQL sync succeeded or failed (a
+      SQL failure is reported plainly in the output itself — e.g. "this Brand/Format has no SQL row yet";
+      the file-based job still landed regardless — never silently swallow this, never re-run the command
+      to "retry" a SQL failure). If `chosen` was **empty**, the command's own output already tells the
+      Operator the Idea is accepted but not yet queued — adding a Recipe later is not yet supported (v1).
+      Run `/queue <brand>` to see the backlog.
 6. **For each REJECT:** set `status: rejected` on the Brand's ledger (`src/ledger/ledger.ts`) and store
-   their reason **verbatim** in `rejection_reason` — the same `recordReviewDecision`-shaped write as
-   step 5.6 above. Log it as-is — do **not** argue, re-pitch, or act on it (v1 logs only).
+   their reason **verbatim** in `rejection_reason` — mirroring the shape `recordReviewDecision`
+   (`src/command-surface/ideas.ts`) records a rejection decision with. Log it as-is — do **not** argue,
+   re-pitch, or act on it (v1 logs only). (Reject has no compiled command yet — see issue #254 Round 3's
+   Known Limits: this ticket's scope was the ACCEPT path only.)
 7. **Offer replacements** (optional): if the Operator wants more, invoke **idea-strategist** with
    Brand `<brand>` for fresh briefs honoring what they just said, and add them as new `suggested` Ideas.
 8. **Summarize:** the accepted set (ready to create, with its chosen Recipe(s)) and the rejected set

@@ -351,6 +351,52 @@ export function getIdeaByLegacyRef(db: DatabaseSync, brandId: string, legacyRef:
   return row ? toIdeaRecord(row) : null;
 }
 
+/**
+ * Every Idea in `runId` sharing `title` EXACTLY that carries NO `legacy_ref` yet (`legacy_ref IS NULL`)
+ * — the reconciliation candidate pool for `syncAcceptToSql`'s legacy-identity FALLBACK (issue #254 Round
+ * 3, Defect A). `getIdeaByLegacyRef` above is the PRIMARY lookup; it returns `null` for any Idea imported
+ * by the ORIGINAL one-shot importer run (2026-08-17), which predates migration 5 and so carries no
+ * `legacy_ref` at all. This is the SAME `(run_id, title)` natural key Round 1 used as its own primary
+ * lookup, now used ONLY as a narrow, bounded fallback — scoped to unclaimed rows (`legacy_ref IS NULL`)
+ * so an already-reconciled row (one some OTHER ledger Idea already adopted) can never be matched a
+ * second time. `[]` when none match (or the Run has no Ideas at all). Ordered by `created_at` for a
+ * deterministic, testable order — a caller MUST still treat 2+ results as genuinely ambiguous (refuse
+ * loudly, `sql-sync.ts`'s own doc comment) rather than picking the first.
+ */
+export function listUnclaimedIdeasForRunByTitle(db: DatabaseSync, runId: string, title: string): readonly IdeaRecord[] {
+  const rows = db
+    .prepare(`SELECT * FROM idea WHERE run_id = ? AND title = ? AND legacy_ref IS NULL ORDER BY created_at ASC`)
+    .all(runId, title) as unknown as IdeaRow[];
+  return rows.map(toIdeaRecord);
+}
+
+/**
+ * Stamps `legacyRef` onto an EXISTING Idea row that currently carries none — the one-time reconciliation
+ * write for a pre-migration-5 imported row (issue #254 Round 3, Defect A). Once a caller has found
+ * EXACTLY ONE unclaimed same-title candidate via `listUnclaimedIdeasForRunByTitle`, this claims it,
+ * atomically (`UPDATE ... WHERE legacy_ref IS NULL`, so a genuinely concurrent second claim attempt for
+ * the SAME row throws rather than silently overwriting the first one's claim) — every SUBSEQUENT sync of
+ * the SAME ledger Idea then takes the fast `getIdeaByLegacyRef` path. Throws, naming `id`, when the row
+ * does not exist OR already carries a `legacy_ref` — this function is only ever called immediately after
+ * a fresh read confirmed the row was unclaimed, so either case is a caller bug (or a lost race) worth
+ * surfacing loudly, never silently ignoring.
+ */
+export function claimLegacyRef(
+  db: DatabaseSync,
+  id: string,
+  legacyRef: string,
+  now: () => string = () => new Date().toISOString(),
+): void {
+  const result = db
+    .prepare(`UPDATE idea SET legacy_ref = ?, updated_at = ? WHERE id = ? AND legacy_ref IS NULL`)
+    .run(legacyRef, now(), id);
+  if (result.changes === 0) {
+    throw new Error(
+      `claimLegacyRef: Idea "${id}" not found, or already carries a legacy_ref — refusing to overwrite an existing identity claim.`,
+    );
+  }
+}
+
 /** Every Idea in the database, across EVERY Run/Brand/Format, in creation order — `[]` for an empty
  *  database (issue #206: the backfill classifier needs the whole table, not one Run's slice, since the
  *  61 real Briefs it upgrades span many Runs). */

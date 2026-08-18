@@ -530,3 +530,33 @@ export async function writeIdeaRecipeSelection(
   const next = { ...raw, ideas };
   await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
 }
+
+/**
+ * Thin write shell: load the full ledger and set one Idea's `status` to `"accepted"` — Gate 1's actual
+ * accept mutation (issue #254 Round 3, Defect B). Before this ticket, NO compiled function performed
+ * this write anywhere in the codebase: `/review-ideas` (`.claude/commands/review-ideas.md`) instructed
+ * an LLM agent to "set status: accepted" as freeform prose, with no code backing the mutation itself —
+ * `src/commands/accept-idea.ts`'s `acceptIdeaCommand` is the first compiled caller. Preserves the file's
+ * other fields by editing the raw record in place, mirroring `writeIdeaRecipeSelection`'s own shape. An
+ * unknown `ideaId` leaves the file untouched. Unconditional (no "must currently be suggested" guard —
+ * matches the freeform behavior it replaces exactly): setting an already-`accepted` Idea to `accepted`
+ * again is a safe, idempotent no-op write.
+ */
+export async function markIdeaAccepted(ideaId: string, options: WriteIdeaStatusOptions): Promise<void> {
+  const path = options.ledgerPath;
+  const raw: unknown = await readJsonFile(path);
+  if (!isObject(raw) || !Array.isArray(raw.ideas)) return;
+
+  let changed = false;
+  const ideas = raw.ideas.map((record) => {
+    if (isObject(record) && record.id === ideaId) {
+      changed = true;
+      return { ...record, status: "accepted" };
+    }
+    return record;
+  });
+  if (!changed) return;
+
+  const next = { ...raw, ideas };
+  await writeFileAtomic(path, JSON.stringify(next, null, 2) + "\n");
+}

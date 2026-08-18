@@ -816,3 +816,505 @@ remaining stranded Ideas" claim was added afterward, and is included in every fu
   (every step individually atomic, the whole function idempotent on retry); Defect 4's fix is a DIFFERENT,
   narrower guarantee (no duplicate `job` row across processes) layered on top, not a replacement for this
   argument.
+
+## QA Verdict — Round 2: FAIL
+
+### Suite result
+
+All commands actually re-run live in this worktree, not taken on faith from the Build Report:
+
+- `npm test` — **3691 tests / 960 suites / 0 fail**, matching the Round-2 Build Report exactly. Green.
+- `npm run test:docs` — **351 tests / 94 suites / 0 fail**. Green.
+- `npx openspec validate issue-254-accept-writes-sql-queue --strict` — `Change 'issue-254-accept-writes-sql-queue' is valid`. Green.
+- `npx openspec validate --all --strict` — `Totals: 69 passed, 0 failed`. Green.
+- `node --import tsx --test src/store-write-boundary/scan.test.ts src/fs-boundary/*.test.ts` — 42/8/0 fail. Green. `git diff cdb68a0 HEAD --stat -- src/store-write-boundary/ src/fs-boundary/` is empty — no new allow-list entries were needed, confirming every Round-2 write still routes through `src/command-surface/`.
+- `stat -f "%m %Sm" data/organicgrowth.db` before and after this entire QA session: unchanged (`Aug 18 10:59:35 2026` both times, while my own session ran ~30 minutes later). The real, committed database was never touched by this verification.
+
+The suite is genuinely green. As in Round 1: **green-on-itself is not green-on-the-issue** — this round's
+defects were found by independently re-deriving behavior (a standalone reproduction script against a
+throwaway temp DB, never the developer's own scripts) and by reading the actual diffs, not by re-running
+what was handed to me.
+
+### Per-defect results (the four Round-1 defects, re-verified)
+
+| # | Round-1 defect | Developer's claim | QA finding | Verdict |
+|---|---|---|---|---|
+| 1 | CRITICAL — `(run_id, title)` silently merges two distinct Ideas | Fixed: migration 5, `idea.legacy_ref`, schema-backstopped | **The title-collision case is genuinely fixed** — independently reproduced (see below): two distinct same-titled Ideas now get two separate Idea/Asset/Job rows, and a forced `(brand, legacy_ref)` collision throws a real `SQLITE_CONSTRAINT` error. **But the fix introduces a NEW, real duplicate-row regression**: any of the real committed database's 61 already-imported Ideas (all `legacy_ref IS NULL`, since the column didn't exist when they were imported) that is ever re-synced through `syncAcceptToSql` — reachable via `run-pipeline.ts`'s stranded-idea resume branch, which Round 2's OWN Defect-2 fix now wires to the real database BY DEFAULT — gets a brand-new, DUPLICATE Idea/Asset/Job row rather than reusing its real one. Independently reproduced (see "Independent reproduction" below), matching the developer's own "KNOWN LIMIT" test. This is a genuine regression relative to Round 1: the OLD `(run_id, title)` mechanism actually resolved a pre-existing imported Idea correctly (title match found it); the NEW `legacy_ref` mechanism does not. The formal spec (`specs/accept-sql-sync/spec.md`) states unconditionally that "A SECOND call for the SAME ledger Idea... SHALL reuse that existing row rather than creating a duplicate" — this is FALSE for any pre-migration-5 row, and no Scenario in the spec names or bounds this exception; it exists only as a test and a handoff paragraph, not in the contract itself. | **CRITICAL — still open, new form** |
+| 2 | HIGH — the wiring is prose, the one real compiled caller doesn't use it | Fixed: `run-pipeline.ts`'s stranded-idea resume now passes `db` by default | The `run-pipeline.ts` fix is real and independently verified (code read + the developer's own red→green transcript, which I did not need to re-run since the mechanism is simple and directly legible: one `...(db !== undefined ? { db } : {})` spread, gated on a `db` opened unconditionally by default at `DEFAULT_DB_PATH = "data/organicgrowth.db"`, confirmed via `grep -n DEFAULT_DB_PATH src/commands/run-pipeline.ts`). **But this is not the primary accept path.** `/review-ideas` — Gate 1, the ORDINARY way an Idea is accepted every week — has **no compiled TypeScript backing at all**: `ls src/commands/ \| grep -i review` returns nothing, unlike `pick.ts`, `pick-cast.ts`, `log-post.ts`, `queue.ts`, `track-performance.ts`, `export-schedule.ts`, `backup-media.ts`, `cleanup-schedule-media.ts`, `report.ts` — every one of which DOES have a compiled `.ts` counterpart backing its own `.claude/commands/*.md`. The developer's framing ("every conversational `/` command is either compiled or prompt-driven... every one works this way") overstates this: `/review-ideas` and `/run-trends` are the ONLY two commands in this repo with no compiled runtime at all; every other gated command has one. So for an ORDINARY accept, **nothing compiled writes to SQL** — only an LLM agent's fidelity to a markdown paragraph does, exactly Round 1's finding. The new `review-docs.test.ts` block genuinely pins the paragraph's literal text (verified: `assert.match(doc, /Also pass \`db\`/)` etc. — removing the paragraph would fail this test), which is real, but it proves the INSTRUCTION exists in the file, not that it is ever followed at runtime. AC1 ("Accepting an Idea creates its Idea row... in SQL... through `src/command-surface/`") is still not code-enforced for the real-world, everyday accept flow. | **HIGH — narrowed, not fixed** |
+| 3 | HIGH — an accept-created job can never complete on the unattended worker | Judged: an accepted, disclosed staging consequence, not fixed | The "Known limits" section states this plainly and prominently, with the exact failure mode named ("the Asset has no authored Production Spec yet"), a proof transcript showing 3 terminal failures and 0 Space calls, and a drafted (not filed — the developer's `gh` grant has no `issue create`) follow-up. No reader of the Build Report could conclude the worker now finishes an accept-created Asset end to end — the language is explicit that it does not. This is an honest, plain judgement call within the ticket's own staged scope (the Operator's issue comment scoped this ticket to "slice 1... SQL becomes the one queue" — spec authoring was never part of slice 1). | **PASS — judgement accepted** |
+| 4 | MEDIUM — undocumented cross-process concurrency race on `job.idempotency_key` | Fixed: partial `UNIQUE (job.idempotency_key)` index, migration 5 | Confirmed safe against the real committed database: `idempotency_key` is set ONLY by `sql-sync.ts` (grepped the whole `src/` tree for `idempotencyKey`/`idempotency_key` — the importer's `executeJob` and every other job-creation call site never set one), so every one of the real database's existing `job` rows has `idempotency_key IS NULL`, and a partial index `WHERE idempotency_key IS NOT NULL` is trivially satisfiable against an all-NULL column — the migration will not fail on the real, populated machine. Independently confirmed via `job-store.test.ts`'s new UNIQUE-index test (read, not merely trusted) and by the grep above. Named explicitly in Known Limits as closing the double-enqueue race specifically, not every concurrent-write interleaving — an honest scope statement. | **PASS — genuinely fixed** |
+
+### Independent reproduction (QA's own script, not the developer's)
+
+Built a standalone script against a fresh, throwaway temp SQLite file + temp ledger/Brief fixtures
+(`/private/tmp/.../scratchpad/qa_round2_repro.mts`, run via `npx tsx`, never touching this worktree or
+`data/organicgrowth.db` — confirmed via `git status --porcelain` staying empty throughout):
+
+```
+=== TEST A: two DIFFERENT accepted Ideas, same Run, same title ===
+idea-01 outcome: {"ideaId":"f62a...","ideaCreated":true,"jobs":[{"recipe":"news-carousel","synced":true,"reason":"created"}]}
+idea-02 outcome: {"ideaId":"5403...","ideaCreated":true,"jobs":[{"recipe":"news-carousel","synced":true,"reason":"created"}]}
+SAME sqlIdeaId? false
+
+=== TEST B: pre-migration-5 style row (legacy_ref NULL) -- does a re-sync duplicate? ===
+pre-migration idea SQL id: 79253035-...
+resync outcome: {"ideaId":"ac9be8ce-...","ideaCreated":true,"jobs":[{"recipe":"news-carousel","synced":true,"reason":"created"}]}
+idea rows before: 1 after: 2 (2 = duplicate created)
+resync ideaId === preMigrationId? false
+
+=== TEST C: force a genuine (brand, legacy_ref) collision directly at the store layer ===
+THREW as expected: UNIQUE constraint failed: idea.brand_id, idea.legacy_ref
+```
+
+Test A confirms Round 1's original CRITICAL is genuinely fixed for the title-collision case. Test C
+confirms the schema-level backstop genuinely throws loudly on a forced collision. **Test B independently
+reproduces the new residual**: a ledger Idea whose SQL row predates migration 5 (no `legacy_ref`) is NOT
+found on re-sync — a second, real, duplicate `idea` row is created (`ideaCreated: true`, a DIFFERENT id
+than the pre-migration row; row count goes from 1 to 2 for what is one real Idea). This matches the
+developer's own "KNOWN LIMIT" test in `sql-sync.test.ts` exactly — independently confirmed, not merely
+re-read.
+
+### Per-criterion results (issue #254, "What to build, slice 1")
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | Accepting an Idea creates its Idea row, per-Recipe Asset rows, one queued job per Recipe in SQL, through `src/command-surface/` | **FAIL** | True for `syncAcceptToSql` itself, and for the ONE compiled caller now wired (`run-pipeline.ts`'s stranded-idea resume). **False for the primary, everyday Gate-1 accept** — no compiled code puts rows in SQL there; only a markdown paragraph does (Defect 2, still open). **Also false for a re-sync of any pre-migration-5 Idea** — it creates a duplicate row rather than the correct existing one (Defect 1, new form, still open). |
+| 2 | Accepting twice must not double-enqueue (state which guard, why) | **PASS** | `listJobsForComposite`, correctly named and now backstopped at the schema level too (`idx_job_idempotency_key`) — independently confirmed via `job-store.test.ts` read and the grep showing `idempotency_key` is always NULL on legacy rows, so the new index cannot fail against the real database. |
+| 3 | Already-imported jobs not duplicated/disturbed by a re-accept | **PASS (for imports that ran AFTER migration 5) / FAIL (for the real, already-imported 61 Ideas that ran BEFORE it)** | The `sql-sync.test.ts` "AC3" test now seeds `legacyRef: "idea-01"` on the prior row — this proves the FUTURE case (an importer run after migration 5 exists) correctly correlates. It does NOT prove the REAL, PRESENT case (the actual `data/organicgrowth.db`'s 61 Ideas, imported 2026-08-17, before migration 5) — that case duplicates, per Defect 1's new form. |
+| 4 | `queue.json` keeps being written exactly as today | **PASS** | `enqueue-on-accept.ts`'s diff since `cdb68a0` for the omitted-`db` path is unaffected by Round 2 (Round 2 only touches `sql-sync.ts` internals reached when `db` IS given); all pre-existing tests still pass. |
+| 5 | A failure to write SQL must be loud | **PASS** | Unchanged code path (the Brand/Format-missing checks in `syncAcceptToSql` are untouched by Round 2); still throws by name. |
+| 6-9 | The four "prove it" items | **PASS on the literal bar, same caveats as Round 1** | Re-derived directly from code read (`findNextQueuedJob` is a plain `SELECT`; `drainQueue`/`FakeSpace` mechanics unchanged by this round) rather than re-running the developer's transcript verbatim — no reason to doubt it, the mechanism is unchanged from Round 1 where I already independently reproduced it. |
+
+### Per-scenario results (spec deltas, Round 2 additions)
+
+| Scenario | Result | Covering test | Note |
+|---|---|---|---|
+| A brand-new accepted Idea gets Idea/Asset/Job rows | PASS | `sql-sync.test.ts` "AC1" | — |
+| Idea identity resolved by `legacy_ref`, not title; two same-titled Ideas never collide | PASS | `sql-sync.test.ts` "QA round-1 Defect 1" block; independently reproduced (TEST A above) | — |
+| A second `createIdea` with the same `(brand, legacy_ref)` throws `SQLITE_CONSTRAINT` | PASS | `idea/store.test.ts`; independently reproduced (TEST C above) | — |
+| A re-accept of an importer-carried Idea reuses that row | PASS **only for a post-migration-5 import** | `sql-sync.test.ts` "AC3" (updated to stamp `legacyRef`) | The spec's own Requirement text makes an UNCONDITIONAL claim ("A SECOND call for the SAME ledger Idea... SHALL reuse that existing row rather than creating a duplicate") that is false for a pre-migration-5 row. The KNOWN-LIMIT test that proves this exists in the test file but has **no corresponding Scenario in the spec** — a self-consistent-but-wrong spec: the written Scenarios all pass, but the Requirement's own prose overstates the guarantee the code actually provides. |
+| `job.idempotency_key` UNIQUE index closes the cross-process race | PASS | `job-store.test.ts` | — |
+| Resume ALSO writes SQL by default | PASS (for the resume path specifically) | `run-pipeline.test.ts` | Scoped correctly in its own Requirement text ("If the Operator types resume... AND stranded Ideas exist") — this spec delta does NOT claim to fix the ordinary accept path, so it is not itself misleading; the gap is that no spec delta in this change covers the ordinary `/review-ideas` accept path with equivalent code-level force, because none exists. |
+
+### Always-rules + Magnific-fake checks
+
+| Rule | Result | Evidence |
+|---|---|---|
+| Generate-never-publish | PASS | No render/publish code touched this round. |
+| Public-metrics-only | PASS | No Apify code touched; `git diff cdb68a0 HEAD --name-only -- src/ \| grep -v test \| xargs grep -ln "apify\|Apify"` hits only pre-existing, unrelated lines in `run-pipeline.ts` (an import-type comment) and `schema.ts` (unrelated table), confirmed via `git diff ... -- <file> \| grep -i apify` returning nothing for either — no new Apify code. |
+| Relative-not-absolute | N/A | Not a scoring change. |
+| Ledger-as-source-of-truth | **FAIL** | Two SQL `idea` rows can now exist for one real, canonical ledger Idea (Defect 1's new form) — the SQL mirror is no longer guaranteed unambiguous for any pre-migration-5 Idea that is re-synced. This is a direct violation of the rule's own text ("the ledger stays canonical") one layer into its SQL mirror. |
+| Explicit-attribution | PASS (narrowly) | The literal Post↔Idea/Recipe attribution chain (`/log-post`) is untouched by this ticket; the concern here is about SQL-Idea identity, which is closer to ledger-as-source-of-truth than explicit-attribution proper — recorded under that rule instead, above. |
+| Magnific fake only, no live Space calls | PASS | `git diff cdb68a0 HEAD --name-only \| grep -v handoff.md \| grep -v openspec/ \| xargs grep -ln "spaces_\|creations_"` finds one hit, `run-pipeline.test.ts:926`, which is the pre-existing test NAME `"uses a fake Magnific port — no live spaces_* calls are made"` — not a live call. No Space-driving code was touched this round (`Files touched` list confirms). |
+| Migrations 1-4 frozen | PASS | `git diff cdb68a0 HEAD -- src/db/schema.ts \| grep -c '^@@'` → 1 hunk, starting immediately after `MIGRATION_4`'s closing backtick — independently confirmed, not merely re-read from the Build Report. |
+| No Apify | PASS | See above. |
+
+### Defect list
+
+1. **[CRITICAL] A pre-migration-5 imported Idea creates a genuine duplicate SQL Idea/Asset/Job row on
+   re-sync, rather than reusing its real one — a new regression introduced by the very fix for Round 1's
+   CRITICAL, reachable through Round 2's OWN Defect-2 fix.**
+   The real, committed `data/organicgrowth.db` holds 61 Ideas imported 2026-08-17, all with `legacy_ref
+   IS NULL` (the column did not exist yet). `syncAcceptToSql` now resolves identity via
+   `getIdeaByLegacyRef(db, brand.id, ideaId)` — for any of these 61 rows, this returns `null`, so a
+   re-sync takes the "create a new Idea" branch and produces a SECOND row for the SAME real-world Idea.
+   This is reachable in production: `run-pipeline.ts`'s stranded-idea resume branch — Defect 2's own fix
+   — now opens `data/organicgrowth.db` and calls `enqueueOnAccept({ db, ... })` **by default**, for any
+   Idea whose file-ledger status is `accepted` with zero recorded Assets that goes "stranded" again. Not
+   a cross-Idea content merge (the schema's `UNIQUE (brand_id, legacy_ref)` index still prevents that —
+   confirmed via TEST C above), so it is a different failure shape than Round 1's, but it is still a
+   genuine ledger-as-source-of-truth violation: two SQL rows for one real Idea, with the NEW duplicate
+   (which now legitimately carries the real `legacy_ref`) winning every future lookup by that key, and
+   the ORIGINAL row's real production history (if any) orphaned. Disclosed as a "Known Limit" and a
+   dedicated test (`sql-sync.test.ts`, "KNOWN LIMIT"), which is genuinely better than Round 1's silent
+   version of this class of bug — but disclosure does not close a CRITICAL regression, and the formal
+   spec's own Requirement text overstates the guarantee ("SHALL reuse that existing row rather than
+   creating a duplicate" — unconditional, no named exception Scenario for this case).
+   **Repro:** (1) migrate a temp SQLite DB, seed a Brand + Format + Run; (2) `createIdea` a row with NO
+   `legacyRef` (simulating any of the real database's 61 pre-migration-5 rows), title `"X"`; (3) write a
+   temp `ledger.json` + Brief for a ledger Idea with id `"idea-01"`, the SAME `run`/`format`, and the SAME
+   title `"X"`; (4) call `syncAcceptToSql("idea-01", ["news-carousel"], { db, brand, ledgerPath })`;
+   (5) observe `ideaCreated: true` with a brand-new `ideaId` different from the row created in step 2, and
+   `listIdeasForRun` growing from 1 to 2 for what is one real Idea. Independently reproduced this round
+   (see "Independent reproduction" above) and matches the developer's own "KNOWN LIMIT" test exactly.
+
+2. **[HIGH] Defect 2 is narrowed, not fixed: the ordinary, everyday Gate-1 accept path (`/review-ideas`)
+   still has zero compiled code enforcing the SQL write — only the rare stranded-idea resume path does.**
+   `/review-ideas` has no compiled TypeScript command file (`ls src/commands/ | grep -i review` returns
+   nothing), unlike `pick.ts`, `pick-cast.ts`, `log-post.ts`, `queue.ts`, `track-performance.ts`,
+   `export-schedule.ts`, `backup-media.ts`, `cleanup-schedule-media.ts`, and `report.ts`, which all DO
+   have a compiled counterpart backing their own gated `.claude/commands/*.md`. This makes `/review-ideas`
+   (along with `/run-trends`) the exception, not the rule, in this codebase — contrary to the Build
+   Report's framing that "every conversational `/` command... works this way." For an ORDINARY accept
+   (not a stranded-idea resume), the ONLY thing making the SQL write happen is an LLM agent correctly
+   reading and following `.claude/commands/review-ideas.md`'s "Also pass `db`" paragraph at conversation
+   time — exactly Round 1's finding, unchanged for the primary path. The new `review-docs.test.ts` block
+   is real and does pin the paragraph's literal text (confirmed: `assert.match(doc, /Also pass \`db\`/)`
+   etc. would fail if the paragraph were removed or reworded) — a genuine, if partial, improvement — but
+   it proves the INSTRUCTION is present in the file, not that any given `/review-ideas` conversation
+   actually executes it. AC1's own words ("Accepting an Idea creates its Idea row... in SQL... through
+   `src/command-surface/`") are still not met by code for the path that actually matters week to week.
+   **Repro:** read `.claude/commands/review-ideas.md` around "Also pass `db` in that same options object";
+   note it is prose inside a `.md` file with no compiled backing; run `ls src/commands/ | grep -i review`
+   (empty) vs. `ls src/commands/ | grep -i pick` (finds `pick.ts`/`pick-cast.ts`) to see the asymmetry;
+   confirm the only `db`-passing call site is `run-pipeline.ts`'s stranded-idea resume branch via
+   `grep -n "db !== undefined ? { db }" src/commands/run-pipeline.ts`.
+
+### Overall
+
+**FAIL.** Real, substantial progress this round: the title-collision CRITICAL from Round 1 is genuinely
+fixed (independently reproduced), the schema now backstops both the identity guarantee and the
+idempotency guarantee at the database level (both verified safe against the real, populated database),
+and one real compiled caller (`run-pipeline.ts`'s resume branch) is now genuinely, testably wired to SQL
+by default. Defects 3 and 4 are honestly resolved.
+
+But two things remain genuinely open, one of them a new CRITICAL: (1) the very fix for Round 1's CRITICAL
+creates a different, still-live CRITICAL — a real, reachable duplicate-row regression for the 61 Ideas
+that already exist in the real, committed database, disclosed but not fixed, and not reflected as a
+bounded exception in the formal spec's own Requirement text; (2) the wiring for the PRIMARY, everyday
+accept path is still a markdown paragraph an LLM agent must remember to follow — Round 2 fixed a REAL but
+secondary compiled caller, not the main one, so AC1 remains unmet by code for an ordinary accept. Hand
+back to the developer with this defect list.
+
+## Build Report — Round 3
+
+This is the final retry round. Both remaining defects are addressed below: Defect A (CRITICAL) with a
+fix, and Defect B (HIGH) with a real, working compiled command — not a deferral. Summary, then the full
+argument for each, then transcripts, then updated suite numbers.
+
+| Defect | Status |
+|---|---|
+| A (CRITICAL) — the identity fix duplicates every already-imported Idea | **Fixed.** Bounded fallback (`listUnclaimedIdeasForRunByTitle` + `claimLegacyRef`): adopt on exactly one unclaimed match, refuse loudly on ambiguity, create on no match. No migration, no backfill, no re-import. Red→green + break-it-on-purpose transcripts below. |
+| B (HIGH) — the everyday accept path has no compiled backing | **Built, not deferred.** `src/commands/accept-idea.ts`'s `acceptIdeaCommand` performs the WHOLE Gate-1 accept mutation (Recipe selection, `status: accepted`, file-queue-and-SQL enqueue) through compiled code, opening/migrating `data/organicgrowth.db` BY DEFAULT. `.claude/commands/review-ideas.md` now calls it via `npm run accept-idea`. Break-it-on-purpose transcript below. |
+
+### Defect A (CRITICAL) — identity reconciliation, argued
+
+**Decision: when `getIdeaByLegacyRef` finds nothing, fall back to a NARROW, ambiguity-refusing
+`(run_id, title)` lookup scoped to UNCLAIMED rows (`legacy_ref IS NULL`) — adopt on exactly one match,
+refuse loudly on more than one, create on none.** This is the direction the QA Verdict suggested, and I
+did not find a better one after considering the alternative (a migration-5 backfill) seriously.
+
+**Why not a backfill migration instead.** A backfill would need to run once, correctly, against the REAL
+`data/organicgrowth.db` — and I cannot prove it correct against real data without touching that file,
+which I am expressly barred from doing in this build environment (and shouldn't do from a build agent
+regardless — a data migration against production data is an Operator-run, reviewed operation, not
+something that should happen silently inside a `syncAcceptToSql` code change). A backfill's own
+correctness claim ("stamp `legacy_ref` by re-deriving `(run, title)`") is EXACTLY the mechanism the
+runtime fallback below already performs, just done once eagerly instead of lazily on first re-sync — so a
+migration buys nothing a lazy, self-healing fallback doesn't already provide, while adding a real risk
+(a migration that touches all 61 rows in one irreversible step, with no independent per-row verification)
+the lazy path avoids entirely (each row is reconciled individually, verifiable via its own SQL row
+inspection, the moment it is actually re-synced — never all-at-once, never unreviewed).
+
+**Why this exact bound (unclaimed rows only, exactly-one adopts, more-than-one refuses).** Scoping the
+fallback to `legacy_ref IS NULL` rows is what makes it safe to run for EVERY sync attempt, not just once:
+an already-reconciled row (one some other ledger Idea already adopted) can never be matched a second time,
+so there is no risk of two different ledger Ideas racing to claim the same legacy row after the first one
+has already been reconciled. Requiring EXACTLY one match before adopting — never "the first" or "the most
+recently created" — is the direct lesson of Round 1's own CRITICAL: that bug existed because the code
+picked a match without verifying uniqueness. This ticket does not repeat that mistake at one remove: an
+ambiguous fallback throws, by name, rather than guessing.
+
+**What closes, concretely.** The real, committed database's 61 pre-migration-5 Ideas each have `legacy_ref
+IS NULL` and a real `(run, title)` — the natural key Round 1 itself already proved is safe against the
+real data (surveyed then: zero collisions across 51 Ideas / 5 Runs). The first time any of those 61 rows
+is re-synced (via `run-pipeline.ts`'s stranded-idea resume, or a future accept-command re-run), it is
+ADOPTED, not duplicated, and permanently reconciled from then on — no Operator action needed, no migration
+step, no re-import.
+
+**What stays open, honestly.** If the SAME title were ever reused across TWO different pre-migration-5
+Ideas in one Run (a case Round 1's own survey found zero instances of, and this round did not re-survey
+since it changes nothing about the real data), the fallback now REFUSES rather than merges — a stricter,
+safer failure than either Round 1 (silent merge) or Round 2 (silent duplicate) produced. An Operator
+hitting this would need to reconcile manually (call `claimLegacyRef` directly, as the store's own doc
+comment documents) — a real but narrow residual, changed in KIND from a data-corruption risk to an
+operational one.
+
+### Defect B (HIGH) — judgement, stated plainly: built, not deferred
+
+**This was buildable within scope, so I built it rather than deferring it.** The QA Verdict's own
+framing gave me the option to say "this needs its own slice" — I considered that seriously, since the
+gap turned out to be larger than "one missing `db` argument": `/review-ideas` had NO compiled backing
+for ANY part of its accept mutation, including a genuinely new discovery — no compiled function anywhere
+in this codebase set an Idea's `status: accepted` on the file ledger at all (an LLM edited the JSON
+directly, freehand, for both accept AND reject, since the ledger's own inception). But the SHAPE of the
+fix is exactly the shape this repo already uses for every other gated command (`/pick`, `/pick-cast`,
+`/log-post`): a thin `src/commands/<name>.ts` with a testable async function plus a CLI `main()`, composed
+from EXISTING pieces (`writeIdeaRecipeSelection`, unchanged; `enqueueOnAccept`, unchanged) plus ONE small,
+genuinely new piece (`markIdeaAccepted`, an 18-line function mirroring `writeIdeaRecipeSelection`'s own
+shape). This is squarely "add the missing compiled entry point," not "redesign the accept flow" — so I
+built it.
+
+**Scope I deliberately held the line on, and why.** `acceptIdeaCommand` performs ONLY the accept
+MUTATION — the deterministic write that happens once the Operator's decision (which Idea; which Recipes
+chosen/declined) is already known. The CONVERSATIONAL parts of `/review-ideas` — presenting suggested
+Ideas with their sources, taking the Operator's free-text verdict, letting them trim/extend the offered
+Recipe set — remain prose, because they need an LLM's judgment (reading Operator intent from natural
+language) that no amount of compiled code can replace; `/review-ideas` itself is, and stays, a
+prompt-driven command with no compiled turn-by-turn runtime, exactly like `/run-trends`. I also did NOT
+build an equivalent compiled command for REJECT — the issue and QA's own Defect B repro were both scoped
+to the ACCEPT path (AC1's own wording: "Accepting an Idea creates its Idea row... in SQL"), reject writes
+no SQL row at all today, and building it would have been unrequested scope creep in the very round where
+scope discipline matters most. This is recorded as a Known Limit below, not silently done.
+
+**The one genuinely new judgement call: `markIdeaAccepted` is unconditional, matching what it replaces.**
+The SQL-side `acceptIdea` (`src/idea/store.ts`) requires an Idea currently be `suggested` and throws
+otherwise. I did NOT give `markIdeaAccepted` that same precondition, because the freeform behavior it
+replaces never had one either — an LLM setting `status: accepted` in the JSON never checked the prior
+value first. Adding a NEW precondition here would be a silent behavior change riding along with an
+unrelated ticket (SQL wiring), not something #254 asked for. Setting an already-`accepted` Idea to
+`accepted` again is a safe, idempotent no-op write either way.
+
+### Prove it, do not assert it — Round 3
+
+**Defect A, at both layers, independently reproduced (not just re-asserting the new tests) — full test
+output:**
+
+```
+$ node --import tsx --test src/production-queue/sql-sync.test.ts
+...
+# Subtest: syncAcceptToSql — QA round-1 Defect 1: identity is the ledger's own id, never title
+    ok 1 - TWO DIFFERENT accepted Ideas sharing an IDENTICAL title each get their OWN Idea/Asset/Job row — never silently merged
+    ok 2 - re-syncing idea-02 again (after the collision above) reuses ONLY idea-02's own row, never idea-01's
+    ok 3 - Round 3, Defect A: a pre-migration-5 row (no legacy_ref recorded) is ADOPTED on re-sync, never duplicated
+    ok 4 - Round 3, Defect A: two OR MORE unclaimed pre-migration-5 rows sharing the same title is genuine ambiguity — refuses loudly rather than guessing
+...
+# tests 12
+# suites 3
+# pass 12
+# fail 0
+```
+
+`ok 3` proves the exact repro QA gave in the Round-2 Verdict ("seed a database to look like the real one
+— a pre-migration-5 row with `legacy_ref IS NULL` — and re-sync it"): the row is REUSED (`ideaId` equal
+to the pre-migration row's own id, `ideaCreated: false`), `listIdeasForRun` stays at 1 (not 2), and a
+SECOND re-sync afterward resolves via the fast `getIdeaByLegacyRef` path with no fallback needed. `ok 4`
+proves the forced-ambiguous case: two unclaimed rows sharing a title, `syncAcceptToSql` throws naming
+"ambiguous identity", "2 pre-migration-5", and "Refusing to guess" — neither row is claimed, no third row
+is created.
+
+Reproduced AGAIN at the real `enqueueOnAccept` entry point (not just the deep module):
+
+```
+$ node --import tsx --test src/production-queue/enqueue-on-accept.test.ts
+...
+ok 6 - Round 3, Defect A, reproduced at the REAL entry point: a pre-migration-5 imported row (no legacy_ref) is ADOPTED on re-sync, never duplicated — exactly the shape of all 61 Ideas in the real database
+...
+# tests 23
+# suites 3
+# pass 23
+# fail 0
+```
+
+**Defect A, break it on purpose, watch it go red, restore byte-identically:** temporarily replaced
+`sql-sync.ts`'s real fallback lookup (`const unclaimed = listUnclaimedIdeasForRunByTitle(db, runId,
+title);`) with a hard-coded empty array (`const unclaimed = [] as ReturnType<typeof
+listUnclaimedIdeasForRunByTitle>;`) — simulating Round 2's exact regression — then re-ran the suite:
+
+```
+$ node --import tsx --test src/production-queue/sql-sync.test.ts src/production-queue/enqueue-on-accept.test.ts
+...
+not ok 5 - syncAcceptToSql — QA round-1 Defect 1: identity is the ledger's own id, never title
+  error: '2 subtests failed'   # the adopt test AND the ambiguity test both fail
+not ok 3 - enqueueOnAccept — OPTIONAL SQL sync (issue #254)
+  error: '1 subtest failed'    # the entry-point adopt test fails
+...
+# tests 35
+# suites 6
+# pass 32
+# fail 3
+```
+
+Restored via `cp` from a pre-edit backup, confirmed byte-identical with `diff` (no output — identical),
+re-ran:
+
+```
+$ diff /tmp/.../sql-sync.ts.bak src/production-queue/sql-sync.ts
+(no output — IDENTICAL)
+$ node --import tsx --test src/production-queue/sql-sync.test.ts src/production-queue/enqueue-on-accept.test.ts
+...
+# tests 35
+# suites 6
+# pass 35
+# fail 0
+```
+
+`git status --porcelain src/production-queue/sql-sync.ts` after restoration: `M
+src/production-queue/sql-sync.ts` — the SAME, legitimate diff against the committed baseline this whole
+round produced, nothing extra, nothing missing (confirmed via the `diff` against the backup above, taken
+BEFORE the break-it edit).
+
+**Defect B, break it on purpose, watch it go red, restore byte-identically:** temporarily replaced
+`accept-idea.ts`'s default-db-opening condition (`if (db === undefined) { ... }`) with a condition gated
+on a `BREAK_ON_PURPOSE_NEVER_OPEN_BY_DEFAULT = true` constant that always skips the block — simulating the
+wiring being deleted entirely — then re-ran:
+
+```
+$ node --import tsx --test src/commands/accept-idea.test.ts
+...
+ok 1 - acceptIdeaCommand — writes the Recipe selection and sets the Idea accepted (issue #54/#254)
+ok 2 - acceptIdeaCommand — SQL sync via an INJECTED already-open db (issue #254)
+not ok 3 - acceptIdeaCommand — opens + migrates data/organicgrowth.db BY DEFAULT, never depending on a caller passing db (issue #254 Round 3, Defect B)
+ok 4 - accept-idea CLI main() — argv parsing and usage-error path
+# pass 7
+# fail 2
+```
+
+Both tests in the "opens + migrates BY DEFAULT" describe block fail — exactly the two tests that never
+pass `options.db`, only `options.dbPath` (mirroring the real `/review-ideas` CLI invocation, which never
+constructs a `DatabaseSync` at all). Restored via `cp` from a pre-edit backup, confirmed byte-identical
+with `diff` (no output), re-ran:
+
+```
+$ diff /tmp/.../accept-idea.ts.bak src/commands/accept-idea.ts
+(no output — IDENTICAL)
+$ node --import tsx --test src/commands/accept-idea.test.ts
+...
+# pass 9
+# fail 0
+```
+
+`git status --porcelain` after both restorations, and after deleting the two `.bak` scratch files: clean
+except for this round's own legitimate, intended diff (18 modified files + 3 new files — the `accept-idea`
+command + its test + the new `accept-idea-command` OpenSpec capability directory). No `_break_*`/`.bak`
+file ever appears in `git status` at any point (both were written to and deleted from the scratchpad
+directory, never this worktree).
+
+### Files touched (Round 3)
+
+- `src/idea/store.ts` (`listUnclaimedIdeasForRunByTitle` — new read; `claimLegacyRef` — new write)
+- `src/idea/store.test.ts` (new `listUnclaimedIdeasForRunByTitle` / `claimLegacyRef` describe block — 7 tests)
+- `src/store-write-boundary/scan.ts` (`claimLegacyRef` added to `src/idea/store.ts`'s allow-listed write functions)
+- `src/store-write-boundary/scan.test.ts` (updated expectations for the new allow-listed function, both the direct list and the namespace-import test)
+- `src/command-surface/ideas.ts` (`claimLegacyRef` thin wrapper)
+- `src/command-surface/ideas.test.ts` (new `claimLegacyRef` describe block — 2 tests)
+- `src/command-surface/index.ts` (exports `claimLegacyRef`)
+- `src/production-queue/sql-sync.ts` (identity resolution grows the bounded `(run_id, title)` fallback; module doc comment rewritten; `SqlSyncOutcome.ideaCreated`'s own doc comment updated)
+- `src/production-queue/sql-sync.test.ts` ("KNOWN LIMIT" test replaced with an "ADOPTED, never duplicated" test; new ambiguous-refuse test)
+- `src/production-queue/enqueue-on-accept.test.ts` (new entry-point-level adoption test)
+- `src/ledger/ledger.ts` (`markIdeaAccepted` — new)
+- `src/commands/accept-idea.ts` (new — `acceptIdeaCommand` + CLI `main()`)
+- `src/commands/accept-idea.test.ts` (new — 9 tests)
+- `package.json` (`accept-idea` npm script)
+- `.claude/commands/review-ideas.md` (Gate-1 accept step 5.5 rewritten to call the compiled command; step 6's cross-reference updated)
+- `src/recipe/review-docs.test.ts` (three describe blocks updated to match the rewritten prose)
+- `openspec/changes/issue-254-accept-writes-sql-queue/proposal.md` (Round 3 "What Changes"/Capabilities/Impact updates)
+- `openspec/changes/issue-254-accept-writes-sql-queue/specs/accept-sql-sync/spec.md` (identity Requirement rewritten to state the bounded, real behavior; two new Scenarios)
+- `openspec/changes/issue-254-accept-writes-sql-queue/specs/accept-idea-command/spec.md` (new capability — ADDED Requirements)
+- `openspec/changes/issue-254-accept-writes-sql-queue/tasks.md` (new "Round 3" section)
+- `openspec/changes/issue-254-accept-writes-sql-queue/handoff.md` (this Round-3 Build Report)
+
+No change to `src/db/schema.ts` — migrations 1–5 stay exactly as Round 2 left them (confirmed via `git
+diff cdb68a0 HEAD -- src/db/schema.ts` showing only Round 2's own migration-5 hunk, nothing added this
+round).
+
+### How to run
+
+```bash
+# From this worktree:
+npm test                                                       # full suite
+npm run test:docs
+npm run build
+openspec validate issue-254-accept-writes-sql-queue --strict
+openspec validate --all --strict
+node --import tsx --test src/store-write-boundary/scan.test.ts src/fs-boundary/*.test.ts
+node --import tsx --test src/production-queue/sql-sync.test.ts src/production-queue/enqueue-on-accept.test.ts src/idea/store.test.ts src/command-surface/ideas.test.ts src/commands/accept-idea.test.ts src/recipe/review-docs.test.ts
+```
+
+Round 2 baseline: 3691 tests / 960 suites / 0 fail. **Round 3: 3712 tests / 965 suites / 0 fail** (21 new
+tests, 5 new suites — `src/idea/store.test.ts` +7 in a new describe block, `src/production-queue/sql-sync.test.ts`
+net +2 (one KNOWN-LIMIT test replaced by an ADOPTED test, one new ambiguous-refuse test),
+`src/production-queue/enqueue-on-accept.test.ts` +1, `src/command-surface/ideas.test.ts` +2 in a new
+describe block, `src/commands/accept-idea.test.ts` +9 in 4 new describe blocks, `src/recipe/review-docs.test.ts`
+net +4 across its rewritten describe block). `npm run test:docs`: 351/94/0-fail, unchanged. `npm run
+build`, `openspec validate issue-254-accept-writes-sql-queue --strict`, and `openspec validate --all
+--strict` (69 passed) are all clean. `node --import tsx --test src/store-write-boundary/scan.test.ts
+src/fs-boundary/*.test.ts`: 42/8/0 fail — the one new allow-list entry (`claimLegacyRef`) is genuinely
+exercised, not merely declared.
+
+Confirmed throughout this round, via `stat -f "%Sm %z" data/organicgrowth.db` before and after EVERY test
+run (including the full suite, the break-it-on-purpose runs, and the OpenSpec validations): this
+worktree's own local `data/organicgrowth.db` — itself git-ignored (`data/*.db`, confirmed via `git
+check-ignore -v`) and NOT the shared, real database (that file lives only in the main working directory,
+`/Users/CaxtonTaylor/Developer/OrganicGrowth/data/organicgrowth.db`, a separate worktree this agent never
+opened) — never changed: `Aug 18 10:59:35 2026`, `258048` bytes, identical before and after this entire
+round. Every test that opens a database uses either `withTempDb` (a real, throwaway SQLite file) or an
+explicit `options.dbPath`/`options.db` pointed at a throwaway temp file — confirmed by reading every new
+test in this round; no test ever omits both.
+
+### Acceptance-criteria self-assessment (Round 3 additions)
+
+| Claim | Proven by |
+|---|---|
+| A pre-migration-5 row (`legacy_ref IS NULL`) sharing the ledger Idea's `(run, title)` is ADOPTED, not duplicated | `sql-sync.test.ts` "Round 3, Defect A: a pre-migration-5 row... is ADOPTED..." (deep-module layer) + `enqueue-on-accept.test.ts` "Round 3, Defect A, reproduced at the REAL entry point..." (entry-point layer) |
+| A SECOND re-sync of an adopted row takes the fast `legacy_ref` path, no fallback needed | Same `sql-sync.test.ts` test, second half — asserts a follow-up `syncAcceptToSql` call resolves to the same id with `ideaCreated: false` |
+| Two or more unclaimed rows sharing a title is refused loudly, never guessed | `sql-sync.test.ts` "Round 3, Defect A: two OR MORE unclaimed pre-migration-5 rows..." — asserts the thrown message names the count and says "Refusing to guess"; asserts both rows are left unclaimed, no third row created |
+| `claimLegacyRef` is atomic and refuses a lost race / an already-claimed row | `idea/store.test.ts`: "claimLegacyRef throws for an unknown Idea id" + "claimLegacyRef throws when the row ALREADY carries a legacy_ref" |
+| `listUnclaimedIdeasForRunByTitle` never matches an already-claimed row | `idea/store.test.ts`: "never matches a row that ALREADY carries a legacy_ref" |
+| The formal spec states the REAL, bounded behavior (not an unconditional claim) | `specs/accept-sql-sync/spec.md`'s identity Requirement rewritten with "falling back to an ambiguity-refusing (run_id, title) lookup..." in its own title and body; two new Scenarios (`adopted` / `ambiguous-refuses`) |
+| An ordinary accept puts rows in SQL through compiled code (AC1, for the everyday path) | `accept-idea.test.ts`: "with ONLY options.dbPath given (never options.db)..." — re-opens the database independently after the call and queries it directly |
+| A regression-guard test fails if the default-db-opening wiring is removed | `accept-idea.test.ts`: "REGRESSION GUARD: if the default db-opening wiring were ever removed, this test fails..." — proven red→green live above, not merely by inspection |
+| `markIdeaAccepted` is the first compiled writer of the Idea's `status: accepted` on the file ledger | `accept-idea.test.ts`: "writes chosen/declined Recipes and sets status: accepted on the ledger" — reads the raw JSON back and asserts `status === "accepted"` |
+| `.claude/commands/review-ideas.md` instructs the compiled command, not freeform calls | `review-docs.test.ts`'s rewritten describe block (7 tests) — pins the literal `npm run accept-idea --` invocation, the "never write the ledger... yourself" instruction, and the "opens + migrates... BY DEFAULT" claim |
+| Issue #247's own pinned `recordReviewDecision` citation still holds after the rewrite | `command-surface-citations.docs-test.ts` (unmodified) — re-ran green; the rewritten prose keeps the literal `status: accepted` ... `recordReviewDecision` substring within its 150-char window |
+
+### Fakes / fixtures used (Round 3, additive to Rounds 1–2's lists)
+
+- Same as Rounds 1–2: `src/space-driver/fixtures/fake-space.ts`'s `FakeSpace` (the Magnific fake — **not
+  touched by any Round 3 change**, no new Space-driving code was added this round either), `src/db/
+  test-support.ts`'s `withTempDb` (real, throwaway SQLite files, never `:memory:`).
+- New this round: `accept-idea.test.ts`'s `withBrandFixture` — a throwaway temp `brandsRoot`/`ledger.json`/
+  `queue.json`/`dbPath` quadruple, mirroring `enqueue-on-accept.test.ts`'s existing `withSqlFixture`
+  convention, extended with a computed-but-never-created `dbPath` (so a test can prove the command creates
+  it itself). Every test in this file passes an explicit `dbPath` (or `db`) — confirmed by reading the
+  whole file — so no test can ever fall through to `acceptIdeaCommand`'s own real default,
+  `data/organicgrowth.db`.
+- No Apify, no Zoho, no S3 — unchanged from Rounds 1–2. No live `spaces_*`/`creations_*` call anywhere in
+  this round's code or tests — grepped the full Round-3 diff for `spaces_\|creations_\|magnific`: zero hits
+  outside this handoff.md's own prose.
+
+### Self-review notes (Round 3)
+
+- Considered giving `markIdeaAccepted` the same "must currently be suggested" precondition
+  `src/idea/store.ts`'s SQL-side `acceptIdea` has. Deliberately did NOT — the freeform behavior it
+  replaces never had this check, and adding a new one would be an unrelated, unrequested behavior change
+  riding along with this ticket's actual scope (SQL wiring). Recorded as a deliberate choice above, not an
+  oversight.
+- Simplified the SQL-open/close lifecycle in `acceptIdeaCommand` to a single `ownsDb` boolean (mirroring
+  `run-pipeline.ts`'s own `db?.close()`-in-`finally` shape exactly) rather than inventing a new pattern —
+  keeps the two compiled default-db-opening call sites in this codebase (`run-pipeline.ts`'s resume branch,
+  `accept-idea.ts`) visibly consistent with each other.
+- Did NOT build a compiled `reject-idea` counterpart. Tempting for symmetry, but out of this ticket's own
+  scope (AC1 names accept only) and out of THIS round's scope specifically (the QA Verdict's Defect B was
+  about the accept path). Named explicitly as a Known Limit below rather than silently left out.
+- Removed no code from earlier rounds — every Round 1/2 test, doc-comment claim, and Known Limit that is
+  still accurate is left untouched; only the ones Round 3 actually falsified (the "pre-migration-5 rows
+  duplicate" Known Limit, the identity Requirement's unconditional claim) were rewritten.
+
+### Known limits (Round 3 — supersedes/updates Round 2's list where noted)
+
+- **No Production Spec authoring at accept time — unchanged since Round 1.** Still the subject of Round
+  2's Defect-3 judgement (accepted, disclosed staging consequence); follow-up drafted, not filed (this
+  agent's `gh` grant has no `issue create`), and referenced in this round's own task context as issue
+  **#264** (filed by the Operator/orchestrator between Round 2 and Round 3).
+- **RESOLVED, no longer a known limit — pre-migration-5 imported rows duplicating on re-sync.** Round 2's
+  own Known Limit ("a later re-sync... will create a genuine duplicate Idea row") is fixed by this round's
+  adopt/refuse/create fallback. Superseded by the NEW, narrower residual immediately below.
+- **NEW, narrow residual — two or more UNCLAIMED pre-migration-5 rows sharing an identical title in the
+  SAME Run is refused, not resolved automatically.** An Operator hitting this (never observed in the real
+  data, per Round 1's own survey) would need to call `claimLegacyRef` directly, by hand, naming which row
+  is which ledger Idea — a manual, narrow reconciliation step, documented in `src/idea/store.ts`'s own doc
+  comment, not a silent failure (the thrown error names the ambiguity plainly).
+- **NEW — no compiled `reject-idea` command.** `/review-ideas`'s reject path (step 6) is unchanged from
+  Round 2: an LLM still edits `status: rejected`/`rejection_reason` freehand, with no compiled backing.
+  Deliberately out of this ticket's own scope (AC1 names accept only); a real, symmetric gap for a future
+  ticket to close if it becomes load-bearing.
+- **The `job.idempotency_key` UNIQUE index closes the double-enqueue race specifically — unchanged from
+  Round 2.** See Round 2's own argument; Defect 4 was already resolved and untouched by this round.
+- **A fixed SQL failure requires calling `syncAcceptToSql` directly to recover, not a second
+  `enqueueOnAccept`/`acceptIdeaCommand` call — unchanged since Round 1.** See Round 1's own "break it on
+  purpose" transcript's recovery note; the same mechanism now also applies to `acceptIdeaCommand`'s own
+  file-queue-already-landed short-circuit.
+- **No outer SQL transaction around the whole sync — unchanged since Round 1.** Argued acceptable there
+  (every step individually atomic, the whole function idempotent on retry); unaffected by this round's
+  changes.

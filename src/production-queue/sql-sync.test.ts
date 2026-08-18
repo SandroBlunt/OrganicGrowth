@@ -313,14 +313,15 @@ describe("syncAcceptToSql — QA round-1 Defect 1: identity is the ledger's own 
     });
   });
 
-  it("KNOWN LIMIT: an importer-carried row from BEFORE migration 5 (no legacy_ref recorded) is not found by a later re-sync — a fresh Idea row is created instead, never a silent merge", async () => {
+  it("Round 3, Defect A: a pre-migration-5 row (no legacy_ref recorded) is ADOPTED on re-sync, never duplicated", async () => {
     await withTempDb(async (db) => {
       runMigrations(db);
       const { brandId, formatId } = seedBrandAndFormat(db);
 
       await withFixture(async ({ ledgerPath }) => {
         // A row exactly as it would look if it were imported by the ORIGINAL one-shot importer run
-        // (issue #204, 2026-08-17) — BEFORE this migration existed, so it carries no legacyRef at all.
+        // (issue #204, 2026-08-17) — BEFORE migration 5 existed, so it carries no legacyRef at all. This
+        // is the real, live shape of all 61 Ideas in the committed data/organicgrowth.db.
         const runId = createRun(db, { brandId, formatId, runKey: RUN_KEY, cadence: "weekly", startedAt: NOW }, () => NOW);
         const preMigrationIdeaId = createIdea(
           db,
@@ -336,17 +337,63 @@ describe("syncAcceptToSql — QA round-1 Defect 1: identity is the ledger's own 
           },
           () => NOW,
         );
+        recordReviewDecision(db, preMigrationIdeaId, { outcome: "accepted", recipes: [] }, () => NOW);
 
         const outcome = await syncAcceptToSql("idea-01", [NEWS_CAROUSEL], { db, brand: BRAND_SLUG, ledgerPath, now: () => "2026-08-18T11:00:00.000Z" });
 
-        // Honest, documented residual limit (see handoff.md Known Limits): identity is now legacy_ref,
-        // so a pre-migration-5 row (legacy_ref IS NULL) is never found by this lookup. This creates a
-        // SECOND row rather than reusing the pre-migration one — never a silent merge (this ticket's own
-        // bar), but a real duplicate an Operator would need to reconcile by hand for any Idea that was
-        // BOTH imported before this migration AND later re-synced through this path.
-        assert.notEqual(outcome.ideaId, preMigrationIdeaId, "the pre-migration-5 row (no legacy_ref) is not matched");
-        assert.equal(outcome.ideaCreated, true);
-        assert.equal(listIdeasForRun(db, runId).length, 2, "two rows now exist for what a human would call ONE real Idea");
+        // Round 2 regressed this into a silent duplicate; Round 3 closes it: the pre-migration-5 row is
+        // ADOPTED (reused + reconciled in place), never duplicated.
+        assert.equal(outcome.ideaId, preMigrationIdeaId, "the pre-migration-5 row is REUSED, not duplicated");
+        assert.equal(outcome.ideaCreated, false);
+        assert.equal(listIdeasForRun(db, runId).length, 1, "still exactly ONE row for this one real Idea");
+        assert.equal(getIdea(db, preMigrationIdeaId)!.legacyRef, "idea-01", "the row is now reconciled — every FUTURE sync takes the fast legacy_ref path");
+
+        // The fast path now works: a SECOND re-sync resolves the SAME row via getIdeaByLegacyRef, with
+        // no fallback lookup needed at all.
+        const again = await syncAcceptToSql("idea-01", [NEWS_CAROUSEL], { db, brand: BRAND_SLUG, ledgerPath, now: () => "2026-08-18T12:00:00.000Z" });
+        assert.equal(again.ideaId, preMigrationIdeaId);
+        assert.equal(again.ideaCreated, false);
+        assert.equal(listIdeasForRun(db, runId).length, 1, "the second re-sync still creates nothing new");
+      });
+    });
+  });
+
+  it("Round 3, Defect A: two OR MORE unclaimed pre-migration-5 rows sharing the same title is genuine ambiguity — refuses loudly rather than guessing", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, formatId } = seedBrandAndFormat(db);
+
+      await withFixture(async ({ ledgerPath }) => {
+        const runId = createRun(db, { brandId, formatId, runKey: RUN_KEY, cadence: "weekly", startedAt: NOW }, () => NOW);
+        // TWO pre-migration-5 rows, same title, NEITHER carries a legacy_ref — an ambiguous fallback
+        // match. A real occurrence would mean two genuinely different imported Ideas once shared an
+        // identical title in the same Run (never observed in the real data, but never assumed away
+        // either — Round 1's own CRITICAL was exactly this kind of unwarranted assumption).
+        createIdea(
+          db,
+          { runId, brandId, formatId, title: "A brand new headline", brief: "First import.", hookType: UNCLASSIFIED_HOOK_TYPE, theme: UNCLASSIFIED_THEME },
+          () => NOW,
+        );
+        createIdea(
+          db,
+          { runId, brandId, formatId, title: "A brand new headline", brief: "Second import.", hookType: UNCLASSIFIED_HOOK_TYPE, theme: UNCLASSIFIED_THEME },
+          () => NOW,
+        );
+
+        await assert.rejects(
+          () => syncAcceptToSql("idea-01", [NEWS_CAROUSEL], { db, brand: BRAND_SLUG, ledgerPath, now: () => "2026-08-18T11:00:00.000Z" }),
+          (err: unknown) => {
+            assert.ok(err instanceof Error);
+            assert.match(err.message, /ambiguous identity for Idea "idea-01"/);
+            assert.match(err.message, /2 pre-migration-5/);
+            assert.match(err.message, /Refusing to guess/);
+            return true;
+          },
+        );
+
+        // Never merged, never partially adopted — both rows are untouched, and no third row appeared.
+        assert.equal(listIdeasForRun(db, runId).length, 2, "both ambiguous rows are left exactly as they were");
+        assert.ok(listIdeasForRun(db, runId).every((i) => i.legacyRef === undefined), "neither ambiguous row was claimed");
       });
     });
   });

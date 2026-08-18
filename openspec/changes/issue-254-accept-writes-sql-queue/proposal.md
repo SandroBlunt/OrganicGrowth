@@ -40,11 +40,38 @@ one queue, eventually; this ticket is **slice 1** — accept writes SQL through 
   `ideaPlan.legacyId`, so a re-accept of an importer-carried Idea still correlates correctly. Two Ideas
   sharing a title now correctly get two SEPARATE Idea/Asset/Job rows; a genuine collision (the same
   `legacy_ref` used twice for the same Brand) is impossible in normal operation and would hit a real, loud
-  `SQLITE_CONSTRAINT` error if it somehow occurred. **Known, documented residual limit:** an Idea imported
-  by the ORIGINAL one-shot importer run (2026-08-17, before migration 5 existed) carries no `legacy_ref` —
-  a later re-sync of that same ledger Idea will not find it and will create a second, duplicate row rather
-  than reusing the pre-migration one (never a silent MERGE, this ticket's own bar, but a real duplicate an
-  Operator would need to reconcile by hand). See `handoff.md`'s Known Limits.
+  `SQLITE_CONSTRAINT` error if it somehow occurred.
+- **Round 3, Defect A (CRITICAL): the pre-migration-5 fallback — adopt / refuse / create.** Round 2's own
+  fix regressed: every one of the real, committed database's 61 Ideas, imported 2026-08-17 (before
+  migration 5 existed), carries `legacy_ref IS NULL` — `getIdeaByLegacyRef` finds nothing for any of them,
+  so a re-sync (reachable via `run-pipeline.ts`'s stranded-idea resume, which Round 2 itself wired to open
+  the real database by default) DUPLICATED every one, rather than reusing it. `syncAcceptToSql` now falls
+  back, when `getIdeaByLegacyRef` finds nothing, to `listUnclaimedIdeasForRunByTitle(db, runId, title)`
+  (`src/idea/store.ts`) — the SAME `(run_id, title)` natural key Round 1 used as its PRIMARY lookup, scoped
+  to UNCLAIMED rows only (`legacy_ref IS NULL`, so an already-reconciled row is never re-matched): exactly
+  one match ADOPTS that row (`claimLegacyRef` stamps `legacyRef: ideaId` onto it, in place — every
+  subsequent sync of the SAME ledger Idea then takes the fast `legacy_ref` path); more than one match
+  REFUSES loudly (a real `Error` naming the ambiguity — never guesses, the exact mistake Round 1's own
+  CRITICAL made); no match CREATES a brand-new row, exactly as before. This closes the duplicate-row
+  regression without a backfill migration and without requiring a re-import — the fallback is self-healing,
+  reconciling each pre-migration-5 Idea permanently on its first re-sync. The identity Requirement's own
+  text below now states this real, bounded behavior, with Scenarios naming the legacy-NULL adopt case and
+  the ambiguous-refuse case — not an unconditional claim with an undocumented exception.
+- **Round 3, Defect B (HIGH): a new compiled command, `src/commands/accept-idea.ts`, is the ONLY sanctioned
+  way `/review-ideas` performs Gate 1's accept mutation.** QA round-2 found that `/review-ideas` — the
+  ordinary, everyday accept path — had NO compiled TypeScript backing at all (unlike `/pick`, `/pick-cast`,
+  `/log-post`, and every other gated command): the accept mutation was freeform prose an agent executed
+  turn by turn, so AC1 ("accepting an Idea creates its Idea row... in SQL") was never actually enforced by
+  code for the path that runs every week — only Round 2's OWN secondary caller (`run-pipeline.ts`'s rare
+  stranded-idea resume) was. `acceptIdeaCommand(brand, ideaId, chosen, declined, options)` now performs the
+  WHOLE accept mutation in one compiled call: writes the Recipe selection (`writeIdeaRecipeSelection`,
+  unchanged), sets the Idea's status to `accepted` (`markIdeaAccepted` — a NEW `src/ledger/ledger.ts`
+  function; no compiled writer of this field existed anywhere before this round), and — when `chosen` is
+  non-empty — calls `enqueueOnAccept`, opening + migrating `data/organicgrowth.db` BY DEFAULT (mirroring
+  Round 2's own `run-pipeline.ts` fix) so the SQL sync always runs, never depending on a caller remembering
+  to pass `db`. `.claude/commands/review-ideas.md`'s Gate-1 accept step (5.5) now instructs running
+  `npm run accept-idea -- <brand> <ideaId> "<chosen-csv>" '<declined-json>'` instead of calling
+  `writeIdeaRecipeSelection`/`enqueueOnAccept` freehand.
 - **`SqlSyncJobOutcome` now carries `reason: "created" | "already-queued"`, not just `synced: boolean`.**
   QA round-1 Defect 1 also named that `synced: false` meant both "already there" and "silently dropped" —
   indistinguishable. `reason` makes that explicit; because identity is now `legacy_ref`, `"already-queued"`
@@ -100,7 +127,11 @@ one queue, eventually; this ticket is **slice 1** — accept writes SQL through 
 ### Added Capabilities
 
 - `accept-sql-sync`: `src/production-queue/sql-sync.ts` — syncs an accepted Idea's chosen Recipes (Idea,
-  per-Recipe Asset, `job` rows) into SQL through the command surface, idempotently, failing loudly.
+  per-Recipe Asset, `job` rows) into SQL through the command surface, idempotently, failing loudly, and
+  (Round 3) reconciling any pre-migration-5 Idea it finds via a bounded, ambiguity-refusing fallback.
+- `accept-idea-command` (Round 3): `src/commands/accept-idea.ts` — the compiled Gate-1 accept mutation
+  `/review-ideas` calls, the ONLY code path that performs the accept write (ledger + file queue + SQL
+  sync) for the ordinary, everyday accept flow.
 
 ### Modified Capabilities
 
@@ -112,27 +143,37 @@ one queue, eventually; this ticket is **slice 1** — accept writes SQL through 
 
 ## Impact
 
-- **New code:** `src/production-queue/sql-sync.ts` (+`.test.ts`),
-  `openspec/changes/issue-254-accept-writes-sql-queue/` (this change).
+- **New code:** `src/production-queue/sql-sync.ts` (+`.test.ts`), `src/commands/accept-idea.ts`
+  (+`.test.ts`, Round 3), `openspec/changes/issue-254-accept-writes-sql-queue/` (this change).
 - **Modified code:** `src/production-queue/enqueue-on-accept.ts` (+`.test.ts` additions),
-  `.claude/commands/review-ideas.md` (Gate 1's accept step passes `db`),
-  `src/recipe/review-docs.test.ts` (pins that paragraph, Round 2),
+  `.claude/commands/review-ideas.md` (Gate 1's accept step passes `db`; Round 3: rewritten to call the
+  compiled `accept-idea` command instead — the rewrite keeps the literal `status: accepted` /
+  `recordReviewDecision` phrasing issue #247's own `command-surface-citations.docs-test.ts` already pins,
+  unmodified, within its 150-char window), `src/recipe/review-docs.test.ts` (pins that paragraph, Round 2;
+  Round 3: updated for the compiled-command wording),
   `src/commands/run-pipeline.ts` (+`.test.ts` additions — the stranded-idea resume path passes `db` by
   default, Round 2), `src/db/schema.ts` (+`.test.ts`, migration 5, Round 2), `src/db/migrate.test.ts`
   (`CURRENT_SCHEMA_VERSION` bumped 4→5, Round 2), `src/idea/store.ts` (+`.test.ts` — `legacyRef` /
-  `getIdeaByLegacyRef`, Round 2), `src/importer/execute.ts` (stamps `legacyRef`, Round 2),
-  `src/production-queue/job-store.test.ts` (the `idempotency_key` UNIQUE-index proof, Round 2).
+  `getIdeaByLegacyRef`, Round 2; Round 3: `listUnclaimedIdeasForRunByTitle` / `claimLegacyRef`),
+  `src/importer/execute.ts` (stamps `legacyRef`, Round 2), `src/production-queue/job-store.test.ts` (the
+  `idempotency_key` UNIQUE-index proof, Round 2), `src/command-surface/ideas.ts` (+`.test.ts`, Round 3 —
+  `claimLegacyRef` thin wrapper), `src/command-surface/index.ts` (Round 3 — exports `claimLegacyRef`),
+  `src/store-write-boundary/scan.ts` (+`.test.ts`, Round 3 — `claimLegacyRef` allow-listed),
+  `src/ledger/ledger.ts` (+ implicit coverage via `accept-idea.test.ts`, Round 3 — new `markIdeaAccepted`),
+  `package.json` (Round 3 — new `accept-idea` script).
 - **Schema change (Round 2): migration 5.** Adds `idea.legacy_ref TEXT` plus a partial `UNIQUE (brand_id,
   legacy_ref)` index, AND a partial `UNIQUE (job.idempotency_key)` index — purely additive
   (`ALTER TABLE ... ADD COLUMN` / `CREATE INDEX`), touching no existing column, row, or constraint.
   Migrations 1–4 stay byte-for-byte frozen. (Round 1 deliberately shipped with no schema change; QA round-1
   Defects 1 and 4 are why Round 2 adds one — see "What Changes" and `handoff.md`'s Round-2 Build.)
-- **No new store-write-boundary allow-list entry.** Every SQL write this ticket performs
-  (`createIdea`/`recordReviewDecision`/`saveAsset`/`enqueueJob`/`createRun`) is already registered in
-  `src/store-write-boundary/scan.ts`'s `STORE_WRITE_FUNCTIONS`, and every one happens inside
-  `src/command-surface/` (`syncAcceptToSql` itself reads directly from stores — `getBrandBySlug`,
-  `getFormatBySlug`, `getRunByKey`, `getIdea`, `getIdeaByLegacyRef`, `listJobsForComposite` — which the
-  guard is scoped to ignore by design, "writes only, never reads").
+- **One new store-write-boundary allow-list entry (Round 3): `src/idea/store.ts`'s `claimLegacyRef`.**
+  Every OTHER SQL write this ticket performs (`createIdea`/`recordReviewDecision`/`saveAsset`/
+  `enqueueJob`/`createRun`) was already registered in `src/store-write-boundary/scan.ts`'s
+  `STORE_WRITE_FUNCTIONS`; Round 3's new fallback-adoption write (`claimLegacyRef`) is added to that SAME
+  list, called only from inside `src/command-surface/ideas.ts`'s own thin wrapper, exactly like every
+  other write here. `syncAcceptToSql` itself still reads directly from stores — `getBrandBySlug`,
+  `getFormatBySlug`, `getRunByKey`, `getIdea`, `getIdeaByLegacyRef`, `listUnclaimedIdeasForRunByTitle`,
+  `listJobsForComposite` — which the guard is scoped to ignore by design, "writes only, never reads".
 - **Hermetic, no live Magnific/Zoho/Apify call.** Every new test runs against a real, throwaway SQLite file
   (`db/test-support.ts`'s `withTempDb`, never `:memory:`); the "worker picks it up" proof drives
   `drainQueue`/`runOneJob` against the SAME Magnific fakes issue #208 already established

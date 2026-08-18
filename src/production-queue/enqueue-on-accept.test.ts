@@ -13,6 +13,11 @@ import { withTempDb } from "../db/test-support.ts";
 import { createBrand, getBrandBySlug } from "../brand/store.ts";
 import { createFormat } from "../format/store.ts";
 import { listJobsForComposite } from "./job-store.ts";
+import { getIdea, listIdeasForRun } from "../idea/store.ts";
+import { createIdea as createIdeaRow } from "../command-surface/index.ts";
+import { createRun as createRunRow } from "../run/store.ts";
+import { UNCLASSIFIED_HOOK_TYPE } from "../vocabulary/hook-type.ts";
+import { UNCLASSIFIED_THEME } from "../vocabulary/theme.ts";
 
 const NOW = "2026-06-05T13:00:00.000Z";
 const BRAND = "mundotip";
@@ -357,6 +362,42 @@ describe("enqueueOnAccept — OPTIONAL SQL sync (issue #254)", () => {
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
+    });
+  });
+
+  it("Round 3, Defect A, reproduced at the REAL entry point: a pre-migration-5 imported row (no legacy_ref) is ADOPTED on re-sync, never duplicated — exactly the shape of all 61 Ideas in the real database", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const brandId = createBrand(db, { slug: BRAND, name: "Mundotip", timezone: "UTC", mediaRoot: "data/brands/mundotip" });
+      const formatId = createFormat(db, { brandId, slug: SQL_FORMAT, name: "Unhypped News", voice: "plain", cadence: "weekly" });
+      const runId = createRunRow(db, { brandId, formatId, runKey: SQL_RUN, cadence: "weekly", startedAt: NOW }, () => NOW);
+
+      // Seed a Brand-new pre-migration-5 style Idea row: created BEFORE legacy_ref existed, exactly the
+      // shape of every one of the real, committed data/organicgrowth.db's 61 imported Ideas.
+      const preMigrationIdeaId = createIdeaRow(
+        db,
+        {
+          runId,
+          brandId,
+          formatId,
+          title: "A headline",
+          brief: "Whatever the original import carried.",
+          hookType: UNCLASSIFIED_HOOK_TYPE,
+          theme: UNCLASSIFIED_THEME,
+          // Deliberately no legacyRef.
+        },
+        () => NOW,
+      );
+
+      await withSqlFixture(async (ledgerPath, queuePath) => {
+        const r = await enqueueOnAccept("idea-accepted", BRAND, [RECIPE], { ledgerPath, queuePath, db, now: () => NOW });
+
+        assert.ok(r.sql, "the SQL sync ran");
+        assert.equal(r.sql!.ideaId, preMigrationIdeaId, "the pre-migration-5 row is REUSED, not duplicated");
+        assert.equal(r.sql!.ideaCreated, false);
+        assert.equal(listIdeasForRun(db, runId).length, 1, "still exactly ONE Idea row for this one real Idea");
+        assert.equal(getIdea(db, preMigrationIdeaId)!.legacyRef, "idea-accepted", "the row is now reconciled");
+      });
     });
   });
 });
