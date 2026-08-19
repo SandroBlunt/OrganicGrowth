@@ -1,0 +1,67 @@
+{
+  "slides": [
+    {
+      "slide_index": 0,
+      "role": "hook",
+      "card_style": "full_width",
+      "stat_callout": "Slide 1 of 7",
+      "companies": [],
+      "text": "Cursor built its own GitHub, and the price of that convenience is where your code lives",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" (the stopping headline). Angle: The tension is about who owns the address your work lives at. For a decade the split was settled: you pick your editor, your code lives on GitHub, and the two are separate decisions. Cursor just collapsed them. Origin is Cursor's own code hosting, announced on Cursor's own changelog, and TechCrunch's headline says Cursor is \"capitalizing on GitHub frustration\". The contrast to ride: the AI editor people already keep open all day is now offering to keep the code too, and that is convenient right up until you want to leave.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 1,
+      "role": "then",
+      "card_style": "floating_toast",
+      "stat_callout": "Slide 2 of 7",
+      "companies": [],
+      "text": "What used to be true: Cursor announced it on its own changelog under \"Origin code hosting\" (cursor.com/changelog/origin-code-hosting). A fir",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" (what used to be true). Angle: The tension is about who owns the address your work lives at. For a decade the split was settled: you pick your editor, your code lives on GitHub, and the two are separate decisions. Cursor just collapsed them. Origin is Cursor's own code hosting, announced on Cursor's own changelog, and TechCrunch's headline says Cursor is \"capitalizing on GitHub frustration\". The contrast to ride: the AI editor people already keep open all day is now offering to keep the code too, and that is convenient right up until you want to leave.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 2,
+      "role": "shift",
+      "card_style": "top_card",
+      "stat_callout": "Slide 3 of 7",
+      "companies": [],
+      "text": "What changed: TechCrunch names the motive in its own headline: Cursor \"capitalizes on GitHub frustration, launches rival hosting platform\" (",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" (what changed). Angle: The tension is about who owns the address your work lives at. For a decade the split was settled: you pick your editor, your code lives on GitHub, and the two are separate decisions. Cursor just collapsed them. Origin is Cursor's own code hosting, announced on Cursor's own changelog, and TechCrunch's headline says Cursor is \"capitalizing on GitHub frustration\". The contrast to ride: the AI editor people already keep open all day is now offering to keep the code too, and that is convenient right up until you want to leave.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 3,
+      "role": "proof",
+      "card_style": "full_width",
+      "stat_callout": "Slide 4 of 7",
+      "companies": [],
+      "text": "A grounded example: Plain English for a beginner: code hosting is the shared folder a software team keeps its work in, plus the full history",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" (a grounded example). Angle: The tension is about who owns the address your work lives at. For a decade the split was settled: you pick your editor, your code lives on GitHub, and the two are separate decisions. Cursor just collapsed them. Origin is Cursor's own code hosting, announced on Cursor's own changelog, and TechCrunch's headline says Cursor is \"capitalizing on GitHub frustration\". The contrast to ride: the AI editor people already keep open all day is now offering to keep the code too, and that is convenient right up until you want to leave.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 4,
+      "role": "different",
+      "card_style": "floating_toast",
+      "stat_callout": "Slide 5 of 7",
+      "companies": [],
+      "text": "Why this time is different: Both developer daily digests on the Format's source list carried it: AINews by smol.ai (issue 26-08-17) and TLDR",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" (why this time is different). Angle: The tension is about who owns the address your work lives at. For a decade the split was settled: you pick your editor, your code lives on GitHub, and the two are separate decisions. Cursor just collapsed them. Origin is Cursor's own code hosting, announced on Cursor's own changelog, and TechCrunch's headline says Cursor is \"capitalizing on GitHub frustration\". The contrast to ride: the AI editor people already keep open all day is now offering to keep the code too, and that is convenient right up until you want to leave.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 5,
+      "role": "next",
+      "card_style": "top_card",
+      "stat_callout": "Slide 6 of 7",
+      "companies": [],
+      "text": "What happens next: The builder read: your editor and your repository have always been two separate, reversible choices. If one company sells",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" (what happens next). Angle: The tension is about who owns the address your work lives at. For a decade the split was settled: you pick your editor, your code lives on GitHub, and the two are separate decisions. Cursor just collapsed them. Origin is Cursor's own code hosting, announced on Cursor's own changelog, and TechCrunch's headline says Cursor is \"capitalizing on GitHub frustration\". The contrast to ride: the AI editor people already keep open all day is now offering to keep the code too, and that is convenient right up until you want to leave.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 6,
+      "role": "cta",
+      "card_style": "full_width",
+      "stat_callout": "Slide 7 of 7",
+      "companies": [],
+      "text": "The close: Straw Motion angle: this is the same consolidation pattern the Brand has covered before, where the tool that saves you an hour a ",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" (the close). Angle: The tension is about who owns the address your work lives at. For a decade the split was settled: you pick your editor, your code lives on GitHub, and the two are separate decisions. Cursor just collapsed them. Origin is Cursor's own code hosting, announced on Cursor's own changelog, and TechCrunch's headline says Cursor is \"capitalizing on GitHub frustration\". The contrast to ride: the AI editor people already keep open all day is now offering to keep the code too, and that is convenient right up until you want to leave.. Full-bleed 4:5 card, real subject, no invented UI."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT today this story keeps moving fast and the.",
+      "source_url": "https://example.com/source/openai-built-a-chatgpt-for-teenagers-yea-0",
+      "show_cue": "Show the \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" story on screen (hook).",
+      "curiosity_queries": [
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT latest update",
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT explained",
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT background"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT today this story keeps moving fast and the facts keep shifting as more details come in across the board right now today this story keeps moving fast and the facts keep shifting as more details come in across the board right now today this story keeps moving fast and the facts keep shifting as more details come in across the board right now today this story keeps moving fast and the facts keep shifting as more details come.",
+      "source_url": "https://example.com/source/openai-built-a-chatgpt-for-teenagers-yea-1",
+      "show_cue": "Show the \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" story on screen (story).",
+      "curiosity_queries": [
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT latest update",
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT explained",
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT background"
+      ]
+    },
+    {
+      "role": "cta",
+      "text": "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT today this story keeps moving fast and the.",
+      "source_url": "https://example.com/source/openai-built-a-chatgpt-for-teenagers-yea-2",
+      "show_cue": "Show the \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" story on screen (cta).",
+      "curiosity_queries": [
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT latest update",
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT explained",
+        "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT background"
+      ]
+    }
+  ]
+}

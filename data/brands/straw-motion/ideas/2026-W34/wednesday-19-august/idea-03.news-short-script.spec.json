@@ -1,0 +1,37 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "Cursor built its own GitHub, and the price of that convenience is where your code lives today this story keeps.",
+      "source_url": "https://example.com/source/cursor-built-its-own-github-and-the-pric-0",
+      "show_cue": "Show the \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" story on screen (hook).",
+      "curiosity_queries": [
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives latest update",
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives explained",
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives background"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Cursor built its own GitHub, and the price of that convenience is where your code lives today this story keeps moving fast and the facts keep shifting as more details come in across the board right now today this story keeps moving fast and the facts keep shifting as more details come in across the board right now today this story keeps moving fast and the facts keep shifting as more details come in across the board right now today this story keeps moving fast and the facts keep shifting.",
+      "source_url": "https://example.com/source/cursor-built-its-own-github-and-the-pric-1",
+      "show_cue": "Show the \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" story on screen (story).",
+      "curiosity_queries": [
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives latest update",
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives explained",
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives background"
+      ]
+    },
+    {
+      "role": "cta",
+      "text": "Cursor built its own GitHub, and the price of that convenience is where your code lives today this story keeps.",
+      "source_url": "https://example.com/source/cursor-built-its-own-github-and-the-pric-2",
+      "show_cue": "Show the \"Cursor built its own GitHub, and the price of that convenience is where your code lives\" story on screen (cta).",
+      "curiosity_queries": [
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives latest update",
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives explained",
+        "Cursor built its own GitHub, and the price of that convenience is where your code lives background"
+      ]
+    }
+  ]
+}

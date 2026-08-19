@@ -1,0 +1,37 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility today this.",
+      "source_url": "https://www.404media.co/we-tracked-a-shipment-of-rare-books-it-ended-at-an-amazon-ai-training-facility/",
+      "show_cue": "Show the \"Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility\" story on screen (hook).",
+      "curiosity_queries": [
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility latest update",
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility explained",
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility background"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "404 Media ran the investigation itself, and its headline is the finding: \"We tracked a shipment of rare books. It ended at an Amazon AI training facility.\" That is original reporting, not a rewrite of a press release. The method is the story: a hidden AirTag, Apple's own consumer tracker, used as a piece of journalism. Anyone watching this owns or can buy the same tool, which is what makes the result feel checkable rather than theoretical. Ars Technica's follow-up headline goes further, saying the AirTag \"reveals Amazon is trashing.",
+      "source_url": "https://arstechnica.com/tech-policy/2026/08/hidden-airtag-reveals-amazon-is-trashing-rare-books-to-train-ai/",
+      "show_cue": "Show the \"Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility\" story on screen (story).",
+      "curiosity_queries": [
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility latest update",
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility explained",
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility background"
+      ]
+    },
+    {
+      "role": "cta",
+      "text": "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility today this.",
+      "source_url": "https://example.com/source/someone-hid-an-airtag-in-donated-rare-bo-0",
+      "show_cue": "Show the \"Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility\" story on screen (cta).",
+      "curiosity_queries": [
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility latest update",
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility explained",
+        "Someone hid an AirTag in donated rare books, and 404 Media followed it to an Amazon AI facility background"
+      ]
+    }
+  ]
+}

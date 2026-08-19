@@ -1,0 +1,67 @@
+{
+  "slides": [
+    {
+      "slide_index": 0,
+      "role": "hook",
+      "card_style": "full_width",
+      "stat_callout": "Slide 1 of 7",
+      "companies": [],
+      "text": "OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" (the stopping headline). Angle: The tension is sitting inside TechCrunch's own headline. OpenAI's post is titled \"Introducing ChatGPT for Teens\", which is launch language. TechCrunch's headline for the same product is \"OpenAI launches a safer ChatGPT for teens, years after teens started using it\". Same event, two completely different stories: a company introducing something new, and a company catching up to a cohort that already grew up on the unprotected version. Ride that gap, not the feature list.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 1,
+      "role": "then",
+      "card_style": "floating_toast",
+      "stat_callout": "Slide 2 of 7",
+      "companies": [],
+      "text": "What used to be true: OpenAI's own post is titled \"Introducing ChatGPT for Teens\" (openai.com, Aug 18), and the trend records it as carrying",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" (what used to be true). Angle: The tension is sitting inside TechCrunch's own headline. OpenAI's post is titled \"Introducing ChatGPT for Teens\", which is launch language. TechCrunch's headline for the same product is \"OpenAI launches a safer ChatGPT for teens, years after teens started using it\". Same event, two completely different stories: a company introducing something new, and a company catching up to a cohort that already grew up on the unprotected version. Ride that gap, not the feature list.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 2,
+      "role": "shift",
+      "card_style": "top_card",
+      "stat_callout": "Slide 3 of 7",
+      "companies": [],
+      "text": "What changed: TechCrunch says the quiet part in its headline: OpenAI \"launches a safer ChatGPT for teens, years after teens started using it",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" (what changed). Angle: The tension is sitting inside TechCrunch's own headline. OpenAI's post is titled \"Introducing ChatGPT for Teens\", which is launch language. TechCrunch's headline for the same product is \"OpenAI launches a safer ChatGPT for teens, years after teens started using it\". Same event, two completely different stories: a company introducing something new, and a company catching up to a cohort that already grew up on the unprotected version. Ride that gap, not the feature list.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 3,
+      "role": "proof",
+      "card_style": "full_width",
+      "stat_callout": "Slide 4 of 7",
+      "companies": [],
+      "text": "A grounded example: The Verge's framing is \"teen mode\" (Aug 18). Whether it is a separate account type or a mode on an existing account deci",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" (a grounded example). Angle: The tension is sitting inside TechCrunch's own headline. OpenAI's post is titled \"Introducing ChatGPT for Teens\", which is launch language. TechCrunch's headline for the same product is \"OpenAI launches a safer ChatGPT for teens, years after teens started using it\". Same event, two completely different stories: a company introducing something new, and a company catching up to a cohort that already grew up on the unprotected version. Ride that gap, not the feature list.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 4,
+      "role": "different",
+      "card_style": "floating_toast",
+      "stat_callout": "Slide 5 of 7",
+      "companies": [],
+      "text": "Why this time is different: Five independent outlets carried it inside one day: OpenAI, The Verge, The Guardian, TechCrunch and Fast Company",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" (why this time is different). Angle: The tension is sitting inside TechCrunch's own headline. OpenAI's post is titled \"Introducing ChatGPT for Teens\", which is launch language. TechCrunch's headline for the same product is \"OpenAI launches a safer ChatGPT for teens, years after teens started using it\". Same event, two completely different stories: a company introducing something new, and a company catching up to a cohort that already grew up on the unprotected version. Ride that gap, not the feature list.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 5,
+      "role": "next",
+      "card_style": "top_card",
+      "stat_callout": "Slide 6 of 7",
+      "companies": [],
+      "text": "What happens next: You first: if there is a teenager in your house using ChatGPT right now, the only question that matters is whether their ",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" (what happens next). Angle: The tension is sitting inside TechCrunch's own headline. OpenAI's post is titled \"Introducing ChatGPT for Teens\", which is launch language. TechCrunch's headline for the same product is \"OpenAI launches a safer ChatGPT for teens, years after teens started using it\". Same event, two completely different stories: a company introducing something new, and a company catching up to a cohort that already grew up on the unprotected version. Ride that gap, not the feature list.. Full-bleed 4:5 card, real subject, no invented UI."
+    },
+    {
+      "slide_index": 6,
+      "role": "cta",
+      "card_style": "full_width",
+      "stat_callout": "Slide 7 of 7",
+      "companies": [],
+      "text": "The close: Fast Company covered it in its AI section the same day, which puts this in front of a business audience as well as a parenting on",
+      "image_prompt": "A grounded, editorial news-carousel card illustrating \"OpenAI built a ChatGPT for teenagers, years after teenagers started using ChatGPT\" (the close). Angle: The tension is sitting inside TechCrunch's own headline. OpenAI's post is titled \"Introducing ChatGPT for Teens\", which is launch language. TechCrunch's headline for the same product is \"OpenAI launches a safer ChatGPT for teens, years after teens started using it\". Same event, two completely different stories: a company introducing something new, and a company catching up to a cohort that already grew up on the unprotected version. Ride that gap, not the feature list.. Full-bleed 4:5 card, real subject, no invented UI."
+    }
+  ]
+}

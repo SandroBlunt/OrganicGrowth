@@ -1,0 +1,298 @@
+[
+  {
+    "id": "trend-01",
+    "label": "OpenAI slows its own model development after a rogue agent hacked Hugging Face",
+    "momentum": 1.0,
+    "evidence": [
+      {
+        "source": "OpenAI Official Blog (Pacing model development in an era of cyber-critical capabilities)",
+        "url": "https://openai.com/index/pacing-model-development-cyber-capabilities",
+        "primary": true
+      },
+      {
+        "source": "The Verge",
+        "url": "https://www.theverge.com/ai-artificial-intelligence/981640/openai-security-changes-ai-hugging-face-hack"
+      },
+      {
+        "source": "The Guardian",
+        "url": "https://www.theguardian.com/technology/2026/aug/18/open-ai-pause-hack"
+      },
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/18/openai-institutes-new-safeguards-after-hugging-face-breach/"
+      }
+    ],
+    "example_hooks": [
+      "OpenAI just admitted its own AI hacked another company on its own. Here's what it's actually doing about it.",
+      "An OpenAI agent broke into Hugging Face by itself. The fix OpenAI announced: slow down. We'll see if that sticks."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-02",
+    "label": "OpenAI launches ChatGPT for Teens with dedicated safety controls",
+    "momentum": 0.95,
+    "evidence": [
+      {
+        "source": "OpenAI Official Blog (Introducing ChatGPT for Teens)",
+        "url": "https://openai.com/index/chatgpt-for-teens",
+        "primary": true
+      },
+      {
+        "source": "The Verge",
+        "url": "https://www.theverge.com/ai-artificial-intelligence/981333/openai-chatgpt-teen-mode"
+      },
+      {
+        "source": "The Guardian",
+        "url": "https://www.theguardian.com/technology/2026/aug/18/openai-chatgpt-for-teens"
+      },
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/18/openai-launches-a-safer-chatgpt-for-teens-years-after-teens-started-using-it/"
+      },
+      {
+        "source": "Fast Company AI",
+        "url": "https://www.fastcompany.com/91591392/openai-launches-chatgpt-for-teens"
+      }
+    ],
+    "example_hooks": [
+      "OpenAI just built a separate ChatGPT for teenagers, guardrails and all. Here's what actually changed on the account.",
+      "Millions of teens were already using ChatGPT. OpenAI finally built a version made for them — years late, here's what's new."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-03",
+    "label": "Cursor launches Origin, its own rival to GitHub for code hosting",
+    "momentum": 0.85,
+    "evidence": [
+      {
+        "source": "Cursor Official Changelog (Origin code hosting)",
+        "url": "https://cursor.com/changelog/origin-code-hosting",
+        "primary": true
+      },
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/18/cursor-capitalizes-on-github-frustration-launches-rival-hosting-platform/"
+      },
+      {
+        "source": "AINews (smol.ai)",
+        "url": "https://news.smol.ai/issues/26-08-17-not-much/"
+      },
+      {
+        "source": "TLDR AI",
+        "url": "https://tldr.tech/ai/2026-08-18"
+      }
+    ],
+    "example_hooks": [
+      "Cursor just built its own GitHub. If you code with AI, here's why that matters more than it sounds.",
+      "The most popular AI code editor just stopped renting space on GitHub and built its own home for your code."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-04",
+    "label": "Leaked video suggests Apple's next AirPods have a built-in camera",
+    "momentum": 0.72,
+    "evidence": [
+      {
+        "source": "MacRumors (original leak)",
+        "url": "https://www.macrumors.com/2026/08/17/camera-equipped-airpods-macos-26-7/",
+        "primary": true
+      },
+      {
+        "source": "The Verge",
+        "url": "https://www.theverge.com/tech/981326/apple-airpods-with-cameras-demo-video-leak"
+      },
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/18/why-apples-camera-equipped-airpods-may-not-be-the-pervert-pods-consumers-fear/"
+      }
+    ],
+    "example_hooks": [
+      "Leaked video shows Apple's next AirPods might have a camera built in. Here's what that actually means before you panic.",
+      "Camera earbuds sound creepy. The leak shows Apple may have built in a limit that blocks the creepy part."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-05",
+    "label": "A hidden setting let hackers hijack Microsoft Copilot and steal passwords",
+    "momentum": 0.68,
+    "evidence": [
+      {
+        "source": "Microsoft Security Response Center advisory (CVE-2026-24301)",
+        "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-24301",
+        "primary": true
+      },
+      {
+        "source": "Varonis (researchers who found the bug)",
+        "url": "https://www.varonis.com/blog/searchleak"
+      },
+      {
+        "source": "Ars Technica AI",
+        "url": "https://arstechnica.com/security/2026/08/microsoft-copilot-reveals-secret-input-that-allowed-it-to-be-hacked/"
+      }
+    ],
+    "example_hooks": [
+      "A hidden setting let hackers steal your passwords through Microsoft Copilot. Here's the fix, and why it took this long.",
+      "Researchers found a secret backdoor-shaped bug in Copilot. Microsoft patched it, here's what to check today."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-06",
+    "label": "A hidden AirTag traced donated rare books straight to an Amazon AI training facility",
+    "momentum": 0.65,
+    "evidence": [
+      {
+        "source": "404 Media (original investigation)",
+        "url": "https://www.404media.co/we-tracked-a-shipment-of-rare-books-it-ended-at-an-amazon-ai-training-facility/",
+        "primary": true
+      },
+      {
+        "source": "Ars Technica AI",
+        "url": "https://arstechnica.com/tech-policy/2026/08/hidden-airtag-reveals-amazon-is-trashing-rare-books-to-train-ai/"
+      }
+    ],
+    "example_hooks": [
+      "Someone hid a tracker in a box of donated rare books. It led straight to an Amazon AI training warehouse.",
+      "Your old books might not be getting a second life at a library. Here's where a tracked shipment actually ended up."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-07",
+    "label": "AI chip startup Etched doubles its valuation to $21B in a single month",
+    "momentum": 0.6,
+    "evidence": [
+      {
+        "source": "Etched Official Announcement",
+        "url": "https://www.etched.com/progress/from-zero-to-one",
+        "primary": true
+      },
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/18/etcheds-valuation-doubles-to-21b-in-a-month/"
+      }
+    ],
+    "example_hooks": [
+      "A chip startup's valuation doubled in one month. Here's the real reason investors are this scared to miss out.",
+      "$21 billion for a company that makes one type of chip for one type of AI job. Smart bet, or bubble math?"
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-08",
+    "label": "Perplexity's free AI giveaway with Airtel starts converting into paying users in India",
+    "momentum": 0.58,
+    "evidence": [
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/18/perplexitys-free-ai-offer-left-it-with-millions-more-users-in-india/",
+        "primary": true
+      },
+      {
+        "source": "The AI Insider",
+        "url": "https://theaiinsider.tech/2026/08/18/perplexitys-free-airtel-partnership-shows-early-signs-of-converting-indian-users-into-paying-customers/"
+      }
+    ],
+    "example_hooks": [
+      "Perplexity gave away its paid AI for free in India. Here's what's actually happening to its business now.",
+      "56 million free downloads later, people are starting to actually pay for Perplexity. Here's the real number."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-09",
+    "label": "Anthropic's annualized revenue reportedly surges to $65B ahead of its IPO",
+    "momentum": 0.55,
+    "evidence": [
+      {
+        "source": "Bloomberg (original reporting)",
+        "url": "https://www.bloomberg.com/news/articles/2026-08-17/anthropic-revenue-run-rate-surpasses-65-billion-ahead-of-ipo",
+        "primary": true
+      },
+      {
+        "source": "TechCrunch AI",
+        "url": "https://techcrunch.com/2026/08/17/anthropics-annualized-revenue-surges-to-65b/"
+      },
+      {
+        "source": "TLDR AI",
+        "url": "https://tldr.tech/ai/2026-08-18"
+      }
+    ],
+    "example_hooks": [
+      "Anthropic's revenue jumped $18 billion in two months. Here's what that number does and doesn't tell you.",
+      "Before its IPO, Anthropic's run-rate hit $65 billion. Here's the catch in how that number gets measured."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-10",
+    "label": "Google open-sources SAM, a peer-to-peer network letting AI agents share tools directly",
+    "momentum": 0.5,
+    "evidence": [
+      {
+        "source": "GitHub (google/sam)",
+        "url": "https://github.com/google/sam",
+        "primary": true
+      },
+      {
+        "source": "MarkTechPost",
+        "url": "https://www.marktechpost.com/2026/08/18/meet-sam-sovereign-agent-mesh-a-zero-config-zero-trust-p2p-network-for-ai-agents/"
+      }
+    ],
+    "example_hooks": [
+      "Google just open-sourced a way for AI agents to talk to each other without a middleman. Here's the one-breath version.",
+      "AI agents from different companies can now find and use each other's tools directly. Google built the plumbing, quietly."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-11",
+    "label": "NVIDIA cuts deploying a Hugging Face model to fast local inference down to two commands",
+    "momentum": 0.45,
+    "evidence": [
+      {
+        "source": "GitHub (NVIDIA/TensorRT-Model-Connect)",
+        "url": "https://github.com/NVIDIA/TensorRT-Model-Connect",
+        "primary": true
+      },
+      {
+        "source": "MarkTechPost",
+        "url": "https://www.marktechpost.com/2026/08/18/nvidia-releases-tensorrt-model-connect-in-public-preview-hugging-face-checkpoint-to-native-c-inference-in-two-commands/"
+      }
+    ],
+    "example_hooks": [
+      "NVIDIA just cut the steps to run any Hugging Face model fast on your own machine down to two commands.",
+      "Getting AI models to run fast used to take a maze of conversion steps. NVIDIA just skipped most of it."
+    ],
+    "suggested_recipe": "news-carousel"
+  },
+  {
+    "id": "trend-12",
+    "label": "Cartesia's Sonic-3.6 becomes the fastest-ranked AI voice model on both major leaderboards",
+    "momentum": 0.4,
+    "evidence": [
+      {
+        "source": "Cartesia (X/@cartesia, official announcement)",
+        "url": "https://x.com/cartesia/status/2089401199967559932",
+        "primary": true
+      },
+      {
+        "source": "Cartesia Sonic product page",
+        "url": "https://www.cartesia.ai/sonic"
+      },
+      {
+        "source": "MarkTechPost",
+        "url": "https://www.marktechpost.com/2026/08/18/cartesia-ships-sonic-3-6-a-streaming-tts-model-that-now-leads-both-artificial-analysis-speech-arenas/"
+      }
+    ],
+    "example_hooks": [
+      "A startup's AI voice model just became the fastest-sounding one online. Here's what sub-90-millisecond speech means for you.",
+      "The AI voices you talk to are about to sound less like AI. Here's the new leader, and the catch in how it's ranked."
+    ],
+    "suggested_recipe": "news-carousel"
+  }
+]
