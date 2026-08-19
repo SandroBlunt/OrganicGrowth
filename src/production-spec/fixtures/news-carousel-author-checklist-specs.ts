@@ -52,6 +52,23 @@ export const TEST_BASELINE: NewsCarouselBaselineParams = {
 /** A stand-in set of companies for the slides that name real ones (the rest name none). */
 const TEST_COMPANIES: readonly string[] = ["Acme", "Globex"];
 
+/**
+ * 7 genuinely DISTINCT on-card lines — one per role — sharing no more than a couple of incidental words
+ * (issue #273 round 2: `slide-text-variety` rejects a Spec whose slides all repeat the same headline;
+ * the old `Slide ${i + 1} (${role}): a short on-card supporting line.` boilerplate this replaced shared
+ * "slide"/"short"/"card"/"supporting"/"line" across literally all 7, which is exactly that anti-pattern —
+ * a "baseline-adherent" fixture must not itself be the thing the new item exists to catch).
+ */
+const SLIDE_TEXTS: readonly string[] = [
+  "A pricing move nobody expected just landed.",
+  "Here is what used to be true before this.",
+  "Overnight, the terms flipped completely.",
+  "One customer already felt the difference firsthand.",
+  "Earlier launches never moved this fast.",
+  "Rivals now have a decision to make.",
+  "Watch what happens to the market next.",
+];
+
 /** Assembles ONE slide's image_prompt carrying EVERY clause `TEST_BASELINE` declares, verbatim, plus a
  *  logo row citing `companies` (omitted entirely when `companies` is empty — issue #102 finding #1).
  *  The logo reference (via `logoReferencePhrase` + the raw name — issue #110) and its negative
@@ -97,7 +114,7 @@ export function baselineAdherentCarouselSpec(): Record<string, unknown> {
       role,
       card_style: TEST_BASELINE.confirmedCardStyles[i % TEST_BASELINE.confirmedCardStyles.length]!,
       stat_callout: `Stat ${i + 1}.`,
-      text: `Slide ${i + 1} (${role}): a short on-card supporting line.`,
+      text: SLIDE_TEXTS[i]!,
       companies,
       image_prompt: baselineAdherentImagePrompt(role, companies),
     };
@@ -277,6 +294,36 @@ export function tooFewDistinctPlacements(): Record<string, unknown> {
     ...slide,
     card_style: twoStyles[i % twoStyles.length]!,
   }));
+  return s;
+}
+
+/**
+ * ALL 7 slides use the exact SAME `card_style` — the live-reproduced filler pattern issue #273 found
+ * in `production-spec/news-carousel-generate.ts`'s (then-hardcoded) stand-in. Fails
+ * `auditNewsCarouselStandaloneAuthorPhase`'s `card-style-distinctness` item, the Baseline-Prompt-
+ * INDEPENDENT floor beneath `tooFewDistinctPlacements`'s own Format-tuned `placement-variety` case
+ * above.
+ */
+export function allSlidesSameCardStyle(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  s.slides = slides.map((slide) => ({ ...slide, card_style: TEST_BASELINE.confirmedCardStyles[0]! }));
+  return s;
+}
+
+/**
+ * Every slide's `text` repeats the SAME headline sentence, differing only by a short role-label suffix —
+ * the live-reproduced filler pattern issue #273 round 2 found: round 1's own fix (period-joined instead
+ * of dash-joined) still left every one of the 7 slides carrying the Brief's bare headline verbatim.
+ * `card_style` stays genuinely varied (cycling through `TEST_BASELINE.confirmedCardStyles`, mirroring
+ * `baselineAdherentCarouselSpec`'s own pattern), isolating `slide-text-variety`'s own failure from
+ * `card-style-distinctness`'s.
+ */
+export function allSlidesRepeatHeadline(): Record<string, unknown> {
+  const s = clone(baselineAdherentCarouselSpec());
+  const slides = s.slides as CarouselSlide[];
+  const headline = "OpenAI built a ChatGPT for teenagers, say people familiar with the plans";
+  s.slides = slides.map((slide) => ({ ...slide, text: `${headline}. This slide covers ${slide.role}.` }));
   return s;
 }
 

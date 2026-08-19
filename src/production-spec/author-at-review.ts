@@ -19,13 +19,28 @@
  * function `command-surface/worker.ts`'s `runOneJob` already calls for its own (now defense-in-depth)
  * author-phase check. There is no second, parallel validation path: authoring at Review and authoring
  * inside an (imagined) attended session are held to literally the same bar.
+ *
+ * **Widened per-Recipe self-check (issue #273).** `auditAuthorPhase` alone only runs GENERIC checks
+ * (shape + banned words) — a Spec can be shape-valid, banned-word-clean, and still be obvious filler
+ * (e.g. every slide sharing one `card_style`, every Shot List beat citing the same source host), which
+ * is exactly what silently reached production before this ticket. `auditAuthoredSpec` below runs each
+ * wired Recipe's OWN, richer author-phase checklist wherever it can run WITHOUT an input that is not yet
+ * available at this point (a Format's Baseline Prompt document, needed by the News Carousel Recipe's
+ * FULL checklist — `news-carousel-author-checklist.ts`'s own doc comment; that fuller check is the
+ * interactive `produce-news-carousel` Skill's own job, later, once that document is read). Where a
+ * Recipe has no such registered refinement (`character-explainer-with-cast` today), the generic
+ * `auditAuthorPhase` still applies, unchanged. `command-surface/worker.ts`'s `runOneJob` also calls
+ * `auditAuthoredSpec` (not `auditAuthorPhase` directly) for its own defense-in-depth check, so the two
+ * remain the SAME bar, never two independently-drifting ones.
  */
 
 import type { Recipe } from "../recipe/registry.ts";
 import { auditAuthorPhase, type PhaseAuditResult } from "../recipe/phase-contract.ts";
 import { generate as generateCharacterExplainerSpec, type Brief } from "./generate.ts";
 import { generateNewsCarouselSpec } from "./news-carousel-generate.ts";
+import { auditNewsCarouselStandaloneAuthorPhase } from "./news-carousel-author-checklist.ts";
 import { generateNewsShortScriptSpec } from "./news-short-script-generate.ts";
+import { auditNewsShortScriptAuthorPhase } from "./news-short-script-author-checklist.ts";
 
 export type { Brief };
 
@@ -58,6 +73,50 @@ export type AuthorSpecOutcome =
   | { readonly ok: true; readonly spec: Record<string, unknown>; readonly audit: PhaseAuditResult }
   | { readonly ok: false; readonly audit: PhaseAuditResult };
 
+/** A Recipe's OWN, richer author-phase auditor, usable standalone — i.e. it needs no input that isn't
+ *  already available at self-check time (a candidate Spec + the Brand's banned words). Registered per
+ *  Recipe slug in `AUTHOR_PHASE_REFINERS` below (issue #273). */
+type AuthorPhaseRefiner = (candidateSpec: unknown, bannedWords: readonly string[]) => PhaseAuditResult;
+
+/**
+ * Per-Recipe REFINEMENTS of the generic `auditAuthorPhase` (issue #273) — one entry per wired Recipe
+ * whose OWN author-phase checklist can run right now, without a not-yet-available input:
+ *
+ *   - `news-carousel`: `auditNewsCarouselStandaloneAuthorPhase`, the Baseline-Prompt-INDEPENDENT subset
+ *     of `news-carousel-author-checklist.ts`'s full checklist (its FULL checklist needs
+ *     `NewsCarouselBaselineParams`, read from a Format's Baseline Prompt document — not yet resolved at
+ *     this point; running the fuller check remains the interactive `produce-news-carousel` Skill's own
+ *     later job).
+ *   - `news-short-script`: `auditNewsShortScriptAuthorPhase`, its FULL checklist — it needs no Format-
+ *     specific document at all, so nothing is held back here.
+ *
+ * `character-explainer-with-cast` has no entry — it keeps the plain generic `auditAuthorPhase` check,
+ * unchanged; this ticket reported no filler defect for it.
+ */
+const AUTHOR_PHASE_REFINERS: Readonly<Record<string, AuthorPhaseRefiner>> = {
+  "news-carousel": auditNewsCarouselStandaloneAuthorPhase,
+  "news-short-script": auditNewsShortScriptAuthorPhase,
+};
+
+/**
+ * Self-check `candidateSpec` against the FULLEST author-phase checklist mechanically available for
+ * `recipe` right now (issue #273): that Recipe's own registered refinement
+ * (`AUTHOR_PHASE_REFINERS`) when one exists, else the generic, cross-Recipe `auditAuthorPhase`
+ * (`src/recipe/phase-contract.ts`). Exported so `command-surface/worker.ts`'s `runOneJob` runs the
+ * IDENTICAL bar for its own defense-in-depth author-phase check — never a second, independently-drifting
+ * notion of "does this Spec pass."
+ */
+export function auditAuthoredSpec(
+  recipe: Recipe,
+  candidateSpec: unknown,
+  bannedWords: readonly string[],
+): PhaseAuditResult {
+  const refiner = AUTHOR_PHASE_REFINERS[recipe.slug];
+  return refiner !== undefined
+    ? refiner(candidateSpec, bannedWords)
+    : auditAuthorPhase(recipe, { candidateSpec, bannedWords });
+}
+
 /** A synthetic failing audit for a Recipe slug with no registered author — never thrown, so a caller
  *  authoring several Recipes in a loop can report every failure rather than crashing on the first gap. */
 function noAuthorAudit(recipe: Recipe): PhaseAuditResult {
@@ -78,11 +137,12 @@ function noAuthorAudit(recipe: Recipe): PhaseAuditResult {
 }
 
 /**
- * Author a candidate Production Spec for `recipe` from `brief`, then self-check it via the EXISTING
- * `auditAuthorPhase` against `bannedWords`. Returns `{ ok: true, spec, audit }` when the audit passes
- * (`spec` is the SAME candidate the audit checked, never a second, re-derived copy), or `{ ok: false,
- * audit }` naming every failing checklist item otherwise. Never throws — an unregistered Recipe slug
- * (in `authors`) degrades to a named `{ ok: false }` result.
+ * Author a candidate Production Spec for `recipe` from `brief`, then self-check it via `auditAuthoredSpec`
+ * (that Recipe's OWN richer checklist where one is registered, else the generic `auditAuthorPhase`)
+ * against `bannedWords`. Returns `{ ok: true, spec, audit }` when the audit passes (`spec` is the SAME
+ * candidate the audit checked, never a second, re-derived copy), or `{ ok: false, audit }` naming every
+ * failing checklist item otherwise. Never throws — an unregistered Recipe slug (in `authors`) degrades to
+ * a named `{ ok: false }` result.
  *
  * @param recipe      the Recipe to author for (its OWN `specShape.validate`/`scanBannedWords` govern)
  * @param brief       a minimal Brief (`id`, `run`, `title`, optionally `angle`/`companies`)
@@ -102,7 +162,7 @@ export function authorSpecForRecipe(
   }
 
   const candidate = author(brief);
-  const audit = auditAuthorPhase(recipe, { candidateSpec: candidate, bannedWords });
+  const audit = auditAuthoredSpec(recipe, candidate, bannedWords);
 
   return audit.ok ? { ok: true, spec: candidate, audit } : { ok: false, audit };
 }

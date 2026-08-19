@@ -38,3 +38,20 @@ export function exactDuplicateSourcePage(): Record<string, unknown> {
   beats[3] = { ...beats[3]!, source_url: beats[0]!.source_url };
   return s;
 }
+
+/**
+ * The "story" beat's spoken text is a single ~20-word filler phrase concatenated ~4 times to hit a word
+ * target — the exact live padding pattern issue #273 round 2 reproduced in
+ * `news-short-script-generate.ts`'s stand-in BEFORE that round's fix (a real title's few words, padded
+ * out to 90 with the SAME fixed filler cycle repeating).
+ */
+export function repeatedPhraseInStoryBeat(): Record<string, unknown> {
+  const s = clone(validNewsShortScriptSpec());
+  const beats = s.beats as NewsShortScriptBeat[];
+  // 11 words x 3 = 33 words — deliberately close to the original beat's own 33-word length, so the
+  // WHOLE Spec's total word count stays inside [120, 150] and this mutation isolates ONLY
+  // no-repeated-phrases, never also tripping the structural word-count check.
+  const filler = "today this story keeps moving fast and the facts keep shifting";
+  beats[1] = { ...beats[1]!, text: `${filler} ${filler} ${filler}.` };
+  return s;
+}

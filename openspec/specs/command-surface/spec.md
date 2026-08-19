@@ -216,12 +216,15 @@ flagged the alternative). `src/command-surface/copy.ts` SHALL expose `saveCopyVa
 `runOneJob(db, port, jobId, options)` — the worker's own per-job orchestration, composing
 `job-store.ts`'s `claimJob`/`releaseJob`/`requeueJob`, `gates.ts`'s `raiseGateRequest`, `assets.ts`'s
 `saveAsset`/`attachAssetMedia`, and `copy.ts`'s `saveCopyVariant`, alongside the UNCHANGED deep modules
-(`driveToNextGate`, `bindMediaSlots`, `auditAuthorPhase`/`auditBindMediaPhase`/`auditCopyPhase`) — never
-a store bypassed, never a store write function reachable through a separate deep-orchestration module
-outside `src/command-surface/`. This is additive to issue #205's original eight operations and issue
-#209's Schedule Outbox pair — the "exactly three deliberate, minimal companions" Requirement (issue #205)
-is unaffected and stays exactly as it was. All three modules SHALL be re-exported from
-`src/command-surface/index.ts`.
+`driveToNextGate`/`bindMediaSlots`/`auditBindMediaPhase`/`auditCopyPhase`, PLUS
+`production-spec/author-at-review.ts`'s `auditAuthoredSpec` for its own author-phase check (issue #273 —
+runs a Recipe's own registered, standalone-runnable author-phase refinement when one exists, else the
+generic `auditAuthorPhase`, so `runOneJob`'s defense-in-depth check and `accept-idea`'s own self-check
+stay the SAME bar, never two independently-drifting ones) — never a store bypassed, never a store write
+function reachable through a separate deep-orchestration module outside `src/command-surface/`. This is
+additive to issue #205's original eight operations and issue #209's Schedule Outbox pair — the "exactly
+three deliberate, minimal companions" Requirement (issue #205) is unaffected and stays exactly as it
+was. All three modules SHALL be re-exported from `src/command-surface/index.ts`.
 
 #### Scenario: resolveGate composes recordGateDecision and createJob through the command surface directly
 
@@ -239,6 +242,14 @@ is unaffected and stays exactly as it was. All three modules SHALL be re-exporte
 - **THEN** every store write `runOneJob` performs is attributed to `src/command-surface/worker.ts`
   itself (or another `src/command-surface/**` module it calls) — never to a module under `src/worker/`,
   which imports no store write function at all
+
+#### Scenario: runOneJob's author-phase check runs auditAuthoredSpec, catching the SAME filler pattern accept-idea now rejects (issue #273)
+
+- **GIVEN** a News Carousel Asset whose saved Production Spec sets the exact SAME `card_style` on all 7
+  slides (a Spec that would have slipped past the OLD, generic-only `auditAuthorPhase` check)
+- **WHEN** `runOneJob(db, port, jobId, options)` is called for a job on that Asset's FIRST leg
+- **THEN** the job fails at the author phase, naming the `card-style-distinctness` item, with ZERO calls
+  made to the Space port (`port.editGoals`/`port.runs` stay empty)
 
 ### Requirement: saveAssetSpec and refreshSpecFile expose the Production Spec's SQL write and its generated file view
 

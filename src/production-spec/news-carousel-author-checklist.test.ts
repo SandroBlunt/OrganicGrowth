@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   auditNewsCarouselAuthorPhase,
+  auditNewsCarouselStandaloneAuthorPhase,
   verifyBaselineParamsAgainstDocument,
   type NewsCarouselBaselineParams,
 } from "./news-carousel-author-checklist.ts";
@@ -23,6 +24,8 @@ import {
   dashInText,
   allBottomPlacements,
   tooFewDistinctPlacements,
+  allSlidesSameCardStyle,
+  allSlidesRepeatHeadline,
   standardSlideWronglyCarriesLogo,
   missingTextCardSizeClause,
   imageSlideWithFrameClause,
@@ -413,5 +416,70 @@ describe("verifyBaselineParamsAgainstDocument — cross-checks a hand-copied bas
     // must still pass — confirmedCardStyles is deliberately excluded from this verbatim check.
     const result = verifyBaselineParamsAgainstDocument(TEST_BASELINE, fullDocumentText());
     assert.equal(result.ok, true);
+  });
+});
+
+describe("auditNewsCarouselStandaloneAuthorPhase — the Baseline-Prompt-INDEPENDENT subset, runnable before a Format's Baseline Prompt document is resolved (issue #273)", () => {
+  it("a baseline-adherent Spec passes every item — needs NO NewsCarouselBaselineParams argument", () => {
+    const result = auditNewsCarouselStandaloneAuthorPhase(baselineAdherentCarouselSpec(), []);
+    assert.equal(result.ok, true);
+    assert.equal(result.phase, "author");
+    assert.equal(result.recipe, "news-carousel");
+    for (const i of result.items) assert.equal(i.ok, true, `${i.id}: ${i.detail ?? i.description}`);
+  });
+
+  it("fails the 'spec-shape' item on a short Spec — REFERENCES validateNewsCarouselSpec, does not duplicate it", () => {
+    const result = auditNewsCarouselStandaloneAuthorPhase(sixSlides(), []);
+    assert.equal(result.ok, false);
+    assert.equal(item(result, "spec-shape").ok, false);
+  });
+
+  it("fails the 'banned-words' item — REFERENCES scanNewsCarouselForBannedWords", () => {
+    const result = auditNewsCarouselStandaloneAuthorPhase(bannedWordInText("VERBOTEN"), ["VERBOTEN"]);
+    assert.equal(result.ok, false);
+    assert.equal(item(result, "banned-words").ok, false);
+  });
+
+  it("fails the 'no-dash-tells' item on an em dash in on-card text — REFERENCES scanTextFieldsForDashes", () => {
+    const result = auditNewsCarouselStandaloneAuthorPhase(dashInText(), []);
+    assert.equal(result.ok, false);
+    assert.equal(item(result, "no-dash-tells").ok, false);
+  });
+
+  it("fails the 'companies-cited' item when a slide names a company its own image_prompt never cites", () => {
+    const result = auditNewsCarouselStandaloneAuthorPhase(companyNotCitedInPrompt(), []);
+    assert.equal(result.ok, false);
+    assert.equal(item(result, "companies-cited").ok, false);
+  });
+
+  it("issue #273 reproduction: fails the NEW 'card-style-distinctness' item when all 7 slides share one card_style, even though every other item still passes", () => {
+    const result = auditNewsCarouselStandaloneAuthorPhase(allSlidesSameCardStyle(), []);
+    assert.equal(result.ok, false);
+    assert.equal(item(result, "card-style-distinctness").ok, false);
+    // Every other mechanical item still passes — only this one is isolated by the mutation.
+    assert.equal(item(result, "spec-shape").ok, true);
+    assert.equal(item(result, "banned-words").ok, true);
+    assert.equal(item(result, "no-dash-tells").ok, true);
+    assert.equal(item(result, "companies-cited").ok, true);
+  });
+
+  it("passes 'card-style-distinctness' on a Spec using only 2 distinct styles — the floor is weaker than the Format-tuned placement-variety item", () => {
+    // tooFewDistinctPlacements uses exactly 2 distinct styles, which fails the FULL checklist's
+    // Format-tuned `placement-variety` (below TEST_BASELINE.minDistinctCardStyles = 3) but clears this
+    // standalone function's own, universally weaker floor of >= 2.
+    const result = auditNewsCarouselStandaloneAuthorPhase(tooFewDistinctPlacements(), []);
+    assert.equal(item(result, "card-style-distinctness").ok, true);
+    assert.equal(result.ok, true);
+  });
+
+  it("issue #273 round 2 reproduction: fails the NEW 'slide-text-variety' item when every slide repeats the SAME headline verbatim, even though card_style stays varied", () => {
+    const result = auditNewsCarouselStandaloneAuthorPhase(allSlidesRepeatHeadline(), []);
+    assert.equal(result.ok, false);
+    const variety = item(result, "slide-text-variety");
+    assert.equal(variety.ok, false);
+    assert.match(variety.detail ?? "", /openai|chatgpt|teenagers/i);
+    // card-style-distinctness (this fixture's card_style is untouched, still cycling) stays true —
+    // isolates the new item's own failure.
+    assert.equal(item(result, "card-style-distinctness").ok, true);
   });
 });

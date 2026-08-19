@@ -153,7 +153,24 @@ describe("carousel — a missing REQUIRED Brand Asset STOPS the run before any S
  */
 describe("carousel end-to-end — the attended Producer's own drive completes against a Spec Review already authored (ADR-0031, issue #264)", () => {
   it("driveToNextGate runs straight through, reading the SAME Spec authorSpecForRecipe produced — never authoring its own", async () => {
-    const outcome = authorSpecForRecipe(NEWS_CAROUSEL, { id: "idea-01", run: "2026-W33", title: "A real headline about AI news" }, []);
+    // A REALISTIC Brief (real, distinct Talking Points — issue #273 round 2) — mirrors what
+    // `acceptIdeaCommand` now actually threads through from a real on-disk Brief markdown; a title-only
+    // Brief would (correctly) fail authorship on genericness, which is not what this test is about.
+    const outcome = authorSpecForRecipe(
+      NEWS_CAROUSEL,
+      {
+        id: "idea-01",
+        run: "2026-W33",
+        title: "A real headline about AI news",
+        talkingPoints: [
+          "The company shipped a new capability three weeks after its last release.",
+          "Pricing dropped for the introductory period, undercutting every rival offer.",
+          "Independent benchmarks show a real jump in the underlying model's accuracy.",
+          "Engineering teams now face integration fatigue from the pace of change.",
+        ],
+      },
+      [],
+    );
     assert.equal(outcome.ok, true);
     if (!outcome.ok) return;
 
