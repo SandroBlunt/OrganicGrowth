@@ -15,8 +15,8 @@ import { tmpdir } from "node:os";
 import { join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { resolveBaselinePromptPath, loadBaselinePrompt } from "./baseline-prompt.ts";
-import { parseFormatFile, formatBaselinePromptsRoot, type FormatFile } from "./store.ts";
+import { resolveBaselinePromptPath, loadBaselinePrompt, saveBaselinePrompt, deleteBaselinePrompt } from "./baseline-prompt.ts";
+import { parseFormatFile, formatBaselinePromptsRoot, loadFormat, type FormatFile } from "./store.ts";
 
 // ---------------------------------------------------------------------------
 // resolveBaselinePromptPath — pure, no I/O
@@ -181,6 +181,81 @@ describe("loadBaselinePrompt — typed lookup, never throws for an ordinary 'not
       assert.ok(!result.found);
       assert.equal(result.reason, "dangling");
     });
+  });
+});
+
+describe("saveBaselinePrompt / deleteBaselinePrompt — the write half (Library admin module)", () => {
+  let tmpBrandsRoot: string;
+
+  before(async () => {
+    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-save-baseline-prompt-"));
+    const formatsDir = join(tmpBrandsRoot, "acme", "formats");
+    await mkdir(formatsDir, { recursive: true });
+    await writeFile(
+      join(formatsDir, "some-format.yaml"),
+      ["name: Some Format", "baseline_prompts:", "  news-carousel: news-carousel.md", ""].join("\n"),
+    );
+    const dir = join(tmpBrandsRoot, "acme", "baseline-prompts", "some-format");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "news-carousel.md"), "# Existing document\n");
+  });
+
+  after(async () => {
+    await rm(tmpBrandsRoot, { recursive: true, force: true });
+  });
+
+  it("creates a new document AND declares its pointer, for a Recipe with none yet", async () => {
+    const result = await saveBaselinePrompt("acme", "some-format", "news-short-script", "# New script look\n", tmpBrandsRoot);
+    assert.equal(result.pointer, "news-short-script.md");
+    assert.match(result.path, /news-short-script\.md$/);
+
+    const onDisk = await readFile(result.path, "utf8");
+    assert.equal(onDisk, "# New script look\n");
+
+    const format = await loadFormat("acme", "some-format", tmpBrandsRoot);
+    assert.equal(format.baselinePrompts["news-short-script"], "news-short-script.md");
+
+    const looked = await loadBaselinePrompt("acme", format, "news-short-script", tmpBrandsRoot);
+    assert.equal(looked.found, true);
+    assert.ok(looked.found);
+    assert.equal(looked.content, "# New script look\n");
+  });
+
+  it("overwrites an existing document's content, pointer unchanged", async () => {
+    await saveBaselinePrompt("acme", "some-format", "news-carousel", "# Replaced content\n", tmpBrandsRoot);
+    const format = await loadFormat("acme", "some-format", tmpBrandsRoot);
+    assert.equal(format.baselinePrompts["news-carousel"], "news-carousel.md"); // pointer unchanged
+
+    const looked = await loadBaselinePrompt("acme", format, "news-carousel", tmpBrandsRoot);
+    assert.equal(looked.found, true);
+    assert.ok(looked.found);
+    assert.equal(looked.content, "# Replaced content\n");
+  });
+
+  it("rejects an invalid Recipe slug before touching disk", async () => {
+    await assert.rejects(
+      () => saveBaselinePrompt("acme", "some-format", "../escape", "x", tmpBrandsRoot),
+      /Invalid Recipe slug/,
+    );
+  });
+
+  it("deletes the document AND removes the pointer", async () => {
+    await saveBaselinePrompt("acme", "some-format", "to-delete", "# will be deleted\n", tmpBrandsRoot);
+    let format = await loadFormat("acme", "some-format", tmpBrandsRoot);
+    assert.equal(format.baselinePrompts["to-delete"], "to-delete.md");
+
+    await deleteBaselinePrompt("acme", "some-format", "to-delete", tmpBrandsRoot);
+    format = await loadFormat("acme", "some-format", tmpBrandsRoot);
+    assert.equal(format.baselinePrompts["to-delete"], undefined);
+
+    const looked = await loadBaselinePrompt("acme", format, "to-delete", tmpBrandsRoot);
+    assert.equal(looked.found, false);
+    assert.ok(!looked.found);
+    assert.equal(looked.reason, "not-declared");
+  });
+
+  it("is a no-op (never throws) deleting a Recipe with no pointer declared", async () => {
+    await assert.doesNotReject(() => deleteBaselinePrompt("acme", "some-format", "never-declared", tmpBrandsRoot));
   });
 });
 

@@ -21,21 +21,25 @@
  * `OFF_NICHE:` shapes a Format's seed_pages list can carry), so the two seed-list dialects in the
  * repo (Brand-level legacy seeds, Format-level seeds) share one normalization rule.
  *
- * Write path (creating/editing a Format file) is intentionally NOT built in this slice — Format
- * files today are hand-authored/migrated documents (ADR-0014: "documents the human authors or
- * reads stay files"). A `saveFormat` shell can be added when the scaffolder's Format interview
- * (ADR-0013) is built.
+ * Write path: creating a whole new Format file is still NOT built here — that full authoring flow
+ * (niche/voice/sources, ADR-0013) stays deferred to the scaffolder's Format interview. Surgically
+ * editing an EXISTING Format file's recipe-tied fields IS built (`saveFormatDefaultRecipes`,
+ * `saveFormatBaselinePromptPointer`, for the Library's admin module) — each uses `yaml`'s `Document`
+ * API to patch just the one field, so every other hand-authored field/comment survives untouched,
+ * preserving ADR-0014's "documents the human authors... stay files, git-diffable" intent even though
+ * the edit itself is now driven by a form instead of a text editor.
  */
 
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, parseDocument } from "yaml";
 
 import type { DatabaseSync } from "node:sqlite";
 
 import { resolveBrand } from "../brand/resolver.ts";
 import { normalizeSeeds, type NormalizedSeed } from "../readiness/check-config.ts";
+import { writeFileAtomic } from "../fs/safe-io.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -368,6 +372,56 @@ export async function loadFormat(
   }
 
   return parseFormatFile(raw, formatSlug);
+}
+
+// ---------------------------------------------------------------------------
+// Surgical writes (Library admin module, issue-less follow-up to the audit's CRUD request) — edits an
+// EXISTING Format file's recipe-tied fields only (never creates a new Format: that full authoring flow
+// stays deferred to the scaffolder's Format interview, ADR-0013, per this module's own doc comment).
+// Uses `parseDocument`/`setIn`/`deleteIn` rather than re-serializing the typed `FormatFile`, so every
+// OTHER field, comment, and key order in the hand-authored file survives untouched.
+// ---------------------------------------------------------------------------
+
+/**
+ * Overwrites an existing Format file's `default_recipes` list. Throws the same "Unknown Format" error
+ * as `loadFormat` if the file doesn't exist — this never creates one.
+ */
+export async function saveFormatDefaultRecipes(
+  brand: string,
+  formatSlug: string,
+  recipes: readonly string[],
+  brandsRoot?: string,
+): Promise<void> {
+  await loadFormat(brand, formatSlug, brandsRoot); // throws the friendly "Unknown Format" error if absent
+  const path = formatFilePath(brand, formatSlug, brandsRoot);
+  const text = await readFile(path, "utf8");
+  const doc = parseDocument(text);
+  doc.setIn(["default_recipes"], [...recipes]);
+  await writeFileAtomic(path, doc.toString());
+}
+
+/**
+ * Adds/updates ("save") or removes ("delete", when `pointer` is `null`) one Recipe's `baseline_prompts`
+ * pointer entry on an existing Format file. Throws the same "Unknown Format" error as `loadFormat` if
+ * the file doesn't exist.
+ */
+export async function saveFormatBaselinePromptPointer(
+  brand: string,
+  formatSlug: string,
+  recipeSlug: string,
+  pointer: string | null,
+  brandsRoot?: string,
+): Promise<void> {
+  await loadFormat(brand, formatSlug, brandsRoot);
+  const path = formatFilePath(brand, formatSlug, brandsRoot);
+  const text = await readFile(path, "utf8");
+  const doc = parseDocument(text);
+  if (pointer === null) {
+    doc.deleteIn(["baseline_prompts", recipeSlug]);
+  } else {
+    doc.setIn(["baseline_prompts", recipeSlug], pointer);
+  }
+  await writeFileAtomic(path, doc.toString());
 }
 
 // ---------------------------------------------------------------------------

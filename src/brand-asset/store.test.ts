@@ -19,6 +19,8 @@ import {
   brandAssetsRoot,
   listBrandAssets,
   getBrandAsset,
+  writeBrandAssetFile,
+  deleteBrandAssetFile,
   type BrandAsset,
   type BrandAssetLookup,
 } from "./store.ts";
@@ -232,6 +234,67 @@ describe("getBrandAsset — typed found/not-found lookup by key, never throws", 
 
   it("still throws for an invalid Brand slug (tenancy boundary; a different concern than 'not found')", async () => {
     await assert.rejects(() => getBrandAsset("../evil", "brand-logo", tmpBrandsRoot), /Invalid Brand slug/);
+  });
+});
+
+describe("writeBrandAssetFile / deleteBrandAssetFile — the write half (Library admin module)", () => {
+  let tmpBrandsRoot: string;
+
+  before(async () => {
+    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-write-brand-asset-"));
+  });
+
+  after(async () => {
+    await rm(tmpBrandsRoot, { recursive: true, force: true });
+  });
+
+  it("creates a new asset file, even when the assets/ directory doesn't exist yet", async () => {
+    const result = await writeBrandAssetFile("acme", "brand-logo", "png", Buffer.from("png-bytes"), tmpBrandsRoot);
+    assert.equal(result.media, "image");
+    assert.equal(await readFile(result.path, "utf8"), "png-bytes");
+
+    const lookup = await getBrandAsset("acme", "brand-logo", tmpBrandsRoot);
+    assert.equal(lookup.found, true);
+  });
+
+  it("replaces an existing asset's bytes at the same extension", async () => {
+    await writeBrandAssetFile("acme", "brand-logo", "png", Buffer.from("replaced-bytes"), tmpBrandsRoot);
+    const lookup = await getBrandAsset("acme", "brand-logo", tmpBrandsRoot);
+    assert.equal(lookup.found, true);
+    if (lookup.found) assert.equal(await readFile(lookup.asset.path, "utf8"), "replaced-bytes");
+  });
+
+  it("replacing with a DIFFERENT extension removes the old file, leaving exactly one", async () => {
+    await writeBrandAssetFile("acme", "brand-logo", "svg", Buffer.from("<svg/>"), tmpBrandsRoot);
+    const assets = await listBrandAssets("acme", tmpBrandsRoot);
+    const matching = assets.filter((a) => a.key === "brand-logo");
+    assert.equal(matching.length, 1);
+    assert.equal(matching[0]!.path.endsWith(".svg"), true);
+  });
+
+  it("rejects an invalid key before touching disk", async () => {
+    await assert.rejects(
+      () => writeBrandAssetFile("acme", "Not Valid!", "png", Buffer.from("x"), tmpBrandsRoot),
+      /Invalid Brand Asset key/,
+    );
+  });
+
+  it("rejects an unrecognized extension before touching disk", async () => {
+    await assert.rejects(
+      () => writeBrandAssetFile("acme", "some-doc", "pdf", Buffer.from("x"), tmpBrandsRoot),
+      /Unrecognized Brand Asset extension/,
+    );
+  });
+
+  it("deletes an existing asset's file", async () => {
+    await writeBrandAssetFile("acme", "to-delete", "png", Buffer.from("x"), tmpBrandsRoot);
+    await deleteBrandAssetFile("acme", "to-delete", tmpBrandsRoot);
+    const lookup = await getBrandAsset("acme", "to-delete", tmpBrandsRoot);
+    assert.equal(lookup.found, false);
+  });
+
+  it("is a no-op (never throws) deleting a key that was never written", async () => {
+    await assert.doesNotReject(() => deleteBrandAssetFile("acme", "never-existed", tmpBrandsRoot));
   });
 });
 

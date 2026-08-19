@@ -27,6 +27,8 @@ import {
   formatBaselinePromptsRoot,
   listFormatSlugs,
   loadFormat,
+  saveFormatDefaultRecipes,
+  saveFormatBaselinePromptPointer,
   type FormatFile,
 } from "./store.ts";
 
@@ -461,6 +463,72 @@ describe("loadFormat — reads + parses a real Format file from disk", () => {
         return true;
       },
     );
+  });
+});
+
+describe("saveFormatDefaultRecipes / saveFormatBaselinePromptPointer — surgical writes (Library admin module)", () => {
+  let tmpBrandsRoot: string;
+  let formatPath: string;
+
+  before(async () => {
+    tmpBrandsRoot = await mkdtemp(join(tmpdir(), "og-save-format-"));
+    const formatsDir = join(tmpBrandsRoot, "mundotip", "formats");
+    formatPath = join(formatsDir, "life-hacks.yaml");
+    await mkdir(formatsDir, { recursive: true });
+    await writeFile(
+      formatPath,
+      [
+        "# hand-authored guidance comment — must survive a surgical edit",
+        "name: Life Hacks",
+        "niche: Life hacks, household tips & tricks",
+        "voice: Punchy and curiosity-driven.",
+        "media_focus: reel",
+        "sources:",
+        "  mode: peer",
+        "  seed_pages: []",
+        "ideas_per_run: 10",
+        "default_recipes:",
+        "  - character-explainer-with-cast",
+        "baseline_prompts:",
+        "  news-carousel: news-carousel.md",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  after(async () => {
+    await rm(tmpBrandsRoot, { recursive: true, force: true });
+  });
+
+  it("overwrites default_recipes and nothing else — comments and other fields survive", async () => {
+    await saveFormatDefaultRecipes("mundotip", "life-hacks", ["news-carousel"], tmpBrandsRoot);
+    const text = await readFile(formatPath, "utf8");
+    assert.match(text, /# hand-authored guidance comment — must survive a surgical edit/);
+
+    const format = await loadFormat("mundotip", "life-hacks", tmpBrandsRoot);
+    assert.deepEqual(format.defaultRecipes, ["news-carousel"]);
+    assert.equal(format.name, "Life Hacks"); // untouched
+    assert.deepEqual(format.baselinePrompts, { "news-carousel": "news-carousel.md" }); // untouched
+  });
+
+  it("throws the same 'Unknown Format' error as loadFormat for a Format that doesn't exist", async () => {
+    await assert.rejects(
+      () => saveFormatDefaultRecipes("mundotip", "does-not-exist", [], tmpBrandsRoot),
+      /Unknown Format "does-not-exist"/,
+    );
+  });
+
+  it("adds a new baseline_prompts pointer entry", async () => {
+    await saveFormatBaselinePromptPointer("mundotip", "life-hacks", "news-short-script", "news-short-script.md", tmpBrandsRoot);
+    const format = await loadFormat("mundotip", "life-hacks", tmpBrandsRoot);
+    assert.equal(format.baselinePrompts["news-short-script"], "news-short-script.md");
+    assert.equal(format.baselinePrompts["news-carousel"], "news-carousel.md"); // untouched
+  });
+
+  it("removes a baseline_prompts pointer entry when pointer is null", async () => {
+    await saveFormatBaselinePromptPointer("mundotip", "life-hacks", "news-carousel", null, tmpBrandsRoot);
+    const format = await loadFormat("mundotip", "life-hacks", tmpBrandsRoot);
+    assert.equal(format.baselinePrompts["news-carousel"], undefined);
   });
 });
 

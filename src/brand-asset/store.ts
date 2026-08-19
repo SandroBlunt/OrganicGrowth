@@ -26,18 +26,19 @@
  * later swap for a database). `store.test.ts` includes a repo-wide scan proving no other source file
  * references `BrandPaths.assetsRoot` directly.
  *
- * Write path (committing a new Brand Asset file) is intentionally NOT built in this slice — Brand
- * Assets, like Format files, are hand-committed documents (ADR-0014: "documents the human authors or
- * reads stay files"); Straw Motion's real `brand-logo` ships in a later, Operator-paired slice.
+ * Write path: `writeBrandAssetFile`/`deleteBrandAssetFile` below (Library admin module) create/replace/
+ * remove a Brand Asset FILE directly — Brand Assets stay hand-committed documents (ADR-0014), just now
+ * committable from a form instead of only a text editor/file copy.
  */
 
-import { readdir, stat } from "node:fs/promises";
+import { readdir, stat, mkdir, unlink } from "node:fs/promises";
 import { extname, join } from "node:path";
 
 import type { DatabaseSync } from "node:sqlite";
 
 import { resolveBrand } from "../brand/resolver.ts";
 import { insertBrandAsset } from "../db/media-ref.ts";
+import { writeFileAtomic } from "../fs/safe-io.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -211,6 +212,59 @@ export async function getBrandAsset(
     key,
     message: `Brand Asset "${key}" not found for Brand "${brand}" (looked in ${dir}). ${hint}`,
   };
+}
+
+// ---------------------------------------------------------------------------
+// writeBrandAssetFile / deleteBrandAssetFile — the write half (Library admin module)
+// ---------------------------------------------------------------------------
+
+const BRAND_ASSET_KEY_PATTERN = /^[a-z0-9-]{1,64}$/;
+
+/**
+ * Writes (creates or replaces) one Brand Asset file at `<key>.<extension>` under the Brand's own
+ * `assets/` directory. `extension` must be one `mediaKindForFilename` recognizes (no leading dot,
+ * e.g. `"png"`) — an unrecognized extension is rejected before any write, mirroring how
+ * `listBrandAssets` skips unrecognized files on read. If an asset already exists at this key under a
+ * DIFFERENT extension (e.g. replacing `brand-logo.png` with `brand-logo.svg`), the old file is
+ * removed first so the key stays unambiguous (mirrors `listBrandAssets`'s own "one file per key"
+ * invariant — never leaves two files answering the same key).
+ */
+export async function writeBrandAssetFile(
+  brand: string,
+  key: string,
+  extension: string,
+  bytes: Uint8Array,
+  brandsRoot?: string,
+): Promise<{ readonly path: string; readonly media: MediaKind }> {
+  if (!BRAND_ASSET_KEY_PATTERN.test(key)) {
+    throw new Error(`Invalid Brand Asset key "${key}": must be 1-64 lowercase letters, digits, or hyphens.`);
+  }
+  const normalizedExt = extension.replace(/^\./, "").toLowerCase();
+  const media = mediaKindForFilename(`x.${normalizedExt}`);
+  if (media === null) {
+    throw new Error(`Unrecognized Brand Asset extension ".${normalizedExt}" for key "${key}".`);
+  }
+
+  const existing = await getBrandAsset(brand, key, brandsRoot);
+  const dir = brandAssetsRoot(brand, brandsRoot);
+  if (existing.found && extname(existing.asset.path).slice(1).toLowerCase() !== normalizedExt) {
+    await unlink(existing.asset.path).catch(() => {
+      /* best-effort — the write below is what matters */
+    });
+  }
+
+  await mkdir(dir, { recursive: true });
+  const path = join(dir, `${key}.${normalizedExt}`);
+  await writeFileAtomic(path, bytes);
+
+  return { path, media };
+}
+
+/** Removes one Brand Asset's file by key. A no-op (never throws) when no asset exists at that key. */
+export async function deleteBrandAssetFile(brand: string, key: string, brandsRoot?: string): Promise<void> {
+  const existing = await getBrandAsset(brand, key, brandsRoot);
+  if (!existing.found) return;
+  await unlink(existing.asset.path);
 }
 
 // ---------------------------------------------------------------------------
