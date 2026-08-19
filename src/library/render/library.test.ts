@@ -48,7 +48,7 @@ describe("renderLibraryBody", () => {
   });
 
   it("renders a friendly empty state when no rows match the filter, without throwing", () => {
-    const html = renderLibraryBody([], { hookTypes: [], themes: [], recipes: [], formats: [], statuses: [] }, { hookType: "irony" } as LibraryFilter, "performance", 5);
+    const html = renderLibraryBody([], { hookTypes: [], themes: [], recipes: [], formats: [], brands: [], statuses: [] }, { hookType: "irony" } as LibraryFilter, "performance", 5);
     assert.match(html, /No Assets match this filter/);
   });
 
@@ -76,7 +76,7 @@ describe("renderLibraryBody", () => {
     const populatedHtml = renderLibraryBody(populatedRows, deriveFilterOptions(populatedRows), {}, "performance", 1);
     assert.match(populatedHtml, /Asset-scoped/);
 
-    const emptyHtml = renderLibraryBody([], { hookTypes: [], themes: [], recipes: [], formats: [], statuses: [] }, { hookType: "irony" } as LibraryFilter, "performance", 5);
+    const emptyHtml = renderLibraryBody([], { hookTypes: [], themes: [], recipes: [], formats: [], brands: [], statuses: [] }, { hookType: "irony" } as LibraryFilter, "performance", 5);
     assert.match(emptyHtml, /Asset-scoped/);
   });
 
@@ -84,6 +84,17 @@ describe("renderLibraryBody", () => {
     const rows = [row({ assetId: "a1", ideaTitle: "AI shakeup" })];
     const html = renderLibraryBody(rows, deriveFilterOptions(rows), {}, "performance", 1);
     assert.match(html, /<a class="idea-title-link" href="\/assets\/a1" target="_blank" rel="noopener" title="AI shakeup">AI shakeup<\/a>/);
+  });
+
+  it("offers a brand filter select, with the active brand pre-selected", () => {
+    const rows = [
+      row({ assetId: "a1", brandSlug: "straw-motion", brandName: "Straw Motion" }),
+      row({ assetId: "a2", brandSlug: "mundotip", brandName: "MundoTip" }),
+    ];
+    const html = renderLibraryBody(rows, deriveFilterOptions(rows), { brand: "straw-motion" }, "performance", 2);
+    assert.match(html, /<select id="brand" name="brand">/);
+    assert.match(html, /<option value="straw-motion" selected>Straw Motion<\/option>/);
+    assert.match(html, /<option value="mundotip">MundoTip<\/option>/);
   });
 
   it("offers a status filter select, with the active status pre-selected", () => {

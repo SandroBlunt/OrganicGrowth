@@ -47,12 +47,14 @@ function parseFilter(params: URLSearchParams): LibraryFilter {
   const theme = params.get("theme");
   const recipe = params.get("recipe");
   const format = params.get("format");
+  const brand = params.get("brand");
   const status = params.get("status");
   return {
     ...(hookType !== null && hookType !== "" && isHookType(hookType) ? { hookType } : {}),
     ...(theme !== null && theme !== "" && isTheme(theme) ? { theme } : {}),
     ...(recipe !== null && recipe !== "" ? { recipe } : {}),
     ...(format !== null && format !== "" ? { format } : {}),
+    ...(brand !== null && brand !== "" ? { brand } : {}),
     ...(status !== null && status !== "" && isAssetStatus(status) ? { status } : {}),
   };
 }

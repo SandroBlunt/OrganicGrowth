@@ -1,7 +1,7 @@
 /**
  * The Library screen (issue #210, AC2/AC3): lists every Asset, sortable by Performance Score,
- * filterable by hook type, theme, Recipe, Format, and status. Pure — takes already-fetched, already-
- * filtered/sorted data and returns an HTML string; no database, no `node:fs`.
+ * filterable by Brand, hook type, theme, Recipe, Format, and status. Pure — takes already-fetched,
+ * already-filtered/sorted data and returns an HTML string; no database, no `node:fs`.
  *
  * The filter/sort controls are a plain `<form method="get">` — submitting it only ever navigates to a
  * new GET url (e.g. `/?hookType=irony&sort=performance`). There is no `<form method="post">` anywhere
@@ -38,6 +38,10 @@ const SORT_OPTIONS: readonly { readonly value: LibrarySort; readonly label: stri
 ];
 
 function filterFormHtml(options: LibraryFilterOptions, activeFilter: LibraryFilter, activeSort: LibrarySort): string {
+  const brandOptions = optionsHtml(
+    options.brands.map((b) => ({ value: b.slug, label: b.name })),
+    activeFilter.brand,
+  );
   const hookTypeOptions = optionsHtml(
     options.hookTypes.map((h) => ({ value: h, label: humanizeLabel(h) })),
     activeFilter.hookType,
@@ -63,6 +67,7 @@ function filterFormHtml(options: LibraryFilterOptions, activeFilter: LibraryFilt
   ).join("");
 
   return `<form class="filters" method="get" action="/">
+  <div><label for="brand">Brand</label><select id="brand" name="brand">${brandOptions}</select></div>
   <div><label for="hookType">Hook type</label><select id="hookType" name="hookType">${hookTypeOptions}</select></div>
   <div><label for="theme">Theme</label><select id="theme" name="theme">${themeOptions}</select></div>
   <div><label for="recipe">Recipe</label><select id="recipe" name="recipe">${recipeOptions}</select></div>

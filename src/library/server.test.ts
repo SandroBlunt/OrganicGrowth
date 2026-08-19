@@ -102,6 +102,27 @@ describe("createLibraryServer — GET routes", () => {
     });
   });
 
+  it("GET /?brand=<slug> narrows to that Brand's rows only; a non-matching brand returns zero", async () => {
+    await withServer(async (baseUrl, db) => {
+      const otherWorld = seedWorld(db, { brandSlug: "other-brand" });
+      const otherIdeaId = seedLibraryIdea(otherWorld, { title: "Other brand idea" });
+      await seedLibraryAsset(otherWorld, otherIdeaId, "news-carousel", { status: "produced" });
+
+      const bothBody = await (await fetch(`${baseUrl}/`)).text();
+      assert.match(bothBody, /Server test idea/);
+      assert.match(bothBody, /Other brand idea/);
+
+      const matching = await (await fetch(`${baseUrl}/?brand=other-brand`)).text();
+      assert.match(matching, /Other brand idea/);
+      assert.doesNotMatch(matching, /Server test idea/);
+
+      const nonMatching = await (await fetch(`${baseUrl}/?brand=does-not-exist`)).text();
+      assert.doesNotMatch(nonMatching, /Server test idea/);
+      assert.doesNotMatch(nonMatching, /Other brand idea/);
+      assert.match(nonMatching, /No Assets match this filter/);
+    });
+  });
+
   it("GET /vendor/@material/web/button/filled-button.js serves the real installed component as JS", async () => {
     await withServer(async (baseUrl) => {
       const res = await fetch(`${baseUrl}/vendor/@material/web/button/filled-button.js`);
