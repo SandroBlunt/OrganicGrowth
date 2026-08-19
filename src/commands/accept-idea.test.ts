@@ -34,6 +34,20 @@ const RUN = "2026-W33";
 const RECIPE = "news-carousel"; // zero gates
 const NOW = "2026-08-18T09:00:00.000Z";
 
+/** A REALISTIC Brief markdown body — mirroring the real shape every straw-motion `idea-NN.md` carries
+ *  (`## Talking Points` + `## Source(s)`, this ticket's own handoff.md) — issue #273 round 2: threading
+ *  real Brief content through is the whole point of this round's fix, so the fixture accept-idea.test.ts
+ *  authors against must be realistic, not title-only, or these tests would exercise a shape that no real
+ *  accept ever actually authors from. */
+const REALISTIC_BRIEF_BODY =
+  "# A brand new headline\n\n" +
+  "## Talking Points\n" +
+  "- The company shipped a new capability three weeks after its last release.\n" +
+  "- Pricing dropped for the introductory period, undercutting every rival offer.\n" +
+  "- Independent benchmarks show a real jump in the underlying model's accuracy.\n" +
+  "- Engineering teams now face integration fatigue from the pace of change.\n\n" +
+  "## Source(s)\n- https://example.com/real-source\n";
+
 /** Writes a throwaway `<brandsRoot>/<brand>/ledger.json` + a real Brief file, mirroring what
  *  `/review-ideas` sees at Gate 1 (one `suggested` Idea, run/format/title/brief_path all recorded, the
  *  shape the SQL sync needs) — entirely under a temp `brandsRoot`. Also returns a throwaway `queuePath`
@@ -49,7 +63,7 @@ async function withBrandFixture<T>(
   const queuePath = join(root, "queue.json");
   const dbPath = join(root, "organicgrowth.db");
 
-  await writeFile(briefPath, "# A brand new headline\n\n## Source(s)\n- https://example.com/real-source\n", "utf8");
+  await writeFile(briefPath, REALISTIC_BRIEF_BODY, "utf8");
   const idea = {
     id: "idea-01",
     status: "suggested",

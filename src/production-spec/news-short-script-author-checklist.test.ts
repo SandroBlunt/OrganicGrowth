@@ -16,6 +16,7 @@ import {
   calendarDateInBeatText,
   duplicateSourceSite,
   exactDuplicateSourcePage,
+  repeatedPhraseInStoryBeat,
 } from "./fixtures/news-short-script-author-checklist-specs.ts";
 import type { ChecklistItemAudit, PhaseAuditResult } from "../recipe/phase-contract.ts";
 
@@ -103,6 +104,20 @@ describe("auditNewsShortScriptAuthorPhase — the Recipe's own graduated author-
     const result = auditNewsShortScriptAuthorPhase(spec, ["miracle"]);
     assert.equal(result.ok, false);
     assert.equal(item(result, "banned-words").ok, false);
+  });
+
+  it("issue #273 round 2 reproduction: fails the NEW 'no-repeated-phrases' item when a beat pads itself out with the SAME phrase repeated", () => {
+    const result = auditNewsShortScriptAuthorPhase(repeatedPhraseInStoryBeat(), []);
+    assert.equal(result.ok, false);
+    const repeats = item(result, "no-repeated-phrases");
+    assert.equal(repeats.ok, false);
+    assert.match(repeats.detail!, /today this story keeps/);
+    assert.match(repeats.detail!, /beats\[1\]\.text/);
+    // Every OTHER item stays unaffected by this one focused mutation (the replacement phrase's word
+    // count was deliberately chosen to keep the WHOLE Spec's total inside [120, 150]).
+    assert.equal(item(result, "role-order-word-count").ok, true);
+    assert.equal(item(result, "no-calendar-dates").ok, true);
+    assert.equal(item(result, "shot-list-variety").ok, true);
   });
 
   it("never throws on a wildly malformed candidate Spec", () => {

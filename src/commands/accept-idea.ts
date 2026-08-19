@@ -26,8 +26,13 @@
  *   2. `markIdeaAccepted` — sets that Idea's `status` to `"accepted"` (no compiled function performed
  *      this write anywhere in the codebase before issue #254).
  *   3. **Author + self-check each chosen Recipe's Production Spec (ADR-0031, issue #264) — BEFORE
- *      anything is enqueued.** For each Recipe in `chosen`: build a minimal Brief from the ledger Idea's
- *      own `run`/`title`, load the Brand's banned words, and call
+ *      anything is enqueued.** Build the Brief from the ledger Idea's own `run`/`title` PLUS its REAL
+ *      on-disk Brief markdown (`src/importer/load-brief.ts`'s `loadBrief`, trying the ledger's own
+ *      `brief_path` first) parsed via `src/idea/brief-content.ts`'s `parseBriefContent` — issue #273
+ *      round 2: a title-only Brief can never yield anything but filler, however carefully checklisted,
+ *      so the real `angle`/`talkingPoints`/`sourceUrls` are threaded through whenever the Brief file can
+ *      be found (a missing Brief file degrades to the title-only Brief, reported plainly, never blocks).
+ *      Then, for each Recipe in `chosen`: load the Brand's banned words, and call
  *      `src/production-spec/author-at-review.ts`'s `authorSpecForRecipe`. A Recipe whose Spec fails its
  *      author-phase self-check is reported PLAINLY in the returned message and is DROPPED from the set
  *      passed to `enqueueOnAccept` — no job is ever enqueued for it, in EITHER queue. Review is now the
@@ -66,6 +71,8 @@ import { runMigrations } from "../db/migrate.ts";
 import { getRecipe } from "../recipe/registry.ts";
 import { loadBannedWords } from "../production-spec/brand-profile.ts";
 import { authorSpecForRecipe, type Brief } from "../production-spec/author-at-review.ts";
+import { loadBrief } from "../importer/load-brief.ts";
+import { parseBriefContent } from "../idea/brief-content.ts";
 import { specPathFor } from "../production-spec/store.ts";
 import { loadFormat, type FormatCadence } from "../format/store.ts";
 import { getAssetByRecipe, saveAssetSpec, refreshSpecFile } from "../command-surface/index.ts";
@@ -154,7 +161,45 @@ export async function acceptIdeaCommand(
   // reported here, loudly, and dropped from the set `enqueueOnAccept` below ever sees.
   const fullIdeas = await loadFullIdeas(ledgerPath, brand);
   const ledgerIdea = fullIdeas.find((i) => i.id === ideaId);
-  const brief: Brief = { id: ideaId, run: ledgerIdea?.run ?? "unknown-run", title: ledgerIdea?.title ?? ideaId };
+  const runId = ledgerIdea?.run ?? "unknown-run";
+
+  // Read the Idea's REAL Brief markdown off disk and parse its story-specific content (issue #273 round
+  // 2, QA round 1's own finding: authoring from the ledger's title alone can never produce anything but
+  // filler — no generator, however checklisted, can vary its output on content it was never given).
+  // `loadBrief` tries every candidate path `resolveBriefPathCandidates` computes (the ledger's own
+  // `briefPath` first, when recorded); a Brief that genuinely cannot be found degrades to the title-only
+  // Brief below, reported plainly, rather than blocking the accept — the SAME "never blocks, always
+  // surfaces" contract this command already applies to a SQL problem.
+  const briefLoad = await loadBrief(
+    {
+      id: ideaId,
+      run: runId,
+      ...(ledgerIdea?.format !== undefined ? { format: ledgerIdea.format } : {}),
+      ...(ledgerIdea?.briefPath !== undefined ? { briefPath: ledgerIdea.briefPath } : {}),
+    },
+    brand,
+    options.brandsRoot,
+  );
+  const parsedBriefContent = briefLoad.ok ? parseBriefContent(briefLoad.content) : undefined;
+  if (!briefLoad.ok) {
+    lines.push(
+      `Note: no Brief markdown file found for "${ideaId}" — authoring from the ledger's title alone ` +
+        `(tried: ${briefLoad.candidates.join(", ") || "no candidate paths could be derived"}).`,
+    );
+  }
+
+  const brief: Brief = {
+    id: ideaId,
+    run: runId,
+    title: ledgerIdea?.title ?? ideaId,
+    ...(parsedBriefContent?.angle !== undefined ? { angle: parsedBriefContent.angle } : {}),
+    ...(parsedBriefContent !== undefined && parsedBriefContent.talkingPoints.length > 0
+      ? { talkingPoints: parsedBriefContent.talkingPoints }
+      : {}),
+    ...(parsedBriefContent !== undefined && parsedBriefContent.sourceUrls.length > 0
+      ? { sourceUrls: parsedBriefContent.sourceUrls }
+      : {}),
+  };
   const bannedWords = await loadBannedWords(brandPaths.brandProfile);
 
   const authoredSpecs = new Map<string, Record<string, unknown>>();

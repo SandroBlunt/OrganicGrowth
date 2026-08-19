@@ -868,11 +868,13 @@ if (YOUTUBE_COPY_SHAPE === null || YOUTUBE_COPY_SHAPE.titleMaxChars === undefine
  * no-op, reserved for "this Recipe's own future build slice"), THIS Recipe's `render` phase is real
  * work: collecting the Shot List's media is what a Space-less Recipe's "render" step IS.
  *
- * The `author` phase's checklist is graduated (issue #187, 2026-08-12 grilling), mirroring the News
- * Carousel Recipe's own precedent: on top of the two items REFERENCING this Recipe's `specShape`
- * functions, `production-spec/news-short-script-author-checklist.ts`'s `auditNewsShortScriptAuthorPhase`
- * adds three NEW mechanical items — every beat carries 3-5 Curiosity Queries, no beat's spoken text
- * states an explicit calendar date, and no two beats' `source_url` repeat the same site/company.
+ * The `author` phase's checklist is graduated (issue #187, 2026-08-12 grilling; `no-repeated-phrases`
+ * added issue #273 round 2), mirroring the News Carousel Recipe's own precedent: on top of the two items
+ * REFERENCING this Recipe's `specShape` functions,
+ * `production-spec/news-short-script-author-checklist.ts`'s `auditNewsShortScriptAuthorPhase` adds FOUR
+ * NEW mechanical items — every beat carries 3-5 Curiosity Queries, no beat's spoken text states an
+ * explicit calendar date, no two beats' `source_url` repeat the same site/company, and no beat's own
+ * spoken text repeats the same 4-word phrase more than once (issue #273 round 2).
  */
 const NEWS_SHORT_SCRIPT_PHASES: readonly PhaseContract[] = [
   {
@@ -913,6 +915,13 @@ const NEWS_SHORT_SCRIPT_PHASES: readonly PhaseContract[] = [
         description:
           "No two beats' source_url repeat the same source page or the same site/company across the " +
           "Shot List (mirrors the News Carousel Recipe's own placement-variety item, issue #106).",
+        reference: "production-spec/news-short-script-author-checklist.ts: auditNewsShortScriptAuthorPhase",
+      },
+      {
+        kind: "mechanical",
+        description:
+          "No beat's own spoken text repeats the same 4-word phrase more than once — reject-only; a " +
+          "repeated phrase is padding, not real material (issue #273 round 2).",
         reference: "production-spec/news-short-script-author-checklist.ts: auditNewsShortScriptAuthorPhase",
       },
       {

@@ -64,7 +64,21 @@ async function withBrandFixture<T>(
   await mkdir(brandDir, { recursive: true });
   const briefPath = join(brandDir, "idea-01.md");
   const queuePath = join(root, "queue.json");
-  await writeFile(briefPath, `# ${title}\n\n## Source(s)\n- https://example.com/real-source\n`, "utf8");
+  // A REALISTIC Brief body (`## Talking Points` + `## Source(s)`, mirroring every real straw-motion
+  // Brief — issue #273 round 2): `acceptIdeaCommand` now reads this file and threads its real content
+  // into the authored Spec, so a title-only Brief here would fail authorship on genericness, exercising
+  // a shape no real accept ever actually authors from.
+  await writeFile(
+    briefPath,
+    `# ${title}\n\n` +
+      "## Talking Points\n" +
+      "- The company shipped a new capability three weeks after its last release.\n" +
+      "- Pricing dropped for the introductory period, undercutting every rival offer.\n" +
+      "- Independent benchmarks show a real jump in the underlying model's accuracy.\n" +
+      "- Engineering teams now face integration fatigue from the pace of change.\n\n" +
+      "## Source(s)\n- https://example.com/real-source\n",
+    "utf8",
+  );
   await writeFile(
     join(brandDir, "ledger.json"),
     JSON.stringify({

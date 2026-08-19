@@ -29,6 +29,7 @@ import { FakeSpace, FAKE_POLL } from "../space-driver/fixtures/fake-space.ts";
 import { FakeCarouselSpace, CAROUSEL_ASSET_URL } from "../producer/fixtures/fake-carousel-space.ts";
 import { validSpec } from "../production-spec/fixtures/specs.ts";
 import { strawMotionIdeaOneCarouselSpec } from "../production-spec/fixtures/news-carousel-straw-motion-specs.ts";
+import { allSlidesSameCardStyle } from "../production-spec/fixtures/news-carousel-author-checklist-specs.ts";
 
 import { runOneJob, type RunOneJobOptions } from "./worker.ts";
 
@@ -88,6 +89,29 @@ describe("runOneJob — the author phase stops a bad Spec before any Space call 
 
       // Give the Brand a banned word certain to appear in any real prompt text.
       db.prepare(`UPDATE brand SET banned_words_json = '["the"]' WHERE id = ?`).run(brandId);
+
+      const space = new FakeCarouselSpace();
+      const outcome = await runOneJob(db, space, jobId, OPTIONS);
+
+      assert.equal(outcome.status, "failed");
+      assert.equal(space.editGoals.length, 0);
+      assert.equal(space.runs.length, 0);
+    });
+  });
+
+  it("issue #273: a filler Spec (one card_style repeated on every slide) fails the job on the SAME widened check accept-idea now runs, with ZERO Space calls — defense-in-depth", async () => {
+    await withTempDb(async (db) => {
+      runMigrations(db);
+      const { brandId, ideaId } = await seedAssetAndChannel(db);
+      await writeAsset(
+        ideaId,
+        NEWS_CAROUSEL_RECIPE,
+        { status: "queued", spec: allSlidesSameCardStyle() as unknown as Record<string, unknown> },
+        { db },
+      );
+      const assets = (await loadIdeaAssets(ideaId, { db })) as readonly DbAssetRecord[];
+      const carouselAssetId = assets.find((a) => a.recipe === NEWS_CAROUSEL_RECIPE)!.id;
+      const jobId = enqueueJob(db, { assetId: carouselAssetId, brandId });
 
       const space = new FakeCarouselSpace();
       const outcome = await runOneJob(db, space, jobId, OPTIONS);

@@ -44,6 +44,22 @@ export interface Brief {
    * names none; an explicit `[]` is also carried through as `[]`, never collapsed to "absent".
    */
   readonly companies?: readonly string[];
+  /**
+   * Real, distinct talking points parsed from the Brief's own `## Talking Points` section (issue #273
+   * round 2, `src/idea/brief-content.ts`'s `extractTalkingPoints`) — every real straw-motion Brief
+   * carries this heading. `news-carousel-generate.ts`/`news-short-script-generate.ts` use these to
+   * ground each slide's/beat's own text in real story material instead of repeating the bare title on
+   * every slide (the exact filler pattern issue #273 reproduced live). Omitted when the Brief has no
+   * such section at all — never fabricated.
+   */
+  readonly talkingPoints?: readonly string[];
+  /**
+   * Real, openly-readable citation URLs parsed from the Brief's own `## Source(s)` section (issue #273
+   * round 2, `src/importer/source-urls.ts`'s `extractSourceUrls`, reused unchanged). The News Short
+   * Script generator cites these as each beat's own `source_url` in place of a synthetic placeholder
+   * host, when enough distinct-site URLs are available. Omitted when the Brief cites none.
+   */
+  readonly sourceUrls?: readonly string[];
 }
 
 /** Pad an array to exactly `n` entries using `fill(i)`, or trim to the first `n`. */

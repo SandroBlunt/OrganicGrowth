@@ -66,4 +66,14 @@ describe("generateNewsShortScriptSpec — a deterministic stand-in for the news-
       assert.ok(total >= MIN_TOTAL_WORDS && total <= MAX_TOTAL_WORDS, `title=${title} total=${total}`);
     }
   });
+
+  // issue #273 regression proof: every beat used to sit on the SAME `example.com` host, which always
+  // failed `news-short-script-author-checklist.ts`'s `shot-list-variety` item — undetected because
+  // nothing ran that checklist at accept time.
+  it("issue #273: no two beats' source_url share the same site/host", () => {
+    const spec = generateNewsShortScriptSpec(BRIEF);
+    const hosts = spec.beats.map((b) => new URL(b.source_url).hostname);
+    const distinct = new Set(hosts);
+    assert.equal(distinct.size, hosts.length, `expected every beat on a distinct host, got ${JSON.stringify(hosts)}`);
+  });
 });

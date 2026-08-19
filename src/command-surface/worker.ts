@@ -8,8 +8,9 @@
  *   2. Load the Asset/Brand/Recipe/Idea (reads only).
  *   3. Refuse a Space-less Recipe (ADR-0021) — out of this ticket's scope.
  *   4. Decide the LEG (`worker/plan-leg.ts`'s `planLeg`, fed by `listGateRequestsForAsset` — a READ).
- *   5. FIRST leg only: self-audit the `author` Phase Contract (`auditAuthorPhase`) against the
- *      already-authored, saved Production Spec.
+ *   5. FIRST leg only: self-audit the `author` Phase Contract (`auditAuthoredSpec` — that Recipe's OWN
+ *      richer checklist where one is registered, else the generic `auditAuthorPhase`; issue #273) against
+ *      the already-authored, saved Production Spec.
  *   6. A leg about to render (`targetGate === null`): resolve + bind media slots
  *      (`worker/resolve-media-slots.ts` + `producer/bind-media.ts`'s `bindMediaSlots`), self-audit the
  *      `bind-media` Phase Contract, then actually bind each brand-asset slot into the canvas
@@ -51,7 +52,8 @@ import { getIdea } from "../idea/store.ts";
 import { getPrimaryChannel } from "../channel/store.ts";
 import { getRecipe, type Recipe } from "../recipe/registry.ts";
 import { usesSpace } from "../producer/uses-space.ts";
-import { auditAuthorPhase, auditBindMediaPhase, auditCopyPhase } from "../recipe/phase-contract.ts";
+import { auditBindMediaPhase, auditCopyPhase } from "../recipe/phase-contract.ts";
+import { auditAuthoredSpec } from "../production-spec/author-at-review.ts";
 import { bindMediaSlots } from "../producer/bind-media.ts";
 import { resolveMediaSlotResolutions } from "../worker/resolve-media-slots.ts";
 import { planLeg, type PriorGateDecision } from "../worker/plan-leg.ts";
@@ -201,7 +203,7 @@ export async function runOneJob(
     if (asset.spec === undefined) {
       return finishFail(db, claimed, maxAttempts, now, "the Asset has no authored Production Spec yet");
     }
-    const authorAudit = auditAuthorPhase(recipe, { candidateSpec: asset.spec, bannedWords: brand.bannedWords });
+    const authorAudit = auditAuthoredSpec(recipe, asset.spec, brand.bannedWords);
     if (!authorAudit.ok) {
       const detail = authorAudit.items.filter((i) => i.ok === false).map((i) => i.detail ?? i.description).join("; ");
       return finishFail(db, claimed, maxAttempts, now, `author phase failed: ${detail}`);

@@ -601,3 +601,213 @@ export function auditNewsCarouselAuthorPhase(
 
   return { recipe: "news-carousel", phase: "author", ok, items };
 }
+
+// ---------------------------------------------------------------------------
+// auditNewsCarouselStandaloneAuthorPhase — Baseline-Prompt-INDEPENDENT subset (issue #273)
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether the slides' `card_style` values are spread at all — the weakest possible, universally
+ * computable floor beneath `hasPlacementVariety`'s Format-tuned `placement-variety` item above: at
+ * least 2 distinct values across the slide set (or every slide when there are fewer than 2). Unlike
+ * `placement-variety`, this needs no `NewsCarouselBaselineParams` at all — it is a fact about the
+ * candidate Spec alone, so it can run BEFORE a Format's Baseline Prompt document is available (e.g. at
+ * Review/accept time, ADR-0031). A single `card_style` repeated on every one of the 7 slides is exactly
+ * the pattern issue #273 reproduced live: `production-spec/news-carousel-generate.ts`'s stand-in used to
+ * hardcode `"full_width"` for every slide, completely undetected by the (then Baseline-Prompt-only)
+ * `placement-variety` item, which never ran at accept time.
+ */
+function hasMinimalCardStyleVariety(slides: readonly Record<string, unknown>[]): boolean {
+  if (slides.length === 0) return false;
+  const distinctCount = new Set(slides.map((s) => String(s.card_style))).size;
+  return distinctCount >= Math.min(2, slides.length);
+}
+
+// ---------------------------------------------------------------------------
+// slide-text-variety — no two-plus slides sharing the same repeated headline (issue #273 round 2)
+// ---------------------------------------------------------------------------
+
+/** Content words only — length >= 4, letters/digits, lowercased. Short connective words ("a", "the",
+ *  "on") are deliberately excluded: they are common to almost any two sentences and would swamp the
+ *  signal this check is actually after (does every slide repeat the SAME substantive material). */
+const SLIDE_TEXT_MIN_WORD_LENGTH = 4;
+
+/** The MOST content words that may legitimately be common to literally EVERY one of the 7 slides before
+ *  this is treated as "the same headline repeated on every card" rather than normal editorial reuse of a
+ *  story's own recurring subject name (a company/product mentioned more than once is fine — issue #273
+ *  round 2, QA round 1's own repro: the pre-fix stand-in repeated the FULL headline, verbatim, on all 7
+ *  slides, sharing far more than a couple of subject words). */
+const MAX_COMMON_SLIDE_TEXT_WORDS = 3;
+
+function contentWords(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length >= SLIDE_TEXT_MIN_WORD_LENGTH),
+  );
+}
+
+function slideText(slide: Record<string, unknown>): string {
+  return typeof slide.text === "string" ? slide.text : "";
+}
+
+/**
+ * The content words common to EVERY one of `slides`' own `text` field — a Spec whose slides all repeat
+ * the same headline/sentence shares most of that sentence's significant words across all of them; a
+ * Spec whose slides draw from genuinely different material shares, at most, a story's own recurring
+ * subject name. Exported for direct, focused testing (mirrors `checkShotListVariety`'s own convention in
+ * the sibling News Short Script checklist).
+ */
+export function commonSlideTextWords(slides: readonly Record<string, unknown>[]): readonly string[] {
+  if (slides.length === 0) return [];
+  const wordSets = slides.map((s) => contentWords(slideText(s)));
+  let common: ReadonlySet<string> = wordSets[0]!;
+  for (const set of wordSets.slice(1)) {
+    if (common.size === 0) break;
+    common = new Set([...common].filter((w) => set.has(w)));
+  }
+  return [...common];
+}
+
+/**
+ * The MINIMUM number of leading characters (case-insensitive) two slides' `text` must share, verbatim,
+ * before this is treated as "the same opening sentence, just cut off at a different point" — the
+ * `commonSlideTextWords` measure alone under-catches a genuinely SHORT title: e.g. a 4-word title
+ * repeated verbatim on every slide, with only 2 of its own words being >= `SLIDE_TEXT_MIN_WORD_LENGTH`
+ * chars, stays under `MAX_COMMON_SLIDE_TEXT_WORDS` even though every slide is STILL just that same
+ * headline, re-suffixed. A shared 20+-char prefix is a length-independent signal for exactly that
+ * pattern; genuinely distinct sentences (even ones opening with a common short word like "The") almost
+ * never share a prefix this long.
+ */
+const SHARED_TEXT_PREFIX_MIN_LENGTH = 20;
+
+/** The length of the longest common (case-insensitive) leading substring of `a` and `b`. */
+function commonPrefixLength(a: string, b: string): number {
+  const max = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < max && a[i]!.toLowerCase() === b[i]!.toLowerCase()) i += 1;
+  return i;
+}
+
+/** `true` when ANY two of `slides`' own `text` fields share a verbatim leading substring of at least
+ *  `SHARED_TEXT_PREFIX_MIN_LENGTH` characters — a length-independent floor beneath
+ *  `commonSlideTextWords`'s own word-based measure (see `SHARED_TEXT_PREFIX_MIN_LENGTH`'s own doc
+ *  comment for why both are needed). */
+function hasSharedLongTextPrefix(slides: readonly Record<string, unknown>[]): boolean {
+  const texts = slides.map(slideText);
+  for (let i = 0; i < texts.length; i += 1) {
+    for (let j = i + 1; j < texts.length; j += 1) {
+      if (commonPrefixLength(texts[i]!, texts[j]!) >= SHARED_TEXT_PREFIX_MIN_LENGTH) return true;
+    }
+  }
+  return false;
+}
+
+function hasSlideTextVariety(slides: readonly Record<string, unknown>[]): boolean {
+  if (slides.length === 0) return false;
+  return commonSlideTextWords(slides).length <= MAX_COMMON_SLIDE_TEXT_WORDS && !hasSharedLongTextPrefix(slides);
+}
+
+/**
+ * Audit a candidate News Carousel Production Spec against the SUBSET of its full author-phase
+ * checklist (`auditNewsCarouselAuthorPhase` above) that needs NO `NewsCarouselBaselineParams` — i.e. no
+ * Format's Baseline Prompt document has to be read first (issue #273). This is the fullest check
+ * mechanically available BEFORE that document is resolved (today: accept time, `author-at-review.ts`'s
+ * `authorSpecForRecipe`, and the unattended worker's own defense-in-depth check,
+ * `command-surface/worker.ts`'s `runOneJob`, both via `auditAuthoredSpec`). It intentionally omits every
+ * item that reads a Format-specific literal (logo reference name, pill text, fixed clauses, the
+ * Format-tuned `placement-variety` threshold) — those remain `auditNewsCarouselAuthorPhase`'s job, run
+ * later by the interactive `produce-news-carousel` Skill once the Baseline Prompt document is in hand
+ * (see this module's own doc comment; a document-parsing step that resolves those params automatically
+ * is separate, not-yet-built work, never fabricated here).
+ *
+ * Reuses the SAME referenced checks the full function does (`validateNewsCarouselSpec`,
+ * `scanNewsCarouselForBannedWords`, `scanTextFieldsForDashes`, `companiesCitedInPrompt`) — never a
+ * second, re-derived rule — plus two genuinely NEW, Baseline-Prompt-independent items:
+ * `card-style-distinctness` (issue #273 round 1) and `slide-text-variety` (issue #273 round 2 — QA
+ * round 1's own finding that round 1's fix left every slide repeating the Brief's bare headline
+ * verbatim; see `commonSlideTextWords`'s own doc comment).
+ *
+ * @param candidateSpec the candidate News Carousel Production Spec (untrusted shape)
+ * @param bannedWords   the Brand's banned words (`production-spec/brand-profile.ts`'s `loadBannedWords`)
+ */
+export function auditNewsCarouselStandaloneAuthorPhase(
+  candidateSpec: unknown,
+  bannedWords: readonly string[],
+): PhaseAuditResult {
+  const structural = validateNewsCarouselSpec(candidateSpec);
+  const safety = scanNewsCarouselForBannedWords(candidateSpec, bannedWords);
+  const slides = extractSlides(candidateSpec);
+  const hasSlides = slides.length > 0;
+  const dashes = scanTextFieldsForDashes(cardTextFields(slides));
+
+  const items: ChecklistItemAudit[] = [
+    {
+      id: "spec-shape",
+      description:
+        "Exactly 7 slides, in fixed role order hook -> then -> shift -> proof -> different -> next -> " +
+        "cta, each slide well-formed (news-carousel-validate.ts's validateNewsCarouselSpec).",
+      kind: "mechanical",
+      ok: structural.ok,
+      ...(structural.ok ? {} : { detail: structural.errors.map((e) => e.message).join("; ") }),
+    },
+    {
+      id: "banned-words",
+      description: "No banned word in any field — reject-only, never a silent swap.",
+      kind: "mechanical",
+      ok: safety.ok,
+      ...(safety.ok ? {} : { detail: safety.hits.map((h) => `"${h.word}" in ${h.field}`).join("; ") }),
+    },
+    {
+      id: "no-dash-tells",
+      description:
+        "No em dash, en dash, or hyphen used as a sentence dash in any slide's stat_callout/text — " +
+        "reject-only; rewrite as separate short sentences instead.",
+      kind: "mechanical",
+      ok: dashes.ok,
+      ...(dashes.ok ? {} : { detail: dashes.hits.map((h) => `"${h.match}" in ${h.field}`).join("; ") }),
+    },
+    {
+      id: "companies-cited",
+      description:
+        "Every company named in a slide's companies field is cited in that slide's own image_prompt " +
+        "(a slide naming no real company skips the logo row entirely).",
+      kind: "mechanical",
+      ok: hasSlides && slides.every((s) => companiesCitedInPrompt(s)),
+    },
+    {
+      id: "card-style-distinctness",
+      description:
+        "At least 2 distinct card_style values are used across the slides — a Baseline-Prompt-" +
+        "independent floor beneath the Format-tuned placement-variety item above; a single card_style " +
+        "repeated on every slide is a strong filler signal (issue #273).",
+      kind: "mechanical",
+      ok: hasMinimalCardStyleVariety(slides),
+    },
+    {
+      id: "slide-text-variety",
+      description:
+        `At most ${MAX_COMMON_SLIDE_TEXT_WORDS} content words are common to every one of the 7 slides' ` +
+        "own on-card text, AND no two slides share a verbatim leading substring of " +
+        `${SHARED_TEXT_PREFIX_MIN_LENGTH}+ characters — a Spec whose slides all repeat the same ` +
+        "headline/sentence (just re-worded/re-cut per role) fails one or both; grounding each slide in " +
+        "genuinely different material (e.g. a distinct Talking Point per slide) fails neither " +
+        "(issue #273 round 2).",
+      kind: "mechanical",
+      ok: hasSlideTextVariety(slides),
+      ...(hasSlideTextVariety(slides)
+        ? {}
+        : {
+            detail:
+              `common words: ${commonSlideTextWords(slides).join(", ") || "(none)"}` +
+              (hasSharedLongTextPrefix(slides) ? "; two or more slides also share a long leading substring" : ""),
+          }),
+    },
+  ];
+
+  const ok = structural.ok && items.every((i) => i.ok !== false);
+
+  return { recipe: "news-carousel", phase: "author", ok, items };
+}

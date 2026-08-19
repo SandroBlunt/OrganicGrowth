@@ -13,7 +13,8 @@
  *   - The referenced structural validator is the AUTHORITATIVE gate: a malformed/short/mis-ordered Spec
  *     fails this checklist's overall `ok` regardless of what the granular items below say.
  *
- * The genuinely NEW checks this module adds (2026-08-12 grilling; issue #187):
+ * The genuinely NEW checks this module adds (2026-08-12 grilling; issue #187; `no-repeated-phrases`
+ * added issue #273 round 2):
  *
  *   - **no-calendar-dates** — no beat's SPOKEN `text` states an explicit calendar date anywhere in the
  *     script body (not just an opening stamp), via `calendar-date-scan.ts`'s `scanTextFieldsForDates`,
@@ -29,6 +30,12 @@
  *     `curiosity_queries_invalid` code, called out as its own checklist item (issue #187's own AC),
  *     exactly like the structural validator's `slide_role_order`/`slide_text_too_long` codes are split
  *     into the carousel checklist's own separate items.
+ *   - **no-repeated-phrases** (issue #273 round 2, QA round 1's own live repro) — no beat's own spoken
+ *     `text` repeats the SAME 4-word phrase more than once. `news-short-script-generate.ts`'s stand-in
+ *     used to pad a short Brief title out to the "story" beat's 90-word target with a small, fixed
+ *     `FILLER_WORDS` list, which — for any real, few-word title — meant the SAME ~20-word filler phrase
+ *     got concatenated ~4 times over: mechanically-detectable padding, not merely a symptom of it (see
+ *     `checkNoRepeatedPhrases`'s own doc comment for why 4 words is the right granularity).
  */
 
 import { validateNewsShortScriptSpec } from "./news-short-script-validate.ts";
@@ -108,6 +115,60 @@ export function checkShotListVariety(beats: readonly Record<string, unknown>[]):
   return { ok: duplicates.length === 0, duplicates };
 }
 
+// ---------------------------------------------------------------------------
+// no-repeated-phrases — no beat pads itself out with the same phrase, repeated (issue #273 round 2)
+// ---------------------------------------------------------------------------
+
+/** The n-gram length a repeat is measured at: 4 consecutive words repeating VERBATIM within one beat's
+ *  own spoken text is a strong, low-false-positive padding signal — genuine prose essentially never
+ *  repeats the exact same 4-word run twice within one ~20-90 word beat, while a filler-word cycle
+ *  reused to pad out a short Brief title (the live pattern QA reproduced) does so routinely. */
+const REPEATED_PHRASE_WORD_LENGTH = 4;
+
+function normalizedWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 0);
+}
+
+/** One beat whose own spoken text repeats a phrase, naming the repeated phrase itself. */
+export interface RepeatedPhraseHit {
+  readonly field: string;
+  readonly phrase: string;
+}
+
+/** The result of scanning every beat's spoken `text` for an internally repeated phrase. */
+export interface RepeatedPhraseResult {
+  readonly ok: boolean;
+  readonly hits: readonly RepeatedPhraseHit[];
+}
+
+/**
+ * Detect a beat whose OWN spoken `text` repeats the same `REPEATED_PHRASE_WORD_LENGTH`-word phrase more
+ * than once — the exact padding pattern issue #273 round 2 reproduced live in the "story" beat (a single
+ * filler phrase concatenated ~4x to reach the target word count). REJECT-ONLY, mirroring
+ * `checkShotListVariety`'s own contract (report, never rewrite). Exported for direct, focused testing.
+ */
+export function checkNoRepeatedPhrases(beats: readonly Record<string, unknown>[]): RepeatedPhraseResult {
+  const hits: RepeatedPhraseHit[] = [];
+  beats.forEach((beat, i) => {
+    if (typeof beat.text !== "string") return;
+    const words = normalizedWords(beat.text);
+    const seen = new Set<string>();
+    for (let start = 0; start + REPEATED_PHRASE_WORD_LENGTH <= words.length; start += 1) {
+      const phrase = words.slice(start, start + REPEATED_PHRASE_WORD_LENGTH).join(" ");
+      if (seen.has(phrase)) {
+        hits.push({ field: `beats[${i}].text`, phrase });
+        return;
+      }
+      seen.add(phrase);
+    }
+  });
+  return { ok: hits.length === 0, hits };
+}
+
 /**
  * Audit a candidate News Short Script Production Spec against its FULL, graduated author-phase
  * checklist (issue #187). Runs entirely as CODE — every item either REFERENCES
@@ -126,6 +187,7 @@ export function auditNewsShortScriptAuthorPhase(
   const beats = extractBeats(candidateSpec);
   const dates = scanTextFieldsForDates(spokenTextFields(beats));
   const variety = checkShotListVariety(beats);
+  const repeats = checkNoRepeatedPhrases(beats);
 
   const hasStructuralCode = (code: string): boolean => structural.errors.some((e) => e.code === code);
 
@@ -193,6 +255,15 @@ export function auditNewsShortScriptAuthorPhase(
       kind: "mechanical",
       ok: safety.ok,
       ...(safety.ok ? {} : { detail: safety.hits.map((h) => `"${h.word}" in ${h.field}`).join("; ") }),
+    },
+    {
+      id: "no-repeated-phrases",
+      description:
+        `No beat's own spoken text repeats the same ${REPEATED_PHRASE_WORD_LENGTH}-word phrase more ` +
+        "than once — reject-only; a repeated phrase is padding, not real material (issue #273 round 2).",
+      kind: "mechanical",
+      ok: repeats.ok,
+      ...(repeats.ok ? {} : { detail: repeats.hits.map((h) => `"${h.phrase}" in ${h.field}`).join("; ") }),
     },
   ];
 
