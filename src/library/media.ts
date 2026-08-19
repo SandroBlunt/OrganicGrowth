@@ -38,9 +38,18 @@ export function resolveMediaAbsolutePath(mediaRoot: string, storageKey: string):
  * the file, and returns its bytes + recorded MIME type. Returns `null` — never throws — for: an
  * unknown `mediaId`, an Asset/Idea/Brand this row cannot be joined back to (should be impossible under
  * the schema's own FOREIGN KEYs, but this function degrades rather than 500ing), or a file that is
- * simply not present on THIS machine (the real 259 media rows only exist on the Operator's own machine
- * — see this ticket's Build Report "Known Limits"). A missing file is an ordinary, expected 404, not an
- * error to surface.
+ * genuinely not present on THIS machine. A missing file is an ordinary, expected 404, not an error to
+ * surface.
+ *
+ * **Two storage_key conventions exist side by side.** New media the worker writes (`src/command-
+ * surface/worker.ts`) records a `storage_key` relative to the Brand's own `media_root` — the documented
+ * contract (`src/db/storage-key.ts`). The one-shot importer's legacy rows (`src/importer/storage-key-
+ * from-legacy-path.ts`) instead relativized each ledger path against the checkout root, so a legacy
+ * `storage_key` already carries the `data/brands/<slug>/…` prefix that IS `media_root` — joining
+ * `media_root + storage_key` for one of these doubles that prefix and misses a file that is really
+ * sitting on disk. Try the documented (`media_root`-relative) resolution first; if that file isn't
+ * there, fall back to resolving `storage_key` alone against the repo root, which is what a legacy row
+ * actually needs.
  */
 export async function resolveMediaFile(db: DatabaseSync, mediaId: string): Promise<ResolvedMediaFile | null> {
   const media = getAssetMediaById(db, mediaId);
@@ -52,9 +61,17 @@ export async function resolveMediaFile(db: DatabaseSync, mediaId: string): Promi
   const brand = getBrandById(db, idea.brandId);
   if (brand === null) return null;
 
-  const absolutePath = resolveMediaAbsolutePath(brand.mediaRoot, media.storageKey);
+  const primaryPath = resolveMediaAbsolutePath(brand.mediaRoot, media.storageKey);
   try {
-    const bytes = await readFile(absolutePath);
+    const bytes = await readFile(primaryPath);
+    return { bytes, mime: media.mime };
+  } catch {
+    // fall through to the legacy checkout-root-relative resolution below
+  }
+
+  const legacyPath = isAbsolute(media.storageKey) ? media.storageKey : join(process.cwd(), media.storageKey);
+  try {
+    const bytes = await readFile(legacyPath);
     return { bytes, mime: media.mime };
   } catch {
     return null;

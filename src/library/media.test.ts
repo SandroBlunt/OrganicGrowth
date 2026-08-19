@@ -96,4 +96,41 @@ describe("resolveMediaFile — reads a real file off disk via storage_key + Bran
       assert.equal(await resolveMediaFile(db, "does-not-exist"), null);
     });
   });
+
+  it("falls back to a checkout-root-relative resolution for a legacy-imported storage_key the media_root join misses", async () => {
+    // Mirrors the real one-shot importer's shape: a legacy storage_key already carries the
+    // `<media_root>/…` prefix baked in (relativized against the checkout root, not media_root), so
+    // joining media_root + storage_key doubles that prefix and misses the real file.
+    const legacyRoot = await mkdtemp(join(process.cwd(), "og-library-media-legacy-"));
+    const unrelatedMediaRoot = await mkdtemp(join(tmpdir(), "og-library-media-unrelated-"));
+    try {
+      await withTempDb(async (db) => {
+        runMigrations(db);
+        const world = seedWorld(db);
+        updateBrand(db, world.brandId, { mediaRoot: unrelatedMediaRoot });
+        const ideaId = seedLibraryIdea(world);
+        await writeAsset(ideaId, "news-carousel", { status: "produced" }, { db });
+        const assetId = (await loadIdeaAssets(ideaId, { db }) as readonly DbAssetRecord[])[0]!.id;
+
+        await writeFile(join(legacyRoot, "legacy.jpg"), Buffer.from("legacy-jpeg-bytes"));
+        const legacyStorageKey = join(legacyRoot, "legacy.jpg").slice(process.cwd().length + 1);
+
+        const mediaId = addAssetMedia(db, assetId, {
+          ordinal: 0,
+          kind: "image",
+          storageKey: legacyStorageKey,
+          mime: "image/jpeg",
+          bytes: 17,
+          checksum: "irrelevant",
+        });
+
+        const resolved = await resolveMediaFile(db, mediaId);
+        assert.notEqual(resolved, null);
+        assert.equal(resolved!.bytes.toString("utf8"), "legacy-jpeg-bytes");
+      });
+    } finally {
+      await rm(legacyRoot, { recursive: true, force: true });
+      await rm(unrelatedMediaRoot, { recursive: true, force: true });
+    }
+  });
 });
