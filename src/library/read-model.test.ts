@@ -9,10 +9,12 @@
  *   2. ONE real-corpus integration test that runs the ACTUAL one-shot importer (`src/importer`) plus the
  *      ACTUAL Hook Type / Theme backfill (`src/commands/backfill-hook-theme.ts`) against this repo's own
  *      committed `data/brands/**` — no network, no live Space, no Apify — and asserts the read model
- *      reports EXACTLY the counts `docs/import-reconciliation-2026-08-17.md` already documents (2
- *      Brands, 61 Ideas, 54 Assets, 66 Jobs, 7 Posts). This is the "prove it, don't assert it" proof the
- *      build brief asks for — a hand-maintained fixture could drift from what the real data actually
- *      looks like without anyone noticing; this test cannot.
+ *      reports EXACTLY the CURRENT real counts (2 Brands, 54 Assets, 66 Jobs, 7 Posts stayed fixed since
+ *      `docs/import-reconciliation-2026-08-17.md`; Ideas has since grown to 73 as real Runs kept
+ *      suggesting new ones — see that test's own comment for how to re-derive these numbers). This is
+ *      the "prove it, don't assert it" proof the build brief asks for — a hand-maintained fixture could
+ *      drift from what the real data actually looks like without anyone noticing; this test cannot, at
+ *      the cost of needing its own numbers bumped whenever the real corpus legitimately grows.
  */
 
 import { describe, it } from "node:test";
@@ -289,8 +291,14 @@ describe("countAllPosts", () => {
 // The real-corpus proof (issue #210's own "prove it, don't assert it" requirement)
 // ---------------------------------------------------------------------------
 
-describe("against the REAL imported corpus — docs/import-reconciliation-2026-08-17.md's own counts", () => {
-  it("2 Brands, 61 Ideas, 54 Assets, 66 Jobs, 7 Posts — read back through the SAME read model the Library serves", async () => {
+// These counts track the REAL, live corpus (data/brands/**), not a frozen fixture — every real Run that
+// suggests new Ideas moves the Ideas count (Assets/Jobs/Posts only move once those Ideas are produced/
+// posted). This is a KNOWN, expected fragility, not a design mistake: re-run
+// `npm run import-data -- --rebuild` then `npm run backfill-hook-theme`, read the reconciliation
+// report's own printed counts, and bump the numbers below to match. Last bumped 2026-08-19 after the
+// "Unhypped Daily" 2026-W34 batch (+12 Ideas, still all `suggested` — Assets/Jobs/Posts unchanged).
+describe("against the REAL imported corpus — 2026-08-19's own reconciliation counts", () => {
+  it("2 Brands, 73 Ideas, 54 Assets, 66 Jobs, 7 Posts — read back through the SAME read model the Library serves", async () => {
     await withTempDb(async (db) => {
       runMigrations(db);
       const now = () => "2026-08-17T00:00:00.000Z";
@@ -308,7 +316,7 @@ describe("against the REAL imported corpus — docs/import-reconciliation-2026-0
       await backfillHookTheme(db, { now });
 
       // Prove against the store layer directly first — the exact counts the reconciliation doc states.
-      assert.equal(listAllIdeas(db).length, 61);
+      assert.equal(listAllIdeas(db).length, 73);
       assert.equal(listAllAssets(db).length, 54);
       assert.equal(listAllJobs(db).length, 66);
       assert.equal(listAllPosts(db).length, 7);
