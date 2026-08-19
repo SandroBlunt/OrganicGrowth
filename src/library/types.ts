@@ -164,6 +164,11 @@ export interface AssetDetailView {
  *  `classifyQueueRow`). */
 export type QueueBucket = "produced" | "parked" | "failed" | "running" | "queued" | "done";
 
+/** How the Run & queue screen lays out its rows — `"list"` (the original stacked-table-per-bucket
+ *  layout) or `"kanban"` (one column per non-empty bucket, side by side). Purely a rendering choice over
+ *  the SAME `QueueRow[]` data; never changes what is fetched or filtered. */
+export type QueueView = "list" | "kanban";
+
 export interface QueueRow {
   readonly jobId: string;
   readonly jobStatus: JobStatus;

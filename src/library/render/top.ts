@@ -8,9 +8,12 @@ import type { TopAssetEntry } from "../types.ts";
 
 function columnHtml(entry: TopAssetEntry): string {
   const { row, spec } = entry;
-  const specHtml = spec === null ? `<p class="muted">No Production Spec saved.</p>` : `<pre>${escapeHtml(JSON.stringify(spec, null, 2))}</pre>`;
+  const specHtml =
+    spec === null
+      ? `<p class="muted">No Production Spec saved.</p>`
+      : `<details><summary>Production Spec (raw JSON)</summary><pre>${escapeHtml(JSON.stringify(spec, null, 2))}</pre></details>`;
   return `<div class="spec-col">
-    <h3><a href="/assets/${encodeURIComponent(row.assetId)}">${escapeHtml(row.ideaTitle)}</a></h3>
+    <h3><a href="/assets/${encodeURIComponent(row.assetId)}" target="_blank" rel="noopener">${escapeHtml(row.ideaTitle)}</a></h3>
     <p><span class="badge">${escapeHtml(row.hookType)}</span> <span class="badge">${escapeHtml(row.theme)}</span></p>
     <p>${escapeHtml(row.recipeName)} &middot; ${escapeHtml(row.formatName)} &middot; ${escapeHtml(row.brandName)}</p>
     <p>Performance Score (measured): <strong>${formatScore(row.bestPerformanceScore)}</strong></p>

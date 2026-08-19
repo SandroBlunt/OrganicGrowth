@@ -79,6 +79,7 @@ describe("prepareLibraryViewer", () => {
 
       const prepared = await prepareLibraryViewer(["--db", dbPath]);
       assert.equal(prepared.port, 4173);
+      assert.equal(prepared.adminPort, 4174);
       prepared.db.close();
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -99,7 +100,7 @@ describe("prepareLibraryViewer", () => {
       runMigrations(writer);
       writer.close();
 
-      const prepared = await main(["--db", dbPath, "--port", "0"]);
+      const prepared = await main(["--db", dbPath, "--port", "0", "--admin-port", "0"]);
       try {
         const address = prepared.server.address() as AddressInfo;
         assert.equal(
@@ -113,8 +114,14 @@ describe("prepareLibraryViewer", () => {
         // And it still genuinely serves real requests on that loopback address.
         const res = await fetch(`http://127.0.0.1:${address.port}/`);
         assert.equal(res.status, 200);
+
+        // The admin server is ALSO bound loopback-only — same rule, same reason.
+        const adminAddress = prepared.adminServer.address() as AddressInfo;
+        assert.equal(adminAddress.address, "127.0.0.1");
+        assert.equal(adminAddress.family, "IPv4");
       } finally {
         await new Promise<void>((resolve, reject) => prepared.server.close((err) => (err ? reject(err) : resolve())));
+        await new Promise<void>((resolve, reject) => prepared.adminServer.close((err) => (err ? reject(err) : resolve())));
         prepared.db.close();
       }
     } finally {

@@ -48,4 +48,28 @@ describe("renderTopBody — Question 1: top 5 by Performance Score, Specs side b
     const html = renderTopBody(entries, 1);
     assert.match(html, /Only 1 of a possible 5 shown/);
   });
+
+  it("opens the Idea-title link in a new tab, safely (target=_blank + rel=noopener) — matches the Library screen's link behavior", () => {
+    const entries: TopAssetEntry[] = [{ row: row({ assetId: "a1", ideaTitle: "Winner" }), spec: null }];
+    const html = renderTopBody(entries, 1);
+    assert.match(html, /<a href="\/assets\/a1" target="_blank" rel="noopener">Winner<\/a>/);
+  });
+
+  it("collapses each column's Production Spec behind a closed-by-default <details> disclosure (Task 9, audit 2026-08-18)", () => {
+    const entries: TopAssetEntry[] = [
+      { row: row({ assetId: "a1", ideaTitle: "Winner" }), spec: { slides: [{ role: "hook" }] } },
+    ];
+    const html = renderTopBody(entries, 1);
+    assert.match(html, /<details><summary>Production Spec \(raw JSON\)<\/summary><pre>/);
+    assert.doesNotMatch(html, /<details[^>]* open[^>]*>/);
+    assert.match(html, /&quot;role&quot;: &quot;hook&quot;/);
+    assert.match(html, /<\/pre><\/details>/);
+  });
+
+  it("does not wrap the 'No Production Spec saved' message in a <details> disclosure — nothing to collapse", () => {
+    const entries: TopAssetEntry[] = [{ row: row({ assetId: "a1", ideaTitle: "Runner up" }), spec: null }];
+    const html = renderTopBody(entries, 1);
+    assert.match(html, /<p class="muted">No Production Spec saved\.<\/p>/);
+    assert.doesNotMatch(html, /<details>/);
+  });
 });

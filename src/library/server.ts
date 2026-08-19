@@ -61,7 +61,7 @@ const VALID_SORTS: ReadonlySet<string> = new Set<LibrarySort>(["performance", "f
 
 function parseSort(params: URLSearchParams): LibrarySort {
   const raw = params.get("sort");
-  return raw !== null && VALID_SORTS.has(raw) ? (raw as LibrarySort) : "performance";
+  return raw !== null && VALID_SORTS.has(raw) ? (raw as LibrarySort) : "produced";
 }
 
 function sendHtml(res: ServerResponse, status: number, body: string): void {
@@ -102,17 +102,18 @@ async function handleGet(db: DatabaseSync, url: URL, res: ServerResponse): Promi
     const filtered = applyLibraryFilter(allRows, filter);
     const sorted = sortLibraryRows(filtered, sort);
     const options = deriveFilterOptions(allRows);
-    sendHtml(res, 200, page("Library", renderLibraryBody(sorted, options, filter, sort, allRows.length)));
+    sendHtml(res, 200, page("Library", renderLibraryBody(sorted, options, filter, sort, allRows.length), path));
     return;
   }
 
   if (path === "/queue") {
-    sendHtml(res, 200, page("Run & Queue", renderQueueBody(buildQueueRows(db))));
+    const view = url.searchParams.get("view") ?? undefined;
+    sendHtml(res, 200, page("Run & Queue", renderQueueBody(buildQueueRows(db), view), path));
     return;
   }
 
   if (path === "/chart") {
-    sendHtml(res, 200, page("Fit vs Performance", renderChartBody(buildFitPerformanceData(db))));
+    sendHtml(res, 200, page("Fit vs Performance", renderChartBody(buildFitPerformanceData(db)), path));
     return;
   }
 
@@ -121,7 +122,7 @@ async function handleGet(db: DatabaseSync, url: URL, res: ServerResponse): Promi
     const top = topAssetsByPerformance(allRows, TOP_N);
     const totalScored = allRows.filter((r) => r.bestPerformanceScore !== undefined).length;
     const entries: readonly TopAssetEntry[] = top.map((row) => ({ row, spec: getAssetById(db, row.assetId)?.spec ?? null }));
-    sendHtml(res, 200, page("Top 5 by Performance Score", renderTopBody(entries, totalScored)));
+    sendHtml(res, 200, page("Top 5 by Performance Score", renderTopBody(entries, totalScored), path));
     return;
   }
 
@@ -132,7 +133,7 @@ async function handleGet(db: DatabaseSync, url: URL, res: ServerResponse): Promi
       sendNotFound(res);
       return;
     }
-    sendHtml(res, 200, page(detail.idea.title, renderAssetBody(detail)));
+    sendHtml(res, 200, page(detail.idea.title, renderAssetBody(detail), path));
     return;
   }
 

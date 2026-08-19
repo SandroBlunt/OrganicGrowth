@@ -20,6 +20,16 @@ function optionsHtml(values: readonly { readonly value: string; readonly label: 
   return blank + rest;
 }
 
+/** Turns a raw snake_case enum value (hookType, theme, status) into a human-readable label — spaces
+ *  instead of underscores, e.g. "counter_intuitive" -> "counter intuitive" (Task 6, audit 2026-08-18).
+ *  Used ONLY for the visible label; the underlying `value` (the query-string param the filter/sort logic
+ *  actually reads) always stays the raw enum value, unchanged. Shared here because it's now applied in
+ *  four places on this one page — the hookType/theme filter option labels, and the hookType/theme table
+ *  badges — rather than four separate `.replace(/_/g, " ")` calls. */
+function humanizeLabel(value: string): string {
+  return value.replace(/_/g, " ");
+}
+
 const SORT_OPTIONS: readonly { readonly value: LibrarySort; readonly label: string }[] = [
   { value: "performance", label: "Performance Score (measured)" },
   { value: "fit", label: "Fit Score (predicted)" },
@@ -29,11 +39,11 @@ const SORT_OPTIONS: readonly { readonly value: LibrarySort; readonly label: stri
 
 function filterFormHtml(options: LibraryFilterOptions, activeFilter: LibraryFilter, activeSort: LibrarySort): string {
   const hookTypeOptions = optionsHtml(
-    options.hookTypes.map((h) => ({ value: h, label: h })),
+    options.hookTypes.map((h) => ({ value: h, label: humanizeLabel(h) })),
     activeFilter.hookType,
   );
   const themeOptions = optionsHtml(
-    options.themes.map((t) => ({ value: t, label: t })),
+    options.themes.map((t) => ({ value: t, label: humanizeLabel(t) })),
     activeFilter.theme,
   );
   const recipeOptions = optionsHtml(
@@ -45,7 +55,7 @@ function filterFormHtml(options: LibraryFilterOptions, activeFilter: LibraryFilt
     activeFilter.format,
   );
   const statusOptions = optionsHtml(
-    options.statuses.map((s) => ({ value: s, label: s.replace(/_/g, " ") })),
+    options.statuses.map((s) => ({ value: s, label: humanizeLabel(s) })),
     activeFilter.status,
   );
   const sortOptions = SORT_OPTIONS.map(
@@ -68,9 +78,9 @@ function rowHtml(row: LibraryAssetRow): string {
     ? "—"
     : row.posts.map((p) => `<a href="${escapeHtml(p.postUrl)}" target="_blank" rel="noopener">${escapeHtml(p.channelPlatform)}</a>`).join(", ");
   return `<tr>
-    <td><a href="/assets/${encodeURIComponent(row.assetId)}" target="_blank" rel="noopener">${escapeHtml(row.ideaTitle)}</a></td>
-    <td><span class="badge">${escapeHtml(row.hookType)}</span></td>
-    <td><span class="badge">${escapeHtml(row.theme)}</span></td>
+    <td><a class="idea-title-link" href="/assets/${encodeURIComponent(row.assetId)}" target="_blank" rel="noopener" title="${escapeHtml(row.ideaTitle)}">${escapeHtml(row.ideaTitle)}</a></td>
+    <td><span class="badge">${escapeHtml(humanizeLabel(row.hookType))}</span></td>
+    <td><span class="badge">${escapeHtml(humanizeLabel(row.theme))}</span></td>
     <td>${escapeHtml(row.recipeName)}</td>
     <td>${escapeHtml(row.formatName)}</td>
     <td>${escapeHtml(row.brandName)}</td>
@@ -108,15 +118,18 @@ export function renderLibraryBody(
 
   const body = rows.map(rowHtml).join("\n");
   return `${form}${scopeNote}${countLine}
+<div class="table-scroll">
 <table>
+  <caption>Assets matching the current filter</caption>
   <thead>
     <tr>
-      <th>Idea</th><th>Hook type</th><th>Theme</th><th>Recipe</th><th>Format</th><th>Brand</th>
-      <th>Status</th><th>Fit Score (predicted)</th><th>Performance Score (measured)</th><th>Produced</th><th>Post(s)</th>
+      <th scope="col">Idea</th><th scope="col">Hook type</th><th scope="col">Theme</th><th scope="col">Recipe</th><th scope="col">Format</th><th scope="col">Brand</th>
+      <th scope="col">Status</th><th scope="col">Fit Score (predicted)</th><th scope="col">Performance Score (measured)</th><th scope="col">Produced</th><th scope="col">Post(s)</th>
     </tr>
   </thead>
   <tbody>
 ${body}
   </tbody>
-</table>`;
+</table>
+</div>`;
 }

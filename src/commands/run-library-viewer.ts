@@ -1,16 +1,21 @@
 /**
- * `/run-library-viewer` — the local read-only Library's CLI entry (issue #210, epic #195's destination:
- * "the screen that does not exist today").
+ * `/run-library-viewer` — the local Library's CLI entry (issue #210, epic #195's destination: "the
+ * screen that does not exist today"). Starts TWO servers, per the same command:
  *
- * A thin orchestration shell: opens the local SQLite database `{ readOnly: true }`
- * (`src/db/connection.ts`) — never creates or migrates it, since a read-only caller has nothing
- * legitimate to write — and hands the open connection to `createLibraryServer`
- * (`src/library/server.ts`). All the actual logic (querying, filtering, sorting, rendering) lives
- * there; this file's only job is argument parsing, a clear startup error when the database is not
- * ready yet, and a clean shutdown on Ctrl-C.
+ *   - The read-only viewer (`../library/server.ts`, unchanged, unweakened): opens the local SQLite
+ *     database `{ readOnly: true }` (`src/db/connection.ts`) — never creates or migrates it — and hands
+ *     the open connection to `createLibraryServer`.
+ *   - The admin module (`../library/admin/server.ts`) — the ONE deliberate, Operator-authorized
+ *     exception to the read-only rule, on its OWN port, its OWN listener, so the read-only server's own
+ *     tested guarantee is never touched by this file wiring the admin server up alongside it. See that
+ *     module's own doc comment for the full rationale.
  *
- * Usage: `npm run library -- [--db <path>] [--port <n>]`. Defaults match the importer/backfill CLIs'
- * own convention (`src/importer/cli.ts`, `src/commands/backfill-hook-theme.ts`): `data/organicgrowth.db`.
+ * This file's only job is argument parsing, a clear startup error when the database is not ready yet,
+ * and a clean shutdown of BOTH servers on Ctrl-C.
+ *
+ * Usage: `npm run library -- [--db <path>] [--port <n>] [--admin-port <n>]`. Defaults match the
+ * importer/backfill CLIs' own convention (`src/importer/cli.ts`, `src/commands/backfill-hook-theme.ts`):
+ * `data/organicgrowth.db`.
  */
 
 import { fileURLToPath } from "node:url";
@@ -22,9 +27,11 @@ import type { DatabaseSync } from "node:sqlite";
 
 import { openDatabase } from "../db/connection.ts";
 import { createLibraryServer } from "../library/server.ts";
+import { createLibraryAdminServer } from "../library/admin/server.ts";
 
 const DEFAULT_DB_PATH = "data/organicgrowth.db";
 const DEFAULT_PORT = 4173;
+const DEFAULT_ADMIN_PORT = 4174;
 
 /** Loopback-only, always. This is a LOCAL HTML viewer, never a web app (epic #195's own architecture
  *  decision #3) — the Operator's brand Copy, Production Specs, Post URLs and media must never be
@@ -37,12 +44,14 @@ function findFlag(args: readonly string[], flag: string): string | undefined {
   return i === -1 || i === args.length - 1 ? undefined : args[i + 1];
 }
 
-/** A read-only-opened database, and the server built against it — not yet `listen()`-ing. */
+/** A read-only-opened database, and both servers built against it — neither yet `listen()`-ing. */
 export interface PreparedLibraryViewer {
   readonly db: DatabaseSync;
   readonly server: Server;
+  readonly adminServer: Server;
   readonly dbPath: string;
   readonly port: number;
+  readonly adminPort: number;
 }
 
 /**
@@ -62,6 +71,10 @@ export async function prepareLibraryViewer(args: readonly string[]): Promise<Pre
   // default.
   const port = Number.isFinite(parsedPort) && parsedPort >= 0 ? parsedPort : DEFAULT_PORT;
 
+  const adminPortFlag = findFlag(args, "--admin-port");
+  const parsedAdminPort = adminPortFlag !== undefined ? Number(adminPortFlag) : DEFAULT_ADMIN_PORT;
+  const adminPort = Number.isFinite(parsedAdminPort) && parsedAdminPort >= 0 ? parsedAdminPort : DEFAULT_ADMIN_PORT;
+
   let db: DatabaseSync;
   try {
     db = await openDatabase(dbPath, { readOnly: true });
@@ -80,7 +93,8 @@ export async function prepareLibraryViewer(args: readonly string[]): Promise<Pre
   }
 
   const server = createLibraryServer(db);
-  return { db, server, dbPath, port };
+  const adminServer = createLibraryAdminServer(db, { readOnlyBaseUrl: `http://localhost:${port}` });
+  return { db, server, adminServer, dbPath, port, adminPort };
 }
 
 /** Runs the viewer: prepares it, starts listening on {@link LOOPBACK_HOST} ONLY, prints the URL, and
@@ -93,18 +107,26 @@ export async function prepareLibraryViewer(args: readonly string[]): Promise<Pre
  *  ignores the return value and relies on the SIGINT/SIGTERM handler for shutdown instead. */
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<PreparedLibraryViewer> {
   const prepared = await prepareLibraryViewer(argv);
-  const { db, server, dbPath, port } = prepared;
+  const { db, server, adminServer, dbPath, adminPort } = prepared;
 
-  await new Promise<void>((res) => server.listen(port, LOOPBACK_HOST, res));
+  await new Promise<void>((res) => server.listen(prepared.port, LOOPBACK_HOST, res));
   const address = server.address() as AddressInfo;
   process.stdout.write(
     `OrganicGrowth Library (read-only) — serving "${dbPath}" at http://localhost:${address.port} — Ctrl-C to stop.\n`,
   );
 
+  await new Promise<void>((res) => adminServer.listen(adminPort, LOOPBACK_HOST, res));
+  const adminAddress = adminServer.address() as AddressInfo;
+  process.stdout.write(
+    `OrganicGrowth Library admin (writes, git-committed) — at http://localhost:${adminAddress.port}\n`,
+  );
+
   const shutdown = (): void => {
     server.close(() => {
-      db.close();
-      process.exit(0);
+      adminServer.close(() => {
+        db.close();
+        process.exit(0);
+      });
     });
   };
   process.on("SIGINT", shutdown);
