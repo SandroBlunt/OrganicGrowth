@@ -19,6 +19,7 @@ export function matchesLibraryFilter(row: LibraryAssetRow, filter: LibraryFilter
   if (filter.theme !== undefined && row.theme !== filter.theme) return false;
   if (filter.recipe !== undefined && row.recipeSlug !== filter.recipe) return false;
   if (filter.format !== undefined && row.formatSlug !== filter.format) return false;
+  if (filter.brand !== undefined && row.brandSlug !== filter.brand) return false;
   if (filter.status !== undefined && row.status !== filter.status) return false;
   return true;
 }
@@ -37,14 +38,17 @@ export function deriveFilterOptions(rows: readonly LibraryAssetRow[]): LibraryFi
 
   const recipeMap = new Map<string, string>();
   const formatMap = new Map<string, string>();
+  const brandMap = new Map<string, string>();
   for (const row of rows) {
     recipeMap.set(row.recipeSlug, row.recipeName);
     formatMap.set(row.formatSlug, row.formatName);
+    brandMap.set(row.brandSlug, row.brandName);
   }
   const recipes = [...recipeMap.entries()].map(([slug, name]) => ({ slug, name })).sort((a, b) => a.slug.localeCompare(b.slug));
   const formats = [...formatMap.entries()].map(([slug, name]) => ({ slug, name })).sort((a, b) => a.slug.localeCompare(b.slug));
+  const brands = [...brandMap.entries()].map(([slug, name]) => ({ slug, name })).sort((a, b) => a.slug.localeCompare(b.slug));
 
-  return { hookTypes, themes, recipes, formats, statuses };
+  return { hookTypes, themes, recipes, formats, brands, statuses };
 }
 
 /** A stable, deterministic secondary tie-break so two rows sharing a primary sort value (all the way

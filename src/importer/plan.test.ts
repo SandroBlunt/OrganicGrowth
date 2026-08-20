@@ -695,7 +695,12 @@ describe("planImport — structural smoke test against the REAL mundotip and str
         }
       }
     }
-    assert.equal(totalIdeas, 61, "51 straw-motion + 10 mundotip Ideas");
+    // These counts track the REAL, live corpus (data/brands/**), not a frozen fixture — every real Run
+    // that suggests new Ideas moves this number. This is a KNOWN, expected fragility (not a design
+    // mistake to "fix" by freezing the corpus): re-run `npm run import-data -- --rebuild` then
+    // `npm run backfill-hook-theme`, read the reconciliation report's own printed counts, and bump these
+    // numbers to match. Last bumped 2026-08-19 after the "Unhypped Daily" 2026-W34 batch (+12 Ideas).
+    assert.equal(totalIdeas, 73, "63 straw-motion + 10 mundotip Ideas");
     assert.equal(totalAssets, 54, "54 Assets across both Brands");
     assert.equal(plan.jobs.length, 66, "66 queue jobs");
     assert.equal(plan.duplicateJobKeys.length, 12, "the 12 duplicate job identity keys, reported not resolved");

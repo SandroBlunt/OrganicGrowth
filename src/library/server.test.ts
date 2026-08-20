@@ -64,6 +64,22 @@ describe("createLibraryServer — GET routes", () => {
     });
   });
 
+  it("GET / with no sort param defaults to most-recently-produced-first (not performance)", async () => {
+    await withServer(async (baseUrl, db) => {
+      const world = seedWorld(db, { brandSlug: "default-sort-brand" });
+      const olderIdeaId = seedLibraryIdea(world, { title: "Older produced idea" });
+      await seedLibraryAsset(world, olderIdeaId, "news-carousel", { status: "produced", producedAt: "2026-08-01T00:00:00.000Z" });
+      const newerIdeaId = seedLibraryIdea(world, { title: "Newer produced idea" });
+      await seedLibraryAsset(world, newerIdeaId, "news-carousel", { status: "produced", producedAt: "2026-08-15T00:00:00.000Z" });
+
+      const body = await (await fetch(`${baseUrl}/`)).text();
+      const olderIndex = body.indexOf("Older produced idea");
+      const newerIndex = body.indexOf("Newer produced idea");
+      assert.ok(olderIndex !== -1 && newerIndex !== -1, "both seeded ideas must render");
+      assert.ok(newerIndex < olderIndex, "the more recently produced Asset must render first by default");
+    });
+  });
+
   it("GET /?hookType=irony narrows to matching rows; a non-matching filter returns zero", async () => {
     await withServer(async (baseUrl) => {
       const matching = await (await fetch(`${baseUrl}/?hookType=irony`)).text();
@@ -82,6 +98,27 @@ describe("createLibraryServer — GET routes", () => {
 
       const nonMatching = await (await fetch(`${baseUrl}/?status=posted`)).text();
       assert.doesNotMatch(nonMatching, /Server test idea/);
+      assert.match(nonMatching, /No Assets match this filter/);
+    });
+  });
+
+  it("GET /?brand=<slug> narrows to that Brand's rows only; a non-matching brand returns zero", async () => {
+    await withServer(async (baseUrl, db) => {
+      const otherWorld = seedWorld(db, { brandSlug: "other-brand" });
+      const otherIdeaId = seedLibraryIdea(otherWorld, { title: "Other brand idea" });
+      await seedLibraryAsset(otherWorld, otherIdeaId, "news-carousel", { status: "produced" });
+
+      const bothBody = await (await fetch(`${baseUrl}/`)).text();
+      assert.match(bothBody, /Server test idea/);
+      assert.match(bothBody, /Other brand idea/);
+
+      const matching = await (await fetch(`${baseUrl}/?brand=other-brand`)).text();
+      assert.match(matching, /Other brand idea/);
+      assert.doesNotMatch(matching, /Server test idea/);
+
+      const nonMatching = await (await fetch(`${baseUrl}/?brand=does-not-exist`)).text();
+      assert.doesNotMatch(nonMatching, /Server test idea/);
+      assert.doesNotMatch(nonMatching, /Other brand idea/);
       assert.match(nonMatching, /No Assets match this filter/);
     });
   });
@@ -114,6 +151,12 @@ describe("createLibraryServer — GET routes", () => {
       const detailHtml = await detailRes.text();
       assert.match(detailHtml, /Server test idea/);
       assert.match(detailHtml, /facebook\.com\/p\/server-test/);
+      // Task 2 (audit 2026-08-18): the Idea title is `page()`'s own <h1> — it must not be repeated as a
+      // second, identical heading (the retired <h2>) on the same page. (The <title> tag also legitimately
+      // carries the title, for the browser tab — that is not the duplication this task removes.)
+      assert.match(detailHtml, /<h1>Server test idea<\/h1>/);
+      assert.doesNotMatch(detailHtml, /<h2>Server test idea<\/h2>/);
+      assert.equal((detailHtml.match(/<h[12][^>]*>Server test idea<\/h[12]>/g) ?? []).length, 1, "the Idea title must appear as exactly one heading");
     });
   });
 
@@ -180,6 +223,21 @@ describe("createLibraryServer — GET routes", () => {
       assert.equal(res.status, 404);
     });
   });
+});
+
+describe("createLibraryServer — nav marks the current page (Task 7, audit 2026-08-18)", () => {
+  const NAV_ROUTES = ["/", "/queue", "/chart", "/top"] as const;
+
+  for (const route of NAV_ROUTES) {
+    it(`GET ${route} marks the ${route} nav link active, and no other nav link`, async () => {
+      await withServer(async (baseUrl) => {
+        const body = await (await fetch(`${baseUrl}${route}`)).text();
+        const escapedHref = route.replace(/\//g, "\\/");
+        assert.match(body, new RegExp(`<a href="${escapedHref}" class="active" aria-current="page">`));
+        assert.equal((body.match(/aria-current="page"/g) ?? []).length, 1, "exactly one nav link must be marked active");
+      });
+    });
+  }
 });
 
 describe("createLibraryServer — AC10: no write path at all, for ANY path", () => {

@@ -7,19 +7,24 @@
  * `executeImport` (writes an already-validated plan through the command surface), and
  * `buildReconciliation`/`formatReconciliationMarkdown` (the per-entity counts-in-vs-counts-out report).
  *
- * **Refuses to run against a non-empty database.** No file this importer reads carries `updated_at`, a
- * version, or an etag, so the import cannot be incremental or resumable — it is one shot (this ticket's
- * own brief). Rather than let a second run against an already-populated database fail confusingly on a
- * `UNIQUE` constraint partway through, this shell checks first and refuses with a clear, actionable
- * message: start over with a fresh database file.
+ * **Refuses to run against a non-empty database — unless `--rebuild` is passed.** No file this importer
+ * reads carries `updated_at`, a version, or an etag, so a real INCREMENTAL/resumable import (only the
+ * records that changed) still isn't possible — that gap is unchanged. Rather than let a second run
+ * against an already-populated database fail confusingly on a `UNIQUE` constraint partway through, this
+ * shell checks first and refuses with a clear, actionable message BY DEFAULT. `--rebuild` is the cheap
+ * escape hatch for the common real need behind that refusal — "the database has gone stale, the files
+ * have moved on" — it renames the existing database file out of the way (never deletes it) and then
+ * runs the exact same from-empty import this file already runs and already tests, so the database
+ * simply catches back up to whatever the files (still the actual source of truth, rule 7) say today.
  *
+
  * Used identically for a rehearsal (point `--checkout-root`/`--db` at a scratch copy) and for the real
  * run (point them at the real checkout and the real database) — the ONLY difference is which paths are
  * given, never a special "dry run" code path, which is the whole point: a rehearsal proves the exact
  * command the real run will use.
  */
 
-import { writeFile } from "node:fs/promises";
+import { writeFile, rename, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
@@ -58,11 +63,16 @@ interface ParsedArgs {
   readonly legacyAbsolutePrefix: string;
   readonly dbPath: string;
   readonly reconciliationOut?: string;
+  readonly rebuild: boolean;
 }
 
 function findFlag(args: readonly string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
   return i === -1 || i === args.length - 1 ? undefined : args[i + 1];
+}
+
+function hasFlag(args: readonly string[], flag: string): boolean {
+  return args.includes(flag);
 }
 
 function parseArgs(args: readonly string[]): ParsedArgs {
@@ -71,11 +81,13 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   const legacyAbsolutePrefix = findFlag(args, "--legacy-prefix") ?? DEFAULT_LEGACY_ABSOLUTE_PREFIX;
   const dbPath = findFlag(args, "--db") ?? DEFAULT_DB_PATH;
   const reconciliationOut = findFlag(args, "--reconciliation-out");
+  const rebuild = hasFlag(args, "--rebuild");
   return {
     brandSlugs: brandsArg !== undefined ? brandsArg.split(",").map((s) => s.trim()).filter((s) => s.length > 0) : DEFAULT_BRAND_SLUGS,
     checkoutRoot,
     legacyAbsolutePrefix,
     dbPath,
+    rebuild,
     ...(reconciliationOut !== undefined ? { reconciliationOut } : {}),
   };
 }
@@ -83,6 +95,24 @@ function parseArgs(args: readonly string[]): ParsedArgs {
 // ---------------------------------------------------------------------------
 // importCommand
 // ---------------------------------------------------------------------------
+
+/**
+ * `--rebuild` support: renames an existing database file out of the way (never deletes it) before a
+ * fresh import runs against a clean path — a cheap, on-demand resync, not a new import mode. The files
+ * (`ledger.json`, briefs, `queue.json`) stay the pipeline's actual source of truth (rule 7); this just
+ * lets the database catch up to them again on request, reusing the exact same tested plan/execute/
+ * reconcile path a from-empty import already takes — the only new step is getting the OLD file out of
+ * the way first. A no-op (nothing to rename) when no file exists yet at `dbPath`.
+ */
+async function backUpExistingDatabase(dbPath: string, now: () => string): Promise<void> {
+  try {
+    await stat(dbPath);
+  } catch {
+    return; // nothing to back up — dbPath doesn't exist yet
+  }
+  const stamp = now().replace(/[:.]/g, "-");
+  await rename(dbPath, `${dbPath}.bak-${stamp}`);
+}
 
 function formatProblems(problems: readonly string[]): string {
   return [`REFUSED — ${problems.length} problem(s) found. Nothing was written.`, "", ...problems.map((p) => `- ${p}`)].join("\n") + "\n";
@@ -97,6 +127,10 @@ export async function importCommand(args: readonly string[], options: ImportCliO
   const parsed = parseArgs(args);
   const now = options.now ?? (() => new Date().toISOString());
 
+  if (parsed.rebuild) {
+    await backUpExistingDatabase(parsed.dbPath, now);
+  }
+
   const db = await openDatabase(parsed.dbPath);
   try {
     runMigrations(db);
@@ -106,7 +140,7 @@ export async function importCommand(args: readonly string[], options: ImportCliO
       throw new Error(
         `Refusing to import into a non-empty database ("${parsed.dbPath}" already has ${existingBrands.length} Brand(s): ` +
           `${existingBrands.map((b) => b.slug).join(", ")}). The import is one-shot, not incremental (issue #204) — ` +
-          `start over with a fresh database file.`,
+          `start over with a fresh database file, or pass --rebuild to back up the existing one and rebuild fresh.`,
       );
     }
 
@@ -142,7 +176,9 @@ export async function importCommand(args: readonly string[], options: ImportCliO
 /**
  * CLI entry: print the reconciliation (or the refusal report) and set a non-zero exit code on refusal.
  * Usage: `npm run import-data -- [--brands a,b] [--checkout-root <path>] [--legacy-prefix <path>]
- * [--db <path>] [--reconciliation-out <path>]`.
+ * [--db <path>] [--reconciliation-out <path>] [--rebuild]`. `--rebuild` backs up an existing database
+ * file (rename, never delete) and imports fresh — the resync path for "the Library/admin tools are
+ * reading a database that's fallen behind the files."
  */
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);

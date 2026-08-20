@@ -65,4 +65,35 @@ describe("renderChartBody — Fit Score (predicted) vs Performance Score (measur
     assert.match(html, /Nothing plottable yet/);
     assert.match(html, /Awaiting a Performance Score \(2\)/);
   });
+
+  it("gives the awaiting-a-score table a <caption> and scope=\"col\" on every header cell (Task 12, audit 2026-08-18)", () => {
+    const data: FitPerformanceData = {
+      points: [{ ideaId: "i1", ideaTitle: "A", fitScore: 0.8 }],
+    };
+    const html = renderChartBody(data);
+    assert.match(html, /<table>\s*<caption>[^<]+<\/caption>/);
+    const thCount = (html.match(/<th[ >]/g) ?? []).length;
+    const scopedThCount = (html.match(/<th scope="col">/g) ?? []).length;
+    assert.ok(thCount > 0, "expected at least one <th>");
+    assert.equal(scopedThCount, thCount, "every <th> must carry scope=\"col\"");
+  });
+
+  it("still renders the chart frame (axes + diagonal + labels) with zero scored points, instead of omitting the SVG entirely (audit Task 11)", () => {
+    const data: FitPerformanceData = {
+      points: [
+        { ideaId: "i1", ideaTitle: "A", fitScore: 0.8 },
+        { ideaId: "i2", ideaTitle: "B", fitScore: 0.4 },
+      ],
+    };
+    const html = renderChartBody(data);
+    // A real chart, plotting zero circles — not "nothing rendered here."
+    assert.match(html, /<svg/);
+    assert.equal((html.match(/<circle/g) ?? []).length, 0);
+    // Both axis lines (x and y).
+    assert.equal((html.match(/<line/g) ?? []).length, 3, "two axis lines plus the dashed diagonal");
+    assert.match(html, /stroke-dasharray="4 4"/);
+    // Both axis labels, still present with nothing plotted.
+    assert.match(html, /Fit Score \(predicted\) &rarr;/);
+    assert.match(html, /Performance Score \(measured\) &rarr;/);
+  });
 });

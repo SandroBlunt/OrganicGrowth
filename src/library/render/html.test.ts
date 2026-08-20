@@ -73,4 +73,54 @@ describe("page — the shared page shell", () => {
     assert.match(html, /\/vendor\/@material\/web\/button\/filled-button\.js/);
     assert.match(html, /\/vendor\/@material\/web\/button\/text-button\.js/);
   });
+
+  it("ships a .table-scroll rule so a wide table can scroll on its own, not the whole page (Task 4, audit 2026-08-18)", () => {
+    const html = page("My Title", "");
+    assert.match(html, /\.table-scroll\s*\{[^}]*overflow-x:\s*auto/);
+  });
+
+  it("defines a real MD3 color-token palette on :root, that the MD3 buttons pick up automatically (Task 5, audit 2026-08-18)", () => {
+    const html = page("My Title", "");
+    assert.match(html, /:root\s*\{[\s\S]*--md-sys-color-primary:\s*#[0-9a-fA-F]{6}[\s\S]*\}/);
+    assert.match(html, /--md-sys-color-on-primary:\s*#[0-9a-fA-F]{6}/);
+    assert.match(html, /--md-sys-color-secondary-container:\s*#[0-9a-fA-F]{6}/);
+    assert.match(html, /--md-sys-color-error-container:\s*#[0-9a-fA-F]{6}/);
+    assert.match(html, /--md-sys-color-on-error-container:\s*#[0-9a-fA-F]{6}/);
+  });
+
+  it("redefines .badge and .bucket-* to draw from the MD3 color tokens, in proper container/on-container pairs, instead of standalone hex (Task 5, audit 2026-08-18)", () => {
+    const html = page("My Title", "");
+    assert.match(html, /\.badge\s*\{[^}]*var\(--md-sys-color-[^)]+\)[^}]*var\(--md-sys-color-[^)]+\)[^}]*\}/);
+    assert.match(html, /\.bucket-produced\s*\{[^}]*var\(--md-sys-color-tertiary-container\)[^}]*var\(--md-sys-color-on-tertiary-container\)[^}]*\}/);
+    assert.match(html, /\.bucket-failed\s*\{[^}]*var\(--md-sys-color-error-container\)[^}]*var\(--md-sys-color-on-error-container\)[^}]*\}/);
+    assert.doesNotMatch(html, /\.badge\s*\{[^}]*#eee/);
+    assert.doesNotMatch(html, /\.bucket-produced\s*\{[^}]*#d4f4dd/);
+  });
+
+  it("marks the current page's nav link active (aria-current + .active class), leaving the others unmarked (Task 7, audit 2026-08-18)", () => {
+    const html = page("Run & Queue", "", "/queue");
+    assert.match(html, /<a href="\/queue" class="active" aria-current="page">Run &amp; Queue<\/a>/);
+    assert.doesNotMatch(html, /<a href="\/"[^>]*class="active"/);
+    assert.doesNotMatch(html, /<a href="\/chart"[^>]*aria-current/);
+    assert.doesNotMatch(html, /<a href="\/top"[^>]*aria-current/);
+    // exactly one nav link marked active
+    assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
+  });
+
+  it("marks no nav link active when activePath is omitted, so every existing two-argument call site keeps compiling unchanged (Task 7, audit 2026-08-18)", () => {
+    const html = page("My Title", "");
+    assert.doesNotMatch(html, /aria-current="page"/);
+    assert.doesNotMatch(html, /class="active"/);
+  });
+
+  it("leaves every nav link unmarked when activePath matches no nav link, e.g. an Asset detail page (Task 7, audit 2026-08-18)", () => {
+    const html = page("Some Asset Title", "", "/assets/abc-123");
+    assert.doesNotMatch(html, /aria-current="page"/);
+    assert.doesNotMatch(html, /class="active"/);
+  });
+
+  it("caps the Idea-title link's width with an ellipsis, so one long title can't force every other column into a sliver (Task 8, audit 2026-08-18)", () => {
+    const html = page("My Title", "");
+    assert.match(html, /\.idea-title-link\s*\{[^}]*max-width:[^}]*overflow:\s*hidden[^}]*text-overflow:\s*ellipsis[^}]*\}/);
+  });
 });

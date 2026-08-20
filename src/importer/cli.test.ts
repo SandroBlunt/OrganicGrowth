@@ -138,4 +138,53 @@ describe("importCommand — plan, execute, reconcile, in one call", () => {
       );
     });
   });
+
+  it("--rebuild backs up the existing database file (never deletes it) and imports fresh", async () => {
+    await withMiniRepo(HAPPY_PATH_FILES, async (checkoutRoot, dbPath) => {
+      const db = await openDatabase(dbPath);
+      runMigrations(db);
+      db.close();
+
+      // First run populates it.
+      await importCommand(["--brands", "acme", "--checkout-root", checkoutRoot, "--legacy-prefix", LEGACY_PREFIX, "--db", dbPath], { now: () => "2026-01-01T00:00:00Z" });
+
+      // A plain second run still refuses (--rebuild is opt-in, never the default).
+      await assert.rejects(
+        importCommand(["--brands", "acme", "--checkout-root", checkoutRoot, "--legacy-prefix", LEGACY_PREFIX, "--db", dbPath]),
+        /non-empty database/,
+      );
+
+      // --rebuild succeeds, importing fresh.
+      const result = await importCommand(
+        ["--brands", "acme", "--checkout-root", checkoutRoot, "--legacy-prefix", LEGACY_PREFIX, "--db", dbPath, "--rebuild"],
+        { now: () => "2026-02-02T00:00:00Z" },
+      );
+      assert.equal(result.ok, true);
+
+      // The OLD database file was renamed (backed up), not deleted -- its data is still fully readable.
+      const backupPath = `${dbPath}.bak-2026-02-02T00-00-00Z`;
+      const backup = await openDatabase(backupPath, { readOnly: true });
+      const backedUpBrands = listBrands(backup);
+      backup.close();
+      assert.equal(backedUpBrands.length, 1);
+      assert.equal(backedUpBrands[0]!.slug, "acme");
+
+      // The NEW database at the original path is a fresh, successful import -- not double-imported/broken.
+      const rebuilt = await openDatabase(dbPath, { readOnly: true });
+      const rebuiltBrands = listBrands(rebuilt);
+      rebuilt.close();
+      assert.equal(rebuiltBrands.length, 1);
+      assert.equal(rebuiltBrands[0]!.slug, "acme");
+    });
+  });
+
+  it("--rebuild is a no-op backup step (not an error) when no database file exists yet", async () => {
+    await withMiniRepo(HAPPY_PATH_FILES, async (checkoutRoot, dbPath) => {
+      const result = await importCommand(
+        ["--brands", "acme", "--checkout-root", checkoutRoot, "--legacy-prefix", LEGACY_PREFIX, "--db", dbPath, "--rebuild"],
+        { now: () => "2026-01-01T00:00:00Z" },
+      );
+      assert.equal(result.ok, true);
+    });
+  });
 });

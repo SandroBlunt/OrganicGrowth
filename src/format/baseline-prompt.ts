@@ -33,13 +33,20 @@
  *
  * Interpreting the document's contents (reproducing its fixed clauses, swapping the bracketed
  * per-shot parts) is explicitly OUT of scope here — that is a Recipe's producer Skill's job
- * (ADR-0018, issue #87). This module only ever finds and reads the raw text.
+ * (ADR-0018, issue #87). This module only ever finds and reads the raw text — plus, for the
+ * Library's admin module, WRITES it: `saveBaselinePrompt`/`deleteBaselinePrompt` below.
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, mkdir, unlink } from "node:fs/promises";
 import { isAbsolute, join, normalize, relative } from "node:path";
 
-import { formatBaselinePromptsRoot, type FormatFile } from "./store.ts";
+import {
+  formatBaselinePromptsRoot,
+  loadFormat,
+  saveFormatBaselinePromptPointer,
+  type FormatFile,
+} from "./store.ts";
+import { writeFileAtomic } from "../fs/safe-io.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -183,4 +190,70 @@ export async function loadBaselinePrompt(
   }
 
   return { found: true, recipe: recipeSlug, pointer, path: resolved.path, content };
+}
+
+// ---------------------------------------------------------------------------
+// saveBaselinePrompt / deleteBaselinePrompt — the write half (Library admin module)
+// ---------------------------------------------------------------------------
+
+const RECIPE_SLUG_FOR_FILENAME = /^[a-z0-9-]{1,64}$/;
+
+function isEnoent(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: string }).code === "ENOENT";
+}
+
+/**
+ * Writes one Recipe's Baseline Prompt document for a Format, at the conventional path
+ * `<recipeSlug>.md` under that Format's own baseline-prompts directory, then declares/updates the
+ * pointer in the Format's own YAML file (`saveFormatBaselinePromptPointer`) so `loadBaselinePrompt`
+ * finds it immediately. Creates the (Format-scoped) baseline-prompts directory if it doesn't exist
+ * yet. Works for both "create" (no prior pointer) and "update" (an existing document) — same
+ * conventional filename either way, so a rename is never needed.
+ */
+export async function saveBaselinePrompt(
+  brand: string,
+  formatSlug: string,
+  recipeSlug: string,
+  content: string,
+  brandsRoot?: string,
+): Promise<{ readonly path: string; readonly pointer: string }> {
+  if (!RECIPE_SLUG_FOR_FILENAME.test(recipeSlug)) {
+    throw new Error(`Invalid Recipe slug "${recipeSlug}": must be 1-64 lowercase letters, digits, or hyphens.`);
+  }
+  const pointer = `${recipeSlug}.md`;
+  const root = formatBaselinePromptsRoot(brand, formatSlug, brandsRoot); // validates Brand/Format slugs too
+  const path = join(root, pointer);
+
+  await mkdir(root, { recursive: true });
+  await writeFileAtomic(path, content);
+  await saveFormatBaselinePromptPointer(brand, formatSlug, recipeSlug, pointer, brandsRoot);
+
+  return { path, pointer };
+}
+
+/**
+ * Removes one Recipe's Baseline Prompt: deletes the document file (if the Format's currently
+ * declared pointer resolves to one on disk — a dangling/malformed pointer is tolerated, not thrown)
+ * and removes the pointer entry from the Format's YAML file. A Recipe with no pointer declared at
+ * all is a no-op on the file side; the pointer removal is idempotent either way.
+ */
+export async function deleteBaselinePrompt(
+  brand: string,
+  formatSlug: string,
+  recipeSlug: string,
+  brandsRoot?: string,
+): Promise<void> {
+  const format = await loadFormat(brand, formatSlug, brandsRoot);
+  const pointer = format.baselinePrompts[recipeSlug];
+  if (pointer !== undefined) {
+    const resolved = resolveBaselinePromptPath(brand, formatSlug, pointer, brandsRoot);
+    if (resolved.ok) {
+      try {
+        await unlink(resolved.path);
+      } catch (err: unknown) {
+        if (!isEnoent(err)) throw err;
+      }
+    }
+  }
+  await saveFormatBaselinePromptPointer(brand, formatSlug, recipeSlug, null, brandsRoot);
 }
