@@ -543,7 +543,7 @@
       "brand": "straw-motion",
       "recipe": "news-carousel",
       "gate": null,
-      "status": "queued",
+      "status": "done",
       "enqueued_at": "2026-08-19T08:45:34.129Z"
     },
     {
@@ -551,7 +551,7 @@
       "brand": "straw-motion",
       "recipe": "news-short-script",
       "gate": null,
-      "status": "queued",
+      "status": "failed",
       "enqueued_at": "2026-08-19T08:45:34.129Z"
     },
     {
@@ -559,7 +559,7 @@
       "brand": "straw-motion",
       "recipe": "news-carousel",
       "gate": null,
-      "status": "queued",
+      "status": "done",
       "enqueued_at": "2026-08-19T08:46:52.982Z"
     },
     {
@@ -567,7 +567,7 @@
       "brand": "straw-motion",
       "recipe": "news-short-script",
       "gate": null,
-      "status": "queued",
+      "status": "failed",
       "enqueued_at": "2026-08-19T08:46:52.982Z"
     },
     {
@@ -575,7 +575,7 @@
       "brand": "straw-motion",
       "recipe": "news-carousel",
       "gate": null,
-      "status": "queued",
+      "status": "done",
       "enqueued_at": "2026-08-19T08:46:57.896Z"
     },
     {
@@ -583,7 +583,7 @@
       "brand": "straw-motion",
       "recipe": "news-short-script",
       "gate": null,
-      "status": "queued",
+      "status": "done",
       "enqueued_at": "2026-08-19T08:46:57.896Z"
     }
   ]

@@ -1,0 +1,51 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "text": "Your donated books are supposed to end up on somebody's shelf. One box had a thirty dollar tracker hidden inside, and it did not go to a shelf.",
+      "source_url": "https://www.apple.com/airtag/",
+      "show_cue": "Hold a real AirTag between finger and thumb at true scale, straight to camera, then cut to a taped cardboard box of used hardback books.",
+      "curiosity_queries": [
+        "AirTag price and size",
+        "how Apple AirTag location tracking works",
+        "hidden tracker in donated goods investigation",
+        "where do donated books actually go"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "Here's the stupidly simple version. An AirTag is a coin that shouts its own location. Reporters slipped one into a shipment of donated rare books and followed it. It reportedly ended inside an Amazon facility that trains AI. Books in, model out.",
+      "source_url": "https://www.404media.co/we-tracked-a-shipment-of-rare-books-it-ended-at-an-amazon-ai-training-facility/",
+      "show_cue": "Screen recording of the original investigation page, scrolling from its headline down to any tracker map or route screenshots it published.",
+      "curiosity_queries": [
+        "tracked shipment rare books Amazon AI training facility",
+        "AirTag journalism investigation method",
+        "Amazon book scanning facility location",
+        "donated books resold to AI training data"
+      ]
+    },
+    {
+      "role": "story",
+      "text": "So why books? Models learn from text, and books are unusually good text. Long, edited, written by people paid to make sense. One follow-up says Amazon is trashing them for training. One tracked box proves a route, not a policy, and Amazon hasn't answered. Watch this one, don't shout about it yet.",
+      "source_url": "https://arstechnica.com/tech-policy/2026/08/hidden-airtag-reveals-amazon-is-trashing-rare-books-to-train-ai/",
+      "show_cue": "Show the follow-up article headline clearly labelled on screen as the follow-up, then cut to an open book face down on a flatbed scanner mid pass.",
+      "curiosity_queries": [
+        "why are books good training data for language models",
+        "book scanning for AI training datasets",
+        "Amazon statement donated books AI training",
+        "copyright and scanned books in AI training"
+      ]
+    },
+    {
+      "role": "cta",
+      "text": "How is AI touching your life right now? Tell us.",
+      "source_url": "https://www.youtube.com/@strawmotion",
+      "show_cue": "Straight to camera, end card with the channel handle on screen.",
+      "curiosity_queries": [
+        "Straw Motion Unhypped Daily channel",
+        "AI news daily short format",
+        "viewer questions about AI in everyday life"
+      ]
+    }
+  ]
+}
